@@ -99,12 +99,36 @@
 
   <!-- Lidarr assemblies from pre-built release -->
   <ItemGroup>
+    <Reference Include="Lidarr">
+      <HintPath>ext\Lidarr\_output\net6.0\Lidarr.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
     <Reference Include="Lidarr.Common">
       <HintPath>ext\Lidarr\_output\net6.0\Lidarr.Common.dll</HintPath>
       <Private>false</Private>
     </Reference>
     <Reference Include="Lidarr.Core">
       <HintPath>ext\Lidarr\_output\net6.0\Lidarr.Core.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="Lidarr.Api.V1">
+      <HintPath>ext\Lidarr\_output\net6.0\Lidarr.Api.V1.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="Lidarr.Http">
+      <HintPath>ext\Lidarr\_output\net6.0\Lidarr.Http.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="Lidarr.Host">
+      <HintPath>ext\Lidarr\_output\net6.0\Lidarr.Host.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="Lidarr.Console">
+      <HintPath>ext\Lidarr\_output\net6.0\Lidarr.Console.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="Lidarr.SignalR">
+      <HintPath>ext\Lidarr\_output\net6.0\Lidarr.SignalR.dll</HintPath>
       <Private>false</Private>
     </Reference>
   </ItemGroup>

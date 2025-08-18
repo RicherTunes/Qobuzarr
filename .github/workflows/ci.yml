@@ -60,9 +60,15 @@ jobs:
             ;;
         esac
         
-        # Copy essential assemblies
+        # Copy ALL Lidarr assemblies needed for compilation and tests
+        cp Lidarr/Lidarr.dll ext/Lidarr/_output/net6.0/
         cp Lidarr/Lidarr.Core.dll ext/Lidarr/_output/net6.0/
         cp Lidarr/Lidarr.Common.dll ext/Lidarr/_output/net6.0/
+        cp Lidarr/Lidarr.Api.V1.dll ext/Lidarr/_output/net6.0/
+        cp Lidarr/Lidarr.Http.dll ext/Lidarr/_output/net6.0/
+        cp Lidarr/Lidarr.Host.dll ext/Lidarr/_output/net6.0/
+        cp Lidarr/Lidarr.Console.dll ext/Lidarr/_output/net6.0/
+        cp Lidarr/Lidarr.SignalR.dll ext/Lidarr/_output/net6.0/
         
         # Verify assemblies exist
         ls -la ext/Lidarr/_output/net6.0/
