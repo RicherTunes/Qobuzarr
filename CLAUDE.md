@@ -454,3 +454,4 @@ The project uses [Central Package Management](https://learn.microsoft.com/en-us/
 **Check Runtime Version**: Your Lidarr logs should show `Version 2.13.2.4686`
 **Check Plugin Version**: Build output should compile against matching `AssemblyVersion>2.13.2.4686`
 **Verify Match**: Runtime version and plugin assembly version must exactly match
+- Use gh or git to validate the build's status or other validation instead of checking the web page.
