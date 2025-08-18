@@ -1,0 +1,17 @@
+# Lidarr Wanted Albums Export
+# Created: 2025-01-05T12:00:00.000Z
+# Total albums: 10
+#
+# Format: search_query | artist | album | type | year
+#======================================================================
+
+"Pink Floyd" "The Dark Side of the Moon" | Pink Floyd | The Dark Side of the Moon | album | 1973
+"Led Zeppelin" "Led Zeppelin IV" | Led Zeppelin | Led Zeppelin IV | album | 1971
+"The Beatles" "Abbey Road" | The Beatles | Abbey Road | album | 1969
+"Queen" "A Night at the Opera" | Queen | A Night at the Opera | album | 1975
+"Fleetwood Mac" "Rumours" | Fleetwood Mac | Rumours | album | 1977
+"AC/DC" "Back in Black" | AC/DC | Back in Black | album | 1980
+"Nirvana" "Nevermind" | Nirvana | Nevermind | album | 1991
+"Michael Jackson" "Thriller" | Michael Jackson | Thriller | album | 1982
+"Radiohead" "OK Computer" | Radiohead | OK Computer | album | 1997
+"The Rolling Stones" "Sticky Fingers" | The Rolling Stones | Sticky Fingers | album | 1971

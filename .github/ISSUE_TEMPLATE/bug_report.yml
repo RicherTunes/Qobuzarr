@@ -1,0 +1,110 @@
+name: Bug Report
+description: Report a bug or issue with Qobuzarr
+title: "[Bug]: "
+labels: ["bug", "triage"]
+
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to report a bug! Please fill out the sections below to help us understand and reproduce the issue.
+
+  - type: checkboxes
+    id: prerequisites
+    attributes:
+      label: Prerequisites
+      description: Please confirm you have completed the following
+      options:
+        - label: I have searched existing issues and this is not a duplicate
+          required: true
+        - label: I have read the [documentation](https://github.com/richertunes/qobuzarr/blob/main/README.md)
+          required: true
+        - label: I am using the latest version of Qobuzarr
+          required: true
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Bug Description
+      description: A clear and concise description of what the bug is
+      placeholder: Describe what happened and what you expected to happen
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Steps to Reproduce
+      description: Step-by-step instructions to reproduce the bug
+      placeholder: |
+        1. Go to '...'
+        2. Click on '...'
+        3. See error
+    validations:
+      required: true
+
+  - type: input
+    id: lidarr-version
+    attributes:
+      label: Lidarr Version
+      description: What version of Lidarr are you using?
+      placeholder: e.g., 10.0.5
+    validations:
+      required: true
+
+  - type: input
+    id: plugin-version
+    attributes:
+      label: Qobuzarr Version
+      description: What version of Qobuzarr are you using?
+      placeholder: e.g., v1.0.0
+    validations:
+      required: true
+
+  - type: dropdown
+    id: operating-system
+    attributes:
+      label: Operating System
+      description: What operating system are you using?
+      options:
+        - Windows
+        - Linux
+        - macOS
+        - Docker
+        - Other
+    validations:
+      required: true
+
+  - type: dropdown
+    id: qobuz-subscription
+    attributes:
+      label: Qobuz Subscription Type
+      description: What type of Qobuz subscription do you have?
+      options:
+        - Studio
+        - Sublime+
+        - Hi-Fi
+        - Other/Unknown
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant Log Output
+      description: |
+        Please copy and paste any relevant log output from Lidarr. 
+        You can find logs in Lidarr under System → Logs.
+        **Please remove any sensitive information like passwords or API keys.**
+      render: shell
+    validations:
+      required: false
+
+  - type: textarea
+    id: additional-context
+    attributes:
+      label: Additional Context
+      description: Add any other context about the problem here (screenshots, configuration, etc.)
+      placeholder: Any additional information that might help us understand the issue
+    validations:
+      required: false

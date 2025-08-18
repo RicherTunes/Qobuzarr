@@ -1,0 +1,234 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net6.0</TargetFramework>
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <AssemblyName>Lidarr.Plugin.Qobuzarr</AssemblyName>
+    <RootNamespace>Lidarr.Plugin.Qobuzarr</RootNamespace>
+    <OutputPath>bin\</OutputPath>
+    
+    <!-- Assembly and build configuration -->
+    <GenerateAssemblyInfo>true</GenerateAssemblyInfo>
+    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+    <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+    
+    <!-- Warning and error handling -->
+    <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
+    <WarningsAsErrors />
+    <!-- Only suppress StyleCop documentation rules and non-critical nullable warnings -->
+    <NoWarn>SA1200;SA1633;CS1591;CS8625;CS8618;CS8604;CS8603;CS8601;CS1998;CS8602;CS8629</NoWarn>
+    
+    <!-- Enable analyzers to catch potential issues -->
+    <RunAnalyzersDuringBuild>true</RunAnalyzersDuringBuild>
+    <RunCodeAnalysis>false</RunCodeAnalysis>
+    
+  </PropertyGroup>
+  
+  <!-- Temporarily exclude incomplete files -->
+  <ItemGroup>
+    <!-- Files restored and functional -->
+  </ItemGroup>
+  
+  <PropertyGroup>
+    <EnableNETAnalyzers>true</EnableNETAnalyzers>
+    
+    <!-- Plugin metadata - version must match Lidarr's AssemblyVersion format -->
+    <AssemblyTitle>Qobuzarr - Lidarr Plugin for Qobuz</AssemblyTitle>
+    <AssemblyDescription>High-quality music indexer and download client for Qobuz streaming service with ML optimization - built upon TrevTV's Lidarr.Plugin.Qobuz foundation</AssemblyDescription>
+    <Company>RicherTunes</Company>
+    <Authors>RicherTunes</Authors>
+    <Copyright>Copyright © 2025 RicherTunes. Built upon TrevTV's Lidarr.Plugin.Qobuz foundation with significant enhancements.</Copyright>
+    <AssemblyVersion>0.0.12.0</AssemblyVersion>
+    <FileVersion>0.0.12.0</FileVersion>
+    <AssemblyInformationalVersion>0.0.12</AssemblyInformationalVersion>
+    
+    <!-- Enable ILRepack for plugin compatibility like working plugins -->
+    <ILRepackEnabled Condition="'$(ILRepackEnabled)' == ''">true</ILRepackEnabled>
+  </PropertyGroup>
+
+  <!-- Source files inclusion -->
+  <ItemGroup>
+    <Compile Include="src\**\*.cs" />
+  </ItemGroup>
+
+  <!-- ML baseline patterns file - copy to output -->
+  <ItemGroup>
+    <Content Include="src\Indexers\ml-baseline-patterns.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <!-- Plugin manifest will be generated from template during build -->
+    <None Include="plugin.json.template" />
+  </ItemGroup>
+  
+  <!-- Generate plugin.json from template with version from csproj -->
+  <Target Name="GeneratePluginJson" BeforeTargets="BeforeBuild">
+    <PropertyGroup>
+      <PluginJsonContent>$([System.IO.File]::ReadAllText('$(MSBuildProjectDirectory)\plugin.json.template'))</PluginJsonContent>
+      <PluginJsonContent>$(PluginJsonContent.Replace('{VERSION}', '$(AssemblyInformationalVersion)'))</PluginJsonContent>
+    </PropertyGroup>
+    <WriteLinesToFile File="$(MSBuildProjectDirectory)\plugin.json" Lines="$(PluginJsonContent)" Overwrite="true" />
+    <Message Text="Generated plugin.json with version $(AssemblyInformationalVersion)" Importance="high" />
+  </Target>
+  
+  <!-- Copy generated plugin.json to output -->
+  <ItemGroup>
+    <Content Include="plugin.json" Condition="Exists('plugin.json')">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup>
+
+  <!-- Package dependencies -->
+  <ItemGroup>
+    <PackageReference Include="Newtonsoft.Json" />
+    <PackageReference Include="TagLibSharp-Lidarr" />
+    <PackageReference Include="Microsoft.ML" />
+    <PackageReference Include="NLog" />
+    <PackageReference Include="FluentValidation" />
+    <PackageReference Include="System.Resources.Extensions" />
+    <PackageReference Include="ILRepack.Lib.MSBuild.Task">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+  </ItemGroup>
+
+  <!-- Lidarr assemblies from pre-built release -->
+  <ItemGroup>
+    <Reference Include="Lidarr.Common">
+      <HintPath>ext\Lidarr\_output\net6.0\Lidarr.Common.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="Lidarr.Core">
+      <HintPath>ext\Lidarr\_output\net6.0\Lidarr.Core.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+  </ItemGroup>
+
+  <!-- File exclusions -->
+  <ItemGroup>
+    <!-- Exclude test projects and files -->
+    <Compile Remove="tests\**" />
+    <EmbeddedResource Remove="tests\**" />
+    <None Remove="tests\**" />
+    
+    <!-- Exclude external Lidarr source (except referenced projects) -->
+    <Compile Remove="ext\**\*.Test\**" />
+    <Compile Remove="ext\**\Test\**" />
+    
+    <!-- Exclude other projects -->
+    <Compile Remove="QobuzCLI\**" />
+    <EmbeddedResource Remove="QobuzCLI\**" />
+    <None Remove="QobuzCLI\**" />
+    
+    <Compile Remove="analyzer\**" />
+    <EmbeddedResource Remove="analyzer\**" />
+    <None Remove="analyzer\**" />
+    
+    <!-- Exclude build artifacts -->
+    <Compile Remove="obj\**" />
+    <Compile Remove="bin\**" />
+    <EmbeddedResource Remove="obj\**" />
+    <EmbeddedResource Remove="bin\**" />
+    <None Remove="obj\**" />
+    <None Remove="bin\**" />
+  </ItemGroup>
+
+  <!-- Assembly merging with ILRepack - skip for plugins as they shouldn't include Lidarr assemblies -->
+  <Target Name="ILRepack" AfterTargets="Build" Condition="'$(Configuration)' == 'PluginRelease' And '$(ILRepackEnabled)' != 'false'">
+    <ItemGroup>
+      <InputAssemblies Include="$(OutputPath)$(AssemblyName).dll" />
+      <!-- Only include plugin-specific dependencies, not Lidarr core assemblies -->
+      <InputAssemblies Include="$(OutputPath)TagLibSharp.dll" Condition="Exists('$(OutputPath)TagLibSharp.dll')" />
+    </ItemGroup>
+    
+    <Message Text="Merging plugin-specific assemblies with ILRepack..." Importance="high" />
+    <ILRepack 
+      Parallel="true"
+      Internalize="true"
+      InputAssemblies="@(InputAssemblies)"
+      OutputFile="$(OutputPath)$(AssemblyName).dll"
+      TargetKind="SameAsPrimaryAssembly"
+      LibraryPath="$(OutputPath)"
+      DebugInfo="true"
+      Union="true" />
+    <Message Text="Assembly merging completed: $(OutputPath)$(AssemblyName).dll" Importance="high" />
+  </Target>
+
+  <!-- Development build target (without ILRepack for faster builds) -->
+  <Target Name="DevBuild">
+    <MSBuild Projects="$(MSBuildProjectFile)" Targets="Build" Properties="SkipILRepack=true" />
+  </Target>
+
+  <!-- Clean up temporary files -->
+  <Target Name="CleanupTempFiles" AfterTargets="ILRepack">
+    <ItemGroup>
+      <TempFiles Include="$(OutputPath)Newtonsoft.Json.dll" />
+      <TempFiles Include="$(OutputPath)TagLibSharp.dll" />
+      <TempFiles Include="$(OutputPath)*.pdb" Exclude="$(OutputPath)$(AssemblyName).pdb" />
+    </ItemGroup>
+    <Delete Files="@(TempFiles)" ContinueOnError="true" />
+  </Target>
+
+  <!-- Plugin deployment configuration -->
+  <PropertyGroup>
+    <!-- Default test deployment path - can be overridden via environment variable or MSBuild property -->
+    <LidarrPluginDeployPath Condition="'$(LidarrPluginDeployPath)' == '' AND '$(LIDARR_PLUGIN_DEPLOY_PATH)' != ''">$(LIDARR_PLUGIN_DEPLOY_PATH)</LidarrPluginDeployPath>
+    <LidarrPluginDeployPath Condition="'$(LidarrPluginDeployPath)' == ''">X:\lidarr-hotio-test2\plugins\RicherTunes\Qobuzarr</LidarrPluginDeployPath>
+    
+    <!-- Enable deployment by default for Debug builds, disable for Release unless explicitly set -->
+    <EnablePluginDeployment Condition="'$(EnablePluginDeployment)' == '' AND '$(Configuration)' == 'Debug'">true</EnablePluginDeployment>
+    <EnablePluginDeployment Condition="'$(EnablePluginDeployment)' == '' AND '$(Configuration)' == 'Release'">false</EnablePluginDeployment>
+  </PropertyGroup>
+
+  <!-- Deploy plugin to test Lidarr instance after successful build -->
+  <Target Name="DeployPlugin" AfterTargets="Build" Condition="'$(EnablePluginDeployment)' == 'true'">
+    <PropertyGroup>
+      <PluginTargetDir>$(LidarrPluginDeployPath)</PluginTargetDir>
+    </PropertyGroup>
+    
+    <!-- Create target directory if it doesn't exist -->
+    <MakeDir Directories="$(PluginTargetDir)" ContinueOnError="true" />
+    
+    <!-- Copy main plugin files (exclude Lidarr assemblies - they're already in the host) -->
+    <ItemGroup>
+      <PluginFiles Include="$(OutputPath)$(AssemblyName).dll" />
+      <PluginFiles Include="$(OutputPath)$(AssemblyName).pdb" />
+      <PluginFiles Include="$(OutputPath)plugin.json" />
+      <PluginFiles Include="$(OutputPath)src\Indexers\ml-baseline-patterns.json" />
+      <!-- Exclude Lidarr assemblies from deployment -->
+      <PluginFiles Remove="$(OutputPath)Lidarr.*.dll" />
+      <PluginFiles Remove="$(OutputPath)Lidarr.*.xml" />
+    </ItemGroup>
+    
+    <Copy SourceFiles="@(PluginFiles)" DestinationFolder="$(PluginTargetDir)" SkipUnchangedFiles="false" ContinueOnError="false" />
+    
+    <!-- Verify deployment worked -->
+    <Message Text="   Copied: %(PluginFiles.Filename)%(PluginFiles.Extension) ($(PluginTargetDir))" Importance="normal" Condition="Exists('$(PluginTargetDir)\%(PluginFiles.Filename)%(PluginFiles.Extension)')" />
+    <Warning Text="   Failed to copy: %(PluginFiles.Filename)%(PluginFiles.Extension)" Condition="!Exists('$(PluginTargetDir)\%(PluginFiles.Filename)%(PluginFiles.Extension)')" />
+    
+    <Message Text="✅ Plugin deployed to: $(PluginTargetDir)" Importance="high" />
+    <Message Text="   - $(AssemblyName).dll" Importance="normal" />
+    <Message Text="   - $(AssemblyName).pdb" Importance="normal" />
+    <Message Text="   - plugin.json" Importance="normal" />
+    <Message Text="   - ml-baseline-patterns.json" Importance="normal" />
+  </Target>
+
+  <!-- Clean target for removing deployed plugin -->
+  <Target Name="CleanDeployedPlugin">
+    <PropertyGroup>
+      <PluginTargetDir>$(LidarrPluginDeployPath)</PluginTargetDir>
+    </PropertyGroup>
+    
+    <ItemGroup>
+      <DeployedFiles Include="$(PluginTargetDir)\$(AssemblyName).dll" />
+      <DeployedFiles Include="$(PluginTargetDir)\$(AssemblyName).pdb" />
+      <DeployedFiles Include="$(PluginTargetDir)\plugin.json" />
+      <DeployedFiles Include="$(PluginTargetDir)\ml-baseline-patterns.json" />
+    </ItemGroup>
+    
+    <Delete Files="@(DeployedFiles)" ContinueOnError="true" />
+    <Message Text="🧹 Removed deployed plugin files from: $(PluginTargetDir)" Importance="high" />
+  </Target>
+
+</Project>

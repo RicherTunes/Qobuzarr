@@ -1,0 +1,107 @@
+{
+  "schema_version": "1.0.0",
+  "format": "qobuz-album-list",
+  "metadata": {
+    "source": "lidarr",
+    "source_version": "2.13.1.4678",
+    "created_at": "2025-07-29T23:47:48.677776Z",
+    "total_albums": 5,
+    "title": "My Wanted Albums Collection",
+    "extra": {
+      "exported_by": "QobuzCLI Lidarr Integration",
+      "filter": "monitored_missing_only"
+    }
+  },
+  "albums": [
+    {
+      "search_query": "Radiohead OK Computer",
+      "artist_name": "Radiohead",
+      "album_title": "OK Computer",
+      "release_year": 1997,
+      "album_type": "album",
+      "track_count": 12,
+      "source_id": "1234",
+      "mbid": "b52e5ce9-1b6d-4e57-8aef-e1b7e48de0f6",
+      "priority": 10,
+      "metadata": {
+        "album_title_clean": "OK Computer",
+        "missing_tracks": 12,
+        "lidarr_id": 1234,
+        "monitored": true,
+        "profile_id": 1,
+        "genres": ["Alternative Rock", "Electronic"]
+      }
+    },
+    {
+      "search_query": "Miles Davis Kind of Blue",
+      "artist_name": "Miles Davis", 
+      "album_title": "Kind of Blue",
+      "release_year": 1959,
+      "album_type": "album",
+      "track_count": 5,
+      "source_id": "5678",
+      "mbid": "f5093c06-23e3-404f-aeaa-40f72885ee3a",
+      "priority": 5,
+      "metadata": {
+        "album_title_clean": "Kind of Blue",
+        "missing_tracks": 5,
+        "lidarr_id": 5678,
+        "monitored": true,
+        "profile_id": 2
+      }
+    },
+    {
+      "search_query": "Daft Punk Random Access Memories",
+      "artist_name": "Daft Punk",
+      "album_title": "Random Access Memories",
+      "release_year": 2013,
+      "album_type": "album", 
+      "track_count": 13,
+      "source_id": "9999",
+      "priority": 0,
+      "metadata": {
+        "album_title_clean": "Random Access Memories",
+        "missing_tracks": 3,
+        "lidarr_id": 9999,
+        "monitored": true,
+        "profile_id": 1,
+        "notes": "Partially downloaded - missing 3 tracks"
+      }
+    },
+    {
+      "search_query": "Taylor Swift 1989 Taylor's Version",
+      "artist_name": "Taylor Swift",
+      "album_title": "1989 (Taylor's Version)",
+      "release_year": 2023,
+      "album_type": "album",
+      "track_count": 21,
+      "priority": 8,
+      "metadata": {
+        "album_title_clean": "1989",
+        "missing_tracks": 21,
+        "remaster": true,
+        "original_year": 1989
+      }
+    },
+    {
+      "search_query": "The Weeknd Blinding Lights",
+      "artist_name": "The Weeknd",
+      "album_title": "Blinding Lights",
+      "release_year": 2019,
+      "album_type": "single",
+      "track_count": 1,
+      "priority": -5,
+      "metadata": {
+        "album_title_clean": "Blinding Lights",
+        "missing_tracks": 1,
+        "chart_position": 1
+      }
+    }
+  ],
+  "config": {
+    "quality": "flac-max",
+    "immediate": false,
+    "max_concurrent": 4,
+    "output_directory": "/music/downloads"
+  }
+}

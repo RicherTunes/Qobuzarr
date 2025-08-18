@@ -1,0 +1,255 @@
+# =============================================================================
+# Qobuzarr Plugin - Comprehensive .gitignore
+# =============================================================================
+
+# Build results and artifacts
+[Dd]ebug/
+[Dd]ebugPublic/
+[Rr]elease/
+[Rr]eleases/
+x64/
+x86/
+[Aa][Rr][Mm]/
+[Aa][Rr][Mm]64/
+bld/
+[Bb]in/
+[Oo]bj/
+[Ll]og/
+build/
+_output/
+_temp/
+
+# Visual Studio cache/options directory
+.vs/
+.vscode/
+
+# User-specific files
+*.rsuser
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+
+# NuGet Packages
+*.nupkg
+*.snupkg
+**/packages/*
+!**/packages/build/
+
+# JetBrains Rider
+.idea/
+
+# Test results and coverage
+[Tt]est[Rr]esult*/
+[Bb]uild[Ll]og.*
+TestResults/
+coverage-report/
+*.cobertura.xml
+
+# Cache and temporary directories
+**/cache/
+**/temp/
+**/tmp/
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# =============================================================================
+# KEEP ext/Lidarr-source/ LOCALLY BUT EXCLUDE FROM GIT
+# =============================================================================
+ext/Lidarr-source/
+ext/Lidarr/
+
+# But keep the README explaining the requirement
+!ext/README.md
+
+# =============================================================================
+# Log files and debug output
+# =============================================================================
+*.log
+*.tmp
+*.bak
+nul
+build_output.txt
+build_errors.log
+
+# =============================================================================
+# Development and configuration files
+# =============================================================================
+appsettings.Development.json
+*.Development.json
+
+# Environment files with sensitive data
+.env
+*.env
+.env.*
+!.env.example
+!.env.template
+
+# =============================================================================
+# Audio files (copyrighted content - never commit)
+# =============================================================================
+*.flac
+*.mp3
+*.wav
+*.m4a
+*.aac
+*.wma
+*.ogg
+
+# =============================================================================
+# CLI-specific exclusions
+# =============================================================================
+QobuzCLI/Downloads/
+QobuzCLI/test-downloads/
+QobuzCLI/TestDownloads/
+QobuzCLI/metadata-test*/
+QobuzCLI/sample-queries.txt
+QobuzCLI/qobuz-credentials.cache
+QobuzCLI/dashboard_*
+QobuzCLI/*.html
+QobuzCLI/*.png
+QobuzCLI/*.jpg
+QobuzCLI/*.jpeg
+QobuzCLI/**/cover.jpg
+QobuzCLI/**/folder.jpg
+
+# CLI test artifacts
+QobuzCLI/test-*
+QobuzCLI/*test*
+QobuzCLI/*-test.txt
+QobuzCLI/build.log
+QobuzCLI/output.log
+QobuzCLI/fresh-*.txt
+QobuzCLI/simple-*.txt
+QobuzCLI/single-*.txt
+QobuzCLI/dashboard-test.txt
+QobuzCLI/metadata-test.txt
+QobuzCLI/bach-test.txt
+
+# CLI scripts and commands
+QobuzCLI/*.ps1
+QobuzCLI/run_*.bat
+QobuzCLI/*.cmd
+QobuzCLI/take_screenshot.ps1
+QobuzCLI/run-*.ps1
+QobuzCLI/check-*.ps1
+
+# =============================================================================
+# Large data files and exports
+# =============================================================================
+# Note: Avoid blanket *.json exclusion to preserve important config files
+
+# Specifically exclude large data files
+QobuzCLI/all.json
+QobuzCLI/real_albums_data.json
+QobuzCLI/test-export-*.json
+QobuzCLI/lidarr-wanted-albums-*.json
+QobuzCLI/wanted-albums.json
+QobuzCLI/baseline-performance.json
+QobuzCLI/concurrency-test-results.json
+QobuzCLI/test-history.json
+scripts/*.json
+scripts/*.txt
+
+# =============================================================================
+# Test directories and artifacts
+# =============================================================================
+test-*/
+testDownloads*/
+TestDownloads/
+
+# =============================================================================
+# Development documentation (exclude excessive docs, keep core)
+# =============================================================================
+*_PLAN*.md
+DASHBOARD_*.md
+EXECUTION_GUIDE.md
+HANDOFF_PROMPT.md
+IMPLEMENTATION-SUMMARY.md
+LOG_MONITORING_GUIDE.md
+PHASE2_*.md
+QUEUE_MANAGEMENT_*.md
+REAL-API-INTEGRATION-REPORT.md
+RELEASE_NOTES_*.md
+SENIOR_ENGINEER_FEEDBACK.md
+TASKS.md
+TECH_DEBT_*.md
+TREVTV_SIGNATURE_METHOD.md
+COMPILATION_*.md
+TESTING_*.md
+FINAL_STATUS_REPORT.md
+FINAL_REVIEW_*.md
+FINAL_SUBMISSION_*.md
+INTERFACE_COMPATIBILITY_*.md
+COMPREHENSIVE_*.md
+ADVANCED_*.md
+PENDING_*.md
+*_ANALYSIS*.md
+*_REVIEW*.md
+*_SUMMARY*.md
+CLI-DEVELOPMENT-PLAN.md
+TECHNICAL_DEBT_*.md
+PERFORMANCE_REFACTOR_*.md
+WORK_SUMMARY_*.md
+VERSION_COMPATIBILITY_*.md
+ARCHITECTURE_ROADMAP_*.md
+OFFLINE-ML-TRAINING.md
+ALBUM_LIST_STANDARDIZATION.md
+
+# =============================================================================
+# Alternative implementations
+# =============================================================================
+trevtv-qobuz/
+
+# =============================================================================
+# Performance test projects
+# =============================================================================
+PerformanceTest/
+analyzer/
+
+# =============================================================================
+# Development scripts (keep essential build scripts)
+# =============================================================================
+RUN-*.bat
+TEST-*.bat
+COLLECT-*.ps1
+collect-*.ps1
+test-*.ps1
+extract-docker-assemblies.ps1
+verify-setup.ps1
+# Keep these essential scripts:
+# !scripts/release.ps1
+# !scripts/release.sh
+
+# =============================================================================
+# Misc files
+# =============================================================================
+# Note: Avoid blanket *.txt exclusion to preserve important documentation
+
+# Exclude specific temporary/test text files
+QobuzCLI/*-test.txt
+QobuzCLI/build.log
+QobuzCLI/output.log
+QobuzCLI/fresh-*.txt
+QobuzCLI/simple-*.txt
+QobuzCLI/single-*.txt
+QobuzCLI/dashboard-test.txt
+QobuzCLI/metadata-test.txt
+QobuzCLI/bach-test.txt
+scripts/*.txt
+
+# Keep important text files
+!README.txt
+!LICENSE.txt
+nul
+specs/
+submission/
+
+# Claude (keep .claude/ for agent configurations and CLAUDE.md for development guidance)

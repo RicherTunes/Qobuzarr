@@ -1,0 +1,11 @@
+search_query,artist_name,album_title,album_type,release_year,track_count,lidarr_id
+"\"Pink Floyd\" \"The Dark Side of the Moon\"",Pink Floyd,The Dark Side of the Moon,album,1973,10,1001
+"\"Led Zeppelin\" \"Led Zeppelin IV\"",Led Zeppelin,Led Zeppelin IV,album,1971,8,1002
+"\"The Beatles\" \"Abbey Road\"",The Beatles,Abbey Road,album,1969,17,1003
+"\"Queen\" \"A Night at the Opera\"",Queen,A Night at the Opera,album,1975,12,1004
+"\"Fleetwood Mac\" \"Rumours\"",Fleetwood Mac,Rumours,album,1977,11,1005
+"\"AC/DC\" \"Back in Black\"",AC/DC,Back in Black,album,1980,10,1006
+"\"Nirvana\" \"Nevermind\"",Nirvana,Nevermind,album,1991,12,1007
+"\"Michael Jackson\" \"Thriller\"",Michael Jackson,Thriller,album,1982,9,1008
+"\"Radiohead\" \"OK Computer\"",Radiohead,OK Computer,album,1997,12,1009
+"\"The Rolling Stones\" \"Sticky Fingers\"",The Rolling Stones,Sticky Fingers,album,1971,10,1010

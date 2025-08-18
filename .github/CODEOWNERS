@@ -1,0 +1,46 @@
+# Global ownership - these users/teams own everything unless overridden
+* @richertunes
+
+# Core plugin architecture
+/src/ @richertunes
+/plugin.json @richertunes
+/Qobuzarr.csproj @richertunes
+
+# CLI implementation 
+/QobuzCLI/ @richertunes
+
+# Build and CI/CD
+/.github/ @richertunes
+/Directory.Build.props @richertunes
+
+# Documentation
+/README.md @richertunes
+/README_USER.md @richertunes
+/CHANGELOG.md @richertunes
+/docs/ @richertunes
+
+# Security-sensitive files
+/SECURITY.md @richertunes
+/.github/workflows/security-scan.yml @richertunes
+/.github/workflows/dependency-check.yml @richertunes
+/.github/ISSUE_TEMPLATE/security_report.yml @richertunes
+
+# Test infrastructure
+/tests/ @richertunes
+
+# Project configuration and important files
+/LICENSE @richertunes
+/CONTRIBUTING.md @richertunes
+/CREDITS.md @richertunes
+
+# External dependencies and references
+/ext/ @richertunes
+
+# Require additional review for sensitive changes
+/src/Security/ @richertunes
+/src/Authentication/ @richertunes
+/src/API/ @richertunes
+/QobuzCLI/Services/Adapters/ @richertunes
+
+# Configuration that affects all users
+/plugin.json.template @richertunes

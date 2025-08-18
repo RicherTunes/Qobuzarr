@@ -1,0 +1,129 @@
+{
+  "version": "1.0.0",
+  "generatedBy": "Lidarr.Plugin.Qobuzarr v0.0.3",
+  "generatedDate": "2025-01-30T15:45:32Z",
+  
+  "source": {
+    "service": "Qobuz",
+    "region": "US",
+    "accountType": "sublime",
+    "downloadDate": "2025-01-30T15:45:32Z"
+  },
+  
+  "album": {
+    "id": "0060255784359",
+    "title": "The Dark Side of the Moon",
+    "artist": "Pink Floyd",
+    "artistId": "36819",
+    "label": "Pink Floyd Records",
+    "upc": "0060255784359",
+    "catalogNumber": "PFRLP8",
+    "releaseDate": "1973-03-01",
+    "releaseType": "album",
+    "genre": "Progressive Rock",
+    "url": "https://www.qobuz.com/album/0060255784359"
+  },
+  
+  "quality": {
+    "format": "FLAC",
+    "bitDepth": 24,
+    "sampleRate": 192000,
+    "channels": 2,
+    "codec": "flac",
+    "qualityLabel": "Hi-Res 24-bit/192kHz",
+    "isLossless": true,
+    "isDrmFree": true
+  },
+  
+  "tracks": [
+    {
+      "number": 1,
+      "title": "Speak to Me / Breathe",
+      "duration": 238,
+      "id": "60255784359901",
+      "artist": "Pink Floyd",
+      "composer": "Roger Waters, David Gilmour, Richard Wright, Nick Mason",
+      "isrc": "GBN9Y1100083",
+      "file": {
+        "name": "01 - Speak to Me - Breathe.flac",
+        "size": 76453298,
+        "expectedSize": 76453298,
+        "checksum": "md5:a7b2c3d4e5f6789012345678",
+        "downloadedAt": "2025-01-30T15:45:35Z",
+        "downloadDuration": 3.2
+      }
+    },
+    {
+      "number": 2,
+      "title": "On the Run",
+      "duration": 225,
+      "id": "60255784359902",
+      "artist": "Pink Floyd",
+      "composer": "Roger Waters, David Gilmour",
+      "isrc": "GBN9Y1100084",
+      "file": {
+        "name": "02 - On the Run.flac",
+        "size": 72145632,
+        "expectedSize": 72145632,
+        "checksum": "md5:b8c3d4e5f67890123456789",
+        "downloadedAt": "2025-01-30T15:45:38Z",
+        "downloadDuration": 2.9
+      }
+    }
+  ],
+  
+  "technical": {
+    "totalSize": 543897651,
+    "totalDuration": 2598,
+    "averageBitrate": 1674,
+    "encoder": "Qobuz FLAC 1.3.3",
+    "downloadSpeed": "23.4 MB/s",
+    "processingTime": 45.3
+  },
+  
+  "metadata": {
+    "albumArtist": "Pink Floyd",
+    "compilation": false,
+    "discTotal": 1,
+    "trackTotal": 9,
+    "year": 1973,
+    "credits": {
+      "producer": "Pink Floyd",
+      "engineer": "Alan Parsons",
+      "masteredBy": "James Guthrie (2011 Remaster)"
+    },
+    "tags": ["progressive rock", "concept album", "classic rock", "1970s"]
+  },
+  
+  "artwork": {
+    "cover": {
+      "original": "cover_original.jpg",
+      "large": "cover_600x600.jpg",
+      "medium": "cover_300x300.jpg",
+      "small": "cover_150x150.jpg",
+      "size": 485632,
+      "format": "JPEG",
+      "dimensions": "3000x3000"
+    },
+    "booklet": {
+      "available": true,
+      "pageCount": 12,
+      "file": "booklet.pdf",
+      "size": 8453298
+    }
+  },
+  
+  "validation": {
+    "allTracksComplete": true,
+    "integrityChecked": true,
+    "lastVerified": "2025-01-30T15:46:15Z",
+    "issues": []
+  },
+  
+  "userPreferences": {
+    "autoUpgrade": true,
+    "keepLowerQuality": false,
+    "preferredQuality": "highest",
+    "replaceHistory": []
+  }
+}

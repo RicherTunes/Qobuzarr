@@ -1,0 +1,53 @@
+# Dependency Review Configuration for Qobuzarr
+# https://docs.github.com/en/code-security/supply-chain-security/understanding-your-software-supply-chain/configuring-dependency-review
+
+# Security vulnerability thresholds
+fail-on-severity: moderate
+
+# Allowed licenses for dependencies
+allowed-licenses:
+  - MIT
+  - Apache-2.0
+  - BSD-2-Clause
+  - BSD-3-Clause
+  - ISC
+  - GPL-3.0
+  - LGPL-2.1
+  - LGPL-3.0
+  - MS-PL
+  - CC0-1.0
+
+# Denied licenses that should block PRs
+denied-licenses:
+  - GPL-2.0      # Incompatible with commercial use
+  - AGPL-3.0     # Copyleft restrictions
+  - SSPL-1.0     # Server Side Public License
+  - BUSL-1.1     # Business Source License
+  - Commons-Clause # Restrictive commercial terms
+
+# Allow specific packages even if they have vulnerabilities
+# (Use sparingly and only for well-justified cases)
+allowed-vulnerabilities:
+  # Example: Allow specific packages with known but acceptable vulnerabilities
+  # - "package-name:CVE-2021-12345"
+
+# Configuration for different ecosystems
+# NuGet-specific settings
+nuget:
+  # Additional allowed licenses specific to .NET ecosystem
+  allowed-licenses:
+    - MS-PL        # Microsoft Public License
+    - MS-RL        # Microsoft Reciprocal License
+    
+# Fail on new vulnerabilities but allow existing ones
+# This prevents regression while allowing gradual cleanup
+fail-on-scopes:
+  - runtime
+  - development
+
+# Comment configuration
+comment-summary-in-pr: true
+config-file: '.github/dependency-review-config.yml'
+
+# Retry configuration
+retry-on-snapshot-warnings: true

@@ -1,0 +1,169 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
+using Lidarr.Plugin.Qobuzarr.Abstractions;
+using Lidarr.Plugin.Qobuzarr.Models;
+using Lidarr.Plugin.Qobuzarr.Services;
+
+namespace Lidarr.Plugin.Qobuzarr.Core
+{
+    /// <summary>
+    /// Core API service that orchestrates focused services
+    /// </summary>
+    public class QobuzApiService
+    {
+        private readonly QobuzStreamUrlService _streamUrlService;
+        private readonly QobuzSearchService _searchService;
+        private readonly QobuzQualityService _qualityService;
+        private readonly QobuzValidationService _validationService;
+        private readonly IQobuzLogger _logger;
+
+        public QobuzApiService(
+            QobuzStreamUrlService streamUrlService,
+            QobuzSearchService searchService,
+            QobuzQualityService qualityService,
+            QobuzValidationService validationService,
+            IQobuzLogger logger)
+        {
+            _streamUrlService = streamUrlService ?? throw new ArgumentNullException(nameof(streamUrlService));
+            _searchService = searchService ?? throw new ArgumentNullException(nameof(searchService));
+            _qualityService = qualityService ?? throw new ArgumentNullException(nameof(qualityService));
+            _validationService = validationService ?? throw new ArgumentNullException(nameof(validationService));
+            _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+        }
+
+        public async Task<QobuzStreamInfo?> GetStreamUrlAsync(string trackId, int formatId)
+        {
+            return await _streamUrlService.GetStreamInfoAsync(trackId, formatId);
+        }
+
+        public async Task<QobuzAlbum?> GetAlbumAsync(string albumId)
+        {
+            return await _searchService.GetAlbumAsync(albumId);
+        }
+
+        public async Task<List<QobuzTrack>> GetAlbumTracksAsync(string albumId)
+        {
+            return await _searchService.GetAlbumTracksAsync(albumId);
+        }
+
+        public async Task<List<QobuzAlbum>> SearchAlbumsAsync(string query, int limit = 20)
+        {
+            return await _searchService.SearchAlbumsAsync(query, limit);
+        }
+
+        public async Task<List<QobuzTrack>> SearchTracksAsync(string query, int limit = 20)
+        {
+            return await _searchService.SearchTracksAsync(query, limit);
+        }
+
+        public async Task<List<QobuzArtist>> SearchArtistsAsync(string query, int limit = 20)
+        {
+            return await _searchService.SearchArtistsAsync(query, limit);
+        }
+
+        /// <summary>
+        /// Search for playlists on Qobuz
+        /// </summary>
+        public async Task<List<QobuzPlaylist>> SearchPlaylistsAsync(string query, int limit = 20)
+        {
+            return await _searchService.SearchPlaylistsAsync(query, limit);
+        }
+
+        /// <summary>
+        /// Get playlist details by ID
+        /// </summary>
+        public async Task<QobuzPlaylist> GetPlaylistAsync(string playlistId)
+        {
+            return await _searchService.GetPlaylistAsync(playlistId);
+        }
+
+        /// <summary>
+        /// Get all tracks from a playlist
+        /// </summary>
+        public async Task<List<QobuzTrack>> GetPlaylistTracksAsync(string playlistId)
+        {
+            return await _searchService.GetPlaylistTracksAsync(playlistId);
+        }
+
+        /// <summary>
+        /// Search for labels on Qobuz
+        /// </summary>
+        public async Task<List<QobuzLabel>> SearchLabelsAsync(string query, int limit = 20)
+        {
+            return await _searchService.SearchLabelsAsync(query, limit);
+        }
+
+        /// <summary>
+        /// Get label details by ID
+        /// </summary>
+        public async Task<QobuzLabel> GetLabelAsync(string labelId)
+        {
+            return await _searchService.GetLabelAsync(labelId);
+        }
+
+        /// <summary>
+        /// Get all albums from a label
+        /// </summary>
+        public async Task<List<QobuzAlbum>> GetLabelAlbumsAsync(string labelId)
+        {
+            return await _searchService.GetLabelAlbumsAsync(labelId);
+        }
+
+        // Implementation moved to QobuzStreamUrlService
+
+        /// <summary>
+        /// Check which audio qualities are available for a track
+        /// </summary>
+        public async Task<List<int>> GetAvailableQualitiesAsync(string trackId)
+        {
+            return await _qualityService.GetAvailableQualitiesAsync(trackId);
+        }
+
+        /// <summary>
+        /// Get the best available stream URL with automatic quality fallback
+        /// </summary>
+        public async Task<(int selectedQuality, QobuzStreamInfo streamInfo)> GetBestAvailableStreamAsync(string trackId, int preferredQuality)
+        {
+            return await _qualityService.GetBestAvailableStreamAsync(trackId, preferredQuality);
+        }
+
+        // Quality fallback implementation moved to QobuzQualityService
+
+        /// <summary>
+        /// Validate that an album is actually downloadable before queuing
+        /// </summary>
+        public async Task<bool> ValidateAlbumDownloadabilityAsync(string albumId, int preferredQuality = 27)
+        {
+            return await _validationService.ValidateAlbumDownloadabilityAsync(albumId, preferredQuality);
+        }
+
+        /// <summary>
+        /// Batch validate multiple albums efficiently
+        /// </summary>
+        public async Task<Dictionary<string, bool>> BatchValidateAlbumsAsync(List<string> albumIds, int preferredQuality = 27, int maxConcurrency = 3)
+        {
+            return await _validationService.BatchValidateAlbumsAsync(albumIds, preferredQuality, maxConcurrency);
+        }
+
+        /// <summary>
+        /// Clean search query by removing venue and date information
+        /// </summary>
+        public string CleanSearchQuery(string query)
+        {
+            return _searchService.CleanSearchQuery(query);
+        }
+
+        /// <summary>
+        /// Generate multiple search variations with progressive query cleaning
+        /// </summary>
+        public List<string> GenerateSearchVariations(string originalQuery)
+        {
+            return _searchService.GenerateSearchVariations(originalQuery);
+        }
+
+        // Implementation moved to focused services
+    }
+}
