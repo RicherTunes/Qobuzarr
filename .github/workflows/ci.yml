@@ -49,7 +49,7 @@ jobs:
             unzip -q lidarr.zip
             ;;
           "macOS")
-            DOWNLOAD_URL="https://github.com/Lidarr/Lidarr/releases/download/v${{ env.LIDARR_VERSION }}/Lidarr.develop.${{ env.LIDARR_VERSION }}.osx-x64.tar.gz"
+            DOWNLOAD_URL="https://github.com/Lidarr/Lidarr/releases/download/v${{ env.LIDARR_VERSION }}/Lidarr.develop.${{ env.LIDARR_VERSION }}.osx-core-x64.tar.gz"
             curl -L -o lidarr.tar.gz "$DOWNLOAD_URL"
             tar -xzf lidarr.tar.gz
             ;;
