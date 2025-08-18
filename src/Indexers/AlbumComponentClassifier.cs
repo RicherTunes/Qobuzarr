@@ -20,15 +20,27 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
             // Performance/recording context (critical album identity)
             "Instrumental", "Acoustic", "Live", "Unplugged", "Demo", "Sessions",
             "Orchestra", "Symphony", "Quartet", "Ensemble", "Orchestral",
+            "Concert", "Festival", "Tour", "Residency", "Studio",
             
             // Audio format variations (distinct from "remasters")
             "Radio", "Single", "Remix", "Mix", "Extended", "Club", "Dub",
+            "Mono", "Stereo", "Binaural", "Surround", "Quadraphonic", "5.1", "7.1",
             
-            // Language/vocal variations
-            "English", "Spanish", "Japanese", "French", "Karaoke", "Vocal",
+            // Language/vocal variations  
+            "English", "Spanish", "Japanese", "French", "German", "Italian",
+            "Portuguese", "Chinese", "Korean", "Karaoke", "Vocal", "Instrumental",
+            
+            // International live performance terms
+            "Vivo", "Direkt", "Direct", "Concert", "Concierto", "Concerto",
+            "En Vivo", "En Direct", "Ao Vivo", "Im Studio", "Nel Studio",
             
             // Critical modifiers that change the album's identity
-            "Naked", "Raw", "Pure", "Original", "Alternate", "Alternative"
+            "Naked", "Raw", "Pure", "Original", "Alternate", "Alternative",
+            "Complete", "Incomplete", "Unreleased", "Rarities", "B-Sides",
+            
+            // Performance/recording quality descriptors
+            "Hi-Fi", "Lo-Fi", "High-Quality", "Audiophile", "24-Bit",
+            "Analog", "Digital", "Vinyl", "CD", "Studio", "Rehearsal"
         };
         
         /// <summary>
@@ -280,7 +292,13 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
 
         private string CleanToken(string token)
         {
-            // Remove punctuation and extra whitespace
+            // For multi-word descriptors, don't clean - use as-is
+            if (token.Contains(' ') || token.Contains('-'))
+            {
+                return token.Trim();
+            }
+            
+            // Remove punctuation and extra whitespace for single words
             return Regex.Replace(token, @"[^\w\s]", "").Trim();
         }
 
@@ -291,25 +309,58 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
             if (string.IsNullOrWhiteSpace(title))
                 return tokens;
             
+            // First, identify and preserve multi-word version descriptors
+            var preservedPhrases = new Dictionary<string, string>();
+            var multiWordDescriptors = new[]
+            {
+                "En Vivo", "En Direct", "Ao Vivo", "Im Studio", "Nel Studio",
+                "Hi-Fi", "Lo-Fi", "24-Bit", "B-Sides", "High-Quality"
+            };
+            
+            var workingTitle = title;
+            int placeholderIndex = 0;
+            
+            foreach (var phrase in multiWordDescriptors)
+            {
+                if (workingTitle.Contains(phrase, StringComparison.OrdinalIgnoreCase))
+                {
+                    var placeholder = $"__PLACEHOLDER_{placeholderIndex++}__";
+                    preservedPhrases[placeholder] = phrase;
+                    workingTitle = Regex.Replace(workingTitle, Regex.Escape(phrase), placeholder, RegexOptions.IgnoreCase);
+                }
+            }
+            
             // Remove parentheses/brackets but keep their content
-            var cleanedTitle = title;
             var parentheticalPattern = @"[\(\[]([^\)\]]+)[\)\]]";
-            var matches = Regex.Matches(title, parentheticalPattern);
+            var matches = Regex.Matches(workingTitle, parentheticalPattern);
             
             foreach (Match match in matches)
             {
                 var contentInside = match.Groups[1].Value.Trim();
-                cleanedTitle = cleanedTitle.Replace(match.Value, " " + contentInside + " ");
+                workingTitle = workingTitle.Replace(match.Value, " " + contentInside + " ");
             }
             
-            // Split on whitespace, dashes, and underscores
-            var allTokens = Regex.Split(cleanedTitle, @"[\s\-_,]+")
+            // Split on whitespace and commas (but preserve hyphens in meaningful terms)
+            var allTokens = Regex.Split(workingTitle, @"[\s,]+")
                                 .Where(t => !string.IsNullOrWhiteSpace(t))
                                 .Select(t => t.Trim().Trim(new char[] { '.', ',', '!', '?' }))
                                 .Where(t => !string.IsNullOrWhiteSpace(t))
                                 .ToList();
             
-            return allTokens;
+            // Restore preserved phrases
+            for (int i = 0; i < allTokens.Count; i++)
+            {
+                if (preservedPhrases.ContainsKey(allTokens[i]))
+                {
+                    allTokens[i] = preservedPhrases[allTokens[i]];
+                }
+            }
+            
+            // Add the preserved phrases directly
+            tokens.AddRange(preservedPhrases.Values);
+            tokens.AddRange(allTokens.Where(t => !preservedPhrases.ContainsKey(t)));
+            
+            return tokens.Distinct();
         }
     }
 
