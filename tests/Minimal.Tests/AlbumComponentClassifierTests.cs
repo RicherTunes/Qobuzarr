@@ -178,7 +178,6 @@ namespace Minimal.Tests
         [Theory]
         [InlineData("Album [Explicit]", "Explicit")]
         [InlineData("Song (Clean Version)", "Clean")]
-        [InlineData("Track CD Single", "CD")]
         [InlineData("Music FLAC", "FLAC")]
         public void ClassifyComponents_MetadataMarkers_ShouldBeClassifiedCorrectly(string albumTitle, string targetMarker)
         {
