@@ -313,7 +313,9 @@ public class RealLidarrIntegrationService : ILidarrIntegrationService
         private readonly int _totalItems;
         private readonly string _operationType;
         private readonly IProgress<ProgressReport>? _progress;
-        private int _currentItem;
+        private int _completedItems;
+        private string _currentItem = string.Empty;
+        private readonly DateTime _startTime = DateTime.UtcNow;
         
         public BasicProgressTracker(int totalItems, string operationType, IProgress<ProgressReport>? progress)
         {
@@ -322,20 +324,71 @@ public class RealLidarrIntegrationService : ILidarrIntegrationService
             _progress = progress;
         }
         
-        public void Report(int current, string? message = null)
+        // IProgressTracker implementation
+        public int TotalItems => _totalItems;
+        public int CompletedItems => _completedItems;
+        public string CurrentItem => _currentItem;
+        public string OperationType => _operationType;
+        public TimeSpan Elapsed => DateTime.UtcNow - _startTime;
+        public TimeSpan EstimatedRemaining
         {
-            _currentItem = current;
+            get
+            {
+                if (_completedItems == 0) return TimeSpan.Zero;
+                var rate = _completedItems / Elapsed.TotalSeconds;
+                var remaining = _totalItems - _completedItems;
+                return TimeSpan.FromSeconds(remaining / rate);
+            }
+        }
+        public double PercentComplete => _totalItems > 0 ? (_completedItems * 100.0) / _totalItems : 0;
+        
+        public void ReportProgress(string currentItem, string? phase = null)
+        {
+            _currentItem = currentItem;
             _progress?.Report(new ProgressReport
             {
-                Current = current,
+                Completed = _completedItems,
                 Total = _totalItems,
-                Message = message ?? $"{_operationType}: {current}/{_totalItems}"
+                CurrentItem = currentItem ?? "Processing...",
+                Phase = phase ?? _operationType
             });
+        }
+        
+        public void CompleteItem(string? itemDescription = null)
+        {
+            _completedItems++;
+            _progress?.Report(new ProgressReport
+            {
+                Completed = _completedItems,
+                Total = _totalItems,
+                CurrentItem = itemDescription ?? "item",
+                Phase = _operationType
+            });
+        }
+        
+        public void CompleteItems(int count)
+        {
+            _completedItems += count;
+            _progress?.Report(new ProgressReport
+            {
+                Completed = _completedItems,
+                Total = _totalItems,
+                CurrentItem = $"{_completedItems}/{_totalItems}",
+                Phase = _operationType
+            });
+        }
+        
+        // Legacy methods for backward compatibility
+        public void Report(int current, string? message = null)
+        {
+            _completedItems = current;
+            ReportProgress(message ?? "Processing", message);
         }
         
         public void Complete(string? message = null)
         {
-            Report(_totalItems, message ?? $"{_operationType} completed");
+            _completedItems = _totalItems;
+            ReportProgress("Completed", message ?? $"{_operationType} completed");
         }
         
         public void Dispose() { }
@@ -349,6 +402,13 @@ public class RealLidarrIntegrationService : ILidarrIntegrationService
         private readonly int _totalItems;
         private readonly string _operationType;
         private readonly IProgress<DownloadProgressReport>? _progress;
+        private int _completedItems;
+        private string _currentItem = string.Empty;
+        private readonly DateTime _startTime = DateTime.UtcNow;
+        private long _totalBytesDownloaded;
+        private int _successCount;
+        private int _failureCount;
+        private readonly List<double> _speedSamples = new();
         
         public BasicDownloadProgressTracker(int totalItems, string operationType, IProgress<DownloadProgressReport>? progress)
         {
@@ -357,6 +417,105 @@ public class RealLidarrIntegrationService : ILidarrIntegrationService
             _progress = progress;
         }
         
+        // IProgressTracker implementation
+        public int TotalItems => _totalItems;
+        public int CompletedItems => _completedItems;
+        public string CurrentItem => _currentItem;
+        public string OperationType => _operationType;
+        public TimeSpan Elapsed => DateTime.UtcNow - _startTime;
+        public TimeSpan EstimatedRemaining
+        {
+            get
+            {
+                if (_completedItems == 0) return TimeSpan.Zero;
+                var rate = _completedItems / Elapsed.TotalSeconds;
+                var remaining = _totalItems - _completedItems;
+                return TimeSpan.FromSeconds(remaining / rate);
+            }
+        }
+        public double PercentComplete => _totalItems > 0 ? (_completedItems * 100.0) / _totalItems : 0;
+        
+        public void ReportProgress(string currentItem, string? phase = null)
+        {
+            _currentItem = currentItem;
+            _progress?.Report(new DownloadProgressReport
+            {
+                Completed = _completedItems,
+                Total = _totalItems,
+                CurrentItem = currentItem ?? "Processing...",
+                Phase = phase ?? _operationType,
+                BytesDownloaded = _totalBytesDownloaded,
+                CurrentSpeedMBps = CurrentSpeedMBps
+            });
+        }
+        
+        public void CompleteItem(string? itemDescription = null)
+        {
+            _completedItems++;
+            _progress?.Report(new DownloadProgressReport
+            {
+                Completed = _completedItems,
+                Total = _totalItems,
+                CurrentItem = itemDescription ?? "item",
+                Phase = _operationType,
+                BytesDownloaded = _totalBytesDownloaded,
+                CurrentSpeedMBps = CurrentSpeedMBps
+            });
+        }
+        
+        public void CompleteItems(int count)
+        {
+            _completedItems += count;
+            _progress?.Report(new DownloadProgressReport
+            {
+                Completed = _completedItems,
+                Total = _totalItems,
+                CurrentItem = $"{_completedItems}/{_totalItems}",
+                Phase = _operationType,
+                BytesDownloaded = _totalBytesDownloaded,
+                CurrentSpeedMBps = CurrentSpeedMBps
+            });
+        }
+        
+        // IDownloadProgressTracker implementation
+        public long TotalBytesDownloaded => _totalBytesDownloaded;
+        public double CurrentSpeedMBps => _speedSamples.Count > 0 ? _speedSamples.TakeLast(5).Average() : 0.0;
+        public double AverageSpeedMBps => _speedSamples.Count > 0 ? _speedSamples.Average() : 0.0;
+        public int SuccessCount => _successCount;
+        public int FailureCount => _failureCount;
+        
+        public void ReportDownloadProgress(string currentItem, long bytesDownloaded, bool isSuccess)
+        {
+            _currentItem = currentItem;
+            if (isSuccess)
+            {
+                _successCount++;
+                var speedMBps = bytesDownloaded / (1024.0 * 1024.0) / Math.Max(1, Elapsed.TotalSeconds);
+                _speedSamples.Add(speedMBps);
+                if (_speedSamples.Count > 50) _speedSamples.RemoveAt(0); // Keep last 50 samples
+            }
+            else
+            {
+                _failureCount++;
+            }
+            
+            _progress?.Report(new DownloadProgressReport
+            {
+                Completed = _completedItems,
+                Total = _totalItems,
+                CurrentItem = currentItem ?? "Processing...",
+                Phase = _operationType,
+                BytesDownloaded = _totalBytesDownloaded,
+                CurrentSpeedMBps = CurrentSpeedMBps
+            });
+        }
+        
+        public void AddBytesDownloaded(long additionalBytes)
+        {
+            _totalBytesDownloaded += additionalBytes;
+        }
+        
+        // Legacy methods for backward compatibility  
         public void Report(DownloadProgressReport report)
         {
             _progress?.Report(report);

@@ -16,6 +16,7 @@
     <PackageReference Include="FluentAssertions" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" />
     <PackageReference Include="Newtonsoft.Json" />
+    <PackageReference Include="Moq" />
   </ItemGroup>
 
   <ItemGroup>
