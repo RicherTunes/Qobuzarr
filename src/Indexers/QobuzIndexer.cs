@@ -16,14 +16,13 @@ using NzbDrone.Common.Extensions;
 using Lidarr.Plugin.Qobuzarr.Authentication;
 using Lidarr.Plugin.Qobuzarr.API;
 using Lidarr.Plugin.Qobuzarr.Models.Authentication;
-using Lidarr.Plugin.Qobuzarr.Download;
 
 namespace Lidarr.Plugin.Qobuzarr.Indexers
 {
     public class QobuzIndexer : HttpIndexerBase<QobuzIndexerSettings>
     {
         public override string Name => "Qobuzarr";
-        public override string Protocol => nameof(QobuzDownloadProtocol);
+        public override DownloadProtocol Protocol => DownloadProtocol.Usenet;
         public override bool SupportsRss => false;
         public override bool SupportsSearch => true;
         public override int PageSize => 100;
