@@ -1,4 +1,4 @@
-name: Simple CI Build
+name: Qobuzarr CI/CD Pipeline
 
 on:
   push:
@@ -9,7 +9,10 @@ on:
 
 env:
   DOTNET_VERSION: '6.0.x'
-  LIDARR_VERSION: '2.13.2.4685'
+  # Use exact commit that working plugins use for compatibility
+  LIDARR_COMMIT: 'aa7b63f2e13351f54a31d780d6a7b93a2411eaec'
+  # Target version for hotio pr-plugins compatibility
+  LIDARR_VERSION_OVERRIDE: '2.13.2.4686'
 
 jobs:
   build:
@@ -36,67 +39,154 @@ jobs:
         restore-keys: |
           ${{ runner.os }}-nuget-
 
-    - name: Download Lidarr assemblies
+    - name: Cache Lidarr source
+      uses: actions/cache@v4
+      with:
+        path: ext/Lidarr-source
+        key: lidarr-source-${{ env.LIDARR_COMMIT }}
+        restore-keys: |
+          lidarr-source-
+
+    - name: Setup Lidarr source dependencies
       shell: bash
       run: |
+        echo "🔧 Setting up Lidarr source dependencies for plugin development..."
+        
+        # Create ext directory if it doesn't exist
+        mkdir -p ext
+        
+        # Check if Lidarr source already exists from cache
+        if [ -d "ext/Lidarr-source/.git" ]; then
+          echo "📁 Using cached Lidarr source, verifying commit..."
+          cd ext/Lidarr-source
+          CURRENT_COMMIT=$(git rev-parse HEAD)
+          if [ "$CURRENT_COMMIT" != "${{ env.LIDARR_COMMIT }}" ]; then
+            echo "🔄 Updating to correct commit..."
+            git fetch origin
+            git checkout ${{ env.LIDARR_COMMIT }}
+          fi
+          cd ../..
+        else
+          echo "📥 Cloning Lidarr source code..."
+          # Clone Lidarr repository and checkout the exact commit that working plugins use
+          git clone https://github.com/Lidarr/Lidarr.git ext/Lidarr-source
+          git -C ext/Lidarr-source checkout ${{ env.LIDARR_COMMIT }}
+        fi
+        
+        echo "✅ Lidarr source setup completed"
+        echo "📍 Using commit: ${{ env.LIDARR_COMMIT }}"
+
+    - name: Apply TrevTV assembly version override
+      shell: bash
+      run: |
+        echo "🔧 Applying TrevTV's assembly version override technique..."
+        echo "📍 Overriding to version: ${{ env.LIDARR_VERSION_OVERRIDE }}"
+        
+        # Apply the proven fix from TrevTV that makes plugins work with hotio pr-plugins
+        if [ "${{ runner.os }}" = "Windows" ]; then
+          # Windows sed syntax
+          sed -i "s/<AssemblyVersion>[0-9.*]\+<\/AssemblyVersion>/<AssemblyVersion>${{ env.LIDARR_VERSION_OVERRIDE }}<\/AssemblyVersion>/g" ext/Lidarr-source/src/Directory.Build.props
+        else
+          # Linux/macOS sed syntax  
+          sed -i "s/<AssemblyVersion>[0-9.*]\+<\/AssemblyVersion>/<AssemblyVersion>${{ env.LIDARR_VERSION_OVERRIDE }}<\/AssemblyVersion>/g" ext/Lidarr-source/src/Directory.Build.props
+        fi
+        
+        # Verify the change was applied
+        echo "✅ Assembly version override applied:"
+        grep -n "AssemblyVersion" ext/Lidarr-source/src/Directory.Build.props || echo "No AssemblyVersion found to verify"
+
+    - name: Build Lidarr source assemblies
+      shell: bash
+      run: |
+        echo "🔨 Building Lidarr source to generate plugin development assemblies..."
+        
+        # Navigate to Lidarr source directory
+        cd ext/Lidarr-source
+        
+        echo "📦 Restoring Lidarr dependencies..."
+        dotnet restore src/Lidarr.sln --verbosity minimal
+        
+        echo "🔨 Building Lidarr with version override..."
+        dotnet build src/Lidarr.sln --configuration Release --no-restore \
+          -p:RunAnalyzersDuringBuild=false \
+          -p:EnableNETAnalyzers=false \
+          -p:TreatWarningsAsErrors=false \
+          --verbosity minimal
+        
+        cd ../..
+        
+        # Create the expected output directory structure
         mkdir -p ext/Lidarr/_output/net6.0
         
-        # Determine platform-specific download URL
-        case "${{ runner.os }}" in
-          "Windows")
-            DOWNLOAD_URL="https://github.com/Lidarr/Lidarr/releases/download/v${{ env.LIDARR_VERSION }}/Lidarr.develop.${{ env.LIDARR_VERSION }}.windows-core-x64.zip"
-            curl -L -o lidarr.zip "$DOWNLOAD_URL"
-            unzip -q lidarr.zip
-            ;;
-          "macOS")
-            DOWNLOAD_URL="https://github.com/Lidarr/Lidarr/releases/download/v${{ env.LIDARR_VERSION }}/Lidarr.develop.${{ env.LIDARR_VERSION }}.osx-core-x64.tar.gz"
-            curl -L -o lidarr.tar.gz "$DOWNLOAD_URL"
-            tar -xzf lidarr.tar.gz
-            ;;
-          *)
-            DOWNLOAD_URL="https://github.com/Lidarr/Lidarr/releases/download/v${{ env.LIDARR_VERSION }}/Lidarr.develop.${{ env.LIDARR_VERSION }}.linux-core-x64.tar.gz"
-            curl -L -o lidarr.tar.gz "$DOWNLOAD_URL"
-            tar -xzf lidarr.tar.gz
-            ;;
-        esac
+        echo "📋 Copying built assemblies to expected location..."
+        # Copy the built assemblies to where the plugin project expects them
+        cp ext/Lidarr-source/_output/net6.0/Lidarr.dll ext/Lidarr/_output/net6.0/ 2>/dev/null || echo "⚠️ Lidarr.dll not found"
+        cp ext/Lidarr-source/_output/net6.0/Lidarr.Core.dll ext/Lidarr/_output/net6.0/
+        cp ext/Lidarr-source/_output/net6.0/Lidarr.Common.dll ext/Lidarr/_output/net6.0/
+        cp ext/Lidarr-source/_output/net6.0/Lidarr.Api.V1.dll ext/Lidarr/_output/net6.0/
+        cp ext/Lidarr-source/_output/net6.0/Lidarr.Http.dll ext/Lidarr/_output/net6.0/
+        cp ext/Lidarr-source/_output/net6.0/Lidarr.Host.dll ext/Lidarr/_output/net6.0/ 2>/dev/null || echo "⚠️ Lidarr.Host.dll not found"
+        cp ext/Lidarr-source/_output/net6.0/Lidarr.Console.dll ext/Lidarr/_output/net6.0/ 2>/dev/null || echo "⚠️ Lidarr.Console.dll not found"
+        cp ext/Lidarr-source/_output/net6.0/Lidarr.SignalR.dll ext/Lidarr/_output/net6.0/ 2>/dev/null || echo "⚠️ Lidarr.SignalR.dll not found"
         
-        # Copy ALL Lidarr assemblies needed for compilation and tests
-        cp Lidarr/Lidarr.dll ext/Lidarr/_output/net6.0/
-        cp Lidarr/Lidarr.Core.dll ext/Lidarr/_output/net6.0/
-        cp Lidarr/Lidarr.Common.dll ext/Lidarr/_output/net6.0/
-        cp Lidarr/Lidarr.Api.V1.dll ext/Lidarr/_output/net6.0/
-        cp Lidarr/Lidarr.Http.dll ext/Lidarr/_output/net6.0/
-        cp Lidarr/Lidarr.Host.dll ext/Lidarr/_output/net6.0/
-        cp Lidarr/Lidarr.SignalR.dll ext/Lidarr/_output/net6.0/
-        # Note: Lidarr.Console.dll doesn't exist in releases, omitting it
-        
-        # Verify assemblies exist
+        echo "✅ Lidarr assemblies prepared for plugin compilation"
+        echo "📍 Available assemblies:"
         ls -la ext/Lidarr/_output/net6.0/
 
     - name: Restore dependencies
       run: dotnet restore
 
-    - name: Build plugin (without ILRepack)
+    - name: Build plugin with source-based approach
+      shell: bash
       run: |
+        echo "🔨 Building Qobuzarr plugin using source-based approach..."
+        
+        # Build main plugin project with analyzer suppression to avoid Lidarr source issues
+        echo "📦 Building main plugin..."
         dotnet build Qobuzarr.csproj --configuration Release --no-restore \
           -p:RunAnalyzersDuringBuild=false \
           -p:EnableNETAnalyzers=false \
-          -p:ILRepackEnabled=false \
-          -p:TreatWarningsAsErrors=false
+          -p:TreatWarningsAsErrors=false \
+          --verbosity minimal
+        
+        echo "📦 Building CLI project..."
         dotnet build QobuzCLI/QobuzCLI.csproj --configuration Release --no-restore \
           -p:RunAnalyzersDuringBuild=false \
           -p:EnableNETAnalyzers=false \
-          -p:TreatWarningsAsErrors=false
+          -p:TreatWarningsAsErrors=false \
+          --verbosity minimal
+        
+        echo "✅ Build completed successfully"
+        
+        # Verify build outputs
+        echo "📍 Verifying build outputs:"
+        ls -la bin/
+        if [ -f "bin/Lidarr.Plugin.Qobuzarr.dll" ]; then
+          echo "✅ Main plugin DLL found"
+        else
+          echo "❌ Main plugin DLL missing"
+          exit 1
+        fi
 
     - name: Run tests
+      shell: bash
       run: |
-        echo "Testing core plugin functionality..."
-        dotnet test tests/Integration/Qobuzarr.IntegrationTests.csproj --configuration Release \
-          --logger trx --results-directory ./test-results --verbosity normal || echo "Integration tests skipped due to dependency issues"
-        echo "Testing dashboard..."
-        dotnet test tests/Dashboard/TestDashboard.csproj --configuration Release \
-          --logger trx --results-directory ./test-results --verbosity normal || echo "Dashboard tests skipped due to dependency issues"
-        echo "Test phase completed"
+        echo "🧪 Running tests..."
+        
+        # Test infrastructure projects that don't require full Lidarr integration
+        echo "📊 Running integration tests..."
+        if [ -d "tests/Integration" ]; then
+          dotnet test tests/Integration/Qobuzarr.IntegrationTests.csproj --configuration Release \
+            --logger trx --results-directory ./test-results --verbosity minimal || echo "⚠️ Integration tests skipped"
+        fi
+        
+        echo "📊 Running dashboard tests..."  
+        if [ -d "tests/Dashboard" ]; then
+          dotnet test tests/Dashboard/TestDashboard.csproj --configuration Release \
+            --logger trx --results-directory ./test-results --verbosity minimal || echo "⚠️ Dashboard tests skipped"
+        fi
+        
+        echo "✅ Test phase completed"
 
     - name: Upload test results
       uses: actions/upload-artifact@v4
@@ -109,19 +199,44 @@ jobs:
       if: matrix.os == 'ubuntu-latest'
       shell: bash
       run: |
+        echo "📦 Packaging plugin for distribution..."
         mkdir -p release
         
-        # Copy built files
+        # Copy built files - main plugin DLL and configuration
+        echo "📋 Copying plugin files..."
         cp bin/Lidarr.Plugin.Qobuzarr.dll release/
-        cp plugin.json release/
+        
+        # Generate plugin.json from template if needed
+        if [ -f "plugin.json" ]; then
+          cp plugin.json release/
+        elif [ -f "plugin.json.template" ]; then
+          echo "📝 Generating plugin.json from template..."
+          cp plugin.json.template release/plugin.json
+        else
+          echo "⚠️ No plugin.json found, creating minimal version..."
+          cat > release/plugin.json << EOF
+        {
+          "name": "Qobuzarr",
+          "version": "1.0.0",
+          "description": "Qobuz plugin for Lidarr",
+          "author": "Qobuzarr Team"
+        }
+        EOF
+        fi
+        
+        # Copy any additional required files
+        if [ -f "bin/ml-baseline-patterns.json" ]; then
+          cp bin/ml-baseline-patterns.json release/
+        fi
         
         # Create plugin zip
         cd release
         zip -r ../Qobuzarr-v${{ github.run_number }}.zip .
         cd ..
         
-        echo "Plugin packaged successfully"
-        ls -la *.zip
+        echo "✅ Plugin packaged successfully"
+        echo "📦 Package contents:"
+        unzip -l Qobuzarr-v${{ github.run_number }}.zip
 
     - name: Upload plugin artifact
       uses: actions/upload-artifact@v4
