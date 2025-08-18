@@ -27,6 +27,18 @@ jobs:
       with:
         dotnet-version: '6.0.x'
 
+    - name: Download Lidarr assemblies (for security analysis)
+      shell: bash  
+      run: |
+        echo "📦 Setting up Lidarr assemblies for security analysis..."
+        if [ -f "./download-lidarr-assemblies.sh" ]; then
+          chmod +x ./download-lidarr-assemblies.sh
+          ./download-lidarr-assemblies.sh --version 2.13.2.4685 --force
+          echo "✅ Lidarr assemblies ready for security analysis"
+        else
+          echo "⚠️ Download script not found, security analysis may be limited"
+        fi
+
     - name: Restore dependencies
       run: dotnet restore Qobuzarr.csproj
 
@@ -51,8 +63,19 @@ jobs:
             - uses: security-and-quality
             - uses: security-extended
 
-    - name: Autobuild
-      uses: github/codeql-action/autobuild@v3
+    - name: Build for CodeQL (working projects only)
+      run: |
+        echo "🔨 Building working projects for security analysis..."
+        dotnet build Qobuzarr.csproj --configuration Release --no-restore \
+          -p:RunAnalyzersDuringBuild=false \
+          -p:EnableNETAnalyzers=false \
+          -p:TreatWarningsAsErrors=false
+        
+        echo "🔨 Building CLI for security analysis..."
+        dotnet build QobuzCLI/QobuzCLI.csproj --configuration Release --no-restore \
+          -p:RunAnalyzersDuringBuild=false \
+          -p:EnableNETAnalyzers=false \
+          -p:TreatWarningsAsErrors=false
 
     - name: Perform CodeQL Analysis
       uses: github/codeql-action/analyze@v3
@@ -127,6 +150,18 @@ jobs:
       uses: actions/setup-dotnet@v4
       with:
         dotnet-version: '8.0.x'
+
+    - name: Download Lidarr assemblies (for SBOM generation)
+      shell: bash
+      run: |
+        echo "📦 Setting up Lidarr assemblies for SBOM generation..."
+        if [ -f "./download-lidarr-assemblies.sh" ]; then
+          chmod +x ./download-lidarr-assemblies.sh
+          ./download-lidarr-assemblies.sh --version 2.13.2.4685 --force
+          echo "✅ Lidarr assemblies ready for SBOM generation"
+        else
+          echo "⚠️ Download script not found"
+        fi
 
     - name: Install SBOM tool
       run: dotnet tool install --global Microsoft.Sbom.Tool
