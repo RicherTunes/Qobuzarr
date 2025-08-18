@@ -15,8 +15,8 @@ env:
   DOTNET_CLI_TELEMETRY_OPTOUT: true
   PLUGIN_NAME: Lidarr.Plugin.Qobuzarr
   PLUGIN_VERSION: 0.0.${{ github.run_number }}
-  MINIMUM_LIDARR_VERSION: 2.13.0.4664
-  DOTNET_VERSION: 8.0.x
+  MINIMUM_LIDARR_VERSION: 2.13.2.4686
+  DOTNET_VERSION: 6.0.x
 
 jobs:
   build:
@@ -39,10 +39,29 @@ jobs:
     - name: Generate global.json
       run: echo '{"sdk":{"version":"${{ env.DOTNET_VERSION }}"}}' > global.json
 
+    - name: Download Lidarr assemblies (same as local build.ps1)
+      shell: bash
+      run: |
+        echo "📦 Setting up Lidarr assemblies to match local development..."
+        
+        # Use the same approach as local build.ps1
+        if [ -f "./download-lidarr-assemblies.sh" ]; then
+          chmod +x ./download-lidarr-assemblies.sh
+          ./download-lidarr-assemblies.sh --version 2.13.2.4685 --force
+          echo "✅ Used download script like local development"
+        else
+          echo "⚠️ Using manual download as fallback"
+          mkdir -p ext/Lidarr/_output/net6.0
+        fi
+        
+        echo "📍 Available assemblies:"
+        ls -la ext/Lidarr/_output/net6.0/ || echo "No assemblies found"
+
     - name: Update Version Info
       run: |
         # TrevTV's proven technique - the key to making plugins work!
-        sed -i'' -e "s/<AssemblyVersion>[0-9.*]\+<\/AssemblyVersion>/<AssemblyVersion>${{ env.MINIMUM_LIDARR_VERSION }}<\/AssemblyVersion>/g" ext/Lidarr/src/Directory.Build.props || echo "No Directory.Build.props found"
+        # Use same path as build.ps1: ext/Lidarr-source/src/Directory.Build.props
+        sed -i'' -e "s/<AssemblyVersion>[0-9.*]\+<\/AssemblyVersion>/<AssemblyVersion>${{ env.MINIMUM_LIDARR_VERSION }}<\/AssemblyVersion>/g" ext/Lidarr-source/src/Directory.Build.props || echo "No Directory.Build.props found (expected for pre-built approach)"
         sed -i'' -e "s/<Version>.*<\/Version>/<Version>${{ env.PLUGIN_VERSION }}<\/Version>/g" Qobuzarr.csproj || echo "Version update failed"
         echo "Plugin version set to ${{ env.PLUGIN_VERSION }}"
 
