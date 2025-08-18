@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 using Lidarr.Plugin.Qobuzarr.API;
 using Lidarr.Plugin.Qobuzarr.Abstractions;
@@ -49,10 +50,24 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Services
                 var streamResponse = await _apiClient.GetAsync<QobuzStreamResponse>("/track/getFileUrl", parameters).ConfigureAwait(false);
                 var lastRestrictionMessage = string.Empty;
                 
-                // Simple logging for failed attempts
+                // Enhanced error handling for failed attempts
                 if (streamResponse?.IsSuccess != true || string.IsNullOrWhiteSpace(streamResponse.Url))
                 {
-                    _logger.Debug("Quality {0} not available for track {1}", preferredQuality, trackId);
+                    if (streamResponse?.IsSuccess == false)
+                    {
+                        lastRestrictionMessage = GetDetailedErrorMessage(streamResponse);
+                        _logger.Debug("Quality {0} not available for track {1}: {2}", preferredQuality, trackId, lastRestrictionMessage);
+                    }
+                    else if (streamResponse == null)
+                    {
+                        lastRestrictionMessage = "No response from Qobuz API";
+                        _logger.Debug("No response for quality {0} on track {1}", preferredQuality, trackId);
+                    }
+                    else
+                    {
+                        lastRestrictionMessage = "Empty stream URL returned";
+                        _logger.Debug("Empty URL for quality {0} on track {1}", preferredQuality, trackId);
+                    }
                 }
                 
                 // Try preferred quality first
@@ -113,6 +128,25 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Services
                     parameters["format_id"] = fallbackQuality.ToString();
                     streamResponse = await _apiClient.GetAsync<QobuzStreamResponse>("/track/getFileUrl", parameters).ConfigureAwait(false);
                     
+                    // Track fallback errors
+                    if (streamResponse?.IsSuccess != true || string.IsNullOrWhiteSpace(streamResponse.Url))
+                    {
+                        if (streamResponse?.IsSuccess == false)
+                        {
+                            lastRestrictionMessage = GetDetailedErrorMessage(streamResponse, $"Fallback quality {fallbackQuality} failed");
+                        }
+                        else if (streamResponse == null)
+                        {
+                            lastRestrictionMessage = $"No response for fallback quality {fallbackQuality}";
+                        }
+                        else
+                        {
+                            lastRestrictionMessage = $"Empty URL for fallback quality {fallbackQuality}";
+                        }
+                        _logger.Debug("Fallback quality {0} failed for track {1}: {2}", fallbackQuality, trackId, lastRestrictionMessage);
+                        continue;
+                    }
+                    
                     if (streamResponse?.IsSuccess == true && streamResponse.Url.IsNotNullOrWhiteSpace())
                     {
                         // Check restrictions for fallback quality
@@ -160,7 +194,10 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Services
                 LogTrackUnavailable(track, album, lastRestrictionMessage);
                 
                 // Determine the most appropriate exception based on what we learned
-                var finalReason = _qualityFallbackProvider.DetermineUnavailableReason(lastRestrictionMessage);
+                var analyzedReason = AnalyzeErrorReason(lastRestrictionMessage);
+                var fallbackReason = _qualityFallbackProvider.DetermineUnavailableReason(lastRestrictionMessage);
+                var finalReason = analyzedReason != TrackUnavailableReason.Unknown ? analyzedReason : fallbackReason;
+                
                 var detailedMessage = string.IsNullOrEmpty(lastRestrictionMessage) 
                     ? "No stream URL available in any quality (track may be removed or region-locked)"
                     : lastRestrictionMessage;
@@ -259,6 +296,76 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Services
         public bool IsPreviewOrSampleUrl(string url)
         {
             return PreviewDetectionUtility.IsPreviewOrSampleUrl(url);
+        }
+
+        /// <summary>
+        /// Extracts detailed error information from a failed Qobuz stream response
+        /// </summary>
+        private string GetDetailedErrorMessage(QobuzStreamResponse response, string fallbackMessage = "API request failed")
+        {
+            var errorParts = new List<string>();
+
+            // Add HTTP status/code if available
+            if (response.Code.HasValue && response.Code != 200)
+            {
+                errorParts.Add($"HTTP {response.Code}");
+            }
+
+            // Add API message if available
+            if (!string.IsNullOrWhiteSpace(response.Message))
+            {
+                errorParts.Add(response.Message);
+            }
+
+            // Add restriction details if available
+            var restrictionMessage = response.GetRestrictionMessage();
+            if (!string.IsNullOrWhiteSpace(restrictionMessage))
+            {
+                errorParts.Add(restrictionMessage);
+            }
+
+            // Add status if it provides additional context
+            if (!string.IsNullOrWhiteSpace(response.Status) && 
+                !string.Equals(response.Status, "error", StringComparison.OrdinalIgnoreCase))
+            {
+                errorParts.Add($"Status: {response.Status}");
+            }
+
+            return errorParts.Any() ? string.Join(" - ", errorParts) : fallbackMessage;
+        }
+
+        /// <summary>
+        /// Analyzes error details to identify common issues like regional restrictions
+        /// </summary>
+        private TrackUnavailableReason AnalyzeErrorReason(string errorMessage)
+        {
+            if (string.IsNullOrWhiteSpace(errorMessage))
+                return TrackUnavailableReason.Unknown;
+
+            var lowerError = errorMessage.ToLowerInvariant();
+
+            if (lowerError.Contains("region") || lowerError.Contains("country") || lowerError.Contains("geographic"))
+                return TrackUnavailableReason.RegionalRestriction;
+
+            if (lowerError.Contains("subscription") || lowerError.Contains("premium") || lowerError.Contains("plan"))
+                return TrackUnavailableReason.SubscriptionRestriction;
+
+            if (lowerError.Contains("preview") || lowerError.Contains("sample"))
+                return TrackUnavailableReason.PreviewOnly;
+
+            if (lowerError.Contains("format") || lowerError.Contains("quality") || lowerError.Contains("bitrate"))
+                return TrackUnavailableReason.NoQualityAvailable;
+
+            if (lowerError.Contains("not streamable") || lowerError.Contains("not available"))
+                return TrackUnavailableReason.NotStreamable;
+
+            if (lowerError.Contains("restricted") || lowerError.Contains("forbidden"))
+                return TrackUnavailableReason.Restricted;
+
+            if (lowerError.Contains("http") || lowerError.Contains("timeout") || lowerError.Contains("network"))
+                return TrackUnavailableReason.ApiError;
+
+            return TrackUnavailableReason.Unknown;
         }
     }
 }

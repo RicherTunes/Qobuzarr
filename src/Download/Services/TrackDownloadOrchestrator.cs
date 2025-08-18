@@ -55,8 +55,8 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Services
             {
                 _logger.Debug("Starting download of track: {0}", track.GetFullTitle());
 
-                // Step 1: Get streaming URL with quality fallback
-                var streamUrl = await _streamUrlProvider.GetStreamUrlAsync(track.Id, preferredQuality).ConfigureAwait(false);
+                // Step 1: Get streaming URL with quality fallback using enhanced logging
+                var streamUrl = await _streamUrlProvider.GetStreamUrlAsync(track, album, preferredQuality).ConfigureAwait(false);
                 if (string.IsNullOrWhiteSpace(streamUrl))
                 {
                     throw new InvalidOperationException("Could not obtain stream URL for track");
