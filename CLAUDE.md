@@ -249,42 +249,61 @@ sed -i "s/<AssemblyVersion>[0-9.*]\+<\/AssemblyVersion>/<AssemblyVersion>$LIDARR
 
 ## GitHub Actions CI/CD
 
-The project includes a **production-ready CI/CD pipeline** using the modern **pre-built Lidarr assemblies** approach recommended by successful plugin developers:
+The project uses **TrevTV's proven CI/CD methodology** that powers successful Lidarr plugins like Tidal, Deezer, and Qobuz:
 
-### **GitHub Actions Workflow** (`.github/workflows/ci.yml`):
-- ✅ **Downloads pre-built Lidarr assemblies** from GitHub releases
-- ✅ **Multi-platform builds** (Ubuntu, Windows, macOS)  
-- ✅ **Automated testing** with coverage reporting
-- ✅ **Security scanning** with CodeQL and Trivy
-- ✅ **Plugin packaging** for releases
-- ✅ **No source compilation issues** - uses release assemblies
+### **TrevTV's Proven GitHub Actions Workflow** (`.github/workflows/ci.yml`):
 
-### **Key Advantages**:
-- **Faster builds**: No need to compile entire Lidarr codebase
-- **More reliable**: Uses official release assemblies 
-- **Version consistent**: Assemblies match target Lidarr version exactly
-- **CI friendly**: Works in any GitHub Actions environment
-- **Cross-platform**: Same assemblies work on all platforms
+**CRITICAL SUCCESS FACTORS** (Learned 2025-08-18 after extensive CI debugging):
 
-### **Development Approaches**:
+1. **Use .NET 8.0** (not 6.0!) - `DOTNET_VERSION: 8.0.x`
+2. **Apply version override** - `sed` command to fix assembly versions
+3. **Use existing assemblies** - Don't try to build Lidarr source (causes NuGet conflicts)
+4. **Simple, reliable approach** - Avoid complex source builds
 
-**Recommended (CI-Compatible)**:
+**Core Configuration**:
+```yaml
+env:
+  DOTNET_VERSION: 8.0.x
+  MINIMUM_LIDARR_VERSION: 2.13.0.4664
+  PLUGIN_VERSION: 0.0.${{ github.run_number }}
+  
+steps:
+  # TrevTV's magic assembly fix - THE KEY TO SUCCESS
+  - name: Update Version Info
+    run: |
+      sed -i'' -e "s/<AssemblyVersion>[0-9.*]\+<\/AssemblyVersion>/<AssemblyVersion>${{ env.MINIMUM_LIDARR_VERSION }}<\/AssemblyVersion>/g" ext/Lidarr/src/Directory.Build.props || echo "No Directory.Build.props found"
+```
+
+**Why This Works**:
+- ✅ **Battle-tested**: Powers TrevTV's Tidal, Deezer, Qobuz plugins successfully
+- ✅ **Simple**: No complex source builds or dependency management
+- ✅ **Reliable**: Consistent results across all environments
+- ✅ **Fast**: No time wasted building entire Lidarr codebase
+
+### **NEVER DO SOURCE BUILDS AGAIN**:
+
+**❌ What DOESN'T Work (Avoid These Approaches)**:
 ```bash
-# Download pre-built assemblies (same as CI)
+# DON'T: Complex source builds (NuGet conflicts, hours of debugging)
+git clone https://github.com/Lidarr/Lidarr.git ext/Lidarr-source
+dotnet build ext/Lidarr-source/src/Lidarr.sln  # ❌ FAILS with package management errors
+
+# DON'T: Pre-built assembly downloads (missing plugin interfaces)  
+curl -L "https://github.com/Lidarr/Lidarr/releases/..." # ❌ MISSING NzbDrone.Core.Plugins
+```
+
+**✅ What WORKS (TrevTV's Method)**:
+```bash
+# Simple: Use existing assemblies + version override
 ./download-lidarr-assemblies.sh --version 2.13.2.4685
 ./build.sh --deploy
 
-# Or use PowerShell
-.\download-lidarr-assemblies.ps1 -LidarrVersion "2.13.2.4685"
+# Or PowerShell
+.\download-lidarr-assemblies.ps1 -LidarrVersion "2.13.2.4685"  
 .\build.ps1 -Deploy
 ```
 
-**Alternative (Source Build)**:
-```bash
-# Traditional approach with full source compilation
-./setup.sh --enable-deploy
-./build.sh --deploy
-```
+**LESSON LEARNED (2025-08-18)**: After hours of debugging CI failures, the solution was to **copy TrevTV's simple approach exactly**, not reinvent complex automation.
 
 ### **CI/CD Scripts**:
 - **`download-lidarr-assemblies.sh`** / **`download-lidarr-assemblies.ps1`**: Download pre-built Lidarr assemblies
@@ -454,4 +473,63 @@ The project uses [Central Package Management](https://learn.microsoft.com/en-us/
 **Check Runtime Version**: Your Lidarr logs should show `Version 2.13.2.4686`
 **Check Plugin Version**: Build output should compile against matching `AssemblyVersion>2.13.2.4686`
 **Verify Match**: Runtime version and plugin assembly version must exactly match
-- Use gh or git to validate the build's status or other validation instead of checking the web page.
+
+## CRITICAL CI/CD LESSONS LEARNED (2025-08-18)
+
+**NEVER REPEAT THESE MISTAKES**:
+
+### ❌ **Failed Approaches That Wasted Hours**:
+
+1. **Complex Source Builds**: 
+   - Tried building entire Lidarr source in CI
+   - Result: NuGet package source conflicts, 7 different package sources
+   - Hours wasted on NU1507 and NU1008 errors
+
+2. **Pre-built Assembly Downloads**:
+   - Downloaded release assemblies from GitHub releases  
+   - Result: Missing `NzbDrone.Core.Plugins` and `IDownloadProtocol` interfaces
+   - Plugin compilation failed with CS0234 and CS0246 errors
+
+3. **Wrong .NET Version**:
+   - Used .NET 6.0 in CI but tools required .NET 8.0
+   - Result: NETSDK1045 and Microsoft.Sbom.Tool compatibility errors
+
+### ✅ **TrevTV's Working Solution (COPY THIS EXACTLY)**:
+
+**Environment Setup**:
+```yaml
+env:
+  DOTNET_VERSION: 8.0.x                    # Use .NET 8.0!
+  MINIMUM_LIDARR_VERSION: 2.13.0.4664     # TrevTV's proven version
+  PLUGIN_VERSION: 0.0.${{ github.run_number }}
+```
+
+**Build Steps**:
+```yaml
+- name: Update Version Info
+  run: |
+    # THE MAGIC LINE - This is what makes plugins work with hotio
+    sed -i'' -e "s/<AssemblyVersion>[0-9.*]\+<\/AssemblyVersion>/<AssemblyVersion>${{ env.MINIMUM_LIDARR_VERSION }}<\/AssemblyVersion>/g" ext/Lidarr/src/Directory.Build.props || echo "No Directory.Build.props found"
+
+- name: Build  
+  run: |
+    dotnet build --configuration Release --no-restore \
+      -p:RunAnalyzersDuringBuild=false \
+      -p:EnableNETAnalyzers=false \
+      -p:TreatWarningsAsErrors=false
+```
+
+### 🎯 **Standard Operating Procedure**:
+
+**Local Development**:
+1. `./download-lidarr-assemblies.sh --version 2.13.2.4685` (uses existing assemblies)
+2. `./build.sh --deploy` (simple build with TrevTV's flags)
+
+**CI/CD**: 
+1. Use **TrevTV's exact workflow template** from `Lidarr.Plugin.Tidal`
+2. **Never** attempt source builds or complex dependency management
+3. **Always** apply the `sed` version override (this is the secret sauce)
+
+**Debugging Method**:
+- Use `gh run view --log-failed` to check CI failures 
+- Use `gh` or `git` to validate build status, not web pages
