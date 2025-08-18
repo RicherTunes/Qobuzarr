@@ -40,6 +40,7 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
         private readonly Logger _logger;
         private readonly Func<QobuzSession> _getSession;
         private readonly SmartQueryStrategy _smartQueryStrategy;
+        private readonly SemanticQueryStrategy _semanticQueryStrategy;
         private readonly QobuzSubstringCache _substringCache;
         
         // Query Intelligence metrics
@@ -83,6 +84,10 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
             // Initialize ML-enabled SmartQueryStrategy if ML engine is available and enabled
             var useMLPredictions = patternLearningEngine != null && (_settings?.EnableMLPredictions ?? false);
             _smartQueryStrategy = new SmartQueryStrategy(logger, patternLearningEngine, useMLPredictions);
+            
+            // Initialize Semantic Query Strategy for intelligent query handling
+            _semanticQueryStrategy = new SemanticQueryStrategy(logger);
+            
             _substringCache = new QobuzSubstringCache(logger);
         }
 
@@ -248,45 +253,66 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
             // Build original query set first
             var originalQueries = new List<string>();
 
-            // Primary query: Artist + Album
+            // Primary query: Artist + Album with Semantic Intelligence
             if (searchCriteria.ArtistQuery.IsNotNullOrWhiteSpace() && searchCriteria.AlbumQuery.IsNotNullOrWhiteSpace())
             {
-                var cleanArtist = CleanQuery(searchCriteria.ArtistQuery);
-                var cleanAlbum = CleanQuery(searchCriteria.AlbumQuery);
+                // Use semantic intelligence to determine optimal query strategy
+                var semanticStrategy = _semanticQueryStrategy.DetermineStrategy(searchCriteria.ArtistQuery, searchCriteria.AlbumQuery);
                 
-                if (cleanArtist.IsNotNullOrWhiteSpace() && cleanAlbum.IsNotNullOrWhiteSpace())
+                _logger.Debug("🧠 Semantic Analysis for '{0} - {1}': {2} (Level: {3}, Variants: {4})", 
+                             searchCriteria.ArtistQuery, searchCriteria.AlbumQuery, 
+                             semanticStrategy.Rationale, semanticStrategy.CleaningLevel, semanticStrategy.QueryVariants);
+
+                // Generate semantically-aware queries
+                var semanticQueries = _semanticQueryStrategy.BuildQueriesForStrategy(
+                    searchCriteria.ArtistQuery, 
+                    searchCriteria.AlbumQuery, 
+                    semanticStrategy);
+
+                if (semanticQueries.Any())
                 {
-                    var primaryQuery = $"{cleanArtist} {cleanAlbum}";
-                    originalQueries.Add(primaryQuery);
-
-                    // Alternative format: "Artist - Album"
-                    var dashQuery = $"{cleanArtist} - {cleanAlbum}";
-                    originalQueries.Add(dashQuery);
-
-                    // Artist in quotes + Album
-                    var quotedArtistQuery = $"\"{cleanArtist}\" {cleanAlbum}";
-                    originalQueries.Add(quotedArtistQuery);
-
-                    // Apply Query Intelligence optimization if enabled
-                    if (_settings.EnableQueryIntelligence)
+                    // Log semantic intelligence usage for debugging
+                    _logger.Debug("🎯 Semantic Queries Generated: {0}", string.Join(" | ", semanticQueries));
+                    queries.AddRange(semanticQueries);
+                }
+                else
+                {
+                    // Fallback to traditional approach if semantic fails
+                    _logger.Warn("⚠️  Semantic query generation failed, falling back to traditional approach");
+                    
+                    var cleanArtist = CleanQuery(searchCriteria.ArtistQuery);
+                    var cleanAlbum = CleanQuery(searchCriteria.AlbumQuery);
+                    
+                    if (cleanArtist.IsNotNullOrWhiteSpace() && cleanAlbum.IsNotNullOrWhiteSpace())
                     {
-                        var optimizedQueries = _smartQueryStrategy.BuildOptimizedQueries(cleanArtist, cleanAlbum, originalQueries);
-                        var reduction = _smartQueryStrategy.CalculateExpectedReduction(cleanArtist, cleanAlbum, originalQueries.Count);
-                        
-                        if (reduction > 0)
+                        var primaryQuery = $"{cleanArtist} {cleanAlbum}";
+                        originalQueries.Add(primaryQuery);
+
+                        // Alternative format: "Artist - Album"
+                        var dashQuery = $"{cleanArtist} - {cleanAlbum}";
+                        originalQueries.Add(dashQuery);
+
+                        // Apply traditional Query Intelligence if enabled
+                        if (_settings.EnableQueryIntelligence)
                         {
-                            _logger.Debug("Query Intelligence: Reduced {0} queries to {1} for '{2} - {3}' ({4:P1} reduction)", 
-                                originalQueries.Count, optimizedQueries.Count, cleanArtist, cleanAlbum, reduction);
+                            var optimizedQueries = _smartQueryStrategy.BuildOptimizedQueries(cleanArtist, cleanAlbum, originalQueries);
+                            var reduction = _smartQueryStrategy.CalculateExpectedReduction(cleanArtist, cleanAlbum, originalQueries.Count);
+                            
+                            if (reduction > 0)
+                            {
+                                _logger.Debug("Query Intelligence: Reduced {0} queries to {1} for '{2} - {3}' ({4:P1} reduction)", 
+                                    originalQueries.Count, optimizedQueries.Count, cleanArtist, cleanAlbum, reduction);
+                            }
+                            
+                            // Track metrics
+                            UpdateQueryMetrics(originalQueries.Count, optimizedQueries.Count);
+                            
+                            queries.AddRange(optimizedQueries);
                         }
-                        
-                        // Track metrics
-                        UpdateQueryMetrics(originalQueries.Count, optimizedQueries.Count);
-                        
-                        queries.AddRange(optimizedQueries);
-                    }
-                    else
-                    {
-                        queries.AddRange(originalQueries);
+                        else
+                        {
+                            queries.AddRange(originalQueries);
+                        }
                     }
                 }
             }

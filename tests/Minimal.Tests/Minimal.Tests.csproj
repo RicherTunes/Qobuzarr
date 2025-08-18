@@ -18,4 +18,8 @@
     <PackageReference Include="Newtonsoft.Json" />
   </ItemGroup>
 
+  <ItemGroup>
+    <ProjectReference Include="..\..\Qobuzarr.csproj" />
+  </ItemGroup>
+
 </Project>
