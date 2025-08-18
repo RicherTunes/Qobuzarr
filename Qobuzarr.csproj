@@ -44,8 +44,12 @@
     <FileVersion>0.0.12.0</FileVersion>
     <AssemblyInformationalVersion>0.0.12</AssemblyInformationalVersion>
     
-    <!-- Enable ILRepack for plugin compatibility like working plugins -->
-    <ILRepackEnabled Condition="'$(ILRepackEnabled)' == ''">true</ILRepackEnabled>
+    <!-- Enable ILRepack for plugin compatibility like working plugins - only for PluginRelease builds -->
+    <ILRepackEnabled Condition="'$(ILRepackEnabled)' == '' And '$(Configuration)' == 'PluginRelease'">true</ILRepackEnabled>
+    <ILRepackEnabled Condition="'$(ILRepackEnabled)' == ''">false</ILRepackEnabled>
+    
+    <!-- Disable ILRepack for CI builds and non-plugin builds -->
+    <DisableILRepack Condition="'$(Configuration)' != 'PluginRelease'">true</DisableILRepack>
   </PropertyGroup>
 
   <!-- Source files inclusion -->
@@ -87,7 +91,7 @@
     <PackageReference Include="NLog" />
     <PackageReference Include="FluentValidation" />
     <PackageReference Include="System.Resources.Extensions" />
-    <PackageReference Include="ILRepack.Lib.MSBuild.Task">
+    <PackageReference Include="ILRepack.Lib.MSBuild.Task" Condition="'$(Configuration)' == 'PluginRelease'">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
@@ -142,6 +146,11 @@
       <InputAssemblies Include="$(OutputPath)TagLibSharp.dll" Condition="Exists('$(OutputPath)TagLibSharp.dll')" />
     </ItemGroup>
     
+    <!-- Include both output path and Lidarr assemblies path in LibraryPath for resolution -->
+    <PropertyGroup>
+      <ILRepackLibraryPaths>$(OutputPath);$(MSBuildProjectDirectory)\ext\Lidarr\_output\net6.0</ILRepackLibraryPaths>
+    </PropertyGroup>
+    
     <Message Text="Merging plugin-specific assemblies with ILRepack..." Importance="high" />
     <ILRepack 
       Parallel="true"
@@ -149,7 +158,7 @@
       InputAssemblies="@(InputAssemblies)"
       OutputFile="$(OutputPath)$(AssemblyName).dll"
       TargetKind="SameAsPrimaryAssembly"
-      LibraryPath="$(OutputPath)"
+      LibraryPath="$(ILRepackLibraryPaths)"
       DebugInfo="true"
       Union="true" />
     <Message Text="Assembly merging completed: $(OutputPath)$(AssemblyName).dll" Importance="high" />

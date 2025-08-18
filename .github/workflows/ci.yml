@@ -87,21 +87,23 @@ jobs:
           sed -i '' 's|src\\Indexers\\|src/Indexers/|g' Qobuzarr-ci.csproj
           sed -i '' 's|<OutputPath>bin\\</OutputPath>|<OutputPath>bin/</OutputPath>|g' Qobuzarr-ci.csproj
           sed -i '' 's|<EnablePluginDeployment.*true.*|<EnablePluginDeployment>false</EnablePluginDeployment>|g' Qobuzarr-ci.csproj
-          sed -i '' 's|<ILRepackEnabled>true</ILRepackEnabled>|<ILRepackEnabled>false</ILRepackEnabled>|g' Qobuzarr-ci.csproj
+          sed -i '' 's|<ILRepackEnabled.*true.*|<ILRepackEnabled>false</ILRepackEnabled>|g' Qobuzarr-ci.csproj
         else
           # Linux and Windows (Git Bash) sed
           sed -i 's|ext\\Lidarr\\_output\\net6.0\\|ext/Lidarr/_output/net6.0/|g' Qobuzarr-ci.csproj
           sed -i 's|src\\Indexers\\|src/Indexers/|g' Qobuzarr-ci.csproj
           sed -i 's|<OutputPath>bin\\</OutputPath>|<OutputPath>bin/</OutputPath>|g' Qobuzarr-ci.csproj
           sed -i 's|<EnablePluginDeployment.*true.*|<EnablePluginDeployment>false</EnablePluginDeployment>|g' Qobuzarr-ci.csproj
-          sed -i 's|<ILRepackEnabled>true</ILRepackEnabled>|<ILRepackEnabled>false</ILRepackEnabled>|g' Qobuzarr-ci.csproj
+          sed -i 's|<ILRepackEnabled.*true.*|<ILRepackEnabled>false</ILRepackEnabled>|g' Qobuzarr-ci.csproj
         fi
 
     - name: Restore dependencies
       run: dotnet restore Qobuzarr-ci.csproj
 
     - name: Build plugin
+      shell: bash
       run: |
+        # Build with CI-compatible settings
         dotnet build Qobuzarr-ci.csproj --configuration Release --no-restore \
           -p:RunAnalyzersDuringBuild=false \
           -p:EnableNETAnalyzers=false \
@@ -110,6 +112,16 @@ jobs:
           -p:AssemblyVersion=${{ env.PLUGIN_VERSION }} \
           -p:FileVersion=${{ env.PLUGIN_VERSION }} \
           -p:EnablePluginDeployment=false
+        
+        # Verify build output
+        echo "Build completed. Verifying output:"
+        ls -la bin/Release/ || echo "Release directory not found"
+        
+        # Ensure plugin.json exists in output
+        if [ ! -f "bin/Release/plugin.json" ] && [ -f "plugin.json" ]; then
+          cp plugin.json bin/Release/
+          echo "Copied plugin.json to output directory"
+        fi
 
     - name: Run tests
       run: |
