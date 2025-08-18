@@ -65,6 +65,12 @@ jobs:
         ls -la ext/Lidarr/_output/net6.0/
         echo "✅ Lidarr assemblies ready for plugin compilation"
 
+    - name: Initialize CodeQL
+      uses: github/codeql-action/init@v3
+      if: matrix.os == 'ubuntu-latest'
+      with:
+        languages: csharp
+
     - name: Update project references for CI
       shell: bash
       run: |
@@ -79,12 +85,14 @@ jobs:
           # macOS requires -i '' for in-place editing
           sed -i '' 's|ext\\Lidarr\\_output\\net6.0\\|ext/Lidarr/_output/net6.0/|g' Qobuzarr-ci.csproj
           sed -i '' 's|src\\Indexers\\|src/Indexers/|g' Qobuzarr-ci.csproj
+          sed -i '' 's|<OutputPath>bin\\</OutputPath>|<OutputPath>bin/</OutputPath>|g' Qobuzarr-ci.csproj
           sed -i '' 's|<EnablePluginDeployment.*true.*|<EnablePluginDeployment>false</EnablePluginDeployment>|g' Qobuzarr-ci.csproj
           sed -i '' 's|<ILRepackEnabled>true</ILRepackEnabled>|<ILRepackEnabled>false</ILRepackEnabled>|g' Qobuzarr-ci.csproj
         else
           # Linux and Windows (Git Bash) sed
           sed -i 's|ext\\Lidarr\\_output\\net6.0\\|ext/Lidarr/_output/net6.0/|g' Qobuzarr-ci.csproj
           sed -i 's|src\\Indexers\\|src/Indexers/|g' Qobuzarr-ci.csproj
+          sed -i 's|<OutputPath>bin\\</OutputPath>|<OutputPath>bin/</OutputPath>|g' Qobuzarr-ci.csproj
           sed -i 's|<EnablePluginDeployment.*true.*|<EnablePluginDeployment>false</EnablePluginDeployment>|g' Qobuzarr-ci.csproj
           sed -i 's|<ILRepackEnabled>true</ILRepackEnabled>|<ILRepackEnabled>false</ILRepackEnabled>|g' Qobuzarr-ci.csproj
         fi
@@ -105,8 +113,18 @@ jobs:
 
     - name: Run tests
       run: |
-        # Build and run tests separately since we only built the main project
-        dotnet test tests/Qobuzarr.Tests/Qobuzarr.Tests.csproj --configuration Release --verbosity normal \
+        # Create a CI-specific test project file that references the CI project
+        cp tests/Qobuzarr.Tests/Qobuzarr.Tests.csproj tests/Qobuzarr.Tests/Qobuzarr.Tests-ci.csproj
+        
+        # Update the project reference to point to the CI project
+        if [[ "${{ runner.os }}" == "macOS" ]]; then
+          sed -i '' 's|<ProjectReference Include="..\\..\\Qobuzarr.csproj" />|<ProjectReference Include="../../Qobuzarr-ci.csproj" />|g' tests/Qobuzarr.Tests/Qobuzarr.Tests-ci.csproj
+        else
+          sed -i 's|<ProjectReference Include="..\\..\\Qobuzarr.csproj" />|<ProjectReference Include="../../Qobuzarr-ci.csproj" />|g' tests/Qobuzarr.Tests/Qobuzarr.Tests-ci.csproj
+        fi
+        
+        # Build and run tests with CI project
+        dotnet test tests/Qobuzarr.Tests/Qobuzarr.Tests-ci.csproj --configuration Release --verbosity normal \
           --logger trx --results-directory ./test-results \
           -p:RunAnalyzersDuringBuild=false \
           -p:EnableNETAnalyzers=false \
@@ -122,21 +140,23 @@ jobs:
     - name: Security scan with CodeQL
       uses: github/codeql-action/analyze@v3
       if: matrix.os == 'ubuntu-latest'
-      with:
-        languages: csharp
 
     - name: Package plugin
       if: matrix.os == 'ubuntu-latest'
       run: |
         mkdir -p release
         
-        # Find the actual build output directory
-        BUILD_OUTPUT="bin/Release/net6.0"
+        # The project has AppendTargetFrameworkToOutputPath=false, so output is in bin/Release/
+        BUILD_OUTPUT="bin/Release"
+        
+        # Verify build output location
+        echo "Looking for build output in: $BUILD_OUTPUT"
+        ls -la $BUILD_OUTPUT/ || echo "Build output directory not found"
         
         # Copy plugin files from the correct location
         cp $BUILD_OUTPUT/Lidarr.Plugin.Qobuzarr.dll release/ || echo "DLL not found in $BUILD_OUTPUT"
         cp $BUILD_OUTPUT/plugin.json release/ || cp plugin.json release/ || echo "plugin.json not found"
-        cp src/Indexers/ml-baseline-patterns.json release/ 2>/dev/null || echo "ML patterns not found"
+        cp $BUILD_OUTPUT/ml-baseline-patterns.json release/ 2>/dev/null || cp src/Indexers/ml-baseline-patterns.json release/ 2>/dev/null || echo "ML patterns not found"
         
         # Create release archive
         cd release
