@@ -38,7 +38,7 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
         private static readonly HashSet<string> EditionMarkers = new(StringComparer.OrdinalIgnoreCase)
         {
             // Standard edition types
-            "Deluxe", "Expanded", "Limited", "Special", "Collector", "Collectors",
+            "Deluxe", "Expanded", "Limited", "Special", "Collector", "Collectors", "Collector's",
             "Target", "Amazon", "iTunes", "Walmart", "Best Buy", "UK", "US", "EU",
             
             // Remastering/technical improvements
@@ -216,15 +216,45 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
 
         private bool IsInEditionContext(string token, string fullTitle)
         {
+            // The token parameter is already cleaned, but we need to check against both
+            // the cleaned version and possible original forms in the full title
+            
+            // Check if the cleaned token or its variants appear before "Edition", "Version", etc.
+            // This handles cases like "Collector's Edition" -> cleaned token "Collectors"
+            var tokenVariants = new[]
+            {
+                token,                          // Cleaned version (e.g., "Collectors")
+                token + "'s",                   // Possessive form (e.g., "Collector's")
+                token.TrimEnd('s') + "'s",      // Singular possessive (e.g., "Collector's" from "Collectors")
+                token.TrimEnd('s')              // Singular form (e.g., "Collector" from "Collectors")
+            };
+            
+            foreach (var variant in tokenVariants)
+            {
+                if (string.IsNullOrWhiteSpace(variant)) continue;
+                
+                // Check if followed by "Edition" or "Version"
+                var editionPattern = $@"\b{Regex.Escape(variant)}\s+(edition|version|release)\b";
+                if (Regex.IsMatch(fullTitle, editionPattern, RegexOptions.IgnoreCase))
+                {
+                    return true;
+                }
+            }
+            
             // Check if the token appears in any edition context pattern
             foreach (var pattern in EditionContextPatterns)
             {
                 var matches = pattern.Matches(fullTitle);
                 foreach (Match match in matches)
                 {
-                    if (match.Value.Contains(token, StringComparison.OrdinalIgnoreCase))
+                    // Check both the cleaned token and its variants
+                    foreach (var variant in tokenVariants)
                     {
-                        return true;
+                        if (!string.IsNullOrWhiteSpace(variant) && 
+                            match.Value.Contains(variant, StringComparison.OrdinalIgnoreCase))
+                        {
+                            return true;
+                        }
                     }
                 }
             }
@@ -256,33 +286,30 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
 
         private IEnumerable<string> TokenizeAlbumTitle(string title)
         {
-            // Split on whitespace and common separators, but preserve meaningful units
             var tokens = new List<string>();
             
-            // First split on major separators
-            var parts = Regex.Split(title, @"[\s\-_]+")
-                            .Where(p => !string.IsNullOrWhiteSpace(p))
-                            .ToList();
+            if (string.IsNullOrWhiteSpace(title))
+                return tokens;
             
-            // Handle parenthetical/bracketed content as units
-            var processedTitle = title;
+            // Remove parentheses/brackets but keep their content
+            var cleanedTitle = title;
             var parentheticalPattern = @"[\(\[]([^\)\]]+)[\)\]]";
             var matches = Regex.Matches(title, parentheticalPattern);
             
             foreach (Match match in matches)
             {
-                tokens.Add(match.Groups[1].Value.Trim());
-                processedTitle = processedTitle.Replace(match.Value, "");
+                var contentInside = match.Groups[1].Value.Trim();
+                cleanedTitle = cleanedTitle.Replace(match.Value, " " + contentInside + " ");
             }
             
-            // Add remaining tokens
-            var remainingTokens = Regex.Split(processedTitle, @"[\s\-_]+")
-                                      .Where(p => !string.IsNullOrWhiteSpace(p))
-                                      .Select(p => p.Trim());
+            // Split on whitespace, dashes, and underscores
+            var allTokens = Regex.Split(cleanedTitle, @"[\s\-_,]+")
+                                .Where(t => !string.IsNullOrWhiteSpace(t))
+                                .Select(t => t.Trim().Trim(new char[] { '.', ',', '!', '?' }))
+                                .Where(t => !string.IsNullOrWhiteSpace(t))
+                                .ToList();
             
-            tokens.AddRange(remainingTokens);
-            
-            return tokens.Distinct();
+            return allTokens;
         }
     }
 
