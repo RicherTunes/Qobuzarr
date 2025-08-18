@@ -1,0 +1,11 @@
+blank_issues_enabled: false
+contact_links:
+  - name: 📖 Documentation
+    url: https://github.com/richertunes/qobuzarr/blob/main/README.md
+    about: Read the documentation for setup and usage instructions
+  - name: ❓ Questions & Discussions
+    url: https://github.com/richertunes/qobuzarr/discussions
+    about: Ask questions and discuss with the community
+  - name: 🙏 TrevTV's Original Plugin
+    url: https://github.com/TrevTV/Lidarr.Plugin.Qobuz
+    about: Visit TrevTV's original Qobuz plugin that inspired this project

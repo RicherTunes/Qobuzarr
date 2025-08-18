@@ -1,0 +1,148 @@
+name: Security Vulnerability Report
+description: Report a security vulnerability (CONFIDENTIAL)
+title: "[SECURITY]: "
+labels: ["security", "triage"]
+
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ⚠️ **IMPORTANT**: If this is a critical security vulnerability that could be exploited, please **DO NOT** report it here. 
+        Instead, please email the security issue privately to: **security@[maintainer-email]** or use GitHub's private vulnerability reporting.
+        
+        This form is for non-critical security concerns, security suggestions, or security-related enhancement requests.
+
+  - type: checkboxes
+    id: confidentiality
+    attributes:
+      label: Confidentiality Assessment
+      description: Please confirm the nature of this security report
+      options:
+        - label: This is NOT a critical vulnerability that could be actively exploited
+          required: true
+        - label: This vulnerability does not expose sensitive user data or system credentials
+          required: true
+        - label: I understand that critical vulnerabilities should be reported privately via email
+          required: true
+
+  - type: dropdown
+    id: severity
+    attributes:
+      label: Severity Level
+      description: How would you rate the severity of this security concern?
+      options:
+        - Low - Informational or hardening suggestion
+        - Medium - Potential security improvement
+        - High - Security concern but not immediately exploitable
+    validations:
+      required: true
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Security Issue Description
+      description: Describe the security concern, vulnerability, or suggestion
+      placeholder: |
+        Please provide:
+        - Clear description of the security issue
+        - Why this is a security concern
+        - Potential impact if applicable
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Steps to Reproduce (if applicable)
+      description: If this is a vulnerability, provide steps to reproduce it
+      placeholder: |
+        1. Go to '...'
+        2. Configure '...'
+        3. Observe behavior
+        4. Security concern manifests as...
+    validations:
+      required: false
+
+  - type: dropdown
+    id: component
+    attributes:
+      label: Affected Component
+      description: Which part of the system is affected?
+      options:
+        - Authentication/Authorization
+        - API/Network Communication
+        - File System Access
+        - Data Storage/Caching
+        - Configuration/Settings
+        - Logging/Monitoring
+        - Dependencies/Third-party
+        - Build/Deployment
+        - Other/Unknown
+    validations:
+      required: true
+
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment Details
+      description: Provide relevant environment information
+      placeholder: |
+        - Qobuzarr Version: 
+        - Lidarr Version:
+        - Operating System:
+        - Configuration details (if relevant):
+    validations:
+      required: false
+
+  - type: textarea
+    id: impact
+    attributes:
+      label: Potential Impact
+      description: What could happen if this security issue is not addressed?
+      placeholder: |
+        Describe potential consequences:
+        - Data exposure risk
+        - System compromise potential
+        - User privacy implications
+        - etc.
+    validations:
+      required: true
+
+  - type: textarea
+    id: mitigation
+    attributes:
+      label: Suggested Mitigation
+      description: Do you have suggestions for how to address this security concern?
+      placeholder: |
+        If you have ideas for fixes or improvements:
+        - Implementation suggestions
+        - Security best practices to follow
+        - Alternative approaches
+    validations:
+      required: false
+
+  - type: textarea
+    id: references
+    attributes:
+      label: References
+      description: Any relevant security advisories, CVEs, or documentation
+      placeholder: |
+        - CVE references
+        - Security advisory links
+        - Related documentation
+        - Similar issues in other projects
+    validations:
+      required: false
+
+  - type: checkboxes
+    id: responsible_disclosure
+    attributes:
+      label: Responsible Disclosure
+      description: Confirmation of responsible disclosure practices
+      options:
+        - label: I will not publicly disclose details of any critical vulnerabilities until they are resolved
+          required: true
+        - label: I understand that security fixes may take time to implement properly
+          required: true
+        - label: I am willing to work with maintainers to verify fixes if needed
+          required: true

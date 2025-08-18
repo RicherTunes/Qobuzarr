@@ -1,0 +1,307 @@
+using System;
+using System.IO;
+using System.Linq;
+using System.Net.Http;
+using System.Threading;
+using System.Threading.Tasks;
+using NzbDrone.Common.Http;
+using Lidarr.Plugin.Qobuzarr.Abstractions;
+using Lidarr.Plugin.Qobuzarr.Utilities;
+using Lidarr.Plugin.Qobuzarr.Configuration;
+
+namespace Lidarr.Plugin.Qobuzarr.Download.Services
+{
+    /// <summary>
+    /// Handles downloading audio files from streaming URLs with progress reporting and retry logic
+    /// </summary>
+    public class AudioFileDownloader : IAudioFileDownloader
+    {
+        private readonly IHttpClient _httpClient;
+        private readonly IQobuzLogger _logger;
+        private readonly IQualityFallbackProvider _qualityFallbackProvider;
+
+        private const int MaxRetries = QobuzPluginConstants.Download.MaxRetries;
+        private const int RetryDelayMs = QobuzPluginConstants.Download.RetryDelayMs;
+        private const int LargeFileThresholdBytes = QobuzPluginConstants.Download.LargeFileThresholdBytes;
+        private const int BufferSize = QobuzPluginConstants.Download.BufferSize;
+        private const int ChunkSize = QobuzPluginConstants.Download.ChunkSize;
+
+        public AudioFileDownloader(IHttpClient httpClient, IQobuzLogger logger, IQualityFallbackProvider qualityFallbackProvider)
+        {
+            _httpClient = Guard.NotNull(httpClient, nameof(httpClient));
+            _logger = Guard.NotNull(logger, nameof(logger));
+            _qualityFallbackProvider = Guard.NotNull(qualityFallbackProvider, nameof(qualityFallbackProvider));
+        }
+
+        public async Task DownloadAudioFileAsync(
+            string streamUrl,
+            string outputPath,
+            IProgress<double> progress,
+            CancellationToken cancellationToken)
+        {
+            Guard.NotNullOrWhiteSpace(streamUrl, nameof(streamUrl));
+            Guard.NotNullOrWhiteSpace(outputPath, nameof(outputPath));
+
+            var attempt = 0;
+            Exception? lastException = null;
+
+            while (attempt < MaxRetries)
+            {
+                attempt++;
+                try
+                {
+                    // Ensure output directory exists
+                    var directory = Path.GetDirectoryName(outputPath);
+                    if (!Directory.Exists(directory))
+                    {
+                        Directory.CreateDirectory(directory);
+                    }
+
+                    if (attempt > 1)
+                    {
+                        _logger.Debug("Download retry attempt {0}/{1} for: {2}", attempt, MaxRetries, streamUrl);
+                        // Exponential backoff for retries
+                        var delay = Math.Min(RetryDelayMs * (int)Math.Pow(2, attempt - 1), 30000); // Max 30 seconds
+                        await Task.Delay(delay, cancellationToken).ConfigureAwait(false);
+                    }
+
+                    // Create HTTP request with streaming support and timeout
+                    var request = new HttpRequestBuilder(streamUrl)
+                        .SetHeader("User-Agent", QobuzPluginConstants.Http.UserAgent)
+                        .SetHeader("Connection", "keep-alive")
+                        .SetHeader("Accept", "*/*")
+                        .Build();
+                    
+                    // Set a longer timeout for large files
+                    request.RequestTimeout = TimeSpan.FromMinutes(5);
+
+                    var response = await _httpClient.ExecuteAsync(request).ConfigureAwait(false);
+                    
+                    if (response.HasHttpError)
+                    {
+                        throw new HttpException(request, response);
+                    }
+
+                    var totalBytes = response.Headers.ContentLength ?? 0;
+                    var downloadedBytes = 0L;
+
+                    // Download with progress reporting
+                    using var fileStream = new FileStream(outputPath, FileMode.Create, FileAccess.Write, FileShare.None, bufferSize: BufferSize);
+
+                    // For large files, stream the download instead of loading into memory
+                    if (response.ResponseData.Length > LargeFileThresholdBytes)
+                    {
+                        _logger.Debug("Large file detected ({0} bytes), using streaming download", response.ResponseData.Length);
+                        
+                        downloadedBytes = await StreamLargeFileAsync(response.ResponseData, fileStream, totalBytes, progress, cancellationToken);
+                    }
+                    else
+                    {
+                        // Small files - write directly
+                        await fileStream.WriteAsync(response.ResponseData, 0, response.ResponseData.Length, cancellationToken).ConfigureAwait(false);
+                        downloadedBytes = response.ResponseData.Length;
+                    }
+
+                    // Final progress report
+                    ReportFinalProgress(progress, downloadedBytes, totalBytes);
+
+                    await fileStream.FlushAsync(cancellationToken).ConfigureAwait(false);
+                    
+                    _logger.Debug("Successfully downloaded {0} bytes to: {1} (attempt {2})", downloadedBytes, outputPath, attempt);
+                    return; // Success - exit retry loop
+                }
+                catch (Exception ex)
+                {
+                    lastException = ex;
+                    
+                    await CleanupPartialFileAsync(outputPath);
+
+                    // Determine if this is a retryable error
+                    var isRetryable = IsRetryableNetworkError(ex) || _qualityFallbackProvider.IsRetryableException(ex);
+                    
+                    if (attempt < MaxRetries && isRetryable)
+                    {
+                        var errorType = GetErrorType(ex);
+                        _logger.Warn("Download failed due to {0} (attempt {1}/{2}), will retry: {3}", 
+                            errorType, attempt, MaxRetries, ex.Message);
+                        
+                        // For network interruptions, log more details
+                        if (ex.Message.Contains("response ended prematurely") || 
+                            ex.Message.Contains("copying content to a stream"))
+                        {
+                            _logger.Debug("Network interruption detected - this is common with large files or unstable connections");
+                        }
+                    }
+                    else
+                    {
+                        _logger.Error(ex, "Failed to download audio file from: {0} (final attempt {1}/{2})", streamUrl, attempt, MaxRetries);
+                        throw;
+                    }
+                }
+            }
+            
+            // If we get here, all retries failed
+            _logger.Error(lastException, "Failed to download audio file after {0} attempts: {1}", MaxRetries, streamUrl);
+            throw lastException ?? new InvalidOperationException("Download failed after all retries");
+        }
+
+        public bool ValidateDownloadedFile(string filePath)
+        {
+            Guard.NotNullOrWhiteSpace(filePath, nameof(filePath));
+
+            try
+            {
+                // Use centralized validation for basic file checks
+                if (!ValidationUtilities.ValidateDownloadedFile(filePath))
+                {
+                    return false;
+                }
+
+                var fileInfo = new FileInfo(filePath);
+
+                // Basic file validation - try to read the first few bytes
+                using var fileStream = File.OpenRead(filePath);
+                var buffer = new byte[1024];
+                var bytesRead = fileStream.Read(buffer, 0, buffer.Length);
+                
+                if (bytesRead == 0)
+                {
+                    _logger.Debug("Could not read any bytes from downloaded file: {0}", filePath);
+                    return false;
+                }
+
+                // For audio files, check for common magic bytes
+                if (IsValidAudioFile(buffer, Path.GetExtension(filePath)))
+                {
+                    _logger.Debug("Downloaded file validation successful: {0} ({1} bytes)", filePath, fileInfo.Length);
+                    return true;
+                }
+
+                _logger.Debug("Downloaded file does not appear to be a valid audio file: {0}", filePath);
+                return false;
+            }
+            catch (Exception ex)
+            {
+                _logger.Error(ex, "Error validating downloaded file: {0}", filePath);
+                return false;
+            }
+        }
+
+        private async Task<long> StreamLargeFileAsync(
+            byte[] responseData, 
+            FileStream fileStream, 
+            long totalBytes, 
+            IProgress<double> progress, 
+            CancellationToken cancellationToken)
+        {
+            // Write in chunks to avoid memory issues and provide better progress
+            var buffer = new byte[ChunkSize];
+            var dataStream = new MemoryStream(responseData);
+            var downloadedBytes = 0L;
+            
+            int bytesRead;
+            while ((bytesRead = await dataStream.ReadAsync(buffer, 0, ChunkSize, cancellationToken).ConfigureAwait(false)) > 0)
+            {
+                await fileStream.WriteAsync(buffer, 0, bytesRead, cancellationToken).ConfigureAwait(false);
+                downloadedBytes += bytesRead;
+                
+                // Report progress more frequently for streaming
+                if (totalBytes > 0)
+                {
+                    var progressPercentage = (double)downloadedBytes / totalBytes * 100;
+                    progress?.Report(Math.Min(100, progressPercentage));
+                }
+            }
+
+            return downloadedBytes;
+        }
+
+        private static void ReportFinalProgress(IProgress<double> progress, long downloadedBytes, long totalBytes)
+        {
+            if (totalBytes > 0)
+            {
+                var progressPercentage = (double)downloadedBytes / totalBytes * 100;
+                progress?.Report(Math.Min(100, progressPercentage));
+            }
+            else
+            {
+                progress?.Report(100); // Complete if total bytes unknown
+            }
+        }
+
+        private async Task CleanupPartialFileAsync(string outputPath)
+        {
+            // Clean up partial file on error
+            try
+            {
+                if (File.Exists(outputPath))
+                {
+                    File.Delete(outputPath);
+                }
+            }
+            catch (Exception deleteEx)
+            {
+                _logger.Warn(deleteEx, "Failed to clean up partial file: {0}", outputPath);
+            }
+        }
+
+        private static bool IsValidAudioFile(byte[] buffer, string extension)
+        {
+            if (buffer.Length < 4) return false;
+
+            return extension.ToLowerInvariant() switch
+            {
+                ".mp3" => buffer[0] == 0xFF && (buffer[1] & 0xE0) == 0xE0, // MP3 frame header
+                ".flac" => buffer[0] == 0x66 && buffer[1] == 0x4C && buffer[2] == 0x61 && buffer[3] == 0x43, // "fLaC"
+                ".m4a" => buffer.Skip(4).Take(4).SequenceEqual(new byte[] { 0x66, 0x74, 0x79, 0x70 }), // "ftyp" after size
+                ".wav" => buffer[0] == 0x52 && buffer[1] == 0x49 && buffer[2] == 0x46 && buffer[3] == 0x46, // "RIFF"
+                _ => true // Assume valid for unknown extensions
+            };
+        }
+        
+        private static bool IsRetryableNetworkError(Exception ex)
+        {
+            // Check for specific network-related errors that are worth retrying
+            if (ex is IOException ioEx)
+            {
+                // "The response ended prematurely" is a common network interruption
+                if (ioEx.Message.Contains("response ended prematurely", StringComparison.OrdinalIgnoreCase))
+                    return true;
+            }
+            
+            if (ex is HttpRequestException httpEx)
+            {
+                // "Error while copying content to a stream" indicates download interruption
+                if (httpEx.Message.Contains("copying content", StringComparison.OrdinalIgnoreCase))
+                    return true;
+            }
+            
+            if (ex.InnerException != null)
+            {
+                return IsRetryableNetworkError(ex.InnerException);
+            }
+            
+            // Check for WebException which often indicates network issues
+            if (ex.GetType().Name == "WebException")
+                return true;
+                
+            return false;
+        }
+        
+        private static string GetErrorType(Exception ex)
+        {
+            if (ex.Message.Contains("response ended prematurely", StringComparison.OrdinalIgnoreCase))
+                return "network interruption";
+            if (ex.Message.Contains("copying content", StringComparison.OrdinalIgnoreCase))
+                return "download interruption";
+            if (ex.Message.Contains("timeout", StringComparison.OrdinalIgnoreCase))
+                return "timeout";
+            if (ex is IOException)
+                return "IO error";
+            if (ex is HttpRequestException)
+                return "HTTP error";
+                
+            return "error";
+        }
+    }
+}

@@ -1,0 +1,111 @@
+{
+  "version": "1.0.0",
+  "generatedBy": "Lidarr.Plugin.Qobuzarr v0.0.3",
+  "generatedDate": "2025-01-30T16:00:45Z",
+  
+  "source": {
+    "service": "Qobuz",
+    "region": "US",
+    "accountType": "sublime",
+    "downloadDate": "2025-01-30T16:00:45Z"
+  },
+  
+  "track": {
+    "id": "125489634",
+    "title": "Bohemian Rhapsody",
+    "artist": "Queen",
+    "artistId": "8457",
+    "duration": 354,
+    "isrc": "GBUM71505079",
+    "trackNumber": 11,
+    "discNumber": 1,
+    "url": "https://www.qobuz.com/track/125489634"
+  },
+  
+  "album": {
+    "id": "0060255788652",
+    "title": "A Night at the Opera",
+    "artist": "Queen",
+    "label": "EMI",
+    "releaseDate": "1975-11-21",
+    "releaseType": "album",
+    "url": "https://www.qobuz.com/album/0060255788652"
+  },
+  
+  "quality": {
+    "format": "FLAC",
+    "bitDepth": 24,
+    "sampleRate": 96000,
+    "channels": 2,
+    "qualityLabel": "Hi-Res 24-bit/96kHz",
+    "isLossless": true,
+    "originalSampleRate": 96000,
+    "wasUpsampled": false
+  },
+  
+  "file": {
+    "name": "11 - Bohemian Rhapsody.flac",
+    "path": "Queen/A Night at the Opera/11 - Bohemian Rhapsody.flac",
+    "size": 113456789,
+    "expectedSize": 113456789,
+    "checksum": "md5:f1e2d3c4b5a6978809abcdef",
+    "downloadedAt": "2025-01-30T16:00:48Z",
+    "downloadDuration": 4.8,
+    "downloadSpeed": "23.6 MB/s"
+  },
+  
+  "technical": {
+    "bitrate": 2563,
+    "encoder": "Qobuz FLAC 1.3.3",
+    "dynamicRange": 12,
+    "peakLevel": -0.3,
+    "replayGain": {
+      "trackGain": -9.24,
+      "trackPeak": 0.988525,
+      "albumGain": -9.12,
+      "albumPeak": 0.988525
+    }
+  },
+  
+  "metadata": {
+    "composer": "Freddie Mercury",
+    "producer": "Roy Thomas Baker, Queen",
+    "engineer": "Mike Stone",
+    "copyright": "© 1975 Queen Productions Ltd",
+    "lyrics": {
+      "available": true,
+      "syncedAvailable": false,
+      "language": "en"
+    },
+    "credits": {
+      "vocals": "Freddie Mercury",
+      "guitar": "Brian May",
+      "bass": "John Deacon",
+      "drums": "Roger Taylor",
+      "piano": "Freddie Mercury"
+    },
+    "tags": ["rock", "progressive rock", "opera rock", "1970s", "classic"]
+  },
+  
+  "replaceHistory": [
+    {
+      "date": "2025-01-15T10:30:00Z",
+      "previousQuality": {
+        "format": "MP3",
+        "bitrate": 320,
+        "qualityLabel": "MP3 320kbps"
+      },
+      "reason": "quality_upgrade",
+      "previousFileSize": 8134567
+    }
+  ],
+  
+  "validation": {
+    "integrityChecked": true,
+    "audioStreamValid": true,
+    "metadataComplete": true,
+    "lastVerified": "2025-01-30T16:01:00Z",
+    "checksumAlgorithm": "md5",
+    "issues": []
+  }
+}

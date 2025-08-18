@@ -1,0 +1,149 @@
+name: Security Scan
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+  schedule:
+    # Run security scans daily at 2 AM UTC
+    - cron: '0 2 * * *'
+  workflow_dispatch:
+
+jobs:
+  security-scan:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
+      actions: read
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: '6.0.x'
+
+    - name: Restore dependencies
+      run: dotnet restore Qobuzarr.csproj
+
+    - name: Run .NET Security Analysis
+      run: |
+        dotnet list package --vulnerable --include-transitive 2>&1 | tee security-report.txt
+        if grep -q "has the following vulnerable packages" security-report.txt; then
+          echo "::warning::Vulnerable packages detected. Please review the security report."
+          cat security-report.txt
+        else
+          echo "No vulnerable packages detected."
+        fi
+
+    - name: Initialize CodeQL
+      uses: github/codeql-action/init@v3
+      with:
+        languages: csharp
+        config: |
+          name: "Qobuzarr Security Analysis"
+          disable-default-queries: false
+          queries:
+            - uses: security-and-quality
+            - uses: security-extended
+
+    - name: Autobuild
+      uses: github/codeql-action/autobuild@v3
+
+    - name: Perform CodeQL Analysis
+      uses: github/codeql-action/analyze@v3
+      with:
+        category: "/language:csharp"
+
+    - name: Run Semgrep
+      uses: returntocorp/semgrep-action@v1
+      with:
+        config: >-
+          p/security-audit
+          p/secrets
+          p/csharp
+        generateSarif: "1"
+
+    - name: Upload Semgrep SARIF
+      uses: github/codeql-action/upload-sarif@v3
+      if: always()
+      with:
+        sarif_file: semgrep.sarif
+
+    - name: Upload security report
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: security-scan-results-${{ github.sha }}
+        path: |
+          security-report.txt
+          semgrep.sarif
+        retention-days: 30
+
+  secrets-scan:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Run TruffleHog OSS
+      uses: trufflesecurity/trufflehog@main
+      with:
+        path: ./
+        base: main
+        head: HEAD
+        extra_args: --debug --only-verified
+
+  dependency-review:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    
+    steps:
+    - name: Checkout Repository
+      uses: actions/checkout@v4
+      
+    - name: Dependency Review
+      uses: actions/dependency-review-action@v4
+      with:
+        config-file: './.github/dependency-review-config.yml'
+        fail-on-severity: moderate
+        allow-licenses: MIT, Apache-2.0, BSD-2-Clause, BSD-3-Clause, ISC, GPL-3.0, LGPL-2.1, LGPL-3.0, MS-PL
+
+  sbom-generation:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: '6.0.x'
+
+    - name: Install SBOM tool
+      run: dotnet tool install --global Microsoft.Sbom.Tool
+
+    - name: Restore dependencies
+      run: dotnet restore Qobuzarr.csproj
+
+    - name: Generate SBOM
+      run: |
+        mkdir -p _manifest
+        sbom-tool generate -b ./ -bc Qobuzarr.csproj -pn Qobuzarr -pv 1.0.0 -ps richertunes -nsb https://github.com/richertunes/qobuzarr -m _manifest
+
+    - name: Upload SBOM
+      uses: actions/upload-artifact@v4
+      with:
+        name: sbom-${{ github.sha }}
+        path: _manifest/
+        retention-days: 90

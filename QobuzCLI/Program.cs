@@ -1,0 +1,212 @@
+using System.CommandLine;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Console;
+using NLog;
+using NLog.Extensions.Logging;
+using QobuzCLI.Commands;
+using QobuzCLI.Services;
+using QobuzCLI.Services.Adapters;
+using QobuzCLI.Services.Logging;
+using Spectre.Console;
+using Lidarr.Plugin.Qobuzarr.Services;
+
+namespace QobuzCLI;
+
+/// <summary>
+/// Main entry point for the QobuzCLI application - a command-line interface for testing and using
+/// the Qobuzzarr plugin functionality. This CLI serves as both a testing tool for plugin development
+/// and a standalone application for downloading music from Qobuz.
+/// </summary>
+/// <remarks>
+/// The CLI follows the plugin-first architecture principle where all core functionality lives in the plugin
+/// (src/) and the CLI only adds command-line interface, console output, and configuration management.
+/// The CLI uses the plugin's services directly via project reference.
+/// 
+/// Available commands:
+/// - auth: Authenticate with Qobuz and test API access
+/// - search: Search for albums and tracks in the Qobuz catalog
+/// - download: Download albums or individual tracks
+/// - queue: Manage download queue with batch operations
+/// - config: Manage application configuration
+/// - history: View download history and statistics
+/// </remarks>
+class Program
+{
+    /// <summary>
+    /// Application entry point that sets up dependency injection, configures logging,
+    /// and dispatches to the appropriate command handler based on command-line arguments.
+    /// </summary>
+    /// <param name="args">Command-line arguments specifying the operation to perform.</param>
+    /// <returns>Exit code: 0 for success, non-zero for errors.</returns>
+    static async Task<int> Main(string[] args)
+    {
+        // Quick test to verify plugin core integration works
+        // Plugin core test removed - functionality available through regular commands
+        // if (args.Length > 0 && args[0] == "--test-plugin-core")
+        // {
+        //     await PluginCoreTest.RunBasicTest();
+        //     return 0;
+        // }
+        
+        try
+        {
+            // Configure NLog before anything else
+            LogManager.LoadConfiguration("nlog.config");
+            
+            // Setup dependency injection
+            var services = new ServiceCollection();
+            ConfigureServices(services);
+            var serviceProvider = services.BuildServiceProvider();
+
+            // Initialize state service
+            var stateService = serviceProvider.GetRequiredService<IStateService>();
+            await stateService.InitializeAsync();
+            
+            // Initialize queue service
+            var queueService = serviceProvider.GetRequiredService<IQueueService>();
+            await queueService.InitializeAsync();
+
+            // Create root command
+            var rootCommand = CreateRootCommand(serviceProvider);
+
+            // Execute command
+            return await rootCommand.InvokeAsync(args);
+        }
+        catch (Exception ex)
+        {
+            AnsiConsole.WriteException(ex);
+            return 1;
+        }
+    }
+
+    private static void ConfigureServices(IServiceCollection services)
+    {
+        // Dashboard state provider for coordinated logging
+        services.AddSingleton<IDashboardStateProvider, DashboardStateProvider>();
+        
+        // Phase 1+: Enhanced logging with dashboard integration
+        services.AddLogging(builder =>
+        {
+            builder.ClearProviders();
+            
+            // Add NLog for file logging with full detail
+            builder.AddNLog();
+            
+            // Add dashboard-aware console logging
+            builder.Services.AddSingleton<ILoggerProvider>(serviceProvider =>
+            {
+                var dashboardState = serviceProvider.GetRequiredService<IDashboardStateProvider>();
+                return new DashboardAwareConsoleLoggerProvider(
+                    Microsoft.Extensions.Options.Options.Create(new ConsoleLoggerOptions()), 
+                    dashboardState);
+            });
+            
+            builder.SetMinimumLevel(Microsoft.Extensions.Logging.LogLevel.Information);
+        });
+
+        // Dashboard service - register after logging to avoid circular dependency
+        services.AddSingleton<Dashboard>(sp => 
+        {
+            var logger = sp.GetRequiredService<ILogger<Dashboard>>();
+            return new Dashboard(logger, sp);
+        });
+
+        // Core services
+        services.AddSingleton<IConfigService, ConfigService>();
+        services.AddSingleton<ISecureCredentialStorage, SecureCredentialStorage>();
+        services.AddSingleton<ISecureConfigService, SecureConfigService>();
+        
+        // Register plugin's rate limiter - used directly by CLI components
+        services.AddSingleton<Lidarr.Plugin.Qobuzarr.Services.IAdaptiveRateLimiter, Lidarr.Plugin.Qobuzarr.Services.AdaptiveRateLimiter>();
+        services.AddSingleton<DownloadProgressTracker>();
+        // PluginMetadataService removed - using plugin's QobuzTrackDownloader.ApplyBasicMetadata instead
+        services.AddSingleton<DownloadOrchestrator>();
+        services.AddSingleton<DownloadErrorAnalyzer>();
+        
+        // Lidarr integration services
+        services.AddSingleton<LidarrCredentialService>();
+        
+        // Real Lidarr integration service - thin CLI adapter that delegates to plugin services
+        // No longer needs HttpClient - plugin services handle all HTTP operations
+        services.AddSingleton<Lidarr.Plugin.Qobuzarr.Services.ILidarrIntegrationService, RealLidarrIntegrationService>();
+        
+        // Register DashboardLogger as IDashboardLogger
+        services.AddSingleton<QobuzCLI.Services.Logging.IDashboardLogger>(sp =>
+        {
+            var logger = sp.GetRequiredService<ILogger<DashboardLogger>>();
+            var dashboard = sp.GetRequiredService<Dashboard>();
+            return new QobuzCLI.Services.Logging.DashboardLogger(logger, dashboard, "Default");
+        });
+        
+        // Register HttpClient for plugin use
+        services.AddSingleton<HttpClient>();
+        
+        // Use SimplePluginService (transitional implementation)
+        // This replaces the 1,776-line RealQobuzService god object with a focused implementation
+        services.AddSingleton<IPluginHost>(sp =>
+        {
+            var logger = sp.GetRequiredService<ILogger<PluginHost>>();
+            var httpClient = sp.GetRequiredService<HttpClient>();
+            return new PluginHost(logger, httpClient);
+        });
+        
+        services.AddSingleton<ISearchService, SearchService>();
+        services.AddSingleton<IConflictService, ConflictService>();
+        services.AddSingleton<IStateService, StateService>();
+        services.AddSingleton<ISmartDuplicateChecker, SimpleDuplicateChecker>();
+        services.AddSingleton<IBatchDownloadService, BatchDownloadService>();
+        services.AddSingleton<QueueMonitoringService>();
+        
+        // Use improved queue service if enabled
+        var useImprovedQueue = Environment.GetEnvironmentVariable("QOBUZ_USE_IMPROVED_QUEUE") == "true";
+        if (useImprovedQueue)
+        {
+            services.AddSingleton<IQueueService, ImprovedQueueService>();
+        }
+        else
+        {
+            services.AddSingleton<IQueueService, QueueService>();
+        }
+
+        // Commands
+        services.AddTransient<ConfigCommand>();
+        services.AddTransient<AuthCommand>();
+        services.AddTransient<SearchCommand>();
+        services.AddTransient<BatchSearchCommand>();
+        services.AddTransient<DownloadCommand>();
+        services.AddTransient<QueueCommand>();
+        services.AddTransient<HistoryCommand>();
+        services.AddTransient<TestPerformanceCommand>();
+        services.AddTransient<TestUtilityPerformanceCommand>();
+        services.AddTransient<TestQueueCommand>();
+        services.AddTransient<LidarrCommand>();
+        // ML features - to be implemented in v0.0.13
+        // services.AddTransient<GenerateMLTrainingDataCommand>();
+        // services.AddTransient<TestMLCommand>();
+    }
+
+    private static RootCommand CreateRootCommand(IServiceProvider serviceProvider)
+    {
+        var rootCommand = new RootCommand("Qobuz CLI - Comprehensive testing tool for the Qobuz Lidarr Plugin");
+
+        // Add implemented commands
+        rootCommand.AddCommand(serviceProvider.GetRequiredService<ConfigCommand>().Command);
+        rootCommand.AddCommand(serviceProvider.GetRequiredService<AuthCommand>().Command);
+        rootCommand.AddCommand(serviceProvider.GetRequiredService<SearchCommand>().Command);
+        rootCommand.AddCommand(serviceProvider.GetRequiredService<BatchSearchCommand>().Command);
+        rootCommand.AddCommand(serviceProvider.GetRequiredService<DownloadCommand>().Command);
+        rootCommand.AddCommand(serviceProvider.GetRequiredService<QueueCommand>().Command);
+        rootCommand.AddCommand(serviceProvider.GetRequiredService<HistoryCommand>().CreateCommand());
+        rootCommand.AddCommand(serviceProvider.GetRequiredService<TestPerformanceCommand>().Command);
+        rootCommand.AddCommand(serviceProvider.GetRequiredService<TestUtilityPerformanceCommand>().Command);
+        rootCommand.AddCommand(serviceProvider.GetRequiredService<TestQueueCommand>().Command);
+        rootCommand.AddCommand(serviceProvider.GetRequiredService<LidarrCommand>().Command);
+        // ML features - to be implemented in v0.0.13
+        // rootCommand.AddCommand(serviceProvider.GetRequiredService<GenerateMLTrainingDataCommand>().Command);
+        // rootCommand.AddCommand(serviceProvider.GetRequiredService<TestMLCommand>().Command);
+
+        return rootCommand;
+    }
+}
+

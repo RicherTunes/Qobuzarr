@@ -1,0 +1,180 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://qobuz-cli.schemas/album-list/v1.0.0",
+  "title": "Qobuz CLI Album List Format",
+  "description": "Standardized format for importing album lists from various sources",
+  "type": "object",
+  "required": ["schema_version", "format", "albums"],
+  "properties": {
+    "schema_version": {
+      "type": "string",
+      "pattern": "^\\d+\\.\\d+\\.\\d+$",
+      "description": "Semantic version of the schema (e.g., '1.0.0')"
+    },
+    "format": {
+      "type": "string",
+      "const": "qobuz-album-list",
+      "description": "Format identifier"
+    },
+    "metadata": {
+      "type": "object",
+      "properties": {
+        "source": {
+          "type": "string",
+          "enum": ["lidarr", "plex", "jellyfin", "emby", "manual", "musicbrainz", "lastfm", "spotify", "other"],
+          "description": "Source system that created this list"
+        },
+        "source_version": {
+          "type": "string",
+          "description": "Version of the source system"
+        },
+        "created_at": {
+          "type": "string",
+          "format": "date-time",
+          "description": "When this list was created (ISO 8601)"
+        },
+        "total_albums": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Total number of albums in the list"
+        },
+        "title": {
+          "type": "string",
+          "maxLength": 200,
+          "description": "Description or title for this list"
+        },
+        "extra": {
+          "type": "object",
+          "description": "Additional metadata as key-value pairs"
+        }
+      }
+    },
+    "albums": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["search_query"],
+        "properties": {
+          "search_query": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 500,
+            "description": "Primary search query to use"
+          },
+          "artist_name": {
+            "type": "string",
+            "maxLength": 200,
+            "description": "Artist name for better search results"
+          },
+          "album_title": {
+            "type": "string", 
+            "maxLength": 200,
+            "description": "Album title for better search results"
+          },
+          "release_year": {
+            "type": "integer",
+            "minimum": 1900,
+            "maximum": 2100,
+            "description": "Release year (helps with disambiguation)"
+          },
+          "album_type": {
+            "type": "string",
+            "enum": ["album", "single", "ep", "compilation", "soundtrack", "live", "remix", "other"],
+            "description": "Type of album release"
+          },
+          "track_count": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 200,
+            "description": "Expected number of tracks"
+          },
+          "source_id": {
+            "type": "string",
+            "maxLength": 100,
+            "description": "Source-specific ID (e.g., Lidarr album ID)"
+          },
+          "mbid": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+            "description": "MusicBrainz album ID (UUID format)"
+          },
+          "priority": {
+            "type": "integer",
+            "minimum": -100,
+            "maximum": 100,
+            "default": 0,
+            "description": "Priority for download order (higher = sooner)"
+          },
+          "metadata": {
+            "type": "object",
+            "description": "Additional metadata for this album"
+          }
+        }
+      }
+    },
+    "config": {
+      "type": "object",
+      "properties": {
+        "output_directory": {
+          "type": "string",
+          "description": "Output directory override"
+        },
+        "quality": {
+          "type": "string",
+          "enum": ["mp3-320", "flac-cd", "flac-hires", "flac-max"],
+          "description": "Quality preference override"
+        },
+        "immediate": {
+          "type": "boolean",
+          "description": "Whether to download immediately or queue"
+        },
+        "max_concurrent": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 20,
+          "description": "Maximum concurrent downloads"
+        }
+      }
+    }
+  },
+  "examples": [
+    {
+      "schema_version": "1.0.0",
+      "format": "qobuz-album-list",
+      "metadata": {
+        "source": "lidarr",
+        "source_version": "2.13.1.4678",
+        "created_at": "2025-07-29T23:47:48.677776Z",
+        "total_albums": 2,
+        "title": "Lidarr Wanted Albums Export"
+      },
+      "albums": [
+        {
+          "search_query": "Radiohead OK Computer",
+          "artist_name": "Radiohead",
+          "album_title": "OK Computer",
+          "release_year": 1997,
+          "album_type": "album",
+          "track_count": 12,
+          "source_id": "1234",
+          "mbid": "b52e5ce9-1b6d-4e57-8aef-e1b7e48de0f6",
+          "priority": 10
+        },
+        {
+          "search_query": "Miles Davis Kind of Blue",
+          "artist_name": "Miles Davis",
+          "album_title": "Kind of Blue",
+          "release_year": 1959,
+          "album_type": "album",
+          "track_count": 5,
+          "priority": 0
+        }
+      ],
+      "config": {
+        "quality": "flac-max",
+        "immediate": false
+      }
+    }
+  ]
+}

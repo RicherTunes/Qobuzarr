@@ -1,0 +1,36 @@
+# EditorConfig for external dependencies (Lidarr source)
+# This file disables all analyzers and style rules for external code
+
+root = true
+
+[*]
+# Disable all analyzers for external dependencies
+dotnet_analyzer_diagnostic.category-style.severity = none
+dotnet_analyzer_diagnostic.category-maintainability.severity = none
+dotnet_analyzer_diagnostic.category-naming.severity = none
+dotnet_analyzer_diagnostic.category-performance.severity = none
+dotnet_analyzer_diagnostic.category-reliability.severity = none
+dotnet_analyzer_diagnostic.category-security.severity = none
+dotnet_analyzer_diagnostic.category-usage.severity = none
+
+# Disable specific StyleCop rules that commonly fail in Lidarr source
+dotnet_diagnostic.SA1200.severity = none  # Using directives should appear within namespace
+dotnet_diagnostic.SA1633.severity = none  # File header
+dotnet_diagnostic.SA1101.severity = none  # Prefix local calls with this
+dotnet_diagnostic.SA1309.severity = none  # Field names should not begin with underscore
+dotnet_diagnostic.SA1413.severity = none  # Use trailing comma
+dotnet_diagnostic.SA1516.severity = none  # Elements should be separated by blank line
+dotnet_diagnostic.SA1600.severity = none  # Elements should be documented
+dotnet_diagnostic.SA1602.severity = none  # Enumeration items should be documented
+dotnet_diagnostic.SA1623.severity = none  # Property documentation
+dotnet_diagnostic.SA1629.severity = none  # Documentation text should end with a period
+dotnet_diagnostic.SA1652.severity = none  # Enable XML documentation output
+
+# Disable all SA rules completely
+dotnet_analyzer_diagnostic.category-stylecop.csharp.documentationrules.severity = none
+dotnet_analyzer_diagnostic.category-stylecop.csharp.layoutrules.severity = none
+dotnet_analyzer_diagnostic.category-stylecop.csharp.maintainabilityrules.severity = none
+dotnet_analyzer_diagnostic.category-stylecop.csharp.namingrules.severity = none
+dotnet_analyzer_diagnostic.category-stylecop.csharp.orderingrules.severity = none
+dotnet_analyzer_diagnostic.category-stylecop.csharp.readabilityrules.severity = none
+dotnet_analyzer_diagnostic.category-stylecop.csharp.spacingrules.severity = none

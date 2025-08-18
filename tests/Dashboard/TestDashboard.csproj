@@ -1,0 +1,31 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net6.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <StartupObject>QobuzCLI.TestDashboard</StartupObject>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection" />
+    <PackageReference Include="Microsoft.Extensions.Logging" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Console" />
+    <PackageReference Include="Spectre.Console" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Include="TestDashboard.cs" />
+    <Compile Include="../../QobuzCLI/Services/Dashboard.cs" />
+    <Compile Include="../../QobuzCLI/Services/DashboardAwareLoggingProvider.cs" />
+    <Compile Include="../../QobuzCLI/Services/Logging/IDashboardLogger.cs" />
+    <Compile Include="../../QobuzCLI/Services/Logging/DashboardLogger.cs" />
+    <Compile Include="../../QobuzCLI/Services/Logging/DashboardLoggerProvider.cs" />
+  </ItemGroup>
+
+</Project>
