@@ -31,12 +31,26 @@ if (-not $SkipLidarr) {
         Write-Host "📥 Downloading Lidarr source code..." -ForegroundColor Blue
         
         try {
-            # Clone Lidarr repository and checkout the exact commit that working plugins use
+            # Clone Lidarr repository and checkout the PLUGIN BRANCH (critical!)
             git clone https://github.com/Lidarr/Lidarr.git ext/Lidarr-source
-            git -C ext/Lidarr-source checkout aa7b63f2e13351f54a31d780d6a7b93a2411eaec
-            Write-Host "✅ Lidarr source downloaded successfully" -ForegroundColor Green
+            git -C ext/Lidarr-source checkout origin/plugins
+            Write-Host "✅ Lidarr source downloaded successfully (plugin branch)" -ForegroundColor Green
+            
+            # Apply TrevTV's assembly version override for hotio compatibility
+            Write-Host "🔧 Applying TrevTV assembly version override..." -ForegroundColor Blue
+            $lidarrVersionOverride = "2.13.2.4686"
+            (Get-Content "ext\Lidarr-source\src\Directory.Build.props") -replace '<AssemblyVersion>[\d\.\*]+</AssemblyVersion>', "<AssemblyVersion>$lidarrVersionOverride</AssemblyVersion>" | Set-Content "ext\Lidarr-source\src\Directory.Build.props"
+            Write-Host "✅ Assembly version override applied: $lidarrVersionOverride" -ForegroundColor Green
+            
+            # Build Lidarr source to generate plugin interfaces
+            Write-Host "🔨 Building Lidarr source (this takes a few minutes)..." -ForegroundColor Blue
+            Set-Location "ext\Lidarr-source"
+            dotnet restore src/NzbDrone.Core/Lidarr.Core.csproj --disable-build-servers
+            dotnet build src/NzbDrone.Core/Lidarr.Core.csproj --configuration Release --no-restore -p:RunAnalyzersDuringBuild=false -p:EnableNETAnalyzers=false -p:TreatWarningsAsErrors=false
+            Set-Location "..\..\"
+            Write-Host "✅ Lidarr source built successfully with plugin interfaces" -ForegroundColor Green
         } catch {
-            Write-Host "❌ Failed to clone Lidarr repository: $_" -ForegroundColor Red
+            Write-Host "❌ Failed to setup Lidarr dependencies: $_" -ForegroundColor Red
             Write-Host "   You may need to install Git or check your internet connection" -ForegroundColor Yellow
         }
     }
