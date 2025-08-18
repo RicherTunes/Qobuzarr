@@ -28,7 +28,7 @@ namespace Lidarr.Plugin.Qobuzarr.Testing
             var constructors = serviceType.GetConstructors();
             
             // Find the constructor with the most parameters (likely the DI constructor)
-            ConstructorInfo bestConstructor = null;
+            ConstructorInfo? bestConstructor = null;
             int maxParameters = -1;
             
             foreach (var constructor in constructors)
@@ -71,7 +71,7 @@ namespace Lidarr.Plugin.Qobuzarr.Testing
                 }
             }
             
-            return (TService)Activator.CreateInstance(serviceType, args);
+            return (TService)Activator.CreateInstance(serviceType, args)!;
         }
 
         /// <summary>

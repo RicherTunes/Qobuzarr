@@ -31,7 +31,7 @@ namespace Lidarr.Plugin.Qobuzarr.Security
             if (string.IsNullOrEmpty(sensitive))
                 return null;
 
-            SecureString secureString = null;
+            SecureString? secureString = null;
             GCHandle pinnedString = default;
 
             try
@@ -84,7 +84,7 @@ namespace Lidarr.Plugin.Qobuzarr.Security
                 return new byte[0];
 
             IntPtr ptr = IntPtr.Zero;
-            byte[] bytes = null;
+            byte[]? bytes = null;
 
             try
             {
@@ -220,7 +220,7 @@ namespace Lidarr.Plugin.Qobuzarr.Security
                     RegisterCleanup(() => 
                     {
                         // Clear reference (best we can do for immutable strings)
-                        local = null;
+                        local = null!;
                     });
                     sensitive = null;
                 }
@@ -302,7 +302,7 @@ namespace Lidarr.Plugin.Qobuzarr.Security
             try
             {
                 ptr = Marshal.SecureStringToGlobalAllocUnicode(secureString);
-                string plainText = Marshal.PtrToStringUni(ptr);
+                string plainText = Marshal.PtrToStringUni(ptr) ?? string.Empty;
                 return action(plainText);
             }
             finally
@@ -336,15 +336,15 @@ namespace Lidarr.Plugin.Qobuzarr.Security
 
                 // Compare strings securely without unsafe code
                 // Convert to strings temporarily for comparison
-                string strA = Marshal.PtrToStringUni(ptrA);
-                string strB = Marshal.PtrToStringUni(ptrB);
+                string strA = Marshal.PtrToStringUni(ptrA) ?? string.Empty;
+                string strB = Marshal.PtrToStringUni(ptrB) ?? string.Empty;
                 
                 // Use secure string comparison
                 bool equal = string.Equals(strA, strB, StringComparison.Ordinal);
                 
                 // Clear temporary strings
-                strA = null;
-                strB = null;
+                strA = null!;
+                strB = null!;
                 
                 if (!equal)
                     return false;

@@ -72,7 +72,7 @@ public class DashboardAwareConsoleLogger : ILogger
         _dashboardState = dashboardState;
     }
 
-    public IDisposable BeginScope<TState>(TState state) => _baseLogger.BeginScope(state);
+    public IDisposable? BeginScope<TState>(TState state) where TState : notnull => _baseLogger.BeginScope(state);
 
     public bool IsEnabled(LogLevel logLevel) => _baseLogger.IsEnabled(logLevel);
 

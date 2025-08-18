@@ -52,7 +52,7 @@ class Program
         try
         {
             // Configure NLog before anything else
-            LogManager.LoadConfiguration("nlog.config");
+            LogManager.Setup().LoadConfigurationFromFile("nlog.config");
             
             // Setup dependency injection
             var services = new ServiceCollection();

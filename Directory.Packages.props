@@ -14,7 +14,7 @@
     <PackageVersion Include="System.Resources.Extensions" Version="8.0.0" />
     
     <!-- Audio Processing -->
-    <PackageVersion Include="TagLibSharp-Lidarr" Version="2.2.0.19" />
+    <PackageVersion Include="TagLibSharp-Lidarr" Version="2.2.0.27" />
     
     <!-- Machine Learning -->
     <PackageVersion Include="Microsoft.ML" Version="2.0.1" />
