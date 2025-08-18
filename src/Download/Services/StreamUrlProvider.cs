@@ -27,6 +27,16 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Services
 
         public async Task<string> GetStreamUrlAsync(string trackId, int preferredQuality)
         {
+            return await GetStreamUrlInternalAsync(trackId, null, null, preferredQuality).ConfigureAwait(false);
+        }
+
+        public async Task<string> GetStreamUrlAsync(QobuzTrack track, QobuzAlbum album, int preferredQuality)
+        {
+            return await GetStreamUrlInternalAsync(track?.Id, track, album, preferredQuality).ConfigureAwait(false);
+        }
+
+        private async Task<string> GetStreamUrlInternalAsync(string trackId, QobuzTrack track, QobuzAlbum album, int preferredQuality)
+        {
             try
             {
                 var parameters = new Dictionary<string, string>
@@ -140,14 +150,14 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Services
                             }
                         }
                         
-                        var qualityMessage = QualityFormatter.FormatQualityFallback(fallbackQuality, preferredQuality);
-                        _logger.Info("Track {0}: Using {1}", trackId, qualityMessage);
+                        // Enhanced logging with Smart Quality Badges format
+                        LogQualitySelection(track, album, fallbackQuality, preferredQuality);
                         return streamResponse.Url;
                     }
                 }
 
                 // All qualities failed - log detailed information about why
-                _logger.Warn("Track {0} unavailable in ALL qualities. Last error: {1}", trackId, lastRestrictionMessage ?? "No stream URL returned");
+                LogTrackUnavailable(track, album, lastRestrictionMessage);
                 
                 // Determine the most appropriate exception based on what we learned
                 var finalReason = _qualityFallbackProvider.DetermineUnavailableReason(lastRestrictionMessage);
@@ -167,6 +177,83 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Services
                 _logger.Error(ex, "Failed to get stream URL for track: {0}", trackId);
                 throw new TrackUnavailableException(trackId, ex.Message, TrackUnavailableReason.ApiError);
             }
+        }
+
+        private void LogQualitySelection(QobuzTrack track, QobuzAlbum album, int actualQuality, int preferredQuality)
+        {
+            if (track != null && album != null)
+            {
+                // Smart Quality Badges format: 🎵 Artist - "Track Name" [01/14] │ Album Title (Year) │ [🟡 FLAC-96] ↓ (req. FLAC-192)
+                var artistName = album.GetArtistName() ?? "Unknown Artist";
+                var trackTitle = track.GetFullTitle() ?? "Unknown Track";
+                var trackPosition = $"{track.TrackNumber:D2}/{album.TracksCount:D2}";
+                var albumTitle = album.GetFullTitle() ?? "Unknown Album";
+                var albumYear = album.ReleaseDate.Year > 1900 ? album.ReleaseDate.Year.ToString() : "";
+                var albumInfo = !string.IsNullOrEmpty(albumYear) ? $"{albumTitle} ({albumYear})" : albumTitle;
+                
+                var qualityBadge = CreateQualityBadge(actualQuality, preferredQuality);
+                
+                _logger.Info("🎵 {0} - \"{1}\" [{2}] │ {3} │ {4}", 
+                    artistName, trackTitle, trackPosition, albumInfo, qualityBadge);
+            }
+            else
+            {
+                // Fallback to original format for legacy calls
+                var qualityMessage = QualityFormatter.FormatQualityFallback(actualQuality, preferredQuality);
+                _logger.Info("Track {0}: Using {1}", track?.Id ?? "Unknown", qualityMessage);
+            }
+        }
+
+        private void LogTrackUnavailable(QobuzTrack track, QobuzAlbum album, string errorMessage)
+        {
+            if (track != null && album != null)
+            {
+                var artistName = album.GetArtistName() ?? "Unknown Artist";
+                var trackTitle = track.GetFullTitle() ?? "Unknown Track";
+                var trackPosition = $"{track.TrackNumber:D2}/{album.TracksCount:D2}";
+                var albumTitle = album.GetFullTitle() ?? "Unknown Album";
+                var albumYear = album.ReleaseDate.Year > 1900 ? album.ReleaseDate.Year.ToString() : "";
+                var albumInfo = !string.IsNullOrEmpty(albumYear) ? $"{albumTitle} ({albumYear})" : albumTitle;
+                
+                _logger.Warn("⚠️ 🎵 {0} - \"{1}\" [{2}] │ {3} │ Unavailable in all qualities. Last error: {4}", 
+                    artistName, trackTitle, trackPosition, albumInfo, errorMessage ?? "No stream URL returned");
+            }
+            else
+            {
+                _logger.Warn("Track {0} unavailable in ALL qualities. Last error: {1}", 
+                    track?.Id ?? "Unknown", errorMessage ?? "No stream URL returned");
+            }
+        }
+
+        private string CreateQualityBadge(int actualQuality, int preferredQuality)
+        {
+            var actualName = GetQualityShortName(actualQuality);
+            var preferredName = GetQualityShortName(preferredQuality);
+            
+            if (actualQuality == preferredQuality)
+            {
+                return $"[🟢 {actualName}] ✓";
+            }
+            else if (actualQuality < preferredQuality)
+            {
+                return $"[🟡 {actualName}] ↓ (req. {preferredName})";
+            }
+            else
+            {
+                return $"[🔵 {actualName}] ↑ (req. {preferredName})";
+            }
+        }
+
+        private string GetQualityShortName(int qualityId)
+        {
+            return qualityId switch
+            {
+                5 => "MP3-320",
+                6 => "FLAC-CD",
+                7 => "FLAC-96",
+                27 => "FLAC-192",
+                _ => $"Q{qualityId}"
+            };
         }
 
         public bool IsPreviewOrSampleUrl(string url)
