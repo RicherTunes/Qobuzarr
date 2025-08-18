@@ -27,6 +27,9 @@ namespace Minimal.Tests
         [InlineData("Acoustic Sessions", AlbumComponentType.VersionDescriptor, "Sessions")]
         [InlineData("Radio Mix", AlbumComponentType.VersionDescriptor, "Radio")]
         [InlineData("Radio Mix", AlbumComponentType.VersionDescriptor, "Mix")]
+        [InlineData("In Concert Live", AlbumComponentType.VersionDescriptor, "Live")]
+        [InlineData("Demo Recordings", AlbumComponentType.VersionDescriptor, "Demo")]
+        [InlineData("Extended Mixes", AlbumComponentType.VersionDescriptor, "Extended")]
         public void ClassifyComponents_VersionDescriptors_ShouldBePreserved(string albumTitle, AlbumComponentType expected, string targetWord)
         {
             // Act
