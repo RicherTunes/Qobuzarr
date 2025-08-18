@@ -36,7 +36,10 @@ jobs:
         fi
 
     - name: Restore dependencies
-      run: dotnet restore
+      run: |
+        echo "📦 Restoring only main plugin dependencies for security analysis..."
+        dotnet restore Qobuzarr.csproj
+        dotnet restore QobuzCLI/QobuzCLI.csproj
 
     - name: Run .NET Security Analysis
       run: |
