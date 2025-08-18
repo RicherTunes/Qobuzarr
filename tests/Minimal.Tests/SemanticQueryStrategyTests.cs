@@ -40,6 +40,10 @@ namespace Minimal.Tests
         [InlineData("Band", "Songs Acoustic")]
         [InlineData("Name", "Title Unplugged")]
         [InlineData("Group", "Music Sessions")]
+        [InlineData("070 Shake", "Modus Vivendi Instrumental")]  // Original bug case
+        [InlineData("Artist", "Recordings Demo")]
+        [InlineData("Band", "Concert Live")]
+        [InlineData("Name", "Versions Extended")]
         public void DetermineStrategy_VersionDescriptors_ShouldUseMinimalCleaning(string artist, string album)
         {
             // Act
@@ -48,6 +52,35 @@ namespace Minimal.Tests
             // Assert
             result.CleaningLevel.Should().Be(CleaningLevel.Minimal, $"Albums with version descriptors like '{album}' need minimal cleaning");
             result.OptimizationLevel.Should().Be(OptimizationLevel.Conservative);
+        }
+
+        [Theory]
+        [InlineData("Taylor Swift", "1989")]
+        [InlineData("Adele", "25")]
+        [InlineData("Drake", "Views")]
+        [InlineData("The Beatles", "Abbey Road")]
+        [InlineData("Pink Floyd", "The Dark Side of the Moon")]
+        public void DetermineStrategy_RegularAlbums_ShouldUseAggressiveCleaning(string artist, string album)
+        {
+            // Act
+            var result = _strategy.DetermineStrategy(artist, album);
+
+            // Assert
+            result.CleaningLevel.Should().Be(CleaningLevel.Aggressive, $"Regular album '{album}' should allow aggressive cleaning");
+            result.OptimizationLevel.Should().Be(OptimizationLevel.Maximum, "Regular albums can be optimized aggressively");
+        }
+
+        [Theory]
+        [InlineData("Artist", "Album (Deluxe Edition)", CleaningLevel.Moderate)]
+        [InlineData("Band", "Songs (Remastered)", CleaningLevel.Moderate)]
+        [InlineData("Name", "Title - Anniversary Edition", CleaningLevel.Moderate)]
+        public void DetermineStrategy_EditionMarkers_ShouldUseModerateCleaning(string artist, string album, CleaningLevel expectedLevel)
+        {
+            // Act
+            var result = _strategy.DetermineStrategy(artist, album);
+
+            // Assert
+            result.CleaningLevel.Should().Be(expectedLevel, $"Album with edition markers '{album}' should use moderate cleaning");
         }
 
         [Theory]
