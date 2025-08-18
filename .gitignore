@@ -45,11 +45,17 @@ _temp/
 TestResults/
 coverage-report/
 *.cobertura.xml
+opencover.xml
+coverage.json
+*.trx
 
 # Cache and temporary directories
 **/cache/
 **/temp/
 **/tmp/
+**/benchmark-results/
+**/performance-test-results/
+**/stress-test-output/
 
 # OS generated files
 .DS_Store
@@ -66,6 +72,11 @@ Thumbs.db
 ext/Lidarr-source/
 ext/Lidarr/
 
+# Exclude downloaded Lidarr assemblies (pre-built dependencies)
+Lidarr/
+lidarr-assemblies/
+lidarr-download/
+
 # But keep the README explaining the requirement
 !ext/README.md
 
@@ -78,6 +89,10 @@ ext/Lidarr/
 nul
 build_output.txt
 build_errors.log
+*.pid
+*.lock
+dependency-check-report.html
+security-scan-results.json
 
 # =============================================================================
 # Development and configuration files
@@ -244,6 +259,20 @@ QobuzCLI/dashboard-test.txt
 QobuzCLI/metadata-test.txt
 QobuzCLI/bach-test.txt
 scripts/*.txt
+
+# Additional temp patterns
+*.temp
+*.swp
+*.swo
+*~
+.#*
+.*.sw?
+.vscode/settings.json.bak
+
+# Backup files
+*.backup
+*.bck
+*.orig
 
 # Keep important text files
 !README.txt
