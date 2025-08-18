@@ -109,12 +109,13 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Services
                 _semaphore = newSemaphore;
                 _currentLimit = newLimit;
 
-                // Dispose old semaphore asynchronously to avoid blocking
-                Task.Run(() =>
+                // Schedule old semaphore disposal without blocking
+                // Use ThreadPool instead of Task.Run for better resource management
+                ThreadPool.QueueUserWorkItem(_ =>
                 {
                     try
                     {
-                        // Wait a bit to ensure any in-flight operations complete
+                        // Brief delay to allow in-flight operations to complete
                         Thread.Sleep(100);
                         oldSemaphore?.Dispose();
                     }
@@ -122,7 +123,7 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Services
                     {
                         _logger.Debug(ex, "Error disposing old semaphore during limit change");
                     }
-                });
+                }, null);
 
                 _logger.Info("Updated concurrency limit: {0} -> {1} (active: {2}, available: {3})", 
                     oldLimit, newLimit, currentActive, initialCount);
