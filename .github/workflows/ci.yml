@@ -56,22 +56,38 @@ jobs:
         echo "📍 Available assemblies:"
         ls -la ext/Lidarr/_output/net6.0/ || echo "No assemblies found"
 
-    - name: Set Dynamic Version
+    - name: Set Version from Single Source of Truth
       run: |
-        # Determine version based on trigger type
-        if [[ "${{ github.ref }}" == refs/tags/* ]]; then
-          # Tagged release: use tag version (e.g., v1.0.0 -> 1.0.0)
-          VERSION="${{ github.ref_name }}"
-          VERSION="${VERSION#v}"  # Remove 'v' prefix if present
-          echo "🏷️ Release build: $VERSION"
+        # Read version from VERSION file (single source of truth)
+        if [ -f "VERSION" ]; then
+          BASE_VERSION=$(cat VERSION | tr -d '\n\r')
+          echo "📁 Version from file: $BASE_VERSION"
         else
-          # Development build: use branch + run number
-          VERSION="0.1.${{ github.run_number }}-dev"
+          BASE_VERSION="0.1.0"
+          echo "⚠️ No VERSION file found, using default: $BASE_VERSION"
+        fi
+        
+        # Determine final version based on trigger type
+        if [[ "${{ github.ref }}" == refs/tags/* ]]; then
+          # Tagged release: use tag version but validate against VERSION file
+          TAG_VERSION="${{ github.ref_name }}"
+          TAG_VERSION="${TAG_VERSION#v}"  # Remove 'v' prefix if present
+          VERSION="$TAG_VERSION"
+          echo "🏷️ Release build from tag: $VERSION"
+          
+          # Validate tag matches VERSION file for consistency
+          if [[ "$BASE_VERSION" != "$TAG_VERSION" ]]; then
+            echo "⚠️ Warning: VERSION file ($BASE_VERSION) differs from tag ($TAG_VERSION)"
+            echo "Using tag version for release"
+          fi
+        else
+          # Development build: add dev suffix with run number
+          VERSION="${BASE_VERSION%%-*}.${{ github.run_number }}-dev"
           echo "🔨 Development build: $VERSION"
         fi
         
         echo "PLUGIN_VERSION=$VERSION" >> $GITHUB_ENV
-        echo "Version set to: $VERSION"
+        echo "Final version: $VERSION"
         
         # TrevTV's proven technique for Lidarr compatibility
         sed -i'' -e "s/<AssemblyVersion>[0-9.*]\+<\/AssemblyVersion>/<AssemblyVersion>${{ env.MINIMUM_LIDARR_VERSION }}<\/AssemblyVersion>/g" ext/Lidarr-source/src/Directory.Build.props || echo "No Directory.Build.props found (expected for pre-built approach)"

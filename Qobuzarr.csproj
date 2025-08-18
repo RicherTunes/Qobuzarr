@@ -40,10 +40,13 @@
     <Company>RicherTunes</Company>
     <Authors>RicherTunes</Authors>
     <Copyright>Copyright © 2025 RicherTunes. Built upon TrevTV's Lidarr.Plugin.Qobuz foundation with significant enhancements.</Copyright>
-    <!-- Dynamic versioning: CI overrides for releases, defaults for development -->
+    <!-- SINGLE SOURCE OF TRUTH: Read version from VERSION file -->
+    <VersionFromFile Condition="'$(VersionFromFile)' == '' And Exists('VERSION')">$([System.IO.File]::ReadAllText('VERSION').Trim())</VersionFromFile>
+    <Version Condition="'$(Version)' == '' And '$(VersionFromFile)' != ''">$(VersionFromFile)</Version>
     <Version Condition="'$(Version)' == ''">0.1.0-dev</Version>
-    <!-- Parse version for assembly format (remove pre-release suffixes) -->
-    <VersionPrefix Condition="'$(VersionPrefix)' == ''">$([System.Text.RegularExpressions.Regex]::Match('$(Version)', '^(\d+\.\d+\.\d+)'))</VersionPrefix>
+    
+    <!-- Parse version for assembly format (remove pre-release suffixes for AssemblyVersion) -->
+    <VersionPrefix>$([System.Text.RegularExpressions.Regex]::Match('$(Version)', '^(\d+\.\d+\.\d+)'))</VersionPrefix>
     <AssemblyVersion>$(VersionPrefix).0</AssemblyVersion>
     <FileVersion>$(VersionPrefix).0</FileVersion>
     <AssemblyInformationalVersion>$(Version)</AssemblyInformationalVersion>
