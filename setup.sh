@@ -54,11 +54,24 @@ if [ -d "ext/Lidarr-source" ]; then
 else
     echo "📥 Downloading Lidarr source code..."
     
-    # Clone Lidarr repository and checkout the exact commit that working plugins use
+    # Clone Lidarr repository and checkout the PLUGIN BRANCH (critical!)
     git clone https://github.com/Lidarr/Lidarr.git ext/Lidarr-source
-    git -C ext/Lidarr-source checkout aa7b63f2e13351f54a31d780d6a7b93a2411eaec
+    git -C ext/Lidarr-source checkout origin/plugins
+    echo "✅ Lidarr source downloaded successfully (plugin branch)"
     
-    echo "✅ Lidarr source downloaded successfully"
+    # Apply TrevTV's assembly version override for hotio compatibility
+    echo "🔧 Applying TrevTV assembly version override..."
+    LIDARR_VERSION_OVERRIDE="2.13.2.4686"
+    sed -i "s/<AssemblyVersion>[0-9.*]\+<\/AssemblyVersion>/<AssemblyVersion>$LIDARR_VERSION_OVERRIDE<\/AssemblyVersion>/g" ext/Lidarr-source/src/Directory.Build.props
+    echo "✅ Assembly version override applied: $LIDARR_VERSION_OVERRIDE"
+    
+    # Build Lidarr source to generate plugin interfaces
+    echo "🔨 Building Lidarr source (this takes a few minutes)..."
+    cd ext/Lidarr-source
+    dotnet restore src/NzbDrone.Core/Lidarr.Core.csproj --disable-build-servers
+    dotnet build src/NzbDrone.Core/Lidarr.Core.csproj --configuration Release --no-restore -p:RunAnalyzersDuringBuild=false -p:EnableNETAnalyzers=false -p:TreatWarningsAsErrors=false
+    cd ../..
+    echo "✅ Lidarr source built successfully with plugin interfaces"
 fi
 
 # Restore NuGet packages
