@@ -201,13 +201,52 @@ namespace Lidarr.Plugin.Qobuzarr.Services.Migration
         {
             _logger.Debug("[MIGRATION] IntelligentQualityDetector.DetectAlbumQualityAsync called - redirecting to QobuzQualityManager");
             
-            // Direct pass-through as the signature matches
-            return await _qualityManager.DetectAlbumQualityAsync(album, preferredQuality, cancellationToken);
+            // Get result from new implementation
+            var newResult = await _qualityManager.DetectAlbumQualityAsync(album, preferredQuality, cancellationToken);
+            
+            // Convert to legacy type (Services namespace)
+            return new AlbumQualityResult
+            {
+                IsSuccess = newResult.Success,
+                Album = album,
+                BestAvailableFormat = new QualityFormat
+                {
+                    Id = newResult.DetectedQuality,
+                    Name = GetQualityName(newResult.DetectedQuality)
+                },
+                AllAvailableFormats = new List<QualityFormat>
+                {
+                    new QualityFormat
+                    {
+                        Id = newResult.DetectedQuality,
+                        Name = GetQualityName(newResult.DetectedQuality)
+                    }
+                },
+                IsConsistentAcrossAlbum = newResult.ConsistentQuality,
+                ConfidenceLevel = newResult.ConfidenceScore,
+                SampleTracksChecked = newResult.SampleSize,
+                OptimizationStrategy = newResult.OptimizationApplied ? "SmartSampling" : "IndividualCheck",
+                QualityByTrack = new Dictionary<int, List<int>>(),
+                RecommendedApproach = newResult.ConsistentQuality ? "Use album-wide quality" : "Check individual tracks",
+                ErrorMessage = newResult.Error
+            };
         }
 
         #endregion
 
         #region Private Helper Methods
+
+        private string GetQualityName(int qualityId)
+        {
+            return qualityId switch
+            {
+                5 => "MP3 320",
+                6 => "FLAC CD",
+                7 => "FLAC Hi-Res 24-bit/96kHz",
+                27 => "FLAC Hi-Res 24-bit/192kHz",
+                _ => "FLAC CD"
+            };
+        }
 
         private string ConvertToLegacyQualityString(QobuzQuality quality)
         {

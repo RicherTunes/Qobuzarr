@@ -67,12 +67,18 @@ jobs:
         # Create a CI-specific project file that references pre-built assemblies
         cp Qobuzarr.csproj Qobuzarr-ci.csproj
         
-        # Replace Windows paths with Unix paths for CI
-        sed -i 's|ext\\Lidarr\\_output\\net6.0\\|ext/Lidarr/_output/net6.0/|g' Qobuzarr-ci.csproj
-        sed -i 's|src\\Indexers\\|src/Indexers/|g' Qobuzarr-ci.csproj
-        
-        # Disable deployment target for CI
-        sed -i 's|<EnablePluginDeployment.*true.*|<EnablePluginDeployment>false</EnablePluginDeployment>|g' Qobuzarr-ci.csproj
+        # Replace Windows paths with Unix paths for CI (works on both Linux and macOS)
+        if [[ "$OSTYPE" == "darwin"* ]]; then
+          # macOS requires -i '' for in-place editing
+          sed -i '' 's|ext\\Lidarr\\_output\\net6.0\\|ext/Lidarr/_output/net6.0/|g' Qobuzarr-ci.csproj
+          sed -i '' 's|src\\Indexers\\|src/Indexers/|g' Qobuzarr-ci.csproj
+          sed -i '' 's|<EnablePluginDeployment.*true.*|<EnablePluginDeployment>false</EnablePluginDeployment>|g' Qobuzarr-ci.csproj
+        else
+          # Linux sed
+          sed -i 's|ext\\Lidarr\\_output\\net6.0\\|ext/Lidarr/_output/net6.0/|g' Qobuzarr-ci.csproj
+          sed -i 's|src\\Indexers\\|src/Indexers/|g' Qobuzarr-ci.csproj
+          sed -i 's|<EnablePluginDeployment.*true.*|<EnablePluginDeployment>false</EnablePluginDeployment>|g' Qobuzarr-ci.csproj
+        fi
 
     - name: Restore dependencies
       run: dotnet restore Qobuzarr-ci.csproj
