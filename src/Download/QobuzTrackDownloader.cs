@@ -100,8 +100,8 @@ namespace Lidarr.Plugin.Qobuzarr.Download
                 
                 _logger.Debug("Starting download of track: {0}", track.GetFullTitle());
 
-                // Get stream URL from Qobuz API
-                var streamUrl = await _streamUrlProvider.GetStreamUrlAsync(track.Id, preferredQuality).ConfigureAwait(false);
+                // Get stream URL from Qobuz API with enhanced logging
+                var streamUrl = await _streamUrlProvider.GetStreamUrlAsync(track, album, preferredQuality).ConfigureAwait(false);
                     
                 if (string.IsNullOrWhiteSpace(streamUrl))
                 {
