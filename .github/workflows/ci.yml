@@ -67,8 +67,8 @@ jobs:
         cp Lidarr/Lidarr.Api.V1.dll ext/Lidarr/_output/net6.0/
         cp Lidarr/Lidarr.Http.dll ext/Lidarr/_output/net6.0/
         cp Lidarr/Lidarr.Host.dll ext/Lidarr/_output/net6.0/
-        cp Lidarr/Lidarr.Console.dll ext/Lidarr/_output/net6.0/
         cp Lidarr/Lidarr.SignalR.dll ext/Lidarr/_output/net6.0/
+        # Note: Lidarr.Console.dll doesn't exist in releases, omitting it
         
         # Verify assemblies exist
         ls -la ext/Lidarr/_output/net6.0/
