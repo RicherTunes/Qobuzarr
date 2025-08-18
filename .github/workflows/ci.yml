@@ -70,7 +70,14 @@ jobs:
 
     - name: Build
       run: |
-        dotnet build --configuration Release --no-restore \
+        echo "🔨 Building main plugin..."
+        dotnet build Qobuzarr.csproj --configuration Release --no-restore \
+          -p:RunAnalyzersDuringBuild=false \
+          -p:EnableNETAnalyzers=false \
+          -p:TreatWarningsAsErrors=false
+        
+        echo "🔨 Building CLI..."
+        dotnet build QobuzCLI/QobuzCLI.csproj --configuration Release --no-restore \
           -p:RunAnalyzersDuringBuild=false \
           -p:EnableNETAnalyzers=false \
           -p:TreatWarningsAsErrors=false
