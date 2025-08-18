@@ -11,13 +11,14 @@ namespace Lidarr.Plugin.Qobuzarr.Download
     /// <summary>
     /// Provides memory-efficient batch processing for large download operations
     /// </summary>
-    public class BatchProcessor : IBatchProcessor
+    public class BatchProcessor : IBatchProcessor, IDisposable
     {
         private readonly Logger _logger;
         private readonly int _batchSize;
         private readonly int _maxMemoryMB;
         private long _currentMemoryUsage;
         private readonly SemaphoreSlim _memoryThrottle;
+        private bool _disposed = false;
 
         public BatchProcessor(Logger logger = null, int batchSize = 10, int maxMemoryMB = 500)
         {
@@ -87,11 +88,9 @@ namespace Lidarr.Plugin.Qobuzarr.Download
                         EstimatedMemoryMB = _currentMemoryUsage / 1048576
                     });
 
-                    // Allow GC to clean up between batches
-                    if (batchNumber % 5 == 0)
-                    {
-                        await ForceGarbageCollectionAsync();
-                    }
+                    // Allow natural GC to clean up between batches
+                    // Note: Removed forced GC as it's a performance anti-pattern
+                    // The runtime's GC is optimized and will run when needed
                 }
                 catch (Exception ex)
                 {
@@ -252,18 +251,22 @@ namespace Lidarr.Plugin.Qobuzarr.Download
                 if (memoryMB > _maxMemoryMB)
                 {
                     _logger.Warn("⚠️ Memory pressure detected ({0} MB > {1} MB limit)", memoryMB, _maxMemoryMB);
-                    _logger.Info(" ↳ Triggering garbage collection...");
+                    _logger.Info(" ↳ Suggesting garbage collection...");
                     
-                    await ForceGarbageCollectionAsync();
+                    // Suggest GC without blocking
+                    await SuggestGarbageCollectionAsync();
+                    
+                    // Give GC time to work if needed
+                    await Task.Delay(500);
                     
                     var newMemoryMB = GC.GetTotalMemory(false) / 1048576;
-                    _logger.Info(" ↳ Memory reduced to {0} MB", newMemoryMB);
+                    _logger.Info(" ↳ Current memory: {0} MB", newMemoryMB);
                     
-                    // If still high, wait a bit
+                    // If still high, wait a bit more for natural GC
                     if (newMemoryMB > _maxMemoryMB * 0.9)
                     {
                         _logger.Info(" ↳ Waiting for memory to stabilize...");
-                        await Task.Delay(2000);
+                        await Task.Delay(1500);
                     }
                 }
             }
@@ -274,16 +277,18 @@ namespace Lidarr.Plugin.Qobuzarr.Download
         }
 
         /// <summary>
-        /// Forces garbage collection to free memory
+        /// Suggests garbage collection to free memory (non-blocking)
         /// </summary>
-        private async Task ForceGarbageCollectionAsync()
+        /// <remarks>
+        /// This method now only suggests GC rather than forcing it.
+        /// Forced GC is an anti-pattern that causes performance issues.
+        /// </remarks>
+        private Task SuggestGarbageCollectionAsync()
         {
-            await Task.Run(() =>
-            {
-                GC.Collect();
-                GC.WaitForPendingFinalizers();
-                GC.Collect();
-            });
+            // Only suggest collection, don't force it
+            // The runtime will decide if/when to actually collect
+            GC.Collect(0, GCCollectionMode.Optimized, blocking: false);
+            return Task.CompletedTask;
         }
 
         /// <summary>
@@ -315,6 +320,25 @@ namespace Lidarr.Plugin.Qobuzarr.Download
             }
 
             return results;
+        }
+
+        public void Dispose()
+        {
+            Dispose(true);
+            GC.SuppressFinalize(this);
+        }
+
+        protected virtual void Dispose(bool disposing)
+        {
+            if (!_disposed)
+            {
+                if (disposing)
+                {
+                    // Dispose managed resources
+                    _memoryThrottle?.Dispose();
+                }
+                _disposed = true;
+            }
         }
     }
 

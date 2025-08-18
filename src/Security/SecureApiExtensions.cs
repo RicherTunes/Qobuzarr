@@ -191,19 +191,12 @@ namespace Lidarr.Plugin.Qobuzarr.Security
             if (string.IsNullOrEmpty(sensitiveString))
                 return;
 
-            try
-            {
-                // Clear the reference - actual memory clearing is limited in managed code
-                sensitiveString = null;
-                
-                // Force garbage collection for security purposes
-                GC.Collect();
-            }
-            catch
-            {
-                // Ignore errors in memory clearing - this is best effort
-                sensitiveString = null;
-            }
+            // Clear the reference - the GC will handle memory reclamation
+            // Note: String immutability in .NET means the actual string data
+            // remains in memory until GC runs naturally. Forcing GC.Collect()
+            // is an anti-pattern that degrades performance without guaranteeing
+            // security. For true security, use SecureString throughout the pipeline.
+            sensitiveString = null;
         }
 
         private static bool IsSensitiveParameter(string parameterName)

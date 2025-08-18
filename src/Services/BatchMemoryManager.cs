@@ -352,10 +352,9 @@ namespace Lidarr.Plugin.Qobuzarr.Services
             {
                 _logger.Debug("⏳ WAITING FOR MEMORY: High pressure detected, waiting 5 seconds...");
                 
-                // Force garbage collection
-                GC.Collect();
-                GC.WaitForPendingFinalizers();
-                GC.Collect();
+                // Suggest garbage collection without blocking
+                // The runtime will decide when to actually collect
+                GC.Collect(0, GCCollectionMode.Optimized, blocking: false);
                 
                 await Task.Delay(5000, cancellationToken);
             }
@@ -445,10 +444,9 @@ namespace Lidarr.Plugin.Qobuzarr.Services
             
             var beforeMemory = GetCurrentMemoryUsageMB();
             
-            // Aggressive garbage collection
-            GC.Collect();
-            GC.WaitForPendingFinalizers();
-            GC.Collect();
+            // Suggest garbage collection (non-blocking)
+            // Let the runtime optimize when to actually collect
+            GC.Collect(2, GCCollectionMode.Optimized, blocking: false, compacting: true);
             
             // Allow GC to complete
             await Task.Delay(100);
@@ -513,8 +511,9 @@ namespace Lidarr.Plugin.Qobuzarr.Services
             {
                 if (!_disposed)
                 {
-                    // Perform async cleanup
-                    await PerformMemoryCleanupAsync().ConfigureAwait(false);
+                    // Suggest cleanup without forcing GC
+                    // The runtime will handle memory reclamation naturally
+                    GC.Collect(0, GCCollectionMode.Optimized, blocking: false);
                     
                     // Dispose timer
                     if (_memoryMonitorTimer != null)

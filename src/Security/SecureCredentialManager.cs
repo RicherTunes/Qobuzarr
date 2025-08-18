@@ -95,14 +95,15 @@ namespace Lidarr.Plugin.Qobuzarr.Security
             try
             {
                 // Clear the reference - actual memory clearing is limited in managed code
-                // due to string immutability and garbage collection
+                // due to string immutability. The GC will handle memory reclamation
+                // automatically and deterministically without blocking operations.
                 value = null;
                 
-                // Force garbage collection to improve chances of memory being cleared
-                // Note: This is generally not recommended in production but acceptable
-                // for security-sensitive credential clearing
-                GC.Collect();
-                GC.WaitForPendingFinalizers();
+                // Note: Forcing GC.Collect() is an anti-pattern that causes:
+                // - Performance degradation due to blocking all threads
+                // - Promotion of objects to higher generations unnecessarily
+                // - No guarantee of actual memory clearing for security
+                // Instead, we rely on proper SecureString usage and disposal patterns
             }
             catch (Exception ex)
             {
