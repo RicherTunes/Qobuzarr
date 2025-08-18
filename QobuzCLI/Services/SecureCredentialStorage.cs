@@ -159,9 +159,13 @@ namespace QobuzCLI.Services
                 // Use DPAPI on Windows for enhanced security
                 if (OperatingSystem.IsWindows())
                 {
+#if WINDOWS
                     var data = Encoding.UTF8.GetBytes(plainText);
                     var encryptedData = ProtectedData.Protect(data, null, DataProtectionScope.CurrentUser);
                     return Convert.ToBase64String(encryptedData);
+#else
+                    throw new NotSupportedException("Windows DPAPI not available on this platform");
+#endif
                 }
                 else
                 {
@@ -182,9 +186,13 @@ namespace QobuzCLI.Services
             {
                 if (OperatingSystem.IsWindows())
                 {
+#if WINDOWS
                     var encryptedData = Convert.FromBase64String(encryptedText);
                     var data = ProtectedData.Unprotect(encryptedData, null, DataProtectionScope.CurrentUser);
                     return Encoding.UTF8.GetString(data);
+#else
+                    throw new NotSupportedException("Windows DPAPI not available on this platform");
+#endif
                 }
                 else
                 {

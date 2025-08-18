@@ -3,6 +3,7 @@ using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
 using Lidarr.Plugin.Qobuzarr.Services;
+using NzbDrone.Common.Http;
 
 namespace QobuzCLI.Services.Adapters
 {
@@ -29,7 +30,7 @@ namespace QobuzCLI.Services.Adapters
             _pluginRateLimiter.RecordResponse(endpoint, response);
         }
 
-        public void RecordResponse(string endpoint, NzbDrone.Common.Http.HttpResponse response)
+        public void RecordResponse(string endpoint, HttpResponse response)
         {
             _pluginRateLimiter.RecordResponse(endpoint, response);
         }

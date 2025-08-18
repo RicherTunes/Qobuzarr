@@ -535,9 +535,8 @@ public class PluginHost : IPluginHost, IDisposable
         // Artist downloads are not yet implemented - return graceful error
         return Task.FromResult(new Lidarr.Plugin.Qobuzarr.Services.DownloadResult
         {
-            Success = false,
-            ErrorMessage = "Artist download functionality is not yet implemented. Please download individual albums instead.",
-            FilePath = string.Empty
+            TrackDownloads = new List<TrackDownload>(),
+            MetadataStrategy = "Error"
         });
     }
 

@@ -42,6 +42,22 @@
     <ProjectReference Include="..\Qobuzarr.csproj" />
   </ItemGroup>
 
+  <!-- Lidarr assemblies from pre-built release (needed for direct interfaces) -->
+  <ItemGroup>
+    <Reference Include="Lidarr.Common">
+      <HintPath>..\ext\Lidarr\_output\net6.0\Lidarr.Common.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="Lidarr.Core">
+      <HintPath>..\ext\Lidarr\_output\net6.0\Lidarr.Core.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="Lidarr.Http">
+      <HintPath>..\ext\Lidarr\_output\net6.0\Lidarr.Http.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+  </ItemGroup>
+
   <ItemGroup>
     <None Update="appsettings.json">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
