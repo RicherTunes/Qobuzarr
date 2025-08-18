@@ -123,10 +123,7 @@
       <HintPath>ext\Lidarr\_output\net6.0\Lidarr.Host.dll</HintPath>
       <Private>false</Private>
     </Reference>
-    <Reference Include="Lidarr.Console">
-      <HintPath>ext\Lidarr\_output\net6.0\Lidarr.Console.dll</HintPath>
-      <Private>false</Private>
-    </Reference>
+    <!-- Lidarr.Console.dll doesn't exist in release assemblies, removing reference -->
     <Reference Include="Lidarr.SignalR">
       <HintPath>ext\Lidarr\_output\net6.0\Lidarr.SignalR.dll</HintPath>
       <Private>false</Private>
