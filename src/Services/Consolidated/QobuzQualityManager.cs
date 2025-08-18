@@ -193,7 +193,7 @@ namespace Lidarr.Plugin.Qobuzarr.Services.Consolidated
             var preferredQuality = profile.GetPreferredQuality();
             if (preferredQuality != null)
             {
-                return MapLidarrQualityItem(preferredQuality);
+                return MapLidarrQuality(preferredQuality);
             }
 
             // Default fallback
@@ -425,8 +425,7 @@ namespace Lidarr.Plugin.Qobuzarr.Services.Consolidated
 
                 var response = await _apiClient.GetAsync<Dictionary<string, object>>(
                     "track/getFileUrl", 
-                    parameters,
-                    cancellationToken);
+                    parameters);
 
                 if (response != null && response.TryGetValue("url", out var urlObj))
                 {
@@ -548,18 +547,18 @@ namespace Lidarr.Plugin.Qobuzarr.Services.Consolidated
             return result;
         }
 
-        private QobuzQuality MapLidarrQualityItem(LidarrQualityItem item)
+        private QobuzQuality MapLidarrQuality(LidarrQuality quality)
         {
-            // Map based on item properties
+            // Map based on quality properties
             var qualityId = 6; // Default to CD quality
             
-            if (item.Name.Contains("Hi-Res", StringComparison.OrdinalIgnoreCase) ||
-                item.Name.Contains("24", StringComparison.OrdinalIgnoreCase))
+            if (quality.Name.Contains("Hi-Res", StringComparison.OrdinalIgnoreCase) ||
+                quality.Name.Contains("24", StringComparison.OrdinalIgnoreCase))
             {
                 qualityId = 27;
             }
-            else if (item.Name.Contains("MP3", StringComparison.OrdinalIgnoreCase) ||
-                     item.Name.Contains("320", StringComparison.OrdinalIgnoreCase))
+            else if (quality.Name.Contains("MP3", StringComparison.OrdinalIgnoreCase) ||
+                     quality.Name.Contains("320", StringComparison.OrdinalIgnoreCase))
             {
                 qualityId = 5;
             }

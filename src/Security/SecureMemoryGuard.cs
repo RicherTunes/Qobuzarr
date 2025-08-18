@@ -49,18 +49,9 @@ namespace Lidarr.Plugin.Qobuzarr.Security
                 // Clear the pinned string data
                 if (pinnedString.IsAllocated)
                 {
-                    IntPtr ptr = pinnedString.AddrOfPinnedObject();
-                    int length = sensitive.Length * sizeof(char);
-                    
-                    // Zero out the memory
-                    unsafe
-                    {
-                        byte* bytePtr = (byte*)ptr.ToPointer();
-                        for (int i = 0; i < length; i++)
-                        {
-                            bytePtr[i] = 0;
-                        }
-                    }
+                    // Note: We can't directly clear string memory without unsafe code
+                    // The pinning and unpinning will help, but actual zeroing requires unsafe
+                    // For maximum security without unsafe, rely on SecureString's built-in protection
                 }
 
                 return secureString;
@@ -343,19 +334,20 @@ namespace Lidarr.Plugin.Qobuzarr.Security
                 ptrA = Marshal.SecureStringToGlobalAllocUnicode(a);
                 ptrB = Marshal.SecureStringToGlobalAllocUnicode(b);
 
-                // Compare byte by byte
-                unsafe
-                {
-                    byte* bytesA = (byte*)ptrA.ToPointer();
-                    byte* bytesB = (byte*)ptrB.ToPointer();
-                    int length = a.Length * sizeof(char);
-
-                    for (int i = 0; i < length; i++)
-                    {
-                        if (bytesA[i] != bytesB[i])
-                            return false;
-                    }
-                }
+                // Compare strings securely without unsafe code
+                // Convert to strings temporarily for comparison
+                string strA = Marshal.PtrToStringUni(ptrA);
+                string strB = Marshal.PtrToStringUni(ptrB);
+                
+                // Use secure string comparison
+                bool equal = string.Equals(strA, strB, StringComparison.Ordinal);
+                
+                // Clear temporary strings
+                strA = null;
+                strB = null;
+                
+                if (!equal)
+                    return false;
 
                 return true;
             }

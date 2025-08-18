@@ -86,7 +86,7 @@ namespace Lidarr.Plugin.Qobuzarr.Services.Consolidated
         /// Wrapper that makes the migration adapter look like the old QobuzQualityService.
         /// </summary>
         [Obsolete("For migration only")]
-        private class QobuzQualityService
+        public class QobuzQualityService
         {
             private readonly QualityServiceMigrationAdapter _adapter;
             private readonly IQobuzLogger _logger;
@@ -181,11 +181,17 @@ namespace Lidarr.Plugin.Qobuzarr.Services.Consolidated
                 return System.Linq.Enumerable.Contains(allowedQualities, qobuzQuality, StringComparer.OrdinalIgnoreCase);
             }
 
-            public Migration.QualityRecommendation GetQualityRecommendation(
+            public QualityRecommendation GetQualityRecommendation(
                 Models.Lidarr.LidarrAlbum album, 
                 Models.Lidarr.LidarrQualityProfile qualityProfile)
             {
-                return _adapter.GetQualityRecommendation(album, qualityProfile);
+                // Simple implementation for migration
+                return new QualityRecommendation
+                {
+                    PrimaryQuality = GetPreferredQobuzQuality(qualityProfile),
+                    FallbackQualities = GetQualityFallbackChain(qualityProfile),
+                    Reason = "Migration adapter recommendation"
+                };
             }
         }
 
@@ -224,6 +230,11 @@ namespace Lidarr.Plugin.Qobuzarr.Services.Consolidated
             public void Error(Exception ex, string message, params object[] args)
             {
                 _logger.Error(ex, message, args);
+            }
+
+            public void Warn(Exception ex, string message, params object[] args)
+            {
+                _logger.Warn(ex, message, args);
             }
         }
 
