@@ -105,8 +105,11 @@ jobs:
 
     - name: Run tests
       run: |
-        dotnet test --configuration Release --no-build --verbosity normal \
+        # Build and run tests separately since we only built the main project
+        dotnet test tests/Qobuzarr.Tests/Qobuzarr.Tests.csproj --configuration Release --verbosity normal \
           --logger trx --results-directory ./test-results \
+          -p:RunAnalyzersDuringBuild=false \
+          -p:EnableNETAnalyzers=false \
           /p:CollectCoverage=true /p:CoverletOutputFormat=opencover || true
 
     - name: Upload test results
@@ -126,9 +129,14 @@ jobs:
       if: matrix.os == 'ubuntu-latest'
       run: |
         mkdir -p release
-        cp bin/Lidarr.Plugin.Qobuzarr.dll release/
-        cp bin/plugin.json release/
-        cp bin/src/Indexers/ml-baseline-patterns.json release/ 2>/dev/null || echo "ML patterns not found"
+        
+        # Find the actual build output directory
+        BUILD_OUTPUT="bin/Release/net6.0"
+        
+        # Copy plugin files from the correct location
+        cp $BUILD_OUTPUT/Lidarr.Plugin.Qobuzarr.dll release/ || echo "DLL not found in $BUILD_OUTPUT"
+        cp $BUILD_OUTPUT/plugin.json release/ || cp plugin.json release/ || echo "plugin.json not found"
+        cp src/Indexers/ml-baseline-patterns.json release/ 2>/dev/null || echo "ML patterns not found"
         
         # Create release archive
         cd release
@@ -136,6 +144,7 @@ jobs:
         cd ..
         
         echo "📦 Plugin packaged: Qobuzarr-${{ env.PLUGIN_VERSION }}.zip"
+        ls -la release/
 
     - name: Upload build artifacts
       uses: actions/upload-artifact@v4
