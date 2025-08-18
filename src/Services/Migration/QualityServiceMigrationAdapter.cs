@@ -167,7 +167,7 @@ namespace Lidarr.Plugin.Qobuzarr.Services.Migration
             _logger.Debug("[MIGRATION] QualityFallbackService.ExecuteWithFallbackAsync called - redirecting to QobuzQualityManager");
             
             // Convert legacy quality chain to new format
-            QobuzQuality preferredQuality = null;
+            QobuzQuality? preferredQuality = null;
             if (qualityChain?.Any() == true)
             {
                 var first = qualityChain.First();

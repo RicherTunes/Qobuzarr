@@ -101,7 +101,7 @@ public class DashboardLogger<T> : ILogger<T>, IDashboardLogger
         LogToDashboard(message, LogLevel.Information);
     }
     
-    public IDisposable BeginScope<TState>(TState state) => _innerLogger.BeginScope(state);
+    public IDisposable? BeginScope<TState>(TState state) where TState : notnull => _innerLogger.BeginScope(state);
     public bool IsEnabled(LogLevel logLevel) => _innerLogger.IsEnabled(logLevel);
     
     private string FormatForConsole(LogLevel logLevel, string message)
@@ -225,7 +225,7 @@ public class DashboardLogger : ILogger, IDashboardLogger
         LogToDashboard(message, LogLevel.Information);
     }
     
-    public IDisposable BeginScope<TState>(TState state) => _innerLogger.BeginScope(state);
+    public IDisposable? BeginScope<TState>(TState state) where TState : notnull => _innerLogger.BeginScope(state);
     public bool IsEnabled(LogLevel logLevel) => _innerLogger.IsEnabled(logLevel);
     
     private string FormatForConsole(LogLevel logLevel, string message)

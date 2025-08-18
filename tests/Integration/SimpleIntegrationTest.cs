@@ -262,6 +262,10 @@ namespace Qobuzarr.IntegrationTests
                 _output.WriteLine("❌ No Qobuzarr download client found!");
                 _output.WriteLine("The Qobuzarr plugin may not be installed or configured properly.");
             }
+            else if (!hasEnabledDownloadClient)
+            {
+                _output.WriteLine("⚠️ Qobuzarr download client found but disabled");
+            }
         }
 
         [Fact]

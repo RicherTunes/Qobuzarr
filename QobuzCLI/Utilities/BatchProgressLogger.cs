@@ -123,7 +123,7 @@ public class BatchProgressLogger : IDisposable
         {
             DisplayStatus();
         }
-        catch (Exception ex)
+        catch (Exception)
         {
             // Fallback to simple progress reporting if display fails
             try

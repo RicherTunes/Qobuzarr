@@ -14,7 +14,6 @@ env:
   DOTNET_SKIP_FIRST_TIME_EXPERIENCE: true
   DOTNET_CLI_TELEMETRY_OPTOUT: true
   PLUGIN_NAME: Lidarr.Plugin.Qobuzarr
-  PLUGIN_VERSION: 0.0.${{ github.run_number }}
   MINIMUM_LIDARR_VERSION: 2.13.2.4686
   DOTNET_VERSION: 6.0.x
 
@@ -57,21 +56,34 @@ jobs:
         echo "📍 Available assemblies:"
         ls -la ext/Lidarr/_output/net6.0/ || echo "No assemblies found"
 
-    - name: Update Version Info
+    - name: Set Dynamic Version
       run: |
-        # TrevTV's proven technique - the key to making plugins work!
-        # Use same path as build.ps1: ext/Lidarr-source/src/Directory.Build.props
+        # Determine version based on trigger type
+        if [[ "${{ github.ref }}" == refs/tags/* ]]; then
+          # Tagged release: use tag version (e.g., v1.0.0 -> 1.0.0)
+          VERSION="${{ github.ref_name }}"
+          VERSION="${VERSION#v}"  # Remove 'v' prefix if present
+          echo "🏷️ Release build: $VERSION"
+        else
+          # Development build: use branch + run number
+          VERSION="0.1.${{ github.run_number }}-dev"
+          echo "🔨 Development build: $VERSION"
+        fi
+        
+        echo "PLUGIN_VERSION=$VERSION" >> $GITHUB_ENV
+        echo "Version set to: $VERSION"
+        
+        # TrevTV's proven technique for Lidarr compatibility
         sed -i'' -e "s/<AssemblyVersion>[0-9.*]\+<\/AssemblyVersion>/<AssemblyVersion>${{ env.MINIMUM_LIDARR_VERSION }}<\/AssemblyVersion>/g" ext/Lidarr-source/src/Directory.Build.props || echo "No Directory.Build.props found (expected for pre-built approach)"
-        sed -i'' -e "s/<Version>.*<\/Version>/<Version>${{ env.PLUGIN_VERSION }}<\/Version>/g" Qobuzarr.csproj || echo "Version update failed"
-        echo "Plugin version set to ${{ env.PLUGIN_VERSION }}"
 
     - name: Restore
       run: dotnet restore
 
     - name: Build
       run: |
-        echo "🔨 Building main plugin..."
+        echo "🔨 Building main plugin with version $PLUGIN_VERSION..."
         dotnet build Qobuzarr.csproj --configuration Release --no-restore \
+          -p:Version="$PLUGIN_VERSION" \
           -p:RunAnalyzersDuringBuild=false \
           -p:EnableNETAnalyzers=false \
           -p:TreatWarningsAsErrors=false
@@ -81,6 +93,8 @@ jobs:
           -p:RunAnalyzersDuringBuild=false \
           -p:EnableNETAnalyzers=false \
           -p:TreatWarningsAsErrors=false
+        
+        echo "✅ Build completed with version $PLUGIN_VERSION"
 
     - name: Upload Build Artifact
       uses: actions/upload-artifact@v4
@@ -101,11 +115,12 @@ jobs:
 
     - name: Package Plugin
       run: |
+        echo "📦 Packaging plugin version $PLUGIN_VERSION..."
         cd bin
-        zip -r ../Plugin.zip *
+        zip -r "../Qobuzarr-v$PLUGIN_VERSION.zip" *
         cd ..
-        echo "Plugin packaged as Plugin.zip"
-        ls -la Plugin.zip
+        echo "✅ Plugin packaged as Qobuzarr-v$PLUGIN_VERSION.zip"
+        ls -la Qobuzarr-v*.zip
 
     - name: Create Release (if tag)
       if: startsWith(github.ref, 'refs/tags/')
@@ -113,5 +128,6 @@ jobs:
       with:
         name: ${{ env.PLUGIN_NAME }} v${{ env.PLUGIN_VERSION }}
         body_path: changelog.md
-        files: Plugin.zip
-        draft: true
+        files: Qobuzarr-v${{ env.PLUGIN_VERSION }}.zip
+        draft: false
+        prerelease: false

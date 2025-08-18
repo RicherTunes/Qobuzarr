@@ -148,7 +148,7 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Services
                         }
                         
                         // Create a nested progress reporter for individual track progress
-                        IProgress<double> trackProgress = null;
+                        IProgress<double>? trackProgress = null;
                         if (progress != null)
                         {
                             trackProgress = new Progress<double>(trackPercentage =>

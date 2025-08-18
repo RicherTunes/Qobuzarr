@@ -198,7 +198,7 @@ namespace Lidarr.Plugin.Qobuzarr.Services
         /// <summary>
         /// Monitors memory usage without forcing collection.
         /// </summary>
-        private void MonitorMemory(object state)
+        private void MonitorMemory(object? state)
         {
             try
             {
