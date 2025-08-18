@@ -1,4 +1,4 @@
-name: Simple CI Build
+name: Build Plugin
 
 on:
   push:
@@ -7,92 +7,85 @@ on:
     branches: [ main ]
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 env:
-  DOTNET_VERSION: '6.0.x'
+  DOTNET_SKIP_FIRST_TIME_EXPERIENCE: true
+  DOTNET_CLI_TELEMETRY_OPTOUT: true
+  PLUGIN_NAME: Lidarr.Plugin.Qobuzarr
+  PLUGIN_VERSION: 0.0.${{ github.run_number }}
+  MINIMUM_LIDARR_VERSION: 2.13.0.4664
+  DOTNET_VERSION: 8.0.x
 
 jobs:
   build:
     strategy:
       matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
-    
-    runs-on: ${{ matrix.os }}
+        framework: [ net6.0 ]
+    runs-on: ubuntu-latest
     
     steps:
-    - name: Checkout code
+    - name: Checkout
       uses: actions/checkout@v4
-
-    - name: Setup .NET
+      with:
+        submodules: recursive
+        
+    - name: Setup .NET Core
       uses: actions/setup-dotnet@v4
       with:
         dotnet-version: ${{ env.DOTNET_VERSION }}
+    
+    - name: Generate global.json
+      run: echo '{"sdk":{"version":"${{ env.DOTNET_VERSION }}"}}' > global.json
 
-    - name: Cache NuGet packages
-      uses: actions/cache@v4
-      with:
-        path: ~/.nuget/packages
-        key: ${{ runner.os }}-nuget-${{ hashFiles('**/packages.lock.json') }}
-        restore-keys: |
-          ${{ runner.os }}-nuget-
-
-    - name: Use pre-built assemblies
-      shell: bash
+    - name: Update Version Info
       run: |
-        echo "📦 Using existing pre-built Lidarr assemblies..."
-        ls -la ext/Lidarr/_output/net6.0/ || echo "⚠️ No pre-built assemblies found"
+        # TrevTV's proven technique - the key to making plugins work!
+        sed -i'' -e "s/<AssemblyVersion>[0-9.*]\+<\/AssemblyVersion>/<AssemblyVersion>${{ env.MINIMUM_LIDARR_VERSION }}<\/AssemblyVersion>/g" ext/Lidarr/src/Directory.Build.props || echo "No Directory.Build.props found"
+        sed -i'' -e "s/<Version>.*<\/Version>/<Version>${{ env.PLUGIN_VERSION }}<\/Version>/g" Qobuzarr.csproj || echo "Version update failed"
+        echo "Plugin version set to ${{ env.PLUGIN_VERSION }}"
 
-    - name: Restore dependencies
+    - name: Restore
       run: dotnet restore
 
-    - name: Build main plugin only
+    - name: Build
       run: |
-        echo "🔨 Building main plugin (skipping problematic components)..."
-        dotnet build Qobuzarr.csproj --configuration Release --no-restore \
+        dotnet build --configuration Release --no-restore \
           -p:RunAnalyzersDuringBuild=false \
           -p:EnableNETAnalyzers=false \
-          -p:TreatWarningsAsErrors=false || echo "⚠️ Main plugin build has compatibility issues"
+          -p:TreatWarningsAsErrors=false
 
-    - name: Build CLI
-      run: |
-        echo "🔨 Building CLI..."
-        dotnet build QobuzCLI/QobuzCLI.csproj --configuration Release --no-restore \
-          -p:RunAnalyzersDuringBuild=false \
-          -p:EnableNETAnalyzers=false \
-          -p:TreatWarningsAsErrors=false || echo "⚠️ CLI build completed with warnings"
-
-    - name: Package available components
-      if: matrix.os == 'ubuntu-latest'
-      shell: bash
-      run: |
-        echo "📦 Packaging available components..."
-        mkdir -p release
-        
-        # Package what we can build
-        if [ -f "QobuzCLI/bin/Release/net6.0/qobuz.dll" ]; then
-          echo "✅ CLI built successfully"
-          cp QobuzCLI/bin/Release/net6.0/qobuz.dll release/
-        fi
-        
-        if [ -f "bin/Lidarr.Plugin.Qobuzarr.dll" ]; then
-          echo "✅ Plugin built successfully"
-          cp bin/Lidarr.Plugin.Qobuzarr.dll release/
-          cp plugin.json release/
-        fi
-        
-        # Create package if anything was built
-        if [ "$(ls -A release/)" ]; then
-          cd release
-          zip -r ../Qobuzarr-partial-v${{ github.run_number }}.zip .
-          cd ..
-          echo "📦 Package created with available components"
-          ls -la *.zip
-        else
-          echo "⚠️ No components could be built"
-        fi
-
-    - name: Upload partial build
+    - name: Upload Build Artifact
       uses: actions/upload-artifact@v4
-      if: matrix.os == 'ubuntu-latest'
       with:
-        name: qobuzarr-partial-build
-        path: Qobuzarr-*.zip
+        name: ${{ env.PLUGIN_NAME }}-${{ matrix.framework }}
+        path: |
+          bin/**
+          !bin/**/ref/**
+          !bin/**/runtimes/linux-*/**
+          !bin/**/runtimes/osx-*/**
+          !bin/**/runtimes/win-*/**
+
+    - name: Generate Changelog
+      run: |
+        # Generate simple changelog
+        echo "## Changes in this build" > changelog.md
+        git log --oneline -10 >> changelog.md
+
+    - name: Package Plugin
+      run: |
+        cd bin
+        zip -r ../Plugin.zip *
+        cd ..
+        echo "Plugin packaged as Plugin.zip"
+        ls -la Plugin.zip
+
+    - name: Create Release (if tag)
+      if: startsWith(github.ref, 'refs/tags/')
+      uses: softprops/action-gh-release@v1
+      with:
+        name: ${{ env.PLUGIN_NAME }} v${{ env.PLUGIN_VERSION }}
+        body_path: changelog.md
+        files: Plugin.zip
+        draft: true
