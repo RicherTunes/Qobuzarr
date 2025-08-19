@@ -130,7 +130,7 @@ namespace Qobuzarr.Tests.Unit.Security
 
             // Assert
             result.HasSecurityIssues.Should().BeTrue();
-            result.SecurityLevel.Should().BeLessThan(SecurityLevel.High);
+            result.SecurityLevel.Should().NotBe(SecurityLevel.High);
         }
 
         [Fact]

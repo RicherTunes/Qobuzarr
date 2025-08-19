@@ -208,7 +208,7 @@ namespace Qobuzarr.Tests.Performance
             {
                 var variation = testCase.Query + " deluxe";
                 if (cache.GetCachedResult(variation, "") != null || 
-                    substringCache.FindCachedResults(variation, "").CachedEntries.Any())
+                    substringCache.FindCachedResults(variation, "").AlternativeMatches?.Any() == true)
                 {
                     _metrics.RecordCacheHit();
                 }
@@ -289,14 +289,14 @@ namespace Qobuzarr.Tests.Performance
             {
                 // Baseline optimizer
                 var baselineResult = _optimizer.PredictComplexity(testCase.Query, "");
-                var baselineSaved = CalculateApiSavings(baselineResult, testCase);
+                var baselineSaved = CalculateApiSavings(baselineResult.ToString(), testCase);
                 baselineReduction += baselineSaved;
                 
                 // Hybrid optimizer with enterprise features
                 var hybridResult = await _hybridOptimizer.PredictOptimalStrategyAsync(
                     testCase.Query, 
                     "");
-                var hybridSaved = CalculateApiSavings(hybridResult, testCase);
+                var hybridSaved = CalculateApiSavings(hybridResult.ToString(), testCase);
                 hybridReduction += hybridSaved;
             }
 
