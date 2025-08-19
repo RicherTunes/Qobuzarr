@@ -248,7 +248,7 @@ namespace Lidarr.Plugin.Qobuzarr.Services.Migration
             };
         }
 
-        private string ConvertToLegacyQualityString(QobuzQuality quality)
+        private string ConvertToLegacyQualityString(Consolidated.QobuzQuality quality)
         {
             if (quality == null) return "flac-cd";
             
@@ -262,7 +262,7 @@ namespace Lidarr.Plugin.Qobuzarr.Services.Migration
             };
         }
 
-        private QobuzQuality ConvertFromLegacyQuality(QobuzAudioQuality legacyQuality)
+        private Consolidated.QobuzQuality ConvertFromLegacyQuality(QobuzAudioQuality legacyQuality)
         {
             var id = legacyQuality switch
             {
@@ -274,7 +274,7 @@ namespace Lidarr.Plugin.Qobuzarr.Services.Migration
             };
             
             var format = QobuzQualityManager.QobuzQualityFormats[id];
-            return new QobuzQuality
+            return new Consolidated.QobuzQuality
             {
                 Id = format.Id,
                 Name = format.Name,
