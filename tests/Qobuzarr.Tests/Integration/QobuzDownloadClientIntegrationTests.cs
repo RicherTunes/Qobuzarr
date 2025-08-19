@@ -66,20 +66,20 @@ namespace Qobuzarr.Tests.Integration
                 return new NLogAdapter(logger);
             });
 
-            // Configure real services for integration testing
-            services.AddSingleton<IQobuzAuthenticationService, QobuzAuthenticationService>();
-            services.AddSingleton<IQobuzApiClient, QobuzApiClient>();
-            services.AddSingleton<IQobuzHttpClient, QobuzHttpClient>();
-            services.AddSingleton<IDownloadQueueService, DownloadQueueService>();
-            services.AddSingleton<IDownloadFileService, DownloadFileService>();
-            services.AddSingleton<IConcurrencyManager, AdaptiveConcurrencyManager>();
-            services.AddSingleton<IDownloadOrchestrator, DownloadOrchestrator>();
-            services.AddSingleton<IStreamUrlProvider, StreamUrlProvider>();
-            services.AddSingleton<IMetadataProcessor, MetadataProcessor>();
-            services.AddSingleton<IQualityFallbackProvider, QualityFallbackProvider>();
+            // Configure real services for integration testing - use Scoped for test isolation
+            services.AddScoped<IQobuzAuthenticationService, QobuzAuthenticationService>();
+            services.AddScoped<IQobuzApiClient, QobuzApiClient>();
+            services.AddScoped<IQobuzHttpClient, QobuzHttpClient>();
+            services.AddScoped<IDownloadQueueService, DownloadQueueService>();
+            services.AddScoped<IDownloadFileService, DownloadFileService>();
+            services.AddScoped<IConcurrencyManager, AdaptiveConcurrencyManager>();
+            services.AddScoped<IDownloadOrchestrator, DownloadOrchestrator>();
+            services.AddScoped<IStreamUrlProvider, StreamUrlProvider>();
+            services.AddScoped<IMetadataProcessor, MetadataProcessor>();
+            services.AddScoped<IQualityFallbackProvider, QualityFallbackProvider>();
             
             // Add download client
-            services.AddSingleton<QobuzDownloadClient>();
+            services.AddScoped<QobuzDownloadClient>();
         }
 
         public async Task InitializeAsync()
@@ -248,8 +248,8 @@ namespace Qobuzarr.Tests.Integration
                 .Setup(x => x.GetStreamAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
                 .ReturnsAsync(() =>
                 {
-                    attemptCount++;
-                    if (attemptCount <= 2)
+                    var currentAttempt = Interlocked.Increment(ref attemptCount);
+                    if (currentAttempt <= 2)
                     {
                         throw new IOException("Network error simulation");
                     }
