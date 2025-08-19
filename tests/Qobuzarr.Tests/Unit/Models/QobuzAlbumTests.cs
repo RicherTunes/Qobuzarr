@@ -76,7 +76,7 @@ namespace Qobuzarr.Tests.Unit.Models
             // Assert
             // 4578 seconds * 320kbps / 8 (bits to bytes)
             var expectedSize = (long)(4578 * 320 * 1000 / 8);
-            size.Should().BeApproximately(expectedSize, expectedSize * 0.1); // 10% tolerance
+            size.Should().BeCloseTo(expectedSize, (ulong)(expectedSize * 0.1)); // 10% tolerance
         }
 
         [Fact]
@@ -90,8 +90,8 @@ namespace Qobuzarr.Tests.Unit.Models
 
             // Assert
             // FLAC typically 800-1000kbps for CD quality
-            var expectedSize = (long)(4578 * 900 * 1000 / 8);
-            size.Should().BeApproximately(expectedSize, expectedSize * 0.2); // 20% tolerance for FLAC compression
+            var expectedSize = (long)(4578L * 900L * 1000L / 8L);
+            size.Should().BeCloseTo(expectedSize, (ulong)(expectedSize * 0.2)); // 20% tolerance for FLAC compression
         }
 
         // GetFormatName method doesn't exist in current API - removed these tests

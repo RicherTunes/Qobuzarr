@@ -145,12 +145,12 @@ namespace Qobuzarr.Tests.Unit.Security
             MockLogger.Verify(l => l.Debug(
                 It.Is<string>(s => !s.Contains("super_secret_token_12345")),
                 It.IsAny<object[]>()),
-                Times.Any());
+                Times.AtLeastOnce());
             
             MockLogger.Verify(l => l.Debug(
                 It.Is<string>(s => !s.Contains("very_secret_app_key")),
                 It.IsAny<object[]>()),
-                Times.Any());
+                Times.AtLeastOnce());
         }
 
         [Fact]
