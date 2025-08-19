@@ -1,4 +1,6 @@
 using FluentAssertions;
+using Microsoft.Extensions.Logging;
+using Moq;
 using QobuzCLI.Models;
 using QobuzCLI.Services;
 using System.Collections.Generic;
@@ -13,10 +15,12 @@ namespace QobuzCLI.Tests.Services;
 public class SearchServiceTests
 {
     private readonly SearchService _searchService;
+    private readonly Mock<ILogger<SearchService>> _mockLogger;
 
     public SearchServiceTests()
     {
-        _searchService = new SearchService();
+        _mockLogger = new Mock<ILogger<SearchService>>();
+        _searchService = new SearchService(_mockLogger.Object);
     }
 
     [Theory]
@@ -110,7 +114,14 @@ public class SearchServiceTests
 /// </summary>
 public class SearchScoringTests
 {
-    private readonly SearchService _searchService = new();
+    private readonly SearchService _searchService;
+    private readonly Mock<ILogger<SearchService>> _mockLogger;
+
+    public SearchScoringTests()
+    {
+        _mockLogger = new Mock<ILogger<SearchService>>();
+        _searchService = new SearchService(_mockLogger.Object);
+    }
 
     [Fact]
     public void ScoreResults_ShouldScoreExactTitleMatchesHighly()
