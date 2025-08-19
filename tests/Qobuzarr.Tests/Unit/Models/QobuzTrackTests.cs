@@ -25,7 +25,7 @@ namespace Qobuzarr.Tests.Unit.Models
             track.Title.Should().Be("Give Life Back to Music");
             track.TrackNumber.Should().Be(1);
             track.DiscNumber.Should().Be(1);
-            track.Duration.TotalSeconds.Should().BeCloseTo(274, 1);
+            track.Duration.TotalSeconds.Should().BeInRange(273, 275);
             track.ISRC.Should().Be("USSM11300001");
             track.Streamable.Should().BeTrue();
         }
@@ -136,7 +136,7 @@ namespace Qobuzarr.Tests.Unit.Models
             // Assert
             // FLAC typically 800-1000kbps for CD quality
             var expectedSize = (long)(180 * 900 * 1000 / 8);
-            size.Should().BeCloseTo(expectedSize, expectedSize * 0.2); // 20% tolerance for FLAC
+            ((long)size).Should().BeInRange(expectedSize - (long)(expectedSize * 0.2), expectedSize + (long)(expectedSize * 0.2)); // 20% tolerance for FLAC
         }
 
         [Theory]
