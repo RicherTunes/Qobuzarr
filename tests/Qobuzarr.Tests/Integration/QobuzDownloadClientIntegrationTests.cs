@@ -69,10 +69,10 @@ namespace Qobuzarr.Tests.Integration
             // Configure real services for integration testing - use Scoped for test isolation
             services.AddScoped<IQobuzAuthenticationService, QobuzAuthenticationService>();
             services.AddScoped<IQobuzApiClient, QobuzApiClient>();
-            services.AddScoped<IQobuzHttpClient, QobuzHttpClient>();
+            services.AddScoped<IQobuzHttpClient, LidarrHttpClientAdapter>();
             services.AddScoped<IDownloadQueueService, DownloadQueueService>();
             services.AddScoped<IDownloadFileService, DownloadFileService>();
-            services.AddScoped<IConcurrencyManager, AdaptiveConcurrencyManager>();
+            services.AddScoped<IConcurrencyManager, ConcurrencyManager>();
             services.AddScoped<IDownloadOrchestrator, DownloadOrchestrator>();
             services.AddScoped<IStreamUrlProvider, StreamUrlProvider>();
             services.AddScoped<IMetadataProcessor, MetadataProcessor>();
