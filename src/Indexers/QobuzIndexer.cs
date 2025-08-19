@@ -809,11 +809,11 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
                     switch (predictedComplexity)
                     {
                         case QueryComplexity.Simple:
-                            return 3; // Simple queries would need 3 attempts without ML
+                            return 2; // Simple queries would need 2 attempts without ML
                         case QueryComplexity.Medium:
                             return 3; // Medium queries would need 3 attempts without ML
                         case QueryComplexity.Complex:
-                            return 3; // Complex queries need 3 attempts even with ML
+                            return 4; // Complex queries need 4 attempts without ML
                         default:
                             return 3; // Conservative baseline
                     }

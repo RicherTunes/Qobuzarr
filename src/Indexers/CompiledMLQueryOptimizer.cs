@@ -109,8 +109,8 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
                     result = QueryComplexity.Medium;
                 }
                 
-                // Adaptive threshold adjustment based on recent accuracy
-                AdaptThresholdsIfNeeded()
+                // Removed adaptive threshold adjustment to prevent model drift
+                // Static thresholds from training ensure consistent behavior
                 
                 // Calculate confidence for this prediction
                 confidence = GetConfidenceScore(artistName, albumTitle, result);
@@ -526,9 +526,10 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
             return summary.GetHealthStatus();
         }
         
-        /// <summary>
-        /// Adaptive threshold adjustment based on performance feedback
-        /// </summary>
+        // REMOVED: Adaptive threshold adjustment to prevent model drift
+        // Keeping static thresholds from training ensures consistent behavior
+        // and prevents overfitting to recent data patterns
+        /*
         private void AdaptThresholdsIfNeeded()
         {
             if (_thresholdHistory.Count >= ThresholdHistorySize)
@@ -560,6 +561,7 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
                     _thresholdHistory.Dequeue();
             }
         }
+        */
         
         /// <summary>
         /// Record threshold adjustment data

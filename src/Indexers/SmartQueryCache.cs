@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Security.Cryptography;
 using System.Text;
+using System.Threading;
 using NLog;
 
 namespace Lidarr.Plugin.Qobuzarr.Indexers
@@ -18,6 +19,7 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
         private readonly ConcurrentDictionary<string, CacheEntry> _cache;
         private readonly ConcurrentDictionary<string, QueryPattern> _patterns;
         private readonly object _statsLock = new object();
+        private readonly object _evictionLock = new object();
         
         // Cache configuration
         private const int MaxCacheSize = 10000;
@@ -95,7 +97,6 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
                 CreatedAt = DateTime.UtcNow,
                 ExpiresAt = DateTime.UtcNow.Add(expiry),
                 Complexity = complexity,
-                AccessCount = 0,
                 LastAccessed = DateTime.UtcNow
             };
             
@@ -104,10 +105,17 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
             // Record pattern for future predictions
             RecordQueryPattern(artist, album, complexity);
             
-            // Trigger eviction if needed
+            // Trigger eviction if needed (with synchronization)
             if (_cache.Count > MaxCacheSize)
             {
-                EvictLeastValuable();
+                lock (_evictionLock)
+                {
+                    // Double-check after acquiring lock
+                    if (_cache.Count > MaxCacheSize)
+                    {
+                        EvictLeastValuable();
+                    }
+                }
             }
         }
         
@@ -302,7 +310,8 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
             public DateTime CreatedAt { get; set; }
             public DateTime ExpiresAt { get; set; }
             public DateTime LastAccessed { get; set; }
-            public int AccessCount { get; set; }
+            private int _accessCount;
+            public int AccessCount => _accessCount;
             public QueryComplexity Complexity { get; set; }
             
             public bool IsExpired => DateTime.UtcNow > ExpiresAt;
@@ -310,7 +319,7 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
             public void RecordAccess()
             {
                 LastAccessed = DateTime.UtcNow;
-                Interlocked.Increment(ref AccessCount);
+                Interlocked.Increment(ref _accessCount);
             }
         }
         
