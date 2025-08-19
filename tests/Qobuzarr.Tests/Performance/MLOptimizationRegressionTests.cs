@@ -139,7 +139,7 @@ namespace Qobuzarr.Tests.Performance
             // Warm up the model
             for (int i = 0; i < 10; i++)
             {
-                _optimizer.PredictComplexity("warmup query");
+                _optimizer.PredictComplexity("warmup query", "");
             }
 
             // Act - Measure prediction latencies
@@ -147,7 +147,7 @@ namespace Qobuzarr.Tests.Performance
             {
                 stopwatch.Restart();
                 
-                _optimizer.PredictComplexity(testCase.Query);
+                _optimizer.PredictComplexity(testCase.Query, "");
                 
                 stopwatch.Stop();
                 latencies.Add(stopwatch.ElapsedMilliseconds);
@@ -184,8 +184,8 @@ namespace Qobuzarr.Tests.Performance
             foreach (var testCase in _productionQueries)
             {
                 // First pass - populate cache
-                cache.GetCachedResult(testCase.Query, out _);
-                substringCache.FindCachedResults(testCase.Query);
+                cache.GetCachedResult(testCase.Query, "");
+                substringCache.FindCachedResults(testCase.Query, "");
                 
                 _metrics.RecordCacheMiss();
             }
@@ -193,7 +193,7 @@ namespace Qobuzarr.Tests.Performance
             // Second pass - should hit cache
             foreach (var testCase in _productionQueries.Take(_productionQueries.Count / 2))
             {
-                if (cache.GetCachedResult(testCase.Query, out _))
+                if (cache.GetCachedResult(testCase.Query, "") != null)
                 {
                     _metrics.RecordCacheHit();
                 }
@@ -207,8 +207,8 @@ namespace Qobuzarr.Tests.Performance
             foreach (var testCase in _productionQueries)
             {
                 var variation = testCase.Query + " deluxe";
-                if (cache.GetCachedResult(variation, out _) || 
-                    substringCache.FindCachedResults(variation).Any())
+                if (cache.GetCachedResult(variation, "") != null || 
+                    substringCache.FindCachedResults(variation, "").CachedEntries.Any())
                 {
                     _metrics.RecordCacheHit();
                 }
@@ -244,8 +244,8 @@ namespace Qobuzarr.Tests.Performance
             var initialMemory = GC.GetTotalMemory(false);
             
             // Act - Load all ML components
-            var optimizer = new CompiledMLQueryOptimizer();
-            var hybridOptimizer = new HybridMLQueryOptimizer(_logger);
+            var optimizer = new CompiledMLQueryOptimizer(_logger);
+            var hybridOptimizer = new HybridMLQueryOptimizer(_logger, new Mock<IPatternLearningEngine>().Object, new Mock<IPatternLearningEngine>().Object, new HybridConfiguration());
             var classifier = new QueryComplexityClassifier();
             var cache = new QobuzPatternCache();
             var substringCache = new QobuzSubstringCache();
@@ -253,10 +253,10 @@ namespace Qobuzarr.Tests.Performance
             // Process queries to populate caches
             foreach (var testCase in _productionQueries)
             {
-                optimizer.PredictComplexity(testCase.Query).Wait();
+                optimizer.PredictComplexity(testCase.Query, "");
                 classifier.ClassifyComplexity(testCase.Query, "");
-                cache.GetCachedResult(testCase.Query, out _);
-                substringCache.FindCachedResults(testCase.Query);
+                cache.GetCachedResult(testCase.Query, "");
+                substringCache.FindCachedResults(testCase.Query, "");
             }
             
             GC.Collect();
@@ -288,7 +288,7 @@ namespace Qobuzarr.Tests.Performance
             foreach (var testCase in _productionQueries)
             {
                 // Baseline optimizer
-                var baselineResult = _optimizer.PredictComplexity(testCase.Query);
+                var baselineResult = _optimizer.PredictComplexity(testCase.Query, "");
                 var baselineSaved = CalculateApiSavings(baselineResult, testCase);
                 baselineReduction += baselineSaved;
                 
@@ -330,7 +330,7 @@ namespace Qobuzarr.Tests.Performance
                 tasks[i] = Task.Run(async () =>
                 {
                     var sw = Stopwatch.StartNew();
-                    _optimizer.PredictComplexity(query);
+                    _optimizer.PredictComplexity(query, "");
                     sw.Stop();
                     return sw.ElapsedMilliseconds;
                 });
@@ -368,7 +368,7 @@ namespace Qobuzarr.Tests.Performance
             {
                 using (_metrics.StartPredictionTiming())
                 {
-                    var result = _optimizer.PredictComplexity(testCase.Query).Result;
+                    var result = _optimizer.PredictComplexity(testCase.Query, "");
                     _metrics.RecordPrediction(5.0, true, 0.92);
                 }
                 
