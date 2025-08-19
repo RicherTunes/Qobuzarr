@@ -47,6 +47,7 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
         public DateTime LastModelUpdate { get; set; }
         public Dictionary<QueryComplexity, int> PatternDistribution { get; set; }
         public bool IsUsingMLEngine { get; set; }
+        public Dictionary<string, object> HybridStatistics { get; set; }
     }
 
     /// <summary>

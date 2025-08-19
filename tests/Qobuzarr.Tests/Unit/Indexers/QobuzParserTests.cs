@@ -8,6 +8,7 @@ using Lidarr.Plugin.Qobuzarr.Indexers;
 using Lidarr.Plugin.Qobuzarr.Models;
 using Qobuzarr.Tests.Builders;
 using NzbDrone.Core.Parser.Model;
+using NzbDrone.Core.Download;
 using NzbDrone.Common.Http;
 
 namespace Qobuzarr.Tests.Unit.Indexers
@@ -224,7 +225,7 @@ namespace Qobuzarr.Tests.Unit.Indexers
             result.Album.Should().Be("Release Test Album");
             result.PublishDate.Date.Should().Be(new DateTime(2023, 6, 15).Date, "Date should match regardless of timezone");
             result.Indexer.Should().Be("Qobuzarr");
-            result.DownloadProtocol.Should().Contain("QobuzDownloadProtocol");
+            result.DownloadProtocol.Should().Be(DownloadProtocol.Usenet);
             result.Size.Should().BeGreaterThan(0, "Size should be calculated based on quality");
             
             // Critical: Title should contain quality markers for Lidarr detection

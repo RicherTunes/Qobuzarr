@@ -1,0 +1,89 @@
+{
+  "securityConfiguration": {
+    "version": "1.0.0",
+    "lastUpdated": "2025-08-19T00:00:00Z",
+    "description": "Security configuration for ML model loading in Qobuzarr",
+    "settings": {
+      "maxAssemblySize": 10485760,
+      "requireSignature": false,
+      "enableAuditLogging": true,
+      "maxAuditLogEntries": 1000,
+      "loadTimeout": 30
+    }
+  },
+  "trustedModels": [
+    {
+      "fileName": "PersonalizedMLQueryOptimizer.dll",
+      "sha256Hash": "UPDATE_WITH_ACTUAL_HASH_AFTER_BUILD",
+      "version": "1.0.0",
+      "description": "User's personalized ML query optimizer",
+      "addedDate": "2025-08-19T00:00:00Z",
+      "addedBy": "System Administrator"
+    },
+    {
+      "fileName": "PersonalMLQueryOptimizer.dll",
+      "sha256Hash": "UPDATE_WITH_ACTUAL_HASH_AFTER_BUILD",
+      "version": "1.0.0",
+      "description": "Alternative naming for personal ML model",
+      "addedDate": "2025-08-19T00:00:00Z",
+      "addedBy": "System Administrator"
+    },
+    {
+      "fileName": "QobuzMLCustomModel.dll",
+      "sha256Hash": "UPDATE_WITH_ACTUAL_HASH_AFTER_BUILD",
+      "version": "1.0.0",
+      "description": "Custom Qobuz ML model",
+      "addedDate": "2025-08-19T00:00:00Z",
+      "addedBy": "System Administrator"
+    }
+  ],
+  "allowedAssemblyNames": [
+    "PersonalizedMLQueryOptimizer",
+    "PersonalMLQueryOptimizer",
+    "QobuzMLCustomModel",
+    "Lidarr.Plugin.Qobuzarr.ML.Custom"
+  ],
+  "allowedDirectories": [
+    "./",
+    "./plugins/",
+    "./plugins/Qobuzarr/",
+    "./ML/",
+    "./plugins/Qobuzarr/ML/"
+  ],
+  "securityChecks": {
+    "pathTraversalProtection": true,
+    "fileSizeValidation": true,
+    "hashVerification": true,
+    "signatureValidation": false,
+    "sandboxExecution": true,
+    "behaviorValidation": true
+  },
+  "auditConfiguration": {
+    "logSuccessfulLoads": true,
+    "logFailedAttempts": true,
+    "logSecurityViolations": true,
+    "retentionDays": 30,
+    "alertOnSuspiciousActivity": true
+  },
+  "instructions": {
+    "addingNewModel": [
+      "1. Build and sign your ML model assembly",
+      "2. Calculate SHA-256 hash: certutil -hashfile YourModel.dll SHA256",
+      "3. Update this configuration file with the hash",
+      "4. Set QOBUZARR_ADMIN_TOKEN environment variable",
+      "5. Use UpdateTrustedHash method or update this file directly",
+      "6. Place model in one of the allowed directories",
+      "7. Restart Qobuzarr to load the new model"
+    ],
+    "securityBestPractices": [
+      "Always verify model source before trusting",
+      "Keep this configuration file secure and version controlled",
+      "Monitor audit logs for suspicious activity",
+      "Regularly update trusted hashes when models are updated",
+      "Use strong naming for production models",
+      "Enable signature validation in production environments",
+      "Limit model file size to prevent resource exhaustion",
+      "Implement regular security reviews of loaded models"
+    ]
+  }
+}
