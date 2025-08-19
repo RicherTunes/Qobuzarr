@@ -19,6 +19,7 @@ using Lidarr.Plugin.Qobuzarr.Authentication;
 using Lidarr.Plugin.Qobuzarr.Download.Clients;
 using Lidarr.Plugin.Qobuzarr.Download.Services;
 using Lidarr.Plugin.Qobuzarr.Download.Orchestration;
+using Lidarr.Plugin.Qobuzarr.Integration;
 using Lidarr.Plugin.Qobuzarr.Models;
 using Lidarr.Plugin.Qobuzarr.Models.Authentication;
 using Lidarr.Plugin.Qobuzarr.Abstractions;
@@ -106,7 +107,7 @@ namespace Qobuzarr.Tests.Integration
                 var credentials = new QobuzCredentials
                 {
                     Email = email,
-                    Password = password,
+                    MD5Password = password,
                     AppId = appId,
                     AppSecret = appSecret
                 };
@@ -210,7 +211,7 @@ namespace Qobuzarr.Tests.Integration
             };
             
             // Replace session with short-lived one
-            await _authService.SaveSessionAsync(shortSession);
+            _authService.StoreSession(shortSession);
 
             var albumId = "0060254734592";
             var remoteAlbum = CreateRemoteAlbum(albumId, "Token Refresh Test");
@@ -227,7 +228,7 @@ namespace Qobuzarr.Tests.Integration
             // Assert
             completed.Should().BeTrue("Download should complete even after token expiry");
             
-            var currentSession = await _authService.GetCachedSession();
+            var currentSession = _authService.GetCachedSession();
             currentSession.ExpiresAt.Should().BeAfter(DateTime.UtcNow, 
                 "Session should be refreshed with new expiry");
             
@@ -277,8 +278,7 @@ namespace Qobuzarr.Tests.Integration
             // Configure to request highest quality
             var settings = new QobuzDownloadSettings
             {
-                Quality = QobuzConstants.QUALITY_HIRES_192,
-                AllowQualityFallback = true
+                PreferredQuality = (int)QobuzAudioQuality.FLACHiRes24Bit192Khz
             };
 
             // Act
