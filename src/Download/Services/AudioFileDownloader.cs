@@ -14,23 +14,31 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Services
     /// <summary>
     /// Handles downloading audio files from streaming URLs with progress reporting and retry logic
     /// </summary>
-    public class AudioFileDownloader : IAudioFileDownloader
+    public class AudioFileDownloader : IAudioFileDownloader, IDisposable
     {
         private readonly IHttpClient _httpClient;
         private readonly IQobuzLogger _logger;
         private readonly IQualityFallbackProvider _qualityFallbackProvider;
+        private readonly System.Net.Http.HttpClient _streamingHttpClient;
 
-        private const int MaxRetries = QobuzPluginConstants.Download.MaxRetries;
-        private const int RetryDelayMs = QobuzPluginConstants.Download.RetryDelayMs;
-        private const int LargeFileThresholdBytes = QobuzPluginConstants.Download.LargeFileThresholdBytes;
-        private const int BufferSize = QobuzPluginConstants.Download.BufferSize;
-        private const int ChunkSize = QobuzPluginConstants.Download.ChunkSize;
+        private const int MaxRetries = QobuzConstants.Download.MaxRetries;
+        private const int RetryDelayMs = QobuzConstants.Download.RetryDelayMs;
+        private const int LargeFileThresholdBytes = QobuzConstants.Download.LargeFileThresholdBytes;
+        private const int BufferSize = QobuzConstants.Download.BufferSize;
+        private const int ChunkSize = QobuzConstants.Download.ChunkSize;
 
         public AudioFileDownloader(IHttpClient httpClient, IQobuzLogger logger, IQualityFallbackProvider qualityFallbackProvider)
         {
             _httpClient = Guard.NotNull(httpClient, nameof(httpClient));
             _logger = Guard.NotNull(logger, nameof(logger));
             _qualityFallbackProvider = Guard.NotNull(qualityFallbackProvider, nameof(qualityFallbackProvider));
+            
+            // Create a dedicated HttpClient for streaming downloads to avoid loading entire files into memory
+            _streamingHttpClient = new System.Net.Http.HttpClient
+            {
+                Timeout = TimeSpan.FromMinutes(10) // Longer timeout for large files
+            };
+            _streamingHttpClient.DefaultRequestHeaders.Add("User-Agent", QobuzConstants.Api.UserAgent);
         }
 
         public async Task DownloadAudioFileAsync(
@@ -65,47 +73,47 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Services
                         await Task.Delay(delay, cancellationToken).ConfigureAwait(false);
                     }
 
-                    // Create HTTP request with streaming support and timeout
-                    var request = new HttpRequestBuilder(streamUrl)
-                        .SetHeader("User-Agent", QobuzPluginConstants.Http.UserAgent)
-                        .SetHeader("Connection", "keep-alive")
-                        .SetHeader("Accept", "*/*")
-                        .Build();
-                    
-                    // Set a longer timeout for large files
-                    request.RequestTimeout = TimeSpan.FromMinutes(5);
+                    // Use streaming HTTP client to avoid loading entire file into memory
+                    using var httpRequest = new HttpRequestMessage(HttpMethod.Get, streamUrl);
+                    httpRequest.Headers.Add("Connection", "keep-alive");
+                    httpRequest.Headers.Add("Accept", "*/*");
 
-                    var response = await _httpClient.ExecuteAsync(request).ConfigureAwait(false);
+                    // Get response with streaming enabled (doesn't load content into memory)
+                    using var response = await _streamingHttpClient.GetAsync(streamUrl, HttpCompletionOption.ResponseHeadersRead, cancellationToken).ConfigureAwait(false);
                     
-                    if (response.HasHttpError)
+                    if (!response.IsSuccessStatusCode)
                     {
-                        throw new HttpException(request, response);
+                        throw new HttpRequestException($"HTTP {(int)response.StatusCode}: {response.ReasonPhrase}");
                     }
 
-                    var totalBytes = response.Headers.ContentLength ?? 0;
+                    var totalBytes = response.Content.Headers.ContentLength ?? 0;
                     var downloadedBytes = 0L;
 
-                    // Download with progress reporting
-                    using var fileStream = new FileStream(outputPath, FileMode.Create, FileAccess.Write, FileShare.None, bufferSize: BufferSize);
-
-                    // For large files, stream the download instead of loading into memory
-                    if (response.ResponseData.Length > LargeFileThresholdBytes)
+                    // Stream directly from HTTP response to file without loading into memory
+                    using var fileStream = new FileStream(outputPath, FileMode.Create, FileAccess.Write, FileShare.None, bufferSize: BufferSize, useAsync: true);
+                    using var httpStream = await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
+                    
+                    // Stream the download with progress reporting
+                    var buffer = new byte[ChunkSize];
+                    int bytesRead;
+                    
+                    while ((bytesRead = await httpStream.ReadAsync(buffer, 0, buffer.Length, cancellationToken).ConfigureAwait(false)) > 0)
                     {
-                        _logger.Debug("Large file detected ({0} bytes), using streaming download", response.ResponseData.Length);
+                        await fileStream.WriteAsync(buffer, 0, bytesRead, cancellationToken).ConfigureAwait(false);
+                        downloadedBytes += bytesRead;
                         
-                        downloadedBytes = await StreamLargeFileAsync(response.ResponseData, fileStream, totalBytes, progress, cancellationToken);
+                        // Report progress
+                        if (totalBytes > 0)
+                        {
+                            var progressPercent = (double)downloadedBytes / totalBytes * 100;
+                            progress?.Report(progressPercent);
+                        }
                     }
-                    else
-                    {
-                        // Small files - write directly
-                        await fileStream.WriteAsync(response.ResponseData, 0, response.ResponseData.Length, cancellationToken).ConfigureAwait(false);
-                        downloadedBytes = response.ResponseData.Length;
-                    }
-
-                    // Final progress report
-                    ReportFinalProgress(progress, downloadedBytes, totalBytes);
 
                     await fileStream.FlushAsync(cancellationToken).ConfigureAwait(false);
+                    
+                    // Final progress report
+                    ReportFinalProgress(progress, downloadedBytes, totalBytes);
                     
                     _logger.Debug("Successfully downloaded {0} bytes to: {1} (attempt {2})", downloadedBytes, outputPath, attempt);
                     return; // Success - exit retry loop
@@ -187,34 +195,6 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Services
             }
         }
 
-        private async Task<long> StreamLargeFileAsync(
-            byte[] responseData, 
-            FileStream fileStream, 
-            long totalBytes, 
-            IProgress<double> progress, 
-            CancellationToken cancellationToken)
-        {
-            // Write in chunks to avoid memory issues and provide better progress
-            var buffer = new byte[ChunkSize];
-            var dataStream = new MemoryStream(responseData);
-            var downloadedBytes = 0L;
-            
-            int bytesRead;
-            while ((bytesRead = await dataStream.ReadAsync(buffer, 0, ChunkSize, cancellationToken).ConfigureAwait(false)) > 0)
-            {
-                await fileStream.WriteAsync(buffer, 0, bytesRead, cancellationToken).ConfigureAwait(false);
-                downloadedBytes += bytesRead;
-                
-                // Report progress more frequently for streaming
-                if (totalBytes > 0)
-                {
-                    var progressPercentage = (double)downloadedBytes / totalBytes * 100;
-                    progress?.Report(Math.Min(100, progressPercentage));
-                }
-            }
-
-            return downloadedBytes;
-        }
 
         private static void ReportFinalProgress(IProgress<double> progress, long downloadedBytes, long totalBytes)
         {
@@ -302,6 +282,11 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Services
                 return "HTTP error";
                 
             return "error";
+        }
+
+        public void Dispose()
+        {
+            _streamingHttpClient?.Dispose();
         }
     }
 }

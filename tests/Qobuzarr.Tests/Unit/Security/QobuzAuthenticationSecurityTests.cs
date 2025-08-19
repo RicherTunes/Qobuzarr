@@ -11,6 +11,7 @@ using Moq.Protected;
 using Xunit;
 using NzbDrone.Common.Http;
 using Lidarr.Plugin.Qobuzarr.Authentication;
+using Lidarr.Plugin.Qobuzarr.Exceptions;
 using Lidarr.Plugin.Qobuzarr.Models.Authentication;
 using Qobuzarr.Tests.Fixtures;
 
