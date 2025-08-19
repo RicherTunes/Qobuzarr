@@ -136,7 +136,7 @@ namespace Qobuzarr.Tests.Unit.Models
             // Assert
             // FLAC typically 800-1000kbps for CD quality
             var expectedSize = (long)(180 * 900 * 1000 / 8);
-            size.Should().BeApproximately(expectedSize, expectedSize * 0.2); // 20% tolerance for FLAC
+            size.Should().BeCloseTo(expectedSize, (ulong)(expectedSize * 0.2)); // 20% tolerance for FLAC
         }
 
         [Theory]
