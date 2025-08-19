@@ -280,7 +280,7 @@ namespace Qobuzarr.Tests.Unit.Security
 
             // Setup mock to simulate authentication failure
             MockHttpClient.Setup(x => x.Execute(It.IsAny<HttpRequest>()))
-                .Throws(new HttpException("401 Unauthorized"));
+                .Throws(new QobuzAuthenticationException("Invalid credentials"));
 
             // Act
             Func<Task> act = async () => await _authService.AuthenticateAsync(credentials);

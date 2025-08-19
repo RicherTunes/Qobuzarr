@@ -332,7 +332,7 @@ namespace Qobuzarr.Tests.Performance
                     var sw = Stopwatch.StartNew();
                     _optimizer.PredictComplexity(query, "");
                     sw.Stop();
-                    return sw.ElapsedMilliseconds;
+                    return (double)sw.ElapsedMilliseconds;
                 });
             }
             
