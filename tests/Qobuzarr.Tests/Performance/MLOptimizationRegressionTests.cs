@@ -5,6 +5,7 @@ using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using FluentAssertions;
+using Moq;
 using Lidarr.Plugin.Qobuzarr.Indexers;
 using NLog;
 using Xunit;
@@ -40,8 +41,8 @@ namespace Qobuzarr.Tests.Performance
             _output = output;
             _logger = LogManager.GetCurrentClassLogger();
             _metrics = new MLPerformanceMetrics(_logger);
-            _optimizer = new CompiledMLQueryOptimizer();
-            _hybridOptimizer = new HybridMLQueryOptimizer(_logger);
+            _optimizer = new CompiledMLQueryOptimizer(_logger);
+            _hybridOptimizer = new HybridMLQueryOptimizer(_logger, new Mock<IPatternLearningEngine>().Object, new Mock<IPatternLearningEngine>().Object, new HybridConfiguration());
             _productionQueries = LoadProductionQueries();
         }
 
@@ -58,7 +59,7 @@ namespace Qobuzarr.Tests.Performance
             {
                 stopwatch.Restart();
                 
-                var optimizedQuery = await _optimizer.OptimizeQueryAsync(testCase.Query);
+                var (complexity, confidence) = _optimizer.PredictComplexity(testCase.Query, "");
                 
                 stopwatch.Stop();
                 
