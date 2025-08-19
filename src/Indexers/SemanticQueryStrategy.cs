@@ -23,16 +23,55 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
         }
 
         /// <summary>
-        /// Sanitizes input to prevent command injection attacks
+        /// Sanitizes input to prevent command injection, XSS, and SQL injection attacks
         /// </summary>
         private string SanitizeInput(string input)
         {
             if (string.IsNullOrWhiteSpace(input))
                 return string.Empty;
 
-            // Remove dangerous characters used in command injection
-            var dangerous = new[] { ";", "|", "&", "$", "`", "\"", "'", "<", ">", "\n", "\r" };
+            // Limit input length to prevent buffer overflow attacks
+            const int maxLength = 1000;
+            if (input.Length > maxLength)
+            {
+                input = input.Substring(0, maxLength);
+            }
+
             var sanitized = input;
+            
+            // Remove HTML/XSS patterns first
+            var xssPatterns = new[] {
+                "<script", "</script", "javascript:", "onerror", "onmouseover", "onclick",
+                "onload", "alert(", "<img", "<iframe", "<object", "<embed", "<svg",
+                "</title>", "document.", "window.", "eval("
+            };
+            
+            foreach (var pattern in xssPatterns)
+            {
+                while (sanitized.Contains(pattern, StringComparison.OrdinalIgnoreCase))
+                {
+                    var index = sanitized.IndexOf(pattern, StringComparison.OrdinalIgnoreCase);
+                    sanitized = sanitized.Remove(index, pattern.Length);
+                }
+            }
+            
+            // Remove SQL injection patterns
+            var sqlPatterns = new[] {
+                "UNION", "SELECT", "DELETE", "INSERT", "UPDATE", "DROP", "CREATE",
+                "ALTER", "EXEC", "EXECUTE", "--", "/*", "*/", "xp_", "sp_"
+            };
+            
+            foreach (var pattern in sqlPatterns)
+            {
+                while (sanitized.Contains(pattern, StringComparison.OrdinalIgnoreCase))
+                {
+                    var index = sanitized.IndexOf(pattern, StringComparison.OrdinalIgnoreCase);
+                    sanitized = sanitized.Remove(index, pattern.Length);
+                }
+            }
+
+            // Remove dangerous characters used in various injection attacks
+            var dangerous = new[] { ";", "|", "&", "$", "`", "\"", "'", "<", ">", "\n", "\r", "\0" };
             
             foreach (var ch in dangerous)
             {
@@ -43,18 +82,16 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
             sanitized = sanitized.Replace("..", "");
             sanitized = sanitized.Replace("//", "/");
             sanitized = sanitized.Replace("\\\\", "\\");
-            
-            // Remove backslashes to prevent Windows path traversal
             sanitized = sanitized.Replace("\\", "");
 
             // Remove common command injection patterns and system paths
-            var patterns = new[] { 
-                "rm ", "del ", "format ", "drop ", "exec ", "xp_", "sp_",
-                "nc ", "wget ", "curl ", "powershell", "cmd ", "bash ", "sh ",
-                "-rf", "-f", "-r", "-e", "-p", "-l",
+            var cmdPatterns = new[] { 
+                "rm ", "del ", "format ", "nc ", "wget ", "curl ", "powershell", 
+                "cmd ", "bash ", "sh ", "-rf", "-f", "-r", "-e", "-p", "-l",
                 "/etc/", "/bin/", "/usr/", "/var/", "Windows", "System32", "C:"
             };
-            foreach (var pattern in patterns)
+            
+            foreach (var pattern in cmdPatterns)
             {
                 if (sanitized.Contains(pattern, StringComparison.OrdinalIgnoreCase))
                 {
