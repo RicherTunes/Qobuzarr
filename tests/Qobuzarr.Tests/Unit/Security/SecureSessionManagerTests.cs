@@ -574,8 +574,9 @@ namespace Qobuzarr.Tests.Unit.Security
                 CreatedAt = DateTime.UtcNow,
                 Subscription = new QobuzSubscription
                 {
-                    Plan = "studio",
-                    IsActive = true
+                    Type = "studio",
+                    CanStream = true,
+                    CanDownload = true
                 }
             };
         }

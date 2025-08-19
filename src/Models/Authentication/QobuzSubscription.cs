@@ -1,3 +1,4 @@
+using System;
 using Newtonsoft.Json;
 
 namespace Lidarr.Plugin.Qobuzarr.Models.Authentication
@@ -21,6 +22,12 @@ namespace Lidarr.Plugin.Qobuzarr.Models.Authentication
 
         [JsonProperty("can_download")]
         public bool CanDownload { get; set; }
+
+        [JsonProperty("subscription_type")]
+        public string SubscriptionType { get; set; }
+
+        [JsonProperty("expiry_date")]
+        public DateTime? ExpiryDate { get; set; }
 
         /// <summary>
         /// Check if the subscription supports the specified quality

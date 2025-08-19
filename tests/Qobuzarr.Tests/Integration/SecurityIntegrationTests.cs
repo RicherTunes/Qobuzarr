@@ -27,9 +27,9 @@ namespace Qobuzarr.Tests.Integration
 
         public SecurityIntegrationTests()
         {
-            _credentialManager = new SecureCredentialManager(MockLogger.Object);
-            _sessionManager = new SecureSessionManager(_credentialManager, MockLogger.Object);
-            _configValidator = new SecurityConfigValidator(MockLogger.Object, _credentialManager);
+            _credentialManager = new SecureCredentialManager(new NLogToQobuzLoggerAdapter(MockLogger.Object));
+            _sessionManager = new SecureSessionManager(_credentialManager, new NLogToQobuzLoggerAdapter(MockLogger.Object));
+            _configValidator = new SecurityConfigValidator(new NLogToQobuzLoggerAdapter(MockLogger.Object), _credentialManager);
             _authService = new QobuzAuthenticationService(
                 MockHttpClient.Object,
                 MockConfigService.Object,

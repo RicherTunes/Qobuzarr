@@ -146,12 +146,12 @@ namespace Qobuzarr.Tests.Unit.Security
             MockLogger.Verify(l => l.Debug(
                 It.Is<string>(s => !s.Contains("super_secret_token_12345")),
                 It.IsAny<object[]>()),
-                Times.Any());
+                Times.AtLeastOnce());
             
             MockLogger.Verify(l => l.Debug(
                 It.Is<string>(s => !s.Contains("very_secret_app_key")),
                 It.IsAny<object[]>()),
-                Times.Any());
+                Times.AtLeastOnce());
         }
 
         [Fact]
@@ -281,7 +281,7 @@ namespace Qobuzarr.Tests.Unit.Security
 
             // Setup mock to simulate authentication failure
             MockHttpClient.Setup(x => x.Execute(It.IsAny<HttpRequest>()))
-                .Throws(new HttpException("401 Unauthorized"));
+                .Throws(new QobuzAuthenticationException("Invalid credentials", AuthenticationFailureType.InvalidCredentials));
 
             // Act
             Func<Task> act = async () => await _authService.AuthenticateAsync(credentials);
@@ -477,7 +477,7 @@ namespace Qobuzarr.Tests.Unit.Security
         public void AuthenticationException_ShouldNotExposeSystemDetails()
         {
             // Arrange & Act
-            var ex = new QobuzAuthenticationException("Authentication failed");
+            var ex = new QobuzAuthenticationException("Authentication failed", AuthenticationFailureType.InvalidCredentials);
 
             // Assert
             ex.Message.Should().NotContain("System.");

@@ -12,16 +12,23 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Clients
         public string AlbumId { get; set; }
         public string Title { get; set; }
         public string Artist { get; set; }
+        public string AlbumTitle { get; set; }
+        public string ArtistName { get; set; }
+        public int TotalTracks { get; set; }
+        public int CompletedTracks { get; set; }
         public DownloadItemStatus Status { get; set; }
+        public QobuzDownloadStatus QobuzStatus { get; set; }
         public double Progress { get; set; }
         public long TotalSize { get; set; }
         public long DownloadedSize { get; set; }
         public DateTime StartedAt { get; set; }
+        public DateTime StartTime { get; set; }
         public string OutputPath { get; set; }
         public string Message { get; set; }
         public Task DownloadTask { get; set; }
         public CancellationTokenSource CancellationTokenSource { get; set; }
         public QobuzAlbum Album { get; set; }
+        public QobuzDownloadSettings Settings { get; set; }
 
         /// <summary>
         /// Calculate download speed in bytes per second
@@ -122,14 +129,43 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Clients
         }
 
         /// <summary>
+        /// Convert QobuzDownloadStatus to DownloadItemStatus
+        /// </summary>
+        public static DownloadItemStatus ConvertStatus(QobuzDownloadStatus qobuzStatus)
+        {
+            return qobuzStatus switch
+            {
+                QobuzDownloadStatus.Queued => DownloadItemStatus.Queued,
+                QobuzDownloadStatus.Downloading => DownloadItemStatus.Downloading,
+                QobuzDownloadStatus.Completed => DownloadItemStatus.Completed,
+                QobuzDownloadStatus.Failed => DownloadItemStatus.Failed,
+                QobuzDownloadStatus.Cancelled => DownloadItemStatus.Failed,
+                QobuzDownloadStatus.Paused => DownloadItemStatus.Paused,
+                _ => DownloadItemStatus.Queued
+            };
+        }
+
+        /// <summary>
+        /// Set QobuzStatus and sync with Lidarr Status
+        /// </summary>
+        public void SetStatus(QobuzDownloadStatus qobuzStatus)
+        {
+            QobuzStatus = qobuzStatus;
+            Status = ConvertStatus(qobuzStatus);
+        }
+
+        /// <summary>
         /// Convert to Lidarr's DownloadClientItem format
         /// </summary>
         public DownloadClientItem ToDownloadClientItem()
         {
+            var artistName = ArtistName ?? Artist ?? "Unknown Artist";
+            var albumTitle = AlbumTitle ?? Title ?? "Unknown Album";
+            
             return new DownloadClientItem
             {
                 DownloadId = DownloadId,
-                Title = $"{Artist} - {Title}",
+                Title = $"{artistName} - {albumTitle}",
                 TotalSize = TotalSize,
                 RemainingSize = Math.Max(0, TotalSize - DownloadedSize),
                 RemainingTime = GetEstimatedTimeRemaining(),

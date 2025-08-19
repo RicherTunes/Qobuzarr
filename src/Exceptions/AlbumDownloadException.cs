@@ -55,6 +55,37 @@ namespace Lidarr.Plugin.Qobuzarr.Exceptions
         /// </summary>
         public double SuccessPercentage => TotalTracks > 0 ? (double)SuccessfulTracks / TotalTracks * 100 : 0;
 
+        /// <summary>
+        /// Creates an exception for a simple error case without track details.
+        /// </summary>
+        public AlbumDownloadException(string message, string albumId) : base(message)
+        {
+            AlbumId = albumId;
+            AlbumTitle = "Unknown Album";
+            TotalTracks = 0;
+            SuccessfulTracks = 0;
+            SkippedTracks = 0;
+            FailedTracks = 0;
+            TrackResults = new List<TrackDownloadResult>();
+        }
+
+        /// <summary>
+        /// Creates an exception for a simple error case with album title.
+        /// </summary>
+        public AlbumDownloadException(string message, string albumId, string albumTitle) : base(message)
+        {
+            AlbumId = albumId;
+            AlbumTitle = albumTitle;
+            TotalTracks = 0;
+            SuccessfulTracks = 0;
+            SkippedTracks = 0;
+            FailedTracks = 0;
+            TrackResults = new List<TrackDownloadResult>();
+        }
+
+        /// <summary>
+        /// Creates an exception for detailed download results.
+        /// </summary>
         public AlbumDownloadException(
             string albumId,
             string albumTitle,

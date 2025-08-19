@@ -298,6 +298,21 @@ namespace Lidarr.Plugin.Qobuzarr.API
         }
 
         /// <summary>
+        /// Get album details by ID
+        /// </summary>
+        public async Task<QobuzAlbum> GetAlbumAsync(string albumId)
+        {
+            _logger.Debug("Getting metadata for album {0}", albumId);
+            
+            var parameters = new Dictionary<string, string>
+            {
+                ["album_id"] = albumId
+            };
+            
+            return await GetAsync<QobuzAlbum>("album/get", parameters);
+        }
+
+        /// <summary>
         /// Get playlist details by ID
         /// </summary>
         public async Task<QobuzPlaylist> GetPlaylistAsync(string playlistId, int limit = 500, int offset = 0, CancellationToken cancellationToken = default)
