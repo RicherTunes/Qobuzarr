@@ -4,6 +4,7 @@ using Moq;
 using QobuzCLI.Models;
 using QobuzCLI.Services;
 using System;
+using System.Net.Http;
 using System.Threading.Tasks;
 using Xunit;
 
@@ -16,14 +17,14 @@ namespace QobuzCLI.Tests.Services;
 public class PluginHostTests
 {
     private readonly Mock<ILogger<PluginHost>> _mockLogger;
-    private readonly Mock<CliHttpClient> _mockHttpClient;
+    private readonly HttpClient _httpClient;
     private readonly PluginHost _pluginHost;
 
     public PluginHostTests()
     {
         _mockLogger = new Mock<ILogger<PluginHost>>();
-        _mockHttpClient = new Mock<CliHttpClient>();
-        _pluginHost = new PluginHost(_mockLogger.Object, _mockHttpClient.Object);
+        _httpClient = new HttpClient();
+        _pluginHost = new PluginHost(_mockLogger.Object, _httpClient);
     }
 
     [Fact]
@@ -96,19 +97,19 @@ public class PluginHostTests
 public class PluginHostSearchTests
 {
     private readonly Mock<ILogger<PluginHost>> _mockLogger;
-    private readonly Mock<CliHttpClient> _mockHttpClient;
+    private readonly HttpClient _httpClient;
 
     public PluginHostSearchTests()
     {
         _mockLogger = new Mock<ILogger<PluginHost>>();
-        _mockHttpClient = new Mock<CliHttpClient>();
+        _httpClient = new HttpClient();
     }
 
     [Fact]
     public async Task SearchAsync_BeforeInitialization_ShouldThrow()
     {
         // Arrange
-        var pluginHost = new PluginHost(_mockLogger.Object, _mockHttpClient.Object);
+        var pluginHost = new PluginHost(_mockLogger.Object, _httpClient);
 
         // Act & Assert
         await pluginHost.Invoking(p => p.SearchAsync("test", SearchType.Album))
@@ -123,7 +124,7 @@ public class PluginHostSearchTests
     public async Task SearchAsync_WithInvalidQuery_ShouldReturnEmptyResults(string invalidQuery)
     {
         // Arrange
-        var pluginHost = new PluginHost(_mockLogger.Object, _mockHttpClient.Object);
+        var pluginHost = new PluginHost(_mockLogger.Object, _httpClient);
         var mockConfig = new QobuzConfig();
         await pluginHost.InitializeAsync(mockConfig);
 
@@ -141,19 +142,19 @@ public class PluginHostSearchTests
 public class PluginHostDownloadTests
 {
     private readonly Mock<ILogger<PluginHost>> _mockLogger;
-    private readonly Mock<CliHttpClient> _mockHttpClient;
+    private readonly HttpClient _httpClient;
 
     public PluginHostDownloadTests()
     {
         _mockLogger = new Mock<ILogger<PluginHost>>();
-        _mockHttpClient = new Mock<CliHttpClient>();
+        _httpClient = new HttpClient();
     }
 
     [Fact]
     public async Task DownloadAlbumAsync_BeforeInitialization_ShouldThrow()
     {
         // Arrange
-        var pluginHost = new PluginHost(_mockLogger.Object, _mockHttpClient.Object);
+        var pluginHost = new PluginHost(_mockLogger.Object, _httpClient);
 
         // Act & Assert
         await pluginHost.Invoking(p => p.DownloadAlbumAsync("123", "/test/path"))
@@ -165,7 +166,7 @@ public class PluginHostDownloadTests
     public async Task DownloadArtistAsync_ShouldThrowNotImplemented()
     {
         // Arrange
-        var pluginHost = new PluginHost(_mockLogger.Object, _mockHttpClient.Object);
+        var pluginHost = new PluginHost(_mockLogger.Object, _httpClient);
         var mockConfig = new QobuzConfig();
         await pluginHost.InitializeAsync(mockConfig);
 
@@ -181,7 +182,7 @@ public class PluginHostDownloadTests
     public async Task DownloadAlbumAsync_WithInvalidAlbumId_ShouldThrow(string invalidId)
     {
         // Arrange
-        var pluginHost = new PluginHost(_mockLogger.Object, _mockHttpClient.Object);
+        var pluginHost = new PluginHost(_mockLogger.Object, _httpClient);
         var mockConfig = new QobuzConfig();
         await pluginHost.InitializeAsync(mockConfig);
 

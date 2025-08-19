@@ -13,7 +13,11 @@ using NzbDrone.Core.Music;
 using Xunit;
 using Lidarr.Plugin.Qobuzarr.API;
 using Lidarr.Plugin.Qobuzarr.Authentication;
+using Lidarr.Plugin.Qobuzarr.Download;
 using Lidarr.Plugin.Qobuzarr.Download.Clients;
+using Lidarr.Plugin.Qobuzarr.Download.Services;
+using Lidarr.Plugin.Qobuzarr.Download.Orchestration;
+using Lidarr.Plugin.Qobuzarr.Abstractions;
 using Lidarr.Plugin.Qobuzarr.Models;
 using Lidarr.Plugin.Qobuzarr.Models.Authentication;
 using Qobuzarr.Tests.Fixtures;
@@ -26,6 +30,13 @@ namespace Qobuzarr.Tests.Unit.Download
     {
         private readonly Mock<IQobuzAuthenticationService> _mockAuthService;
         private readonly Mock<IQobuzApiClient> _mockApiClient;
+        private readonly Mock<IDownloadQueueService> _mockQueueService;
+        private readonly Mock<IDownloadFileService> _mockFileService;
+        private readonly Mock<IConcurrencyManager> _mockConcurrencyManager;
+        private readonly Mock<IDownloadOrchestrator> _mockOrchestrator;
+        private readonly Mock<IDownloadSummary> _mockDownloadSummary;
+        private readonly Mock<IBatchProcessor> _mockBatchProcessor;
+        private readonly Mock<IQobuzTrackDownloaderFactory> _mockTrackDownloaderFactory;
         private readonly QobuzDownloadClient _downloadClient;
         private readonly QobuzSession _testSession;
 
@@ -33,15 +44,29 @@ namespace Qobuzarr.Tests.Unit.Download
         {
             _mockAuthService = new Mock<IQobuzAuthenticationService>();
             _mockApiClient = new Mock<IQobuzApiClient>();
+            _mockQueueService = new Mock<IDownloadQueueService>();
+            _mockFileService = new Mock<IDownloadFileService>();
+            _mockConcurrencyManager = new Mock<IConcurrencyManager>();
+            _mockOrchestrator = new Mock<IDownloadOrchestrator>();
+            _mockDownloadSummary = new Mock<IDownloadSummary>();
+            _mockBatchProcessor = new Mock<IBatchProcessor>();
+            _mockTrackDownloaderFactory = new Mock<IQobuzTrackDownloaderFactory>();
             
             _downloadClient = new QobuzDownloadClient(
                 _mockAuthService.Object,
                 _mockApiClient.Object,
                 MockHttpClient.Object,
+                _mockQueueService.Object,
+                _mockFileService.Object,
+                _mockConcurrencyManager.Object,
+                _mockOrchestrator.Object,
+                _mockDownloadSummary.Object,
+                _mockBatchProcessor.Object,
+                _mockTrackDownloaderFactory.Object,
                 MockConfigService.Object,
                 MockDiskProvider.Object,
                 MockRemotePathMappingService.Object,
-                MockLocalizationService.Object,  // Added missing ILocalizationService
+                MockLocalizationService.Object,
                 MockLogger.Object
             );
 
@@ -214,7 +239,7 @@ namespace Qobuzarr.Tests.Unit.Download
         public void Protocol_ShouldReturnQobuzDownloadProtocol()
         {
             // Act & Assert
-            _downloadClient.Protocol.Should().Be(nameof(QobuzDownloadProtocol));
+            _downloadClient.Protocol.Should().Be(DownloadProtocol.Usenet);
         }
 
         [Fact]

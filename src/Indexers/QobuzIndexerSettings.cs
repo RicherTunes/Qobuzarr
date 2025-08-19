@@ -73,8 +73,11 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
         [FieldDefinition(15, Label = "Enable Query Intelligence", Type = FieldType.Checkbox, HelpText = "🧠 Smart search optimization that analyzes artist/album complexity to reduce unnecessary API calls. Simple searches (like 'Taylor Swift - 1989') use 1 query instead of 3, while complex searches (compilations, special characters) preserve all queries for accuracy. Typically saves ~50% of API calls with minimal quality impact.")]
         public bool EnableQueryIntelligence { get; set; }
 
-        [FieldDefinition(16, Label = "Enable ML Predictions (Experimental)", Type = FieldType.Checkbox, Advanced = true, HelpText = "🤖 Uses machine learning to intelligently predict the best search strategy for each artist/album combination. The system learns from successful searches and adapts over time to reduce API calls even further while maintaining accuracy. Requires 'Query Intelligence' to be enabled. Note: Initial performance may vary as the model learns your catalog patterns.")]
+        [FieldDefinition(16, Label = "Enable ML Predictions", Type = FieldType.Checkbox, Advanced = true, HelpText = "🤖 Uses machine learning to intelligently predict the best search strategy for each artist/album combination. Ships with a pre-trained model for immediate benefits. Requires 'Query Intelligence' to be enabled.")]
         public bool EnableMLPredictions { get; set; }
+
+        [FieldDefinition(17, Label = "ML Model Type", Type = FieldType.Select, SelectOptions = typeof(MLModelType), Advanced = true, HelpText = "Choose ML model: Baseline (ships with plugin, works for everyone), Personal (train on your library), or Hybrid (combines both for best results).")]
+        public int MLModelType { get; set; } = (int)Qobuzarr.Indexers.MLModelType.Baseline;
 
         [FieldDefinition(20, Label = "API Rate Limit", Type = FieldType.Number, Advanced = true, HelpText = "API requests per minute (default: 60)")]
         public int ApiRateLimit { get; set; }

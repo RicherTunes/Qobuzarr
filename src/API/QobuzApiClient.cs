@@ -409,6 +409,54 @@ namespace Lidarr.Plugin.Qobuzarr.API
         }
 
         /// <summary>
+        /// Get artist details by ID
+        /// </summary>
+        public async Task<QobuzArtist> GetArtistAsync(string artistId, CancellationToken cancellationToken = default)
+        {
+            var parameters = new Dictionary<string, string>
+            {
+                ["artist_id"] = artistId
+            };
+
+            return await GetAsync<QobuzArtist>("artist/get", parameters);
+        }
+
+        /// <summary>
+        /// Get all albums from an artist (handles pagination)
+        /// </summary>
+        public async Task<List<QobuzAlbum>> GetArtistAlbumsAsync(string artistId, CancellationToken cancellationToken = default)
+        {
+            var allAlbums = new List<QobuzAlbum>();
+            const int pageSize = 500;
+            int offset = 0;
+
+            // Note: We need to use artist/getAlbums endpoint for album list
+            while (true)
+            {
+                var parameters = new Dictionary<string, string>
+                {
+                    ["artist_id"] = artistId,
+                    ["limit"] = pageSize.ToString(),
+                    ["offset"] = offset.ToString()
+                };
+
+                var response = await GetAsync<QobuzAlbumSearchResponse>("artist/getAlbums", parameters);
+                
+                if (response?.Albums?.Items == null || response.Albums.Items.Count == 0)
+                    break;
+
+                allAlbums.AddRange(response.Albums.Items);
+                offset += pageSize;
+                
+                // Check if we've fetched all albums
+                if (allAlbums.Count >= response.Albums.Total)
+                    break;
+            }
+
+            return allAlbums;
+        }
+
+        /// <summary>
         /// Search for labels
         /// </summary>
         public async Task<QobuzLabelSearchResponse> SearchLabelsAsync(string query, int limit = 50, CancellationToken cancellationToken = default)

@@ -112,6 +112,22 @@ namespace Lidarr.Plugin.Qobuzarr.Core
             return await _searchService.GetLabelAlbumsAsync(labelId);
         }
 
+        /// <summary>
+        /// Get artist details by ID
+        /// </summary>
+        public async Task<QobuzArtist> GetArtistAsync(string artistId)
+        {
+            return await _searchService.GetArtistAsync(artistId);
+        }
+
+        /// <summary>
+        /// Get all albums from an artist
+        /// </summary>
+        public async Task<List<QobuzAlbum>> GetArtistAlbumsAsync(string artistId)
+        {
+            return await _searchService.GetArtistAlbumsAsync(artistId);
+        }
+
         // Implementation moved to QobuzStreamUrlService
 
         /// <summary>

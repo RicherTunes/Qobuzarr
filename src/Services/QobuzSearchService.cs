@@ -264,6 +264,76 @@ namespace Lidarr.Plugin.Qobuzarr.Services
         }
 
         /// <summary>
+        /// Get artist details by ID
+        /// </summary>
+        public async Task<QobuzArtist> GetArtistAsync(string artistId)
+        {
+            var session = _authService.GetCurrentSession();
+            if (session == null)
+            {
+                throw new InvalidOperationException("Not authenticated");
+            }
+
+            var url = $"{API_BASE}/artist/get?artist_id={artistId}" +
+                     $"&app_id={session.AppId}&user_auth_token={session.AuthToken}";
+
+            try
+            {
+                return await _httpClient.GetJsonAsync<QobuzArtist>(url);
+            }
+            catch (Exception ex)
+            {
+                _logger.Error($"Failed to get artist {artistId}: {ex.Message}");
+                throw;
+            }
+        }
+
+        /// <summary>
+        /// Get all albums from an artist
+        /// </summary>
+        public async Task<List<QobuzAlbum>> GetArtistAlbumsAsync(string artistId)
+        {
+            var allAlbums = new List<QobuzAlbum>();
+            const int pageSize = 500;
+            int offset = 0;
+
+            var session = _authService.GetCurrentSession();
+            if (session == null)
+            {
+                throw new InvalidOperationException("Not authenticated");
+            }
+
+            while (true)
+            {
+                var url = $"{API_BASE}/artist/getAlbums?artist_id={artistId}" +
+                         $"&app_id={session.AppId}&user_auth_token={session.AuthToken}" +
+                         $"&limit={pageSize}&offset={offset}";
+
+                try
+                {
+                    var response = await _httpClient.GetJsonAsync<QobuzAlbumSearchResponse>(url);
+                    
+                    if (response?.Albums?.Items == null || response.Albums.Items.Count == 0)
+                        break;
+
+                    allAlbums.AddRange(response.Albums.Items);
+                    offset += pageSize;
+                    
+                    // Check if we've fetched all albums
+                    if (allAlbums.Count >= response.Albums.Total)
+                        break;
+                }
+                catch (Exception ex)
+                {
+                    _logger.Error($"Failed to get artist albums for {artistId}: {ex.Message}");
+                    break;
+                }
+            }
+
+            return allAlbums;
+        }
+
+        /// <summary>
         /// Search for albums on Qobuz
         /// </summary>
         public async Task<List<QobuzAlbum>> SearchAlbumsAsync(string query, int limit = 20)

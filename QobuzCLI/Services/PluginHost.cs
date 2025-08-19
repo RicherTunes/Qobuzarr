@@ -527,17 +527,97 @@ public class PluginHost : IPluginHost, IDisposable
         }
     }
 
-    public Task<Lidarr.Plugin.Qobuzarr.Services.DownloadResult> DownloadArtistAsync(string artistId, string outputPath)
+    public async Task<Lidarr.Plugin.Qobuzarr.Services.DownloadResult> DownloadArtistAsync(string artistId, string outputPath)
     {
         if (!_isInitialized || _config == null)
             throw new InvalidOperationException("Plugin host not initialized");
 
-        // Artist downloads are not yet implemented - return graceful error
-        return Task.FromResult(new Lidarr.Plugin.Qobuzarr.Services.DownloadResult
+        // Require proper initialization - no fallbacks
+        if (_downloadService == null || _apiClient == null || _session == null)
         {
-            TrackDownloads = new List<TrackDownload>(),
-            MetadataStrategy = "Error"
-        });
+            throw new InvalidOperationException("Qobuz plugin not properly initialized. Cannot download without active session.");
+        }
+
+        try
+        {
+            _logger.LogInformation("Starting artist download: {ArtistId} to {OutputPath}", artistId, outputPath);
+
+            // Get artist details
+            var artist = await _apiClient.GetArtistAsync(artistId);
+            if (artist == null)
+            {
+                throw new InvalidOperationException($"Artist not found: {artistId}");
+            }
+
+            // Get all albums from the artist
+            var albums = await _apiClient.GetArtistAlbumsAsync(artistId);
+            if (albums == null || albums.Count == 0)
+            {
+                throw new InvalidOperationException($"No albums found for artist: {artistId}");
+            }
+
+            _logger.LogInformation("Found {AlbumCount} albums for artist '{ArtistName}'", albums.Count, artist.Name);
+
+            // Create artist directory
+            var artistDir = Path.Combine(outputPath, SanitizeFileName(artist.Name));
+            Directory.CreateDirectory(artistDir);
+
+            // Aggregate all track downloads
+            var allTrackDownloads = new List<TrackDownload>();
+            var totalApiCalls = 0;
+
+            // Download each album
+            foreach (var album in albums)
+            {
+                try
+                {
+                    _logger.LogInformation("Downloading album {AlbumIndex}/{TotalAlbums}: '{AlbumTitle}' ({AlbumId})", 
+                        albums.IndexOf(album) + 1, albums.Count, album.Title, album.Id);
+
+                    // Create album subdirectory
+                    var year = 0;
+                    if (!string.IsNullOrEmpty(album.ReleaseDateOriginal) && album.ReleaseDateOriginal.Length >= 4)
+                    {
+                        int.TryParse(album.ReleaseDateOriginal.Substring(0, 4), out year);
+                    }
+                    var albumDirName = $"{year:D4} - {SanitizeFileName(album.Title)}";
+                    var albumDir = Path.Combine(artistDir, albumDirName);
+
+                    // Download the album
+                    var albumResult = await DownloadAlbumAsync(album.Id, albumDir, _config.Quality);
+                    
+                    // Aggregate results
+                    if (albumResult.TrackDownloads != null)
+                    {
+                        allTrackDownloads.AddRange(albumResult.TrackDownloads);
+                    }
+                    totalApiCalls += albumResult.AdditionalApiCalls;
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "Failed to download album '{AlbumTitle}' ({AlbumId}) from artist '{ArtistName}'", 
+                        album.Title, album.Id, artist.Name);
+                    // Continue with other albums even if one fails
+                }
+            }
+
+            var successfulDownloads = allTrackDownloads.Count(t => !string.IsNullOrEmpty(t.StreamingUrl));
+            _logger.LogInformation("Artist download completed: {SuccessfulDownloads}/{TotalTracks} tracks from {AlbumCount} albums", 
+                successfulDownloads, allTrackDownloads.Count, albums.Count);
+
+            return new Lidarr.Plugin.Qobuzarr.Services.DownloadResult
+            {
+                TrackDownloads = allTrackDownloads,
+                MetadataStrategy = "Artist Batch Download",
+                ApiCallsSaved = 0,
+                AdditionalApiCalls = totalApiCalls + 2 // +2 for artist/get and artist/getAlbums
+            };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Artist download failed for {ArtistId}", artistId);
+            throw new InvalidOperationException($"Download failed for artist '{artistId}'. Check your network connection and Qobuz API status.", ex);
+        }
     }
 
     public async Task<PlaylistDownloadResult> DownloadPlaylistAsync(
