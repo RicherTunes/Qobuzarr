@@ -59,13 +59,14 @@ namespace Qobuzarr.Tests.Performance
             {
                 stopwatch.Restart();
                 
-                var (complexity, confidence) = _optimizer.PredictComplexity(testCase.Query, "");
+                var complexity = _optimizer.PredictComplexity(testCase.Query, "");
+                var confidence = CalculateConfidence(complexity);
                 
                 stopwatch.Stop();
                 
                 // Simulate API calls based on optimization
                 var baselineCalls = testCase.ExpectedApiCalls;
-                var optimizedCalls = CalculateOptimizedApiCalls(optimizedQuery, testCase);
+                var optimizedCalls = CalculateOptimizedApiCalls(complexity, testCase);
                 
                 totalApiCalls += baselineCalls;
                 savedApiCalls += (baselineCalls - optimizedCalls);
@@ -73,7 +74,7 @@ namespace Qobuzarr.Tests.Performance
                 _metrics.RecordApiOptimization(baselineCalls - optimizedCalls, baselineCalls);
                 _metrics.RecordPrediction(stopwatch.ElapsedMilliseconds, 
                     optimizedCalls < baselineCalls, 
-                    CalculateConfidence(optimizedQuery));
+                    CalculateConfidence(complexity));
             }
 
             // Assert
@@ -102,10 +103,10 @@ namespace Qobuzarr.Tests.Performance
             foreach (var testCase in _productionQueries)
             {
                 var classifier = new QueryComplexityClassifier();
-                var complexity = classifier.ClassifyComplexity(testCase.Query);
+                var complexity = classifier.ClassifyComplexity(testCase.Query, "");
                 
                 var strategy = new SmartQueryStrategy();
-                var result = strategy.DetermineSearchApproach(testCase.Query, complexity);
+                var result = strategy.BuildOptimizedQueries(testCase.Query, "", new List<string> { testCase.Query });
                 
                 // Check if classification was correct
                 if (IsClassificationCorrect(result, testCase))
@@ -138,7 +139,7 @@ namespace Qobuzarr.Tests.Performance
             // Warm up the model
             for (int i = 0; i < 10; i++)
             {
-                await _optimizer.OptimizeQueryAsync("warmup query");
+                _optimizer.PredictComplexity("warmup query");
             }
 
             // Act - Measure prediction latencies
@@ -146,7 +147,7 @@ namespace Qobuzarr.Tests.Performance
             {
                 stopwatch.Restart();
                 
-                await _optimizer.OptimizeQueryAsync(testCase.Query);
+                _optimizer.PredictComplexity(testCase.Query);
                 
                 stopwatch.Stop();
                 latencies.Add(stopwatch.ElapsedMilliseconds);
@@ -183,8 +184,8 @@ namespace Qobuzarr.Tests.Performance
             foreach (var testCase in _productionQueries)
             {
                 // First pass - populate cache
-                cache.TryGetCachedPattern(testCase.Query, out _);
-                substringCache.GetMatchingPatterns(testCase.Query);
+                cache.GetCachedResult(testCase.Query, out _);
+                substringCache.FindCachedResults(testCase.Query);
                 
                 _metrics.RecordCacheMiss();
             }
@@ -192,7 +193,7 @@ namespace Qobuzarr.Tests.Performance
             // Second pass - should hit cache
             foreach (var testCase in _productionQueries.Take(_productionQueries.Count / 2))
             {
-                if (cache.TryGetCachedPattern(testCase.Query, out _))
+                if (cache.GetCachedResult(testCase.Query, out _))
                 {
                     _metrics.RecordCacheHit();
                 }
@@ -206,8 +207,8 @@ namespace Qobuzarr.Tests.Performance
             foreach (var testCase in _productionQueries)
             {
                 var variation = testCase.Query + " deluxe";
-                if (cache.TryGetCachedPattern(variation, out _) || 
-                    substringCache.GetMatchingPatterns(variation).Any())
+                if (cache.GetCachedResult(variation, out _) || 
+                    substringCache.FindCachedResults(variation).Any())
                 {
                     _metrics.RecordCacheHit();
                 }
@@ -252,10 +253,10 @@ namespace Qobuzarr.Tests.Performance
             // Process queries to populate caches
             foreach (var testCase in _productionQueries)
             {
-                optimizer.OptimizeQueryAsync(testCase.Query).Wait();
-                classifier.ClassifyComplexity(testCase.Query);
-                cache.TryGetCachedPattern(testCase.Query, out _);
-                substringCache.GetMatchingPatterns(testCase.Query);
+                optimizer.PredictComplexity(testCase.Query).Wait();
+                classifier.ClassifyComplexity(testCase.Query, "");
+                cache.GetCachedResult(testCase.Query, out _);
+                substringCache.FindCachedResults(testCase.Query);
             }
             
             GC.Collect();
@@ -287,14 +288,14 @@ namespace Qobuzarr.Tests.Performance
             foreach (var testCase in _productionQueries)
             {
                 // Baseline optimizer
-                var baselineResult = await _optimizer.OptimizeQueryAsync(testCase.Query);
+                var baselineResult = _optimizer.PredictComplexity(testCase.Query);
                 var baselineSaved = CalculateApiSavings(baselineResult, testCase);
                 baselineReduction += baselineSaved;
                 
                 // Hybrid optimizer with enterprise features
-                var hybridResult = await _hybridOptimizer.OptimizeWithEnterpriseSecurityAsync(
+                var hybridResult = await _hybridOptimizer.PredictOptimalStrategyAsync(
                     testCase.Query, 
-                    SecurityLevel.Enterprise);
+                    "");
                 var hybridSaved = CalculateApiSavings(hybridResult, testCase);
                 hybridReduction += hybridSaved;
             }
@@ -329,7 +330,7 @@ namespace Qobuzarr.Tests.Performance
                 tasks[i] = Task.Run(async () =>
                 {
                     var sw = Stopwatch.StartNew();
-                    await _optimizer.OptimizeQueryAsync(query);
+                    _optimizer.PredictComplexity(query);
                     sw.Stop();
                     return sw.ElapsedMilliseconds;
                 });
@@ -367,7 +368,7 @@ namespace Qobuzarr.Tests.Performance
             {
                 using (_metrics.StartPredictionTiming())
                 {
-                    var result = _optimizer.OptimizeQueryAsync(testCase.Query).Result;
+                    var result = _optimizer.PredictComplexity(testCase.Query).Result;
                     _metrics.RecordPrediction(5.0, true, 0.92);
                 }
                 
@@ -441,20 +442,36 @@ namespace Qobuzarr.Tests.Performance
             return queries;
         }
 
-        private int CalculateOptimizedApiCalls(string optimizedQuery, QueryTestCase testCase)
+        private int CalculateOptimizedApiCalls(QueryComplexity complexity, QueryTestCase testCase)
         {
-            // Simulate API call calculation based on optimization
-            if (optimizedQuery.Contains("[OPTIMIZED]"))
+            // Simulate API call calculation based on complexity prediction
+            switch (complexity)
             {
-                return Math.Max(1, testCase.ExpectedApiCalls / 2);
+                case QueryComplexity.Simple:
+                    return Math.Max(1, testCase.ExpectedApiCalls / 2);
+                case QueryComplexity.Medium:
+                    return Math.Max(1, testCase.ExpectedApiCalls * 2 / 3);
+                case QueryComplexity.Complex:
+                    return testCase.ExpectedApiCalls;
+                default:
+                    return testCase.ExpectedApiCalls;
             }
-            return testCase.ExpectedApiCalls;
         }
 
-        private double CalculateConfidence(string optimizedQuery)
+        private double CalculateConfidence(QueryComplexity complexity)
         {
-            // Calculate confidence score based on optimization
-            return optimizedQuery.Contains("[OPTIMIZED]") ? 0.92 : 0.75;
+            // Calculate confidence score based on complexity
+            switch (complexity)
+            {
+                case QueryComplexity.Simple:
+                    return 0.92;
+                case QueryComplexity.Medium:
+                    return 0.85;
+                case QueryComplexity.Complex:
+                    return 0.75;
+                default:
+                    return 0.70;
+            }
         }
 
         private bool IsClassificationCorrect(object result, QueryTestCase testCase)
