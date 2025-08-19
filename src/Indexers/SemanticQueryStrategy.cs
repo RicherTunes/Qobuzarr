@@ -23,6 +23,49 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
         }
 
         /// <summary>
+        /// Sanitizes input to prevent command injection attacks
+        /// </summary>
+        private string SanitizeInput(string input)
+        {
+            if (string.IsNullOrWhiteSpace(input))
+                return string.Empty;
+
+            // Remove dangerous characters used in command injection
+            var dangerous = new[] { ";", "|", "&", "$", "`", "\"", "'", "<", ">", "\n", "\r" };
+            var sanitized = input;
+            
+            foreach (var ch in dangerous)
+            {
+                sanitized = sanitized.Replace(ch, "");
+            }
+            
+            // Remove path traversal patterns
+            sanitized = sanitized.Replace("..", "");
+            sanitized = sanitized.Replace("//", "/");
+            sanitized = sanitized.Replace("\\\\", "\\");
+            
+            // Remove backslashes to prevent Windows path traversal
+            sanitized = sanitized.Replace("\\", "");
+
+            // Remove common command injection patterns and system paths
+            var patterns = new[] { 
+                "rm ", "del ", "format ", "drop ", "exec ", "xp_", "sp_",
+                "nc ", "wget ", "curl ", "powershell", "cmd ", "bash ", "sh ",
+                "-rf", "-f", "-r", "-e", "-p", "-l",
+                "/etc/", "/bin/", "/usr/", "/var/", "Windows", "System32", "C:"
+            };
+            foreach (var pattern in patterns)
+            {
+                if (sanitized.Contains(pattern, StringComparison.OrdinalIgnoreCase))
+                {
+                    sanitized = sanitized.Replace(pattern, "", StringComparison.OrdinalIgnoreCase);
+                }
+            }
+
+            return sanitized.Trim();
+        }
+
+        /// <summary>
         /// Determines optimal query strategy based on semantic content analysis
         /// </summary>
         /// <param name="artist">Artist name</param>
@@ -107,6 +150,10 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
         /// <returns>List of optimized queries</returns>
         public List<string> BuildQueriesForStrategy(string artist, string album, QueryStrategy strategy)
         {
+            // Sanitize inputs to prevent command injection
+            artist = SanitizeInput(artist);
+            album = SanitizeInput(album);
+            
             var queries = new List<string>();
 
             switch (strategy.CleaningLevel)
@@ -163,6 +210,10 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
         /// <returns>Optimized queries that should find the album</returns>
         public List<string> BuildQueriesForBugCase(string artist, string album)
         {
+            // Sanitize inputs first
+            artist = SanitizeInput(artist);
+            album = SanitizeInput(album);
+            
             var strategy = DetermineStrategy(artist, album);
             var queries = BuildQueriesForStrategy(artist, album, strategy);
             
