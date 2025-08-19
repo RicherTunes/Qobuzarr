@@ -9,6 +9,7 @@ using Lidarr.Plugin.Qobuzarr.Models;
 using Qobuzarr.Tests.Builders;
 using NzbDrone.Core.Parser.Model;
 using NzbDrone.Core.Download;
+using NzbDrone.Core.Indexers;
 using NzbDrone.Common.Http;
 
 namespace Qobuzarr.Tests.Unit.Indexers
