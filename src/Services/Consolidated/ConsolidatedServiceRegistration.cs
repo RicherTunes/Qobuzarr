@@ -54,6 +54,36 @@ namespace Lidarr.Plugin.Qobuzarr.Services.Consolidated
         }
 
         /// <summary>
+        /// Creates rate limiter for API request throttling.
+        /// Implements proper abstraction as recommended in architecture assessment.
+        /// </summary>
+        public static IRateLimiter CreateRateLimiter(IQobuzLogger logger)
+        {
+            var nlogLogger = logger as Logger ?? LogManager.GetCurrentClassLogger();
+            return new QobuzRateLimiter(nlogLogger);
+        }
+
+        /// <summary>
+        /// Creates retry policy for resilient operation execution.
+        /// Addresses hardcoded retry logic architectural debt.
+        /// </summary>
+        public static IRetryPolicy CreateRetryPolicy(IQobuzLogger logger)
+        {
+            var nlogLogger = logger as Logger ?? LogManager.GetCurrentClassLogger();
+            return new ExponentialBackoffRetryPolicy(nlogLogger);
+        }
+
+        /// <summary>
+        /// Creates metrics collector for observability.
+        /// Provides missing metrics abstraction identified in assessment.
+        /// </summary>
+        public static IMetricsCollector CreateMetricsCollector(IQobuzLogger logger)
+        {
+            var nlogLogger = logger as Logger ?? LogManager.GetCurrentClassLogger();
+            return new InMemoryMetricsCollector(nlogLogger);
+        }
+
+        /// <summary>
         /// Creates migration adapters for backward compatibility.
         /// These allow existing code to continue working during the transition period.
         /// </summary>
