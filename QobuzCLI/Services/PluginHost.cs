@@ -10,6 +10,7 @@ using Lidarr.Plugin.Qobuzarr.API;
 using Lidarr.Plugin.Qobuzarr.Integration;
 using Lidarr.Plugin.Qobuzarr.Download;
 using Lidarr.Plugin.Qobuzarr.Services;
+using Lidarr.Plugin.Qobuzarr.Services.Consolidated;
 using Lidarr.Plugin.Qobuzarr.Models;
 using System.IO;
 using System.Net.Http;
@@ -1034,6 +1035,9 @@ public class PluginHost : IPluginHost, IDisposable
         // Create API services with proper dependency injection
         var streamUrlService = new QobuzStreamUrlService(_pluginHttpClient, _pluginLogger, _authService);
         var searchService = new QobuzSearchService(_pluginHttpClient, _pluginLogger, _authService);
+        
+        // Use existing QobuzQualityService for now - CLI will be migrated later
+        // Focus on plugin-side migration first for the main tech debt win
         var qualityService = new QobuzQualityService(streamUrlService, _pluginLogger);
         var validationService = new QobuzValidationService(searchService, qualityService, _pluginLogger, _cache);
         
