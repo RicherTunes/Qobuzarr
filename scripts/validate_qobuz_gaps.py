@@ -71,6 +71,7 @@ class QobuzSearchValidator:
         search_results = []
         working_queries = []
         validation_notes = []
+        manual_strategies = []  # Initialize here to fix scope issue
         
         # 1. Test the Unicode system variants first
         logger.info(f"INFO Testing Unicode variants for: {artist} - {album}")
@@ -149,16 +150,18 @@ class QobuzSearchValidator:
         url = f"{self.base_url}/album/search"
         params = {
             'query': query,
-            'limit': 20
+            'limit': 20,
+            'country_code': 'CA'  # Same as plugin default
         }
         
-        # Add authentication based on method (same as plugin)
-        if self.auth_method == 'email':
-            params.update(self.auth_params)
-        elif self.auth_method == 'token':
-            params.update(self.auth_params)
+        # Add authentication exactly like plugin (URL parameters)
+        if self.auth_method == 'email' or self.auth_method == 'token':
+            # Plugin uses: app_id={session.AppId}&user_auth_token={session.AuthToken}
+            params['app_id'] = self.auth_params.get('app_id')
+            if 'user_auth_token' in self.auth_params:
+                params['user_auth_token'] = self.auth_params['user_auth_token']
         elif self.auth_method == 'app_only':
-            params.update(self.auth_params)
+            params['app_id'] = self.auth_params.get('app_id')
         else:
             logger.warning("WARNING No Qobuz authentication configured - using anonymous access")
         

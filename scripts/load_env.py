@@ -127,16 +127,27 @@ def check_credentials() -> tuple[bool, bool, list[str]]:
 def get_qobuz_auth_method(config: dict) -> tuple[str, dict]:
     """Determine Qobuz authentication method and return auth params"""
     
-    # Email auth takes precedence (same as plugin logic)
-    if config['qobuz_email'] and config['qobuz_password']:
+    # Check for valid credentials (not placeholders)
+    has_valid_email = (config['qobuz_email'] and 
+                      config['qobuz_password'] and 
+                      not config['qobuz_email'].startswith('your') and
+                      not config['qobuz_password'].startswith('your'))
+    
+    has_valid_token = (config['qobuz_user_id'] and 
+                      config['qobuz_user_auth_token'] and
+                      not config['qobuz_user_id'].startswith('your') and
+                      not config['qobuz_user_auth_token'].startswith('your'))
+    
+    # Email auth takes precedence (same as plugin logic) - but only if valid
+    if has_valid_email:
         return 'email', {
             'username': config['qobuz_email'],
             'password': config['qobuz_password'],  # Should be MD5 hashed
             'app_id': config['qobuz_app_id']
         }
     
-    # Token auth fallback
-    elif config['qobuz_user_id'] and config['qobuz_user_auth_token']:
+    # Token auth - if valid
+    elif has_valid_token:
         return 'token', {
             'user_id': config['qobuz_user_id'],
             'user_auth_token': config['qobuz_user_auth_token'],

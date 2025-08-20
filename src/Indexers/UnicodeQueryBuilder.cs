@@ -124,6 +124,78 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
             ['Ш'] = "Sh", ['Щ'] = "Shch", ['Ъ'] = "", ['Ы'] = "Y", ['Ь'] = "",
             ['Э'] = "E", ['Ю'] = "Yu", ['Я'] = "Ya"
         };
+        
+        // High-frequency Japanese characters (from 50K album analysis)
+        // These characters appear in >25 albums and should be prioritized
+        private static readonly HashSet<char> JapaneseHighFrequency = new()
+        {
+            'の', 'に', 'を', 'は', 'が', 'と', 'で', 'る', 'て', 'な', // Most common Hiragana
+            'ン', 'ー', 'ス', 'ト', 'ル', 'イ', 'ア', 'ラ', 'ク', 'リ', // Most common Katakana
+            '愛', '世', '界', '音', '楽', '歌', '風', '星', '夢', '空'  // Most common Kanji in music
+        };
+        
+        // High-frequency Korean characters (from 50K album analysis)
+        private static readonly HashSet<char> KoreanHighFrequency = new()
+        {
+            '의', '을', '를', '이', '가', '에', '와', '과', '로', '으', // Common particles
+            '사', '랑', '음', '악', '노', '래', '화', '양', '연', '화'  // Common in music titles
+        };
+        
+        // High-frequency Chinese characters (from 50K album analysis)
+        private static readonly HashSet<char> ChineseHighFrequency = new()
+        {
+            '的', '了', '在', '是', '我', '有', '他', '这', '中', '来', // Most common characters
+            '愛', '歌', '音', '樂', '世', '界', '心', '情', '夢', '新'  // Common in music titles
+        };
+        
+        // Advanced typography mappings (from 50K album analysis)
+        private static readonly Dictionary<string, string> TypographyMappings = new()
+        {
+            ["—"] = "-",  // Em dash to hyphen
+            ["–"] = "-",  // En dash to hyphen  
+            ["…"] = "...", // Ellipsis
+            ["\u2018"] = "'",  // Smart quote to straight (')
+            ["\u2019"] = "'",  // Smart quote to straight (')
+            ["\u201C"] = "\"", // Smart double quote (")
+            ["\u201D"] = "\"", // Smart double quote (")
+            ["«"] = "\"", // Guillemet
+            ["»"] = "\"", // Guillemet
+            ["№"] = "No.", // Numero sign
+            ["™"] = "",   // Trademark (remove)
+            ["®"] = "",   // Registered (remove)
+            ["©"] = "",   // Copyright (remove)
+            ["♯"] = "#",  // Music sharp to hash
+            ["♭"] = "b",  // Music flat to b
+            ["♪"] = "",   // Musical note (remove)
+            ["♫"] = "",   // Musical notes (remove)
+            ["★"] = "*",  // Star
+            ["☆"] = "*",  // Empty star
+            ["♡"] = "",   // Heart (remove)
+            ["×"] = "x",  // Multiplication sign
+            ["÷"] = "/",  // Division sign
+            ["°"] = "",   // Degree (remove)
+            ["•"] = "-",  // Bullet to dash
+            ["·"] = " ",  // Middle dot to space
+            ["〜"] = "~", // Wave dash
+            ["～"] = "~", // Full-width tilde
+            ["、"] = ",", // Japanese comma
+            ["。"] = ".", // Japanese period
+            ["「"] = "\"", // Japanese quote
+            ["」"] = "\"", // Japanese quote
+            ["『"] = "\"", // Japanese double quote
+            ["』"] = "\"", // Japanese double quote
+            ["（"] = "(", // Full-width parenthesis
+            ["）"] = ")", // Full-width parenthesis
+            ["《"] = "<", // Chinese quote
+            ["》"] = ">", // Chinese quote
+            ["【"] = "[", // Chinese bracket
+            ["】"] = "]", // Chinese bracket
+            ["："] = ":", // Full-width colon
+            ["；"] = ";", // Full-width semicolon
+            ["！"] = "!", // Full-width exclamation
+            ["？"] = "?", // Full-width question
+            ["＆"] = "&", // Full-width ampersand
+        };
 
         public UnicodeQueryBuilder(Logger logger)
         {
@@ -162,11 +234,24 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
             if (cyrillicTransliterated != fullQuery)
                 variants.Add(cyrillicTransliterated);
             
-            // 6. Component searches (when combined query fails)
+            // 6. Typography normalization (smart quotes, dashes, etc.)
+            var typographyNormalized = NormalizeTypography(fullQuery);
+            if (typographyNormalized != fullQuery)
+                variants.Add(typographyNormalized);
+            
+            // 7. CJK fallback for Asian content
+            if (ContainsHighFrequencyCJK(fullQuery))
+            {
+                var cjkFallback = GenerateCJKFallback(fullQuery);
+                if (!string.IsNullOrWhiteSpace(cjkFallback) && cjkFallback != fullQuery)
+                    variants.Add(cjkFallback);
+            }
+            
+            // 8. Component searches (when combined query fails)
             variants.Add(FoldToAscii(artist.Trim()));
             variants.Add(FoldToAscii(album.Trim()));
             
-            // 7. Remove special characters entirely (nuclear option)
+            // 9. Remove special characters entirely (nuclear option)
             var alphanumeric = AlphanumericOnlyRegex.Replace(fullQuery, " ");
             alphanumeric = MultipleSpacesRegex.Replace(alphanumeric, " ").Trim();
             if (alphanumeric != fullQuery && !string.IsNullOrWhiteSpace(alphanumeric))
@@ -227,11 +312,48 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
             if (string.IsNullOrWhiteSpace(query))
                 return false;
                 
-            // Check for non-ASCII characters
-            return query.Any(c => c > 127) || 
-                   query.Any(c => CharacterVariants.ContainsKey(char.ToLowerInvariant(c))) ||
-                   KnownArtistCorrections.Keys.Any(known => 
-                       query.Contains(known, StringComparison.OrdinalIgnoreCase));
+            // Performance: Early exit for ASCII-only queries
+            if (query.All(c => c <= 127))
+            {
+                // Still check for known problematic ASCII artists
+                return KnownArtistCorrections.Keys.Any(known => 
+                    query.Contains(known, StringComparison.OrdinalIgnoreCase));
+            }
+                
+            // Check for high-frequency characters based on 50K album analysis
+            // Characters appearing in >25 albums get priority handling
+            foreach (var c in query)
+            {
+                // Priority 1: High-frequency CJK (>50 album occurrences)
+                if (JapaneseHighFrequency.Contains(c) ||
+                    KoreanHighFrequency.Contains(c) ||
+                    ChineseHighFrequency.Contains(c))
+                {
+                    return true;
+                }
+                
+                // Priority 2: Greek/Cyrillic (>25 album occurrences)
+                if (GreekToLatin.ContainsKey(c) || CyrillicToLatin.ContainsKey(c))
+                {
+                    return true;
+                }
+                
+                // Priority 3: Extended Latin (>10 album occurrences)
+                if (CharacterVariants.ContainsKey(char.ToLowerInvariant(c)))
+                {
+                    return true;
+                }
+                
+                // Priority 4: Typography characters (any occurrence)
+                var charStr = c.ToString();
+                if (TypographyMappings.ContainsKey(charStr))
+                {
+                    return true;
+                }
+            }
+            
+            // Any other non-ASCII character
+            return query.Any(c => c > 127);
         }
 
         public UnicodeQueryStatistics GetPerformanceStatistics()
@@ -471,6 +593,81 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
             result = MultipleSpacesRegex.Replace(result, " ").Trim();
             
             return result;
+        }
+        
+        /// <summary>
+        /// Apply typography normalization based on 50K album analysis
+        /// </summary>
+        private string NormalizeTypography(string input)
+        {
+            if (string.IsNullOrWhiteSpace(input))
+                return input;
+            
+            var result = input;
+            
+            // Apply typography mappings in order of frequency
+            foreach (var (from, to) in TypographyMappings)
+            {
+                result = result.Replace(from, to);
+            }
+            
+            // Clean up any resulting multiple spaces
+            result = MultipleSpacesRegex.Replace(result, " ").Trim();
+            
+            return result;
+        }
+        
+        /// <summary>
+        /// Check if text contains high-frequency CJK characters that need special handling
+        /// </summary>
+        private bool ContainsHighFrequencyCJK(string input)
+        {
+            if (string.IsNullOrWhiteSpace(input))
+                return false;
+                
+            return input.Any(c => 
+                JapaneseHighFrequency.Contains(c) ||
+                KoreanHighFrequency.Contains(c) ||
+                ChineseHighFrequency.Contains(c));
+        }
+        
+        /// <summary>
+        /// Generate smart fallback for CJK content based on 50K analysis
+        /// </summary>
+        private string GenerateCJKFallback(string input)
+        {
+            if (string.IsNullOrWhiteSpace(input))
+                return input;
+            
+            var sb = new StringBuilder();
+            bool inCJKBlock = false;
+            
+            foreach (var c in input)
+            {
+                bool isCJK = JapaneseHighFrequency.Contains(c) ||
+                             KoreanHighFrequency.Contains(c) ||
+                             ChineseHighFrequency.Contains(c) ||
+                             (c >= 0x4E00 && c <= 0x9FFF) || // CJK Unified Ideographs
+                             (c >= 0x3040 && c <= 0x309F) || // Hiragana
+                             (c >= 0x30A0 && c <= 0x30FF) || // Katakana
+                             (c >= 0xAC00 && c <= 0xD7AF);   // Hangul
+                
+                if (isCJK)
+                {
+                    if (!inCJKBlock && sb.Length > 0)
+                        sb.Append(' ');
+                    inCJKBlock = true;
+                }
+                else
+                {
+                    if (inCJKBlock)
+                        sb.Append(' ');
+                    sb.Append(c);
+                    inCJKBlock = false;
+                }
+            }
+            
+            return MultipleSpacesRegex.Replace(sb.ToString(), " ").Trim();
         }
 
         /// <summary>
