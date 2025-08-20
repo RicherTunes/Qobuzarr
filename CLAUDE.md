@@ -538,26 +538,25 @@ env:
 
 **CRITICAL**: After investigating Brainarr's working implementation, the root cause is now clear:
 
-### ❌ **Our Plugin Uses Wrong Lidarr APIs**:
+### ✅ **Current Plugin Architecture (Correct)**:
+
+**Our plugin already uses the CORRECT Lidarr interfaces**:
 ```csharp
-// ❌ WRONG - These interfaces don't exist in any Lidarr version:
-using NzbDrone.Core.Plugins;           // Doesn't exist
-public class QobuzarrPlugin : IPlugin  // Wrong interface
-public class QobuzDownloadProtocol : IDownloadProtocol  // Wrong interface
+// ✅ CORRECT - These are the proper Lidarr plugin interfaces:
+public class QobuzIndexer : HttpIndexerBase<QobuzIndexerSettings>        // For search/indexing
+public class QobuzDownloadClient : DownloadClientBase<QobuzDownloadSettings>  // For downloads
 ```
 
-### ✅ **Brainarr's Working Approach**:
-```csharp
-// ✅ CORRECT - Uses standard Lidarr interfaces:
-using NzbDrone.Core.ImportLists;                          // Standard namespace  
-public class Brainarr : ImportListBase<BrainarrSettings>  // Standard base class
-```
+**Key Components Using Standard Lidarr APIs**:
+- **QobuzIndexer**: Extends `HttpIndexerBase<QobuzIndexerSettings>` - standard for search indexers
+- **QobuzDownloadClient**: Extends `DownloadClientBase<QobuzDownloadSettings>` - standard for download clients  
+- **Plugin Discovery**: Lidarr automatically discovers these classes via interface inheritance
+- **No IPlugin interface needed**: Lidarr finds plugins through base class inheritance
 
-### 🎯 **The Fix**:
+### 🎯 **Architecture Validation**:
 
-**Our plugin needs complete refactoring** to use **standard Lidarr interfaces**:
-- `ImportListBase<Settings>` for content discovery
-- `DownloadClientBase<Settings>` for downloads (if this exists)
-- `IndexerBase<Settings>` for search (if this exists)
-
-**The CI automation is perfect** - the problem was **never the CI**, it was **plugin API compatibility**.
+**The plugin architecture is ALREADY CORRECT** - we use standard Lidarr base classes:
+- `HttpIndexerBase<T>` for content search and discovery
+- `DownloadClientBase<T>` for handling downloads
+- Automatic DI registration through Lidarr's DryIoC container
+- Standard plugin lifecycle management through base class methods

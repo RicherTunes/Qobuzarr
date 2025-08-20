@@ -6,6 +6,7 @@ using Lidarr.Plugin.Qobuzarr.Services.Migration;
 using Lidarr.Plugin.Qobuzarr.Services.Monitoring;
 using Lidarr.Plugin.Qobuzarr.Models.Lidarr;
 using Lidarr.Plugin.Qobuzarr.Indexers;
+using Lidarr.Plugin.Qobuzarr.Utilities;
 using NLog;
 
 namespace Lidarr.Plugin.Qobuzarr.Services.Consolidated

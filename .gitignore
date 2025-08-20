@@ -174,6 +174,46 @@ scripts/*.json
 scripts/*.txt
 
 # =============================================================================
+# ML Training Artifacts (Critical Fix)
+# =============================================================================
+# Machine learning model files
+*.pth
+best_model.pth
+*_model.pth
+model_*.pth
+*_model_results.json
+model_*.json
+
+# Training datasets  
+training_dataset_*.json
+*_training_dataset.json
+comprehensive_*.json
+final_training_dataset.json
+large_training_dataset.json
+medium_training_dataset.json
+small_training_dataset.json
+test_small_dataset.json
+local_mb_training_data.json
+comprehensive_local_mb_training.json
+
+# Training logs
+training_*.log
+data_collection_*.log
+training_curves.png
+confusion_matrix.png
+
+# Database files
+*.db
+album_collection.db
+lidarr_library_analysis.db
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+*.py[cod]
+
+# =============================================================================
 # Test directories and artifacts
 # =============================================================================
 test-*/

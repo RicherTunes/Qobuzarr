@@ -39,8 +39,8 @@ namespace Lidarr.Plugin.Qobuzarr.Services.Monitoring
 
             var stopwatch = Stopwatch.StartNew();
             var startTime = DateTime.UtcNow;
-            Exception operationException = null;
-            T result = default(T);
+            Exception? operationException = null;
+            T? result = default(T);
 
             try
             {
@@ -73,8 +73,8 @@ namespace Lidarr.Plugin.Qobuzarr.Services.Monitoring
 
             var stopwatch = Stopwatch.StartNew();
             var startTime = DateTime.UtcNow;
-            Exception operationException = null;
-            T result = default(T);
+            Exception? operationException = null;
+            T? result = default(T);
 
             try
             {
