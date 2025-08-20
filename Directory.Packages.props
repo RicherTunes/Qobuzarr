@@ -1,28 +1,23 @@
 <Project>
-  
   <!-- Enable centralized package management -->
   <PropertyGroup>
     <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
   </PropertyGroup>
-
   <!-- Production Dependencies -->
   <ItemGroup>
     <!-- Core Framework -->
+    <PackageVersion Include="Equ" Version="2.3.0" />
     <PackageVersion Include="Newtonsoft.Json" Version="13.0.3" />
     <PackageVersion Include="NLog" Version="5.4.0" />
     <PackageVersion Include="FluentValidation" Version="9.5.4" />
     <PackageVersion Include="System.Resources.Extensions" Version="8.0.0" />
-    
     <!-- Audio Processing -->
     <PackageVersion Include="TagLibSharp-Lidarr" Version="2.2.0.19" />
-    
     <!-- Machine Learning -->
     <PackageVersion Include="Microsoft.ML" Version="2.0.1" />
-    
     <!-- Build Tools -->
     <PackageVersion Include="ILRepack.Lib.MSBuild.Task" Version="2.0.34.2" />
   </ItemGroup>
-
   <!-- CLI Application Dependencies -->
   <ItemGroup>
     <!-- CLI Framework -->
@@ -30,7 +25,6 @@
     <PackageVersion Include="Spectre.Console" Version="0.47.0" />
     <PackageVersion Include="Spectre.Console.Cli" Version="0.47.0" />
     <PackageVersion Include="Newtonsoft.Json.Schema" Version="3.0.15" />
-    
     <!-- Microsoft Extensions (mix of versions based on compatibility requirements) -->
     <PackageVersion Include="Microsoft.Extensions.DependencyInjection" Version="8.0.0" />
     <PackageVersion Include="Microsoft.Extensions.Configuration" Version="8.0.0" />
@@ -42,7 +36,6 @@
     <PackageVersion Include="Microsoft.Extensions.Http" Version="8.0.0" />
     <PackageVersion Include="NLog.Extensions.Logging" Version="5.4.0" />
   </ItemGroup>
-
   <!-- Test Dependencies -->
   <ItemGroup>
     <!-- Test Framework -->
@@ -50,15 +43,13 @@
     <PackageVersion Include="xunit" Version="2.4.2" />
     <PackageVersion Include="xunit.runner.visualstudio" Version="2.4.5" />
     <PackageVersion Include="coverlet.collector" Version="6.0.0" />
-    
     <!-- Assertions and Mocking (standardized on Moq, but keep NSubstitute for compatibility) -->
     <PackageVersion Include="FluentAssertions" Version="6.12.0" />
     <PackageVersion Include="Moq" Version="4.20.69" />
     <PackageVersion Include="NSubstitute" Version="5.1.0" />
-    
+    <PackageVersion Include="System.IO.Abstractions" Version="17.0.1" />
     <!-- Integration Test Dependencies -->
     <PackageVersion Include="Docker.DotNet" Version="3.125.15" />
     <PackageVersion Include="DotNetEnv" Version="3.1.1" />
   </ItemGroup>
-
 </Project>
