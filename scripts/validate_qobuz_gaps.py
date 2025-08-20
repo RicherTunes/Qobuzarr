@@ -467,14 +467,18 @@ class GapValidator:
 
 async def main():
     """Main validation workflow"""
+    # Load configuration from .env file
+    from load_env import get_config
+    config = get_config()
+    
     parser = argparse.ArgumentParser(description="Validate Unicode system gaps against Qobuz API")
     parser.add_argument('--gaps-file', default='scripts/unicode_gaps_analysis.json',
                        help='Gap analysis file to validate')
-    parser.add_argument('--qobuz-app-id', default=os.getenv('QOBUZ_APP_ID'),
+    parser.add_argument('--qobuz-app-id', default=config['qobuz_app_id'],
                        help='Qobuz app ID')
-    parser.add_argument('--qobuz-app-secret', default=os.getenv('QOBUZ_APP_SECRET'),
+    parser.add_argument('--qobuz-app-secret', default=config['qobuz_app_secret'],
                        help='Qobuz app secret')
-    parser.add_argument('--user-token', default=os.getenv('QOBUZ_USER_TOKEN'),
+    parser.add_argument('--user-token', default=config['qobuz_user_token'],
                        help='Qobuz user token (optional)')
     parser.add_argument('--max-validations', type=int, default=50,
                        help='Maximum number of gaps to validate (due to rate limiting)')

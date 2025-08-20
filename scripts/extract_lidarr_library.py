@@ -416,10 +416,14 @@ class LidarrLibraryExtractor:
 
 async def main():
     """Main extraction workflow"""
+    # Load configuration from .env file
+    from load_env import get_config
+    config = get_config()
+    
     parser = argparse.ArgumentParser(description="Extract Lidarr library for complex example building")
-    parser.add_argument('--lidarr-url', default='http://192.168.2.50:8686', 
+    parser.add_argument('--lidarr-url', default=config['lidarr_url'], 
                        help='Lidarr instance URL')
-    parser.add_argument('--api-key', default='ca6a612bb8f84d9c976fcac967331da5',
+    parser.add_argument('--api-key', default=config['lidarr_api_key'],
                        help='Lidarr API key')
     parser.add_argument('--complexity-threshold', type=float, default=0.3,
                        help='Minimum complexity score to include (0.0-1.0)')
