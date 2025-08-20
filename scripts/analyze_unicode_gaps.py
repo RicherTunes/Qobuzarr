@@ -20,6 +20,7 @@ from dataclasses import dataclass, asdict
 from typing import List, Dict, Optional, Tuple
 from pathlib import Path
 import logging
+import datetime
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
@@ -180,7 +181,7 @@ class GapAnalyzer:
         """Analyze library albums for potential Unicode system gaps"""
         
         logger.info(f" Analyzing {len(albums)} albums for Unicode gaps")
-        logger.info(f"📊 Minimum complexity: {min_complexity}")
+        logger.info(f"INFO Minimum complexity: {min_complexity}")
         
         gaps = []
         analyzed_count = 0
@@ -204,13 +205,13 @@ class GapAnalyzer:
                     gaps.append(gap)
                     
                 if analyzed_count % 100 == 0:
-                    logger.info(f"📈 Progress: {analyzed_count} analyzed, {len(gaps)} gaps found")
+                    logger.info(f"PROGRESS Progress: {analyzed_count} analyzed, {len(gaps)} gaps found")
                     
             except Exception as e:
-                logger.warning(f"⚠️ Error analyzing album {album_data.get('artist', 'Unknown')}: {e}")
+                logger.warning(f"WARNING Error analyzing album {album_data.get('artist', 'Unknown')}: {e}")
                 continue
         
-        logger.info(f"🏁 Analysis complete: {len(gaps)} potential gaps found from {analyzed_count} albums")
+        logger.info(f"COMPLETE Analysis complete: {len(gaps)} potential gaps found from {analyzed_count} albums")
         return gaps
     
     def predict_search_gap(self, album_data: dict, variants: List[str]) -> Optional[SearchGap]:
@@ -423,7 +424,7 @@ class LibraryGapAnalyzer:
         
         conn.close()
         
-        logger.info(f"📖 Loaded {len(albums)} complex albums from library")
+        logger.info(f"LOADED Loaded {len(albums)} complex albums from library")
         return albums
     
     def analyze_gaps(self, test_sample: Optional[int] = None, 
@@ -477,7 +478,7 @@ class LibraryGapAnalyzer:
             all_unsupported_chars.update(gap.character_analysis['unsupported_chars'])
         
         return {
-            'analysis_date': datetime.now().isoformat(),
+            'analysis_date': datetime.datetime.now().isoformat(),
             'total_gaps': len(gaps),
             'severity_distribution': severity_counts,
             'failure_patterns': dict(sorted(failure_reasons.items(), key=lambda x: x[1], reverse=True)),
@@ -531,9 +532,9 @@ def main():
     
     print(" Unicode System Gap Analysis")
     print("=" * 50)
-    print(f"📊 Database: {args.database}")
-    print(f"🎯 Sample size: {args.test_sample or 'All albums'}")
-    print(f"📈 Min complexity: {args.min_complexity}")
+    print(f"INFO Database: {args.database}")
+    print(f"TARGET Sample size: {args.test_sample or 'All albums'}")
+    print(f"PROGRESS Min complexity: {args.min_complexity}")
     print("=" * 50)
     
     analyzer = LibraryGapAnalyzer(args.database)
@@ -556,12 +557,12 @@ def main():
             }, f, indent=2, ensure_ascii=False)
         
         # Display summary
-        print(f"\n📊 GAP ANALYSIS RESULTS")
+        print(f"\nINFO GAP ANALYSIS RESULTS")
         print("=" * 50)
         
         if gaps:
             print(f" Total gaps found: {len(gaps)}")
-            print(f"📈 Severity distribution: {report['severity_distribution']}")
+            print(f"PROGRESS Severity distribution: {report['severity_distribution']}")
             print(f"🔧 Top failure patterns:")
             for pattern, count in list(report['failure_patterns'].items())[:5]:
                 print(f"   • {pattern}: {count} albums")
@@ -569,7 +570,7 @@ def main():
             if report['unsupported_characters']:
                 print(f"🌍 Unsupported characters: {', '.join(report['unsupported_characters'])}")
             
-            print(f"\n🎯 PRIORITY ENHANCEMENTS:")
+            print(f"\nTARGET PRIORITY ENHANCEMENTS:")
             for rec in report['recommended_unicode_enhancements'][:5]:
                 print(f"   • {rec}")
             
@@ -584,7 +585,7 @@ def main():
         print(f"\n💾 Detailed results saved to: {args.output}")
         
         if gaps:
-            print(f"\n🎯 Next steps:")
+            print(f"\nTARGET Next steps:")
             print("1. Run: python scripts/validate_qobuz_gaps.py")
             print("2. Manual validation of predicted gaps against real Qobuz search")
             print("3. Generate enhanced test cases from confirmed gaps")
