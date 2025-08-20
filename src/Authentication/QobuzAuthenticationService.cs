@@ -303,7 +303,7 @@ namespace Lidarr.Plugin.Qobuzarr.Authentication
                 _logger.Debug("Attempting to fetch dynamic credentials from Qobuz web player using QobuzApiSharp method");
                 
                 // Step 1: Fetch the login page to get bundle.js URL
-                var loginRequest = new HttpRequestBuilder("https://play.qobuz.com/login")
+                var loginRequest = new HttpRequestBuilder($"{QobuzConstants.Api.PlayBaseUrl}/login")
                     .SetHeader("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36")
                     .Build();
                 
@@ -325,7 +325,7 @@ namespace Lidarr.Plugin.Qobuzarr.Authentication
                 }
                 
                 var bundleSuffix = bundleMatch.Groups[1].Value;
-                var bundleUrl = "https://play.qobuz.com" + bundleSuffix;
+                var bundleUrl = QobuzConstants.Api.PlayBaseUrl + bundleSuffix;
                 
                 _logger.Debug($"Found bundle.js URL: {bundleUrl}");
                 

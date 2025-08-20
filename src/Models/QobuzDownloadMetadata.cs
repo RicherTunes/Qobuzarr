@@ -84,9 +84,27 @@ namespace Lidarr.Plugin.Qobuzarr.Models
                 };
                 return JsonSerializer.Deserialize<QobuzDownloadMetadata>(json, options);
             }
-            catch
+            catch (JsonException ex)
             {
-                // If metadata is corrupted, return null
+                // Metadata file is corrupted or has invalid JSON format
+                NLog.LogManager.GetCurrentClassLogger().Warn(ex, "Failed to deserialize metadata from {0}: {1}", metadataPath, ex.Message);
+                return null;
+            }
+            catch (FileNotFoundException)
+            {
+                // Metadata file doesn't exist - this is expected for new downloads
+                return null;
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                // Permission issues reading metadata file
+                NLog.LogManager.GetCurrentClassLogger().Error(ex, "Access denied reading metadata from {0}", metadataPath);
+                return null;
+            }
+            catch (IOException ex)
+            {
+                // Other I/O issues (file locked, disk issues, etc.)
+                NLog.LogManager.GetCurrentClassLogger().Error(ex, "I/O error reading metadata from {0}: {1}", metadataPath, ex.Message);
                 return null;
             }
         }

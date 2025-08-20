@@ -281,7 +281,7 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Clients
 
                 // Mark as completed
                 downloadItem.Status = DownloadItemStatus.Completed;
-                downloadItem.Progress = 100;
+                downloadItem.Progress = QobuzConstants.Progress.MaxPercentage;
                 downloadItem.Message = "Download completed successfully";
 
                 _logger.Info("✅ Download finished: {0} - {1}", downloadItem.Artist, downloadItem.Title);
@@ -374,7 +374,7 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Clients
                     
                     var completed = Interlocked.Increment(ref completedTracks);
                     Interlocked.Increment(ref successfulTracks);
-                    var progress = (double)completed / totalTracks * 100;
+                    var progress = (double)completed / totalTracks * QobuzConstants.Progress.MaxPercentage;
                     downloadItem.UpdateProgress(progress);
 
                     _logger.Debug("Downloaded track {0}/{1}: {2}", completed, totalTracks, track.GetFullTitle());
@@ -401,7 +401,7 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Clients
                         _logger.Error(errorMessage);
                     }
                     
-                    var progress = (double)completed / totalTracks * 100;
+                    var progress = (double)completed / totalTracks * QobuzConstants.Progress.MaxPercentage;
                     downloadItem.UpdateProgress(progress);
                     
                     return new TrackDownloadResult 
@@ -419,7 +419,7 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Clients
                     
                     _logger.Error(ex, "Failed to download track: {0}", track.GetFullTitle());
                     
-                    var progress = (double)completed / totalTracks * 100;
+                    var progress = (double)completed / totalTracks * QobuzConstants.Progress.MaxPercentage;
                     downloadItem.UpdateProgress(progress);
                     
                     return new TrackDownloadResult 
@@ -505,11 +505,11 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Clients
                 
                 if (totalTracks > 0)
                 {
-                    var baseProgress = (double)currentTrackIndex / totalTracks * 100;
+                    var baseProgress = (double)currentTrackIndex / totalTracks * QobuzConstants.Progress.MaxPercentage;
                     var trackContribution = progress / totalTracks;
                     var totalProgress = baseProgress + trackContribution;
                     
-                    downloadItem.UpdateProgress(Math.Min(100, totalProgress));
+                    downloadItem.UpdateProgress(Math.Min(QobuzConstants.Progress.MaxPercentage, totalProgress));
                 }
             });
 

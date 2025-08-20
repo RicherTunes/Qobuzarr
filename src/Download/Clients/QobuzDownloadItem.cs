@@ -3,6 +3,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using NzbDrone.Core.Download;
 using Lidarr.Plugin.Qobuzarr.Models;
+using Lidarr.Plugin.Qobuzarr.Configuration;
 
 namespace Lidarr.Plugin.Qobuzarr.Download.Clients
 {
@@ -40,7 +41,7 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Clients
         /// </summary>
         public TimeSpan? GetEstimatedTimeRemaining()
         {
-            if (Status != DownloadItemStatus.Downloading || Progress >= 100)
+            if (Status != DownloadItemStatus.Downloading || Progress >= QobuzConstants.Progress.MaxPercentage)
                 return null;
 
             var speed = GetDownloadSpeed();
@@ -91,7 +92,7 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Clients
         /// </summary>
         public void UpdateProgress(double progress, long downloadedSize = 0)
         {
-            Progress = Math.Max(0, Math.Min(100, progress));
+            Progress = Math.Max(QobuzConstants.Progress.MinPercentage, Math.Min(QobuzConstants.Progress.MaxPercentage, progress));
             
             if (downloadedSize > 0)
             {
@@ -100,11 +101,11 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Clients
             else if (TotalSize > 0)
             {
                 // Calculate downloaded size from progress if not provided
-                DownloadedSize = (long)(TotalSize * (Progress / 100.0));
+                DownloadedSize = (long)(TotalSize * (Progress / (double)QobuzConstants.Progress.MaxPercentage));
             }
 
             // Update status based on progress
-            if (Progress >= 100 && Status == DownloadItemStatus.Downloading)
+            if (Progress >= QobuzConstants.Progress.MaxPercentage && Status == DownloadItemStatus.Downloading)
             {
                 Status = DownloadItemStatus.Completed;
                 Message = "Download completed successfully";

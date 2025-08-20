@@ -14,6 +14,7 @@ namespace Lidarr.Plugin.Qobuzarr.Configuration
         public static class Api
         {
             public const string BaseUrl = "https://www.qobuz.com/api.json/0.2";
+            public const string PlayBaseUrl = "https://play.qobuz.com";
             public const string UserAgent = "Qobuzarr/1.0.0";
             public const int MaxRetries = 3;
             public const int RequestTimeoutSeconds = 60;
@@ -39,6 +40,28 @@ namespace Lidarr.Plugin.Qobuzarr.Configuration
             public static readonly TimeSpan CleanupCutoff = TimeSpan.FromHours(24);
             public const int MaxFolderNameLength = 200;
             public const int MaxFileNameLength = 255;
+        }
+
+        /// <summary>
+        /// Progress reporting constants
+        /// </summary>
+        public static class Progress
+        {
+            public const int MaxPercentage = 100;
+            public const int MinPercentage = 0;
+        }
+
+        /// <summary>
+        /// Timeout and limit constants
+        /// </summary>
+        public static class Timeouts
+        {
+            public const int MaxRetryDelayMs = 30000; // 30 seconds max retry delay
+            public const int DefaultRequestTimeoutMs = 30000; // 30 second default timeout
+            public const int CleanupIntervalSeconds = 30; // 30 second cleanup interval
+            public const int MaxFileNameLength = 200; // File name length limit
+            public const int ConnectionTimeoutMin = 5; // Minimum connection timeout (seconds)
+            public const int ConnectionTimeoutMax = 300; // Maximum connection timeout (seconds)
         }
 
         /// <summary>

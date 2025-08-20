@@ -3,6 +3,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using NLog;
 using Lidarr.Plugin.Qobuzarr.Abstractions;
+using Lidarr.Plugin.Qobuzarr.Configuration;
 
 namespace Lidarr.Plugin.Qobuzarr.Utilities
 {
@@ -178,7 +179,7 @@ namespace Lidarr.Plugin.Qobuzarr.Utilities
             var delayMs = baseDelayMs * exponential;
 
             // Cap at 30 seconds
-            return TimeSpan.FromMilliseconds(Math.Min(delayMs, 30000));
+            return TimeSpan.FromMilliseconds(Math.Min(delayMs, QobuzConstants.Timeouts.MaxRetryDelayMs));
         }
     }
 }
