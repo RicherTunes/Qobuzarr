@@ -159,7 +159,81 @@ namespace Lidarr.Plugin.Qobuzarr.Security
                 return false;
             }
 
+            // Check for injection attack patterns
+            if (ContainsInjectionPatterns(credential))
+            {
+                _logger.Warn("Credential contains suspicious injection patterns - potential security risk");
+                return false;
+            }
+
             return true;
+        }
+
+        /// <summary>
+        /// Checks for common injection attack patterns that should not appear in legitimate credentials.
+        /// Detects SQL injection, XSS, script injection, and directory traversal attempts.
+        /// </summary>
+        /// <param name="input">Input string to check for injection patterns</param>
+        /// <returns>True if suspicious patterns are detected</returns>
+        private bool ContainsInjectionPatterns(string input)
+        {
+            if (string.IsNullOrEmpty(input))
+                return false;
+
+            var lowerInput = input.ToLowerInvariant();
+            
+            // SQL injection patterns
+            string[] sqlPatterns = {
+                "drop table", "drop database", "truncate", "delete from",
+                "insert into", "update set", "create table", "alter table",
+                "union select", "union all", "' or '", "\" or \"",
+                "or 1=1", "or '1'='1", "or \"1\"=\"1\"", "or true",
+                "'; --", "\"; --", "/*", "*/", "@@", "xp_", "sp_"
+            };
+
+            // XSS and script injection patterns  
+            string[] xssPatterns = {
+                "<script", "</script>", "javascript:", "onload=", "onerror=", 
+                "onclick=", "onmouseover=", "onfocus=", "onblur=", "alert(",
+                "document.cookie", "document.write", "window.location",
+                "<iframe", "<object", "<embed", "<form", "eval("
+            };
+
+            // Directory traversal patterns
+            string[] traversalPatterns = {
+                "../", "..\\", "/etc/passwd", "/etc/shadow", "/proc/",
+                "c:\\windows", "c:\\users", "system32", "boot.ini"
+            };
+
+            // Check all pattern categories
+            foreach (var pattern in sqlPatterns)
+            {
+                if (lowerInput.Contains(pattern))
+                {
+                    _logger.Debug("SQL injection pattern detected: {0}", pattern);
+                    return true;
+                }
+            }
+
+            foreach (var pattern in xssPatterns)
+            {
+                if (lowerInput.Contains(pattern))
+                {
+                    _logger.Debug("XSS pattern detected: {0}", pattern);
+                    return true;
+                }
+            }
+
+            foreach (var pattern in traversalPatterns)
+            {
+                if (lowerInput.Contains(pattern))
+                {
+                    _logger.Debug("Directory traversal pattern detected: {0}", pattern);
+                    return true;
+                }
+            }
+
+            return false;
         }
 
         /// <summary>

@@ -7,6 +7,7 @@ using Lidarr.Plugin.Qobuzarr.Abstractions;
 using Lidarr.Plugin.Qobuzarr.API;
 using Lidarr.Plugin.Qobuzarr.Models;
 using Lidarr.Plugin.Qobuzarr.Models.Lidarr;
+using Lidarr.Plugin.Qobuzarr.Services.Monitoring;
 using NLog;
 
 namespace Lidarr.Plugin.Qobuzarr.Services.Consolidated
@@ -20,6 +21,7 @@ namespace Lidarr.Plugin.Qobuzarr.Services.Consolidated
     {
         private readonly IQobuzApiClient _apiClient;
         private readonly IQobuzLogger _logger;
+        private readonly IPerformanceMonitor _performanceMonitor;
         private readonly Dictionary<string, AlbumQualityCache> _qualityCache;
         private readonly SemaphoreSlim _cacheLock;
         private readonly TimeSpan _cacheExpiration;
@@ -55,10 +57,12 @@ namespace Lidarr.Plugin.Qobuzarr.Services.Consolidated
 
         public QobuzQualityManager(
             IQobuzApiClient apiClient,
-            IQobuzLogger logger)
+            IQobuzLogger logger,
+            IPerformanceMonitor performanceMonitor = null)
         {
             _apiClient = apiClient ?? throw new ArgumentNullException(nameof(apiClient));
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+            _performanceMonitor = performanceMonitor ?? new PerformanceMonitor(logger);
             _qualityCache = new Dictionary<string, AlbumQualityCache>();
             _cacheLock = new SemaphoreSlim(1, 1);
             _cacheExpiration = TimeSpan.FromHours(24);
@@ -76,6 +80,15 @@ namespace Lidarr.Plugin.Qobuzarr.Services.Consolidated
                 throw new ArgumentException("Track ID cannot be null or empty", nameof(trackId));
             }
 
+            return await _performanceMonitor.TrackOperationAsync(
+                "QualityDetection.SingleTrack",
+                async () => await DetectAvailableQualitiesInternalAsync(trackId, cancellationToken),
+                new Dictionary<string, object> { ["track_id"] = trackId }
+            );
+        }
+
+        private async Task<QualityDetectionResult> DetectAvailableQualitiesInternalAsync(string trackId, CancellationToken cancellationToken)
+        {
             _logger.Debug("Detecting available qualities for track {0}", trackId);
             
             var result = new QualityDetectionResult
@@ -91,7 +104,16 @@ namespace Lidarr.Plugin.Qobuzarr.Services.Consolidated
                 
                 try
                 {
-                    var streamInfo = await GetStreamInfoInternalAsync(trackId, qualityFormat.Id, cancellationToken);
+                    var streamInfo = await _performanceMonitor.TrackOperationAsync(
+                        "API.GetStreamInfo",
+                        () => GetStreamInfoInternalAsync(trackId, qualityFormat.Id, cancellationToken),
+                        new Dictionary<string, object> 
+                        { 
+                            ["track_id"] = trackId,
+                            ["quality_format"] = qualityFormat.Id,
+                            ["quality_name"] = qualityFormat.Name
+                        }
+                    );
                     
                     if (IsValidStreamUrl(streamInfo?.Url))
                     {
@@ -125,10 +147,32 @@ namespace Lidarr.Plugin.Qobuzarr.Services.Consolidated
                 return AlbumQualityResult.Failed("Album has no tracks");
             }
 
+            return await _performanceMonitor.TrackOperationAsync(
+                "QualityDetection.Album",
+                async () => await DetectAlbumQualityInternalAsync(album, preferredQuality, cancellationToken),
+                new Dictionary<string, object> 
+                { 
+                    ["album_id"] = album.Id,
+                    ["album_title"] = album.Title,
+                    ["tracks_count"] = album.TracksCount,
+                    ["preferred_quality"] = preferredQuality
+                }
+            );
+        }
+
+        private async Task<AlbumQualityResult> DetectAlbumQualityInternalAsync(
+            QobuzAlbum album, 
+            int preferredQuality,
+            CancellationToken cancellationToken)
+        {
             var cacheKey = $"album_quality_{album.Id}_{preferredQuality}";
             
             // Check cache first
-            var cached = await GetCachedQualityAsync(cacheKey);
+            var cached = await _performanceMonitor.TrackOperationAsync(
+                "Cache.AlbumQuality.Read",
+                () => GetCachedQualityAsync(cacheKey),
+                new Dictionary<string, object> { ["cache_key"] = cacheKey }
+            );
             if (cached != null)
             {
                 _logger.Info("Using cached quality data for album '{0}'", album.Title);
@@ -140,12 +184,21 @@ namespace Lidarr.Plugin.Qobuzarr.Services.Consolidated
             var tracks = album.GetTracks().ToList();
             var sampleTracks = SelectRepresentativeTracks(tracks, SAMPLE_TRACK_COUNT);
             
-            // Check quality for sample tracks
+            // Check quality for sample tracks with performance monitoring
             var sampleResults = new List<QualityDetectionResult>();
             foreach (var track in sampleTracks)
             {
                 cancellationToken.ThrowIfCancellationRequested();
-                var trackResult = await DetectAvailableQualitiesAsync(track.Id.ToString(), cancellationToken);
+                var trackResult = await _performanceMonitor.TrackOperationAsync(
+                    "QualityDetection.SampleTrack",
+                    () => DetectAvailableQualitiesInternalAsync(track.Id.ToString(), cancellationToken),
+                    new Dictionary<string, object> 
+                    { 
+                        ["track_id"] = track.Id,
+                        ["track_title"] = track.Title,
+                        ["sample_index"] = sampleResults.Count + 1
+                    }
+                );
                 sampleResults.Add(trackResult);
             }
 
@@ -166,6 +219,18 @@ namespace Lidarr.Plugin.Qobuzarr.Services.Consolidated
         /// Maps a Lidarr quality profile to Qobuz quality.
         /// </summary>
         public QobuzQuality MapLidarrQuality(LidarrQualityProfile profile)
+        {
+            return _performanceMonitor.TrackOperation(
+                "QualityMapping.LidarrProfile",
+                () => MapLidarrQualityInternal(profile),
+new Dictionary<string, object> 
+                { 
+                    ["profile_name"] = profile?.Name ?? "null"
+                }
+            );
+        }
+
+        private QobuzQuality MapLidarrQualityInternal(LidarrQualityProfile profile)
         {
             if (profile == null)
             {
@@ -257,6 +322,23 @@ namespace Lidarr.Plugin.Qobuzarr.Services.Consolidated
             QobuzQuality preferred,
             CancellationToken cancellationToken = default)
         {
+            return await _performanceMonitor.TrackOperationAsync(
+                "QualitySelection.BestQuality",
+                async () => await SelectBestQualityInternalAsync(trackId, preferred, cancellationToken),
+                new Dictionary<string, object> 
+                { 
+                    ["track_id"] = trackId,
+                    ["preferred_quality"] = preferred?.Name ?? "none",
+                    ["preferred_quality_id"] = preferred?.Id.ToString() ?? "none"
+                }
+            );
+        }
+
+        private async Task<QualitySelectionResult> SelectBestQualityInternalAsync(
+            string trackId, 
+            QobuzQuality preferred,
+            CancellationToken cancellationToken)
+        {
             var fallbackChain = GetQualityFallbackChain(preferred);
             
             _logger.Debug("Attempting quality selection for track {0}, preferred: {1}", trackId, preferred?.Name);
@@ -320,7 +402,7 @@ namespace Lidarr.Plugin.Qobuzarr.Services.Consolidated
                     _logger.Debug("Attempting operation with quality: {0}", quality.Name);
                     var result = await operation(quality);
                     
-                    if (quality.Id != preferred?.Id)
+                    if (preferred == null || quality.Id != preferred.Id)
                     {
                         _logger.Info("Operation succeeded with fallback quality: {0}", quality.Name);
                     }
