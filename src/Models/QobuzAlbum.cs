@@ -111,7 +111,7 @@ namespace Lidarr.Plugin.Qobuzarr.Models
         [JsonProperty("maximum_bit_depth")]
         public int? MaximumBitDepth { get; set; }
 
-        [JsonProperty("maximum_sample_rate")]
+        [JsonProperty("maximum_sampling_rate")]
         public double? MaximumSampleRate { get; set; }
 
         [JsonProperty("maximum_channel_count")]
