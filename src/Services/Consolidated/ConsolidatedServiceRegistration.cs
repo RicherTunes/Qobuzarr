@@ -1,7 +1,11 @@
 using System;
+using System.Collections.Generic;
 using Lidarr.Plugin.Qobuzarr.Abstractions;
 using Lidarr.Plugin.Qobuzarr.API;
 using Lidarr.Plugin.Qobuzarr.Services.Migration;
+using Lidarr.Plugin.Qobuzarr.Services.Monitoring;
+using Lidarr.Plugin.Qobuzarr.Models.Lidarr;
+using Lidarr.Plugin.Qobuzarr.Indexers;
 using NLog;
 
 namespace Lidarr.Plugin.Qobuzarr.Services.Consolidated
@@ -19,14 +23,34 @@ namespace Lidarr.Plugin.Qobuzarr.Services.Consolidated
     public static class ConsolidatedServiceRegistration
     {
         /// <summary>
-        /// Creates the consolidated QobuzQualityManager instance.
+        /// Creates the consolidated QobuzQualityManager instance with performance monitoring.
         /// This will be automatically registered as a singleton by Lidarr's DI container.
         /// </summary>
         public static IQobuzQualityManager CreateQualityManager(
             IQobuzApiClient apiClient,
             IQobuzLogger logger)
         {
-            return new QobuzQualityManager(apiClient, logger);
+            var performanceMonitor = new PerformanceMonitor(logger);
+            return new QobuzQualityManager(apiClient, logger, performanceMonitor);
+        }
+
+        /// <summary>
+        /// Creates the performance monitor for tracking production operations.
+        /// </summary>
+        public static IPerformanceMonitor CreatePerformanceMonitor(IQobuzLogger logger)
+        {
+            return new PerformanceMonitor(logger);
+        }
+
+        /// <summary>
+        /// Creates the Unicode query builder for international character handling.
+        /// This service helps solve the core problem of missed albums due to special characters.
+        /// </summary>
+        public static IUnicodeQueryBuilder CreateUnicodeQueryBuilder(IQobuzLogger logger)
+        {
+            // Convert IQobuzLogger to NLog Logger for compatibility
+            var nlogLogger = logger as Logger ?? LogManager.GetCurrentClassLogger();
+            return new UnicodeQueryBuilder(nlogLogger);
         }
 
         /// <summary>

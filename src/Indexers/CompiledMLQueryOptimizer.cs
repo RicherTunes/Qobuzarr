@@ -243,8 +243,19 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
         {
             var complexity = PredictComplexity(artistName, albumTitle);
             var confidence = GetConfidenceScore(artistName, albumTitle, complexity);
+            var hasUnicode = RequiresUnicodeHandling(artistName, albumTitle);
             
-            // High confidence: use targeted strategy
+            // Unicode queries need special handling regardless of ML prediction
+            if (hasUnicode)
+            {
+                _logger.Debug("🌍 Unicode detected in '{0} - {1}', adjusting strategy for international content", 
+                             artistName, albumTitle);
+                
+                // For Unicode content, always use comprehensive approach to avoid misses
+                return new List<string> { "unicode_variants", "ascii_folded", "transliterated", "exact", "fuzzy" };
+            }
+            
+            // High confidence: use targeted strategy for ASCII content
             if (confidence > 0.7)
             {
                 switch (complexity)
@@ -260,6 +271,15 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
             
             // Low confidence: use broader strategy
             return new List<string> { "fuzzy", "partial", "exact", "keywords" };
+        }
+        
+        /// <summary>
+        /// Check if the query contains Unicode characters that require special handling
+        /// </summary>
+        private bool RequiresUnicodeHandling(string artistName, string albumTitle)
+        {
+            var fullQuery = $"{artistName} {albumTitle}";
+            return fullQuery.Any(c => c > 127);
         }
 
         // Async method implementations

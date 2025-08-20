@@ -42,6 +42,7 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
         private readonly SmartQueryStrategy _smartQueryStrategy;
         private readonly SemanticQueryStrategy _semanticQueryStrategy;
         private readonly QobuzSubstringCache _substringCache;
+        private readonly IUnicodeQueryBuilder _unicodeQueryBuilder;
         
         // Query Intelligence metrics
         private int _totalQueries = 0;
@@ -87,6 +88,9 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
             
             // Initialize Semantic Query Strategy for intelligent query handling
             _semanticQueryStrategy = new SemanticQueryStrategy(logger);
+            
+            // Initialize Unicode Query Builder for international character handling
+            _unicodeQueryBuilder = new UnicodeQueryBuilder(logger);
             
             _substringCache = new QobuzSubstringCache(logger);
         }
@@ -253,67 +257,92 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
             // Build original query set first
             var originalQueries = new List<string>();
 
-            // Primary query: Artist + Album with Semantic Intelligence
+            // Primary query: Artist + Album with Unicode and Semantic Intelligence
             if (searchCriteria.ArtistQuery.IsNotNullOrWhiteSpace() && searchCriteria.AlbumQuery.IsNotNullOrWhiteSpace())
             {
-                // Use semantic intelligence to determine optimal query strategy
-                var semanticStrategy = _semanticQueryStrategy.DetermineStrategy(searchCriteria.ArtistQuery, searchCriteria.AlbumQuery);
+                // Check if Unicode handling is needed (international artists/albums)
+                var requiresUnicodeHandling = _unicodeQueryBuilder.RequiresUnicodeHandling($"{searchCriteria.ArtistQuery} {searchCriteria.AlbumQuery}");
                 
-                _logger.Debug("🧠 Semantic Analysis for '{0} - {1}': {2} (Level: {3}, Variants: {4})", 
-                             searchCriteria.ArtistQuery, searchCriteria.AlbumQuery, 
-                             semanticStrategy.Rationale, semanticStrategy.CleaningLevel, semanticStrategy.QueryVariants);
-
-                // Generate semantically-aware queries
-                var semanticQueries = _semanticQueryStrategy.BuildQueriesForStrategy(
-                    searchCriteria.ArtistQuery, 
-                    searchCriteria.AlbumQuery, 
-                    semanticStrategy);
-
-                if (semanticQueries.Any())
+                if (requiresUnicodeHandling)
                 {
-                    // Log semantic intelligence usage for debugging
-                    _logger.Debug("🎯 Semantic Queries Generated: {0}", string.Join(" | ", semanticQueries));
-                    queries.AddRange(semanticQueries);
+                    _logger.Debug("🌍 Unicode characters detected in '{0} - {1}', generating international query variants", 
+                                 searchCriteria.ArtistQuery, searchCriteria.AlbumQuery);
+                    
+                    // Generate Unicode-aware query variants (most important for international content)
+                    var unicodeVariants = _unicodeQueryBuilder.GenerateQueryVariants(
+                        searchCriteria.ArtistQuery, 
+                        searchCriteria.AlbumQuery, 
+                        maxVariants: 4); // Limit to prevent excessive API calls
+                    
+                    _logger.Debug("🎯 Generated {0} Unicode variants: {1}", 
+                                 unicodeVariants.Count, string.Join(" | ", unicodeVariants));
+                    
+                    originalQueries.AddRange(unicodeVariants);
                 }
                 else
                 {
-                    // Fallback to traditional approach if semantic fails
-                    _logger.Warn("⚠️  Semantic query generation failed, falling back to traditional approach");
+                    // Use semantic intelligence for ASCII-only content
+                    var semanticStrategy = _semanticQueryStrategy.DetermineStrategy(searchCriteria.ArtistQuery, searchCriteria.AlbumQuery);
                     
-                    var cleanArtist = CleanQuery(searchCriteria.ArtistQuery);
-                    var cleanAlbum = CleanQuery(searchCriteria.AlbumQuery);
-                    
-                    if (cleanArtist.IsNotNullOrWhiteSpace() && cleanAlbum.IsNotNullOrWhiteSpace())
+                    _logger.Debug("🧠 Semantic Analysis for '{0} - {1}': {2} (Level: {3}, Variants: {4})", 
+                                 searchCriteria.ArtistQuery, searchCriteria.AlbumQuery, 
+                                 semanticStrategy.Rationale, semanticStrategy.CleaningLevel, semanticStrategy.QueryVariants);
+
+                    // Generate semantically-aware queries
+                    var semanticQueries = _semanticQueryStrategy.BuildQueriesForStrategy(
+                        searchCriteria.ArtistQuery, 
+                        searchCriteria.AlbumQuery, 
+                        semanticStrategy);
+
+                    if (semanticQueries.Any())
                     {
-                        var primaryQuery = $"{cleanArtist} {cleanAlbum}";
-                        originalQueries.Add(primaryQuery);
-
-                        // Alternative format: "Artist - Album"
-                        var dashQuery = $"{cleanArtist} - {cleanAlbum}";
-                        originalQueries.Add(dashQuery);
-
-                        // Apply traditional Query Intelligence if enabled
-                        if (_settings.EnableQueryIntelligence)
+                        // Log semantic intelligence usage for debugging
+                        _logger.Debug("🎯 Semantic Queries Generated: {0}", string.Join(" | ", semanticQueries));
+                        originalQueries.AddRange(semanticQueries);
+                    }
+                    else
+                    {
+                        // Fallback to traditional approach if semantic fails
+                        _logger.Warn("⚠️  Semantic query generation failed, falling back to traditional approach");
+                        
+                        var cleanArtist = CleanQuery(searchCriteria.ArtistQuery);
+                        var cleanAlbum = CleanQuery(searchCriteria.AlbumQuery);
+                        
+                        if (cleanArtist.IsNotNullOrWhiteSpace() && cleanAlbum.IsNotNullOrWhiteSpace())
                         {
-                            var optimizedQueries = _smartQueryStrategy.BuildOptimizedQueries(cleanArtist, cleanAlbum, originalQueries);
-                            var reduction = _smartQueryStrategy.CalculateExpectedReduction(cleanArtist, cleanAlbum, originalQueries.Count);
-                            
-                            if (reduction > 0)
-                            {
-                                _logger.Debug("Query Intelligence: Reduced {0} queries to {1} for '{2} - {3}' ({4:P1} reduction)", 
-                                    originalQueries.Count, optimizedQueries.Count, cleanArtist, cleanAlbum, reduction);
-                            }
-                            
-                            // Track metrics
-                            UpdateQueryMetrics(originalQueries.Count, optimizedQueries.Count);
-                            
-                            queries.AddRange(optimizedQueries);
-                        }
-                        else
-                        {
-                            queries.AddRange(originalQueries);
+                            var primaryQuery = $"{cleanArtist} {cleanAlbum}";
+                            originalQueries.Add(primaryQuery);
+
+                            // Alternative format: "Artist - Album"
+                            var dashQuery = $"{cleanArtist} - {cleanAlbum}";
+                            originalQueries.Add(dashQuery);
                         }
                     }
+                }
+                
+                // Apply Query Intelligence optimization to whatever queries we generated
+                if (_settings.EnableQueryIntelligence && originalQueries.Any())
+                {
+                    var optimizedQueries = _smartQueryStrategy.BuildOptimizedQueries(
+                        searchCriteria.ArtistQuery, searchCriteria.AlbumQuery, originalQueries);
+                    var reduction = _smartQueryStrategy.CalculateExpectedReduction(
+                        searchCriteria.ArtistQuery, searchCriteria.AlbumQuery, originalQueries.Count);
+                    
+                    if (reduction > 0)
+                    {
+                        _logger.Debug("Query Intelligence: Reduced {0} queries to {1} for '{2} - {3}' ({4:P1} reduction)", 
+                            originalQueries.Count, optimizedQueries.Count, 
+                            searchCriteria.ArtistQuery, searchCriteria.AlbumQuery, reduction);
+                    }
+                    
+                    // Track metrics
+                    UpdateQueryMetrics(originalQueries.Count, optimizedQueries.Count);
+                    
+                    queries.AddRange(optimizedQueries);
+                }
+                else
+                {
+                    queries.AddRange(originalQueries);
                 }
             }
 
