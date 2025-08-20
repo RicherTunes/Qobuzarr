@@ -178,6 +178,12 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
             
             _logger.Trace($"Generated {result.Count} query variants for '{fullQuery}': {string.Join(", ", result.Select(v => $"'{v}'"))}");
             
+            // Production telemetry: Track Unicode query generation
+            if (RequiresUnicodeHandling(fullQuery))
+            {
+                _logger.Info($"Unicode query generated: {result.Count} variants for international content");
+            }
+            
             return result;
         }
 
