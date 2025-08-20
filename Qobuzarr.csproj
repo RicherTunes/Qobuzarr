@@ -253,11 +253,18 @@
       <PluginFiles Remove="$(OutputPath)FluentValidation.dll" />
     </ItemGroup>
     
-    <Copy SourceFiles="@(PluginFiles)" DestinationFolder="$(PluginTargetDir)" SkipUnchangedFiles="false" ContinueOnError="false" />
+    <!-- Copy main DLL first (most likely to be locked) -->
+    <Copy SourceFiles="$(OutputPath)$(AssemblyName).dll" DestinationFolder="$(PluginTargetDir)" SkipUnchangedFiles="false" ContinueOnError="true" />
+    <Message Text="   Main DLL copy status: " Importance="high" />
+    <Message Text="   ✅ Copied: $(AssemblyName).dll" Importance="high" Condition="Exists('$(PluginTargetDir)\$(AssemblyName).dll')" />
+    <Warning Text="   ❌ Failed to copy main DLL - Lidarr might be running and have file locked" Condition="!Exists('$(PluginTargetDir)\$(AssemblyName).dll')" />
+    
+    <!-- Copy other files -->
+    <Copy SourceFiles="@(PluginFiles)" DestinationFolder="$(PluginTargetDir)" SkipUnchangedFiles="false" ContinueOnError="true" />
     
     <!-- Verify deployment worked -->
     <Message Text="   Copied: %(PluginFiles.Filename)%(PluginFiles.Extension) ($(PluginTargetDir))" Importance="normal" Condition="Exists('$(PluginTargetDir)\%(PluginFiles.Filename)%(PluginFiles.Extension)')" />
-    <Warning Text="   Failed to copy: %(PluginFiles.Filename)%(PluginFiles.Extension)" Condition="!Exists('$(PluginTargetDir)\%(PluginFiles.Filename)%(PluginFiles.Extension)')" />
+    <Warning Text="   Failed to copy: %(PluginFiles.Filename)%(PluginFiles.Extension) - Check if Lidarr is running" Condition="!Exists('$(PluginTargetDir)\%(PluginFiles.Filename)%(PluginFiles.Extension)')" />
     
     <Message Text="✅ Plugin deployed to: $(PluginTargetDir)" Importance="high" />
     <Message Text="   - $(AssemblyName).dll" Importance="normal" />
