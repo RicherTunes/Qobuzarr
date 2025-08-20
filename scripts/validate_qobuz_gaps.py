@@ -17,6 +17,7 @@ import json
 import hashlib
 import argparse
 import time
+import re
 from dataclasses import dataclass, asdict
 from typing import List, Dict, Optional, Tuple
 import logging
@@ -72,7 +73,7 @@ class QobuzSearchValidator:
         validation_notes = []
         
         # 1. Test the Unicode system variants first
-        logger.info(f"🔍 Testing Unicode variants for: {artist} - {album}")
+        logger.info(f"INFO Testing Unicode variants for: {artist} - {album}")
         
         for variant in unicode_variants:
             result = await self.search_qobuz(variant, "unicode_variant")
@@ -80,11 +81,11 @@ class QobuzSearchValidator:
             
             if result.found:
                 working_queries.append(variant)
-                logger.info(f"✅ Unicode variant works: '{variant}' → {result.result_count} results")
+                logger.info(f"SUCCESS Unicode variant works: '{variant}' → {result.result_count} results")
         
         # 2. If Unicode variants fail, try manual strategies
         if not working_queries:
-            logger.info(f"⚠️ All Unicode variants failed, trying manual strategies...")
+            logger.info(f"WARNING All Unicode variants failed, trying manual strategies...")
             
             manual_strategies = self.generate_manual_search_strategies(artist, album)
             
@@ -95,11 +96,11 @@ class QobuzSearchValidator:
                 if result.found:
                     working_queries.append(query)
                     validation_notes.append(f"Manual strategy '{strategy_name}' works: '{query}'")
-                    logger.info(f"✅ Manual strategy works: {strategy_name} → '{query}'")
+                    logger.info(f"SUCCESS Manual strategy works: {strategy_name} → '{query}'")
         
         # 3. Advanced strategies if still failing
         if not working_queries:
-            logger.info(f"⚠️ Manual strategies failed, trying advanced approaches...")
+            logger.info(f"WARNING Manual strategies failed, trying advanced approaches...")
             
             advanced_strategies = self.generate_advanced_search_strategies(artist, album)
             
@@ -110,7 +111,7 @@ class QobuzSearchValidator:
                 if result.found:
                     working_queries.append(query)
                     validation_notes.append(f"Advanced strategy '{strategy_name}' works: '{query}'")
-                    logger.info(f"✅ Advanced strategy works: {strategy_name} → '{query}'")
+                    logger.info(f"SUCCESS Advanced strategy works: {strategy_name} → '{query}'")
         
         # Determine if gap is real
         predicted_gap = True  # We're testing predicted gaps
@@ -120,7 +121,7 @@ class QobuzSearchValidator:
         best_working_query = working_queries[0] if working_queries else None
         
         if gap_confirmed:
-            validation_notes.append("🔴 GAP CONFIRMED: Album not found with any strategy")
+            validation_notes.append("CONFIRMED GAP CONFIRMED: Album not found with any strategy")
         elif working_queries:
             validation_notes.append(f"🟡 FALSE POSITIVE: Album found with manual strategy")
         
@@ -159,7 +160,7 @@ class QobuzSearchValidator:
         elif self.auth_method == 'app_only':
             params.update(self.auth_params)
         else:
-            logger.warning("⚠️ No Qobuz authentication configured - using anonymous access")
+            logger.warning("WARNING No Qobuz authentication configured - using anonymous access")
         
         try:
             async with aiohttp.ClientSession() as session:
@@ -167,7 +168,7 @@ class QobuzSearchValidator:
                     response_time = (time.time() - start_time) * 1000
                     
                     if response.status != 200:
-                        logger.warning(f"⚠️ Qobuz API error {response.status} for query: '{query}'")
+                        logger.warning(f"WARNING Qobuz API error {response.status} for query: '{query}'")
                         return QobuzSearchResult(
                             query=query,
                             found=False,
@@ -190,7 +191,7 @@ class QobuzSearchValidator:
                     )
                     
         except Exception as e:
-            logger.error(f"❌ Search failed for '{query}': {e}")
+            logger.error(f"ERROR Search failed for '{query}': {e}")
             return QobuzSearchResult(
                 query=query,
                 found=False,
@@ -324,7 +325,7 @@ class GapValidator:
                                     max_validations: Optional[int] = None) -> List[GapValidationResult]:
         """Load gaps from analysis file and validate them"""
         
-        logger.info(f"📖 Loading gaps from: {gaps_file}")
+        logger.info(f"LOADING Loading gaps from: {gaps_file}")
         
         with open(gaps_file, 'r', encoding='utf-8') as f:
             data = json.load(f)
@@ -332,21 +333,21 @@ class GapValidator:
         gaps = data.get('gaps', [])
         
         if not gaps:
-            logger.warning("❌ No gaps found in file")
+            logger.warning("ERROR No gaps found in file")
             return []
         
         if max_validations:
             gaps = gaps[:max_validations]
-            logger.info(f"🎯 Limiting validation to {max_validations} gaps")
+            logger.info(f"NEXT Limiting validation to {max_validations} gaps")
         
-        logger.info(f"🔍 Validating {len(gaps)} predicted gaps against Qobuz API")
-        print("⚠️ Note: This will take time due to 1-second rate limiting per Qobuz API requirements")
+        logger.info(f"INFO Validating {len(gaps)} predicted gaps against Qobuz API")
+        print("WARNING Note: This will take time due to 1-second rate limiting per Qobuz API requirements")
         
         validation_results = []
         
         for i, gap_data in enumerate(gaps, 1):
             try:
-                logger.info(f"📋 Validating {i}/{len(gaps)}: {gap_data['artist']} - {gap_data['album']}")
+                logger.info(f"VALIDATING Validating {i}/{len(gaps)}: {gap_data['artist']} - {gap_data['album']}")
                 
                 result = await self.validator.validate_search_strategies(
                     gap_data['artist'],
@@ -361,13 +362,13 @@ class GapValidator:
                 if i % 10 == 0:
                     confirmed_gaps = sum(1 for r in validation_results if r.gap_confirmed)
                     false_positives = sum(1 for r in validation_results if not r.gap_confirmed)
-                    logger.info(f"📊 Progress: {i}/{len(gaps)} | Confirmed gaps: {confirmed_gaps} | False positives: {false_positives}")
+                    logger.info(f"INFO Progress: {i}/{len(gaps)} | Confirmed gaps: {confirmed_gaps} | False positives: {false_positives}")
                 
             except Exception as e:
-                logger.error(f"❌ Error validating {gap_data['artist']} - {gap_data['album']}: {e}")
+                logger.error(f"ERROR Error validating {gap_data['artist']} - {gap_data['album']}: {e}")
                 continue
         
-        logger.info(f"🏁 Validation complete: {len(validation_results)} results")
+        logger.info(f"COMPLETE Validation complete: {len(validation_results)} results")
         return validation_results
     
     def analyze_validation_results(self, results: List[GapValidationResult]) -> Dict:
@@ -485,7 +486,7 @@ async def main():
                        help='Qobuz app ID')
     parser.add_argument('--qobuz-app-secret', default=config['qobuz_app_secret'],
                        help='Qobuz app secret')
-    parser.add_argument('--user-token', default=config['qobuz_user_token'],
+    parser.add_argument('--user-token', default=config['qobuz_user_auth_token'],
                        help='Qobuz user token (optional)')
     parser.add_argument('--max-validations', type=int, default=50,
                        help='Maximum number of gaps to validate (due to rate limiting)')
@@ -495,17 +496,17 @@ async def main():
     args = parser.parse_args()
     
     if not args.qobuz_app_id or not args.qobuz_app_secret:
-        print("❌ Error: Qobuz credentials required")
+        print("ERROR Error: Qobuz credentials required")
         print("Set environment variables: QOBUZ_APP_ID, QOBUZ_APP_SECRET")
         print("Or use --qobuz-app-id and --qobuz-app-secret arguments")
         return
     
-    print("🔍 Qobuz Gap Validation")
+    print("INFO Qobuz Gap Validation")
     print("=" * 50)
-    print(f"📊 Gaps file: {args.gaps_file}")
-    print(f"🔑 Qobuz App ID: {args.qobuz_app_id[:8]}...")
-    print(f"📈 Max validations: {args.max_validations}")
-    print(f"⏱️ Estimated time: {args.max_validations * 1.2 / 60:.1f} minutes")
+    print(f"INFO Gaps file: {args.gaps_file}")
+    print(f"AUTH Qobuz App ID: {args.qobuz_app_id[:8]}...")
+    print(f"MAX Max validations: {args.max_validations}")
+    print(f"TIME Estimated time: {args.max_validations * 1.2 / 60:.1f} minutes")
     print("=" * 50)
     
     validator = GapValidator(config)
@@ -518,7 +519,7 @@ async def main():
         )
         
         if not results:
-            print("❌ No gaps validated")
+            print("ERROR No gaps validated")
             return
         
         # Analyze results  
@@ -533,7 +534,7 @@ async def main():
         
         # Display summary
         summary = analysis['validation_summary']
-        print(f"\n📊 VALIDATION RESULTS")
+        print(f"\nINFO VALIDATION RESULTS")
         print("=" * 50)
         print(f"Total validated: {summary['total_validated']}")
         print(f"Confirmed gaps: {summary['confirmed_gaps']}")
@@ -543,21 +544,21 @@ async def main():
         # Show successful manual strategies
         manual_strategies = analysis['false_positive_analysis']['successful_manual_strategies']
         if manual_strategies:
-            print(f"\n🔧 MANUAL STRATEGIES THAT WORK:")
+            print(f"\nIMPROVEMENTS MANUAL STRATEGIES THAT WORK:")
             for strategy, count in list(manual_strategies.items())[:5]:
                 print(f"   • {strategy}: worked for {count} albums")
         
         # Show system improvements
         improvements = analysis['unicode_system_improvements']
         if improvements:
-            print(f"\n🎯 RECOMMENDED UNICODE SYSTEM IMPROVEMENTS:")
+            print(f"\nNEXT RECOMMENDED UNICODE SYSTEM IMPROVEMENTS:")
             for improvement in improvements:
                 print(f"   • {improvement}")
         
         # Show examples
         fp_examples = analysis['false_positive_analysis']['examples']
         if fp_examples:
-            print(f"\n💡 FALSE POSITIVE EXAMPLES (Unicode system can be improved):")
+            print(f"\nEXAMPLES FALSE POSITIVE EXAMPLES (Unicode system can be improved):")
             for example in fp_examples[:3]:
                 print(f"   • {example['artist']} - {example['album']}")
                 print(f"     Working query: '{example['working_manual_query']}'")
@@ -565,21 +566,21 @@ async def main():
         
         gap_examples = analysis['confirmed_gaps_analysis']['examples']
         if gap_examples:
-            print(f"\n🔴 CONFIRMED GAPS (truly missing from Qobuz):")
+            print(f"\nCONFIRMED CONFIRMED GAPS (truly missing from Qobuz):")
             for example in gap_examples[:3]:
                 print(f"   • {example['artist']} - {example['album']}")
                 print(f"     Tried: {len(example['variants_tried'])} different queries")
         
-        print(f"\n💾 Detailed results saved to: {args.output}")
+        print(f"\nSAVED Detailed results saved to: {args.output}")
         
         if improvements:
-            print(f"\n🎯 Next steps:")
+            print(f"\nNEXT Next steps:")
             print("1. Implement recommended Unicode system improvements")
             print("2. Run: python scripts/generate_complex_test_cases.py")
             print("3. Add new test cases to ensure improvements work")
         
     except FileNotFoundError as e:
-        print(f"❌ Error: {e}")
+        print(f"ERROR Error: {e}")
         print("First run: python scripts/analyze_unicode_gaps.py")
     except Exception as e:
         logger.error(f"💥 Validation failed: {e}")
