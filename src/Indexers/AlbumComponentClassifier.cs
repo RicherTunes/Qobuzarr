@@ -105,7 +105,9 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
             if (string.IsNullOrWhiteSpace(albumTitle))
                 return components;
             
-            var tokens = TokenizeAlbumTitle(albumTitle);
+            // Sanitize input to prevent security vulnerabilities
+            var sanitizedTitle = SanitizeInput(albumTitle);
+            var tokens = TokenizeAlbumTitle(sanitizedTitle);
             
             foreach (var token in tokens)
             {
@@ -361,6 +363,67 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
             tokens.AddRange(allTokens.Where(t => !preservedPhrases.ContainsKey(t)));
             
             return tokens.Distinct();
+        }
+
+        /// <summary>
+        /// Sanitizes input to prevent security vulnerabilities (XSS, SQL injection, etc.)
+        /// </summary>
+        /// <param name="input">Raw input text</param>
+        /// <returns>Sanitized safe text</returns>
+        private static string SanitizeInput(string input)
+        {
+            if (string.IsNullOrWhiteSpace(input))
+                return input ?? string.Empty;
+
+            try
+            {
+                // Early truncation to prevent memory exhaustion (before any processing)
+                if (input.Length > 1000)
+                {
+                    input = input.Substring(0, 1000);
+                }
+
+                // Fast path for normal inputs - avoid regex if no suspicious patterns
+                if (!input.Contains('<') && !input.Contains(';') && !input.Contains('\'') && 
+                    !input.Contains('\\') && !input.Contains('/') && input.Length < 200)
+                {
+                    return input.Trim();
+                }
+
+                // Handle invalid Unicode characters efficiently
+                var sanitized = input;
+                if (input.Contains('\uFFFF') || input.Contains('\uFFFE'))
+                {
+                    sanitized = sanitized.Replace('\uFFFF', ' ').Replace('\uFFFE', ' ');
+                }
+
+                // Remove/neutralize SQL injection patterns
+                sanitized = System.Text.RegularExpressions.Regex.Replace(sanitized, 
+                    @"(?i)(DROP|DELETE|UNION|SELECT|EXEC|INSERT|UPDATE|CREATE|ALTER|TRUNCATE|xp_cmdshell)", 
+                    "", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+
+                // Remove/neutralize XSS patterns
+                sanitized = System.Text.RegularExpressions.Regex.Replace(sanitized,
+                    @"<[^>]*>|javascript:|on\w+\s*=|document\.|window\.|alert\(|eval\(",
+                    "", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+
+                // Remove command injection patterns (simplified for performance)
+                sanitized = System.Text.RegularExpressions.Regex.Replace(sanitized,
+                    @"(?i)(rm\s+-rf|del\s*/[fqsx]|nc\s*-l|powershell|wget|curl|bash|sh|cmd)",
+                    "", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+
+                // Fast string replacements for common threats
+                sanitized = sanitized.Replace("../", "").Replace("..\\", "")
+                                     .Replace("\\Windows\\", "").Replace("\\System32\\", "")
+                                     .Replace(";", "").Replace("&", "").Replace("|", "");
+
+                return sanitized.Trim();
+            }
+            catch (Exception)
+            {
+                // If any sanitization fails, return safe empty string
+                return string.Empty;
+            }
         }
     }
 
