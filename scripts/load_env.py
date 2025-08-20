@@ -55,12 +55,15 @@ def get_config() -> dict:
         'lidarr_url': os.getenv('LIDARR_URL', 'http://192.168.2.50:8686'),
         'lidarr_api_key': os.getenv('LIDARR_API_KEY', 'ca6a612bb8f84d9c976fcac967331da5'),
         
-        # Qobuz configuration
+        # Qobuz configuration  
         'qobuz_app_id': os.getenv('QOBUZ_APP_ID'),
         'qobuz_app_secret': os.getenv('QOBUZ_APP_SECRET'),
+        
+        # Authentication methods (same as plugin)
         'qobuz_email': os.getenv('QOBUZ_EMAIL'),
-        'qobuz_password': os.getenv('QOBUZ_PASSWORD'),
-        'qobuz_user_token': os.getenv('QOBUZ_USER_TOKEN'),
+        'qobuz_password': os.getenv('QOBUZ_PASSWORD'),  # MD5 hashed
+        'qobuz_user_id': os.getenv('QOBUZ_USER_ID'),
+        'qobuz_user_auth_token': os.getenv('QOBUZ_USER_AUTH_TOKEN'),
         
         # Analysis configuration
         'default_complexity_threshold': float(os.getenv('DEFAULT_COMPLEXITY_THRESHOLD', '0.4')),
@@ -73,32 +76,80 @@ def get_config() -> dict:
     }
 
 def check_credentials() -> tuple[bool, bool, list[str]]:
-    """Check which credentials are available"""
+    """Check which credentials are available (matching plugin authentication logic)"""
     
     config = get_config()
     
     # Check Lidarr credentials
     has_lidarr = bool(config['lidarr_url'] and config['lidarr_api_key'])
     
-    # Check Qobuz credentials  
-    has_qobuz = bool(config['qobuz_app_id'] and config['qobuz_app_secret'])
+    # Check Qobuz app credentials
+    has_qobuz_app = bool(config['qobuz_app_id'] and config['qobuz_app_secret'])
+    
+    # Check user authentication (following plugin's precedence logic)
+    has_email_auth = bool(config['qobuz_email'] and config['qobuz_password'])
+    has_token_auth = bool(config['qobuz_user_id'] and config['qobuz_user_auth_token'])
+    
+    # Email auth takes precedence over token auth (same as plugin)
+    has_user_auth = has_email_auth or (has_token_auth and not has_email_auth)
+    
+    # Full Qobuz capability requires both app credentials and user auth
+    has_qobuz = has_qobuz_app and has_user_auth
     
     # Generate status messages
     messages = []
     
     if has_lidarr:
-        messages.append(f"✅ Lidarr: {config['lidarr_url']}")
+        messages.append(f"OK Lidarr: {config['lidarr_url']}")
     else:
-        messages.append("❌ Lidarr: Missing URL or API key")
+        messages.append("ERROR Lidarr: Missing URL or API key")
+    
+    if has_qobuz_app:
+        messages.append(f"OK Qobuz App: ID {config['qobuz_app_id'][:8]}...")
+    else:
+        messages.append("ERROR Qobuz App: Missing app_id or app_secret")
+    
+    if has_email_auth:
+        messages.append(f"OK Qobuz Auth: Email method ({config['qobuz_email']})")
+    elif has_token_auth:
+        messages.append(f"OK Qobuz Auth: Token method (user_id: {config['qobuz_user_id'][:8]}...)")
+    else:
+        messages.append("ERROR Qobuz Auth: Missing user credentials (email+password OR user_id+user_auth_token)")
     
     if has_qobuz:
-        messages.append(f"✅ Qobuz: App ID {config['qobuz_app_id'][:8]}...")
-        if config['qobuz_user_token']:
-            messages.append("✅ Qobuz: User token available")
-    else:
-        messages.append("❌ Qobuz: Missing app credentials (validation will be skipped)")
+        messages.append("READY Ready for full Qobuz validation!")
+    elif has_qobuz_app:
+        messages.append("WARNING Qobuz validation limited (missing user auth)")
     
     return has_lidarr, has_qobuz, messages
+
+def get_qobuz_auth_method(config: dict) -> tuple[str, dict]:
+    """Determine Qobuz authentication method and return auth params"""
+    
+    # Email auth takes precedence (same as plugin logic)
+    if config['qobuz_email'] and config['qobuz_password']:
+        return 'email', {
+            'username': config['qobuz_email'],
+            'password': config['qobuz_password'],  # Should be MD5 hashed
+            'app_id': config['qobuz_app_id']
+        }
+    
+    # Token auth fallback
+    elif config['qobuz_user_id'] and config['qobuz_user_auth_token']:
+        return 'token', {
+            'user_id': config['qobuz_user_id'],
+            'user_auth_token': config['qobuz_user_auth_token'],
+            'app_id': config['qobuz_app_id']
+        }
+    
+    # App-only (limited access)
+    elif config['qobuz_app_id']:
+        return 'app_only', {
+            'app_id': config['qobuz_app_id']
+        }
+    
+    else:
+        return 'none', {}
 
 if __name__ == "__main__":
     """Test configuration loading"""
@@ -120,6 +171,6 @@ if __name__ == "__main__":
     if has_lidarr and has_qobuz:
         print("\n🎉 Ready for full pipeline!")
     elif has_lidarr:
-        print("\n⚠️ Ready for extraction + analysis (no Qobuz validation)")
+        print("\nWARNING Ready for extraction + analysis (no Qobuz validation)")
     else:
-        print("\n❌ Missing credentials - check .env file")
+        print("\nERROR Missing credentials - check .env file")

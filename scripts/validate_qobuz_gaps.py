@@ -53,13 +53,15 @@ class GapValidationResult:
     validation_notes: List[str]
 
 class QobuzSearchValidator:
-    """Validates search gaps against actual Qobuz API"""
+    """Validates search gaps against actual Qobuz API (matches plugin authentication)"""
     
-    def __init__(self, app_id: str, app_secret: str, user_token: Optional[str] = None):
-        self.app_id = app_id
-        self.app_secret = app_secret  
-        self.user_token = user_token
+    def __init__(self, config: dict):
+        self.config = config
         self.base_url = "https://www.qobuz.com/api.json/0.2"
+        
+        # Determine authentication method (same logic as plugin)
+        from load_env import get_qobuz_auth_method
+        self.auth_method, self.auth_params = get_qobuz_auth_method(config)
         
     async def validate_search_strategies(self, artist: str, album: str, 
                                        unicode_variants: List[str]) -> GapValidationResult:
@@ -146,13 +148,18 @@ class QobuzSearchValidator:
         url = f"{self.base_url}/album/search"
         params = {
             'query': query,
-            'limit': 20,
-            'app_id': self.app_id
+            'limit': 20
         }
         
-        # Add authentication if available
-        if self.user_token:
-            params['user_auth_token'] = self.user_token
+        # Add authentication based on method (same as plugin)
+        if self.auth_method == 'email':
+            params.update(self.auth_params)
+        elif self.auth_method == 'token':
+            params.update(self.auth_params)
+        elif self.auth_method == 'app_only':
+            params.update(self.auth_params)
+        else:
+            logger.warning("⚠️ No Qobuz authentication configured - using anonymous access")
         
         try:
             async with aiohttp.ClientSession() as session:
@@ -310,8 +317,8 @@ class QobuzSearchValidator:
 class GapValidator:
     """Main validator that processes gap predictions and validates them"""
     
-    def __init__(self, qobuz_app_id: str, qobuz_app_secret: str, user_token: Optional[str] = None):
-        self.validator = QobuzSearchValidator(qobuz_app_id, qobuz_app_secret, user_token)
+    def __init__(self, config: dict):
+        self.validator = QobuzSearchValidator(config)
         
     async def validate_gaps_from_file(self, gaps_file: str, 
                                     max_validations: Optional[int] = None) -> List[GapValidationResult]:
@@ -501,7 +508,7 @@ async def main():
     print(f"⏱️ Estimated time: {args.max_validations * 1.2 / 60:.1f} minutes")
     print("=" * 50)
     
-    validator = GapValidator(args.qobuz_app_id, args.qobuz_app_secret, args.user_token)
+    validator = GapValidator(config)
     
     try:
         # Validate gaps
