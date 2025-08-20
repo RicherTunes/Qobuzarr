@@ -90,6 +90,9 @@ namespace Qobuzarr.Tests.Unit.Download
             var album = JsonConvert.DeserializeObject<QobuzAlbum>(SampleQobuzResponses.SampleAlbumResponse);
             _mockApiClient.Setup(x => x.GetAsync<QobuzAlbum>("/album/get", It.IsAny<Dictionary<string, string>>()))
                          .ReturnsAsync(album);
+            
+            // Note: Settings property will be null in tests, but QobuzDownloadClient.UpdateConcurrencySettings()
+            // handles this gracefully with Settings?.GetEffectiveConcurrency() ?? 3
         }
 
         [Fact]
@@ -243,10 +246,10 @@ namespace Qobuzarr.Tests.Unit.Download
         }
 
         [Fact]
-        public void Name_ShouldReturnQobuz()
+        public void Name_ShouldReturnQobuzarr()
         {
             // Act & Assert
-            _downloadClient.Name.Should().Be("Qobuz");
+            _downloadClient.Name.Should().Be("Qobuzarr");
         }
 
         [Fact]

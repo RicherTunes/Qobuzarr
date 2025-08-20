@@ -10,12 +10,14 @@ using NzbDrone.Common.Disk;
 using NzbDrone.Core.Localization;
 using NzbDrone.Common.Cache;
 using Lidarr.Plugin.Qobuzarr.Models.Authentication;
+using Lidarr.Plugin.Qobuzarr.Abstractions;
 
 namespace Qobuzarr.Tests.Fixtures
 {
     public abstract class TestFixtureBase : IDisposable
     {
         protected Mock<Logger> MockLogger { get; private set; }
+        protected Mock<IQobuzLogger> MockQobuzLogger { get; private set; }
         protected Mock<IHttpClient> MockHttpClient { get; private set; }
         protected Mock<IConfigService> MockConfigService { get; private set; }
         protected Mock<IDiskProvider> MockDiskProvider { get; private set; }
@@ -32,6 +34,7 @@ namespace Qobuzarr.Tests.Fixtures
         private void SetupMocks()
         {
             MockLogger = new Mock<Logger>();
+            MockQobuzLogger = new Mock<IQobuzLogger>();
             MockHttpClient = new Mock<IHttpClient>();
             MockConfigService = new Mock<IConfigService>();
             MockDiskProvider = new Mock<IDiskProvider>();

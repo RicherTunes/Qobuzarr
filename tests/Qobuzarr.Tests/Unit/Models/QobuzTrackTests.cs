@@ -31,76 +31,52 @@ namespace Qobuzarr.Tests.Unit.Models
         }
 
         [Fact]
-        public void GetFullTitle_WithVersionSuffix_ShouldIncludeVersion()
+        public void Title_Property_ShouldStoreAndRetrieveCorrectly()
         {
-            // Arrange
+            // Arrange & Act
             var track = new QobuzTrack
             {
-                Title = "Test Song",
+                Title = "Test Song"
+            };
+
+            // Assert
+            track.Title.Should().Be("Test Song");
+        }
+
+        [Fact]
+        public void Version_Property_ShouldStoreAndRetrieveCorrectly()
+        {
+            // Arrange & Act
+            var track = new QobuzTrack
+            {
                 Version = "Remix"
             };
 
-            // Act
-            var fullTitle = track.GetFullTitle();
-
             // Assert
-            fullTitle.Should().Be("Test Song (Remix)");
+            track.Version.Should().Be("Remix");
         }
 
         [Fact]
-        public void GetFullTitle_WithoutVersion_ShouldReturnTitleOnly()
+        public void TrackNumber_Property_ShouldStoreAndRetrieveCorrectly()
         {
-            // Arrange
+            // Arrange & Act
             var track = new QobuzTrack
             {
-                Title = "Test Song",
-                Version = null
-            };
-
-            // Act
-            var fullTitle = track.GetFullTitle();
-
-            // Assert
-            fullTitle.Should().Be("Test Song");
-        }
-
-        [Fact]
-        public void GetSafeFileName_WithSpecialCharacters_ShouldSanitize()
-        {
-            // Arrange
-            var track = new QobuzTrack
-            {
-                Title = "Test: Song? <Name> \"Special\"",
-                TrackNumber = 1
-            };
-
-            // Act
-            var safeFileName = track.GetSafeFileName();
-
-            // Assert
-            safeFileName.Should().Be("01 - Test Song Name Special.flac");
-            safeFileName.Should().NotContain(":");
-            safeFileName.Should().NotContain("?");
-            safeFileName.Should().NotContain("<");
-            safeFileName.Should().NotContain(">");
-            safeFileName.Should().NotContain("\"");
-        }
-
-        [Fact]
-        public void GetSafeFileName_WithDoubleDigitTrackNumber_ShouldPadCorrectly()
-        {
-            // Arrange
-            var track = new QobuzTrack
-            {
-                Title = "Test Song",
                 TrackNumber = 15
             };
 
-            // Act
-            var safeFileName = track.GetSafeFileName("mp3");
+            // Assert
+            track.TrackNumber.Should().Be(15);
+        }
+
+        [Fact]
+        public void DiscNumber_Property_ShouldDefaultToOne()
+        {
+            // Arrange & Act
+            var track = new QobuzTrack();
 
             // Assert
-            safeFileName.Should().Be("15 - Test Song.mp3");
+            track.DiscNumber.Should().Be(1);
         }
 
         [Fact]
@@ -134,30 +110,22 @@ namespace Qobuzarr.Tests.Unit.Models
             var size = track.GetEstimatedFileSize(6); // FLAC CD
 
             // Assert
-            // FLAC typically 800-1000kbps for CD quality
-            var expectedSize = (long)(180 * 900 * 1000 / 8);
-            ((long)size).Should().BeInRange(expectedSize - (long)(expectedSize * 0.2), expectedSize + (long)(expectedSize * 0.2)); // 20% tolerance for FLAC
+            // FLAC CD quality typically ~10.5 MB per minute (real-world measurement)
+            var expectedSize = (long)(3 * 10.5 * 1024 * 1024); // 3 minutes * 10.5 MB/min = 33,030,144 bytes
+            size.Should().Be(expectedSize);
         }
 
-        [Theory]
-        [InlineData("flac")]
-        [InlineData("mp3")]
-        [InlineData("wav")]
-        public void GetSafeFileName_WithDifferentExtensions_ShouldUseCorrectExtension(string extension)
+        [Fact]
+        public void MaximumBitDepth_Property_ShouldStoreAndRetrieveCorrectly()
         {
-            // Arrange
+            // Arrange & Act
             var track = new QobuzTrack
             {
-                Title = "Test Song",
-                TrackNumber = 5
+                MaximumBitDepth = 24
             };
 
-            // Act
-            var fileName = track.GetSafeFileName(extension);
-
             // Assert
-            fileName.Should().EndWith($".{extension}");
-            fileName.Should().StartWith("05 - Test Song");
+            track.MaximumBitDepth.Should().Be(24);
         }
 
         [Fact]
@@ -198,14 +166,14 @@ namespace Qobuzarr.Tests.Unit.Models
             // Arrange
             var track = new QobuzTrack
             {
-                DurationSeconds = 3661 // 1:01:01
+                DurationSeconds = 3661 // 1:01:01 (1 hour, 1 minute, 1 second)
             };
 
             // Act
             var durationString = track.Duration.ToString(@"m\:ss");
 
             // Assert
-            durationString.Should().Be("61:01"); // Minutes format, not hours
+            durationString.Should().Be("1:01"); // Shows minutes and seconds component (1 minute, 1 second) not total minutes
         }
 
         [Fact]

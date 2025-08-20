@@ -46,13 +46,13 @@ namespace Qobuzarr.Tests.Unit.API
         }
 
         [Fact]
-        public void SetSession_WithNullSession_ShouldClearSession()
+        public void ClearSession_ShouldClearSession()
         {
             // Arrange
             _apiClient.SetSession(_testSession);
 
             // Act
-            _apiClient.SetSession(null);
+            _apiClient.ClearSession();
 
             // Assert
             // Session should be cleared (verified by subsequent API calls)
