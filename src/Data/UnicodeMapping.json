@@ -1,0 +1,209 @@
+{
+  "metadata": {
+    "description": "Unicode mapping data for international artist and album search optimization",
+    "version": "1.0.0",
+    "created": "2025-08-20",
+    "purpose": "Solve missed album searches due to special characters and Unicode issues"
+  },
+  "transliteration_rules": {
+    "cyrillic_to_latin": {
+      "common_artists": {
+        "Мумий Тролль": "Mumiy Troll",
+        "Кино": "Kino", 
+        "ДДТ": "DDT",
+        "Агата Кристи": "Agata Kristi",
+        "Nautilus Pompilius": "Nautilus Pompilius",
+        "Земфира": "Zemfira",
+        "Би-2": "Bi-2",
+        "Сплин": "Splin",
+        "Чайф": "Chayf",
+        "Машина Времени": "Mashina Vremeni"
+      },
+      "character_map": {
+        "а": "a", "б": "b", "в": "v", "г": "g", "д": "d", "е": "e", "ё": "yo",
+        "ж": "zh", "з": "z", "и": "i", "й": "y", "к": "k", "л": "l", "м": "m",
+        "н": "n", "о": "o", "п": "p", "р": "r", "с": "s", "т": "t", "у": "u",
+        "ф": "f", "х": "kh", "ц": "ts", "ч": "ch", "ш": "sh", "щ": "shch",
+        "ъ": "", "ы": "y", "ь": "", "э": "e", "ю": "yu", "я": "ya"
+      }
+    },
+    "greek_to_latin": {
+      "common_artists": {
+        "Μίκης Θεοδωράκης": "Mikis Theodorakis",
+        "Νάνα Μούσχουρη": "Nana Mouskouri"
+      },
+      "character_map": {
+        "α": "a", "β": "b", "γ": "g", "δ": "d", "ε": "e", "ζ": "z", "η": "i",
+        "θ": "th", "ι": "i", "κ": "k", "λ": "l", "μ": "m", "ν": "n", "ξ": "x",
+        "ο": "o", "π": "p", "ρ": "r", "σ": "s", "τ": "t", "υ": "y", "φ": "f",
+        "χ": "ch", "ψ": "ps", "ω": "o"
+      }
+    },
+    "japanese_to_latin": {
+      "common_artists": {
+        "坂本龍一": "Ryuichi Sakamoto",
+        "久石譲": "Joe Hisaishi",
+        "松本伊代": "Matsumoto Iyo"
+      }
+    }
+  },
+  "artist_corrections": {
+    "nordic": {
+      "Sigur Rós": ["Sigur Ros", "Sigurros", "Sigur_Ros"],
+      "Björk": ["Bjork", "Bjoerk"],
+      "Röyksopp": ["Royksopp"],
+      "Trentemøller": ["Trentemoller"],
+      "Múm": ["Mum"],
+      "Ólafur Arnalds": ["Olafur Arnalds"],
+      "Jónsi": ["Jonsi"],
+      "Sónar": ["Sonar"],
+      "Ásgeir": ["Asgeir"]
+    },
+    "german": {
+      "Mötley Crüe": ["Motley Crue", "Motley_Crue"],
+      "Blue Öyster Cult": ["Blue Oyster Cult", "BOC", "Blue_Oyster_Cult"],
+      "Hüsker Dü": ["Husker Du", "Husker_Du"],
+      "Motörhead": ["Motorhead", "Motor_Head"],
+      "Kraftwerk": ["Kraftwerk"],
+      "Rammstein": ["Rammstein"]
+    },
+    "french": {
+      "Café Tacvba": ["Cafe Tacvba", "Cafe_Tacvba"],
+      "Françoise Hardy": ["Francoise Hardy"],
+      "Serge Gainsbourg": ["Serge Gainsbourg"],
+      "MC Solaar": ["MC Solaar", "MC_Solaar"]
+    },
+    "spanish": {
+      "Maná": ["Mana"],
+      "Babasónicos": ["Babasonicos"],
+      "Héctor Lavoe": ["Hector Lavoe"],
+      "José José": ["Jose Jose"]
+    },
+    "portuguese": {
+      "Caetano Veloso": ["Caetano Veloso"],
+      "João Gilberto": ["Joao Gilberto"],
+      "Antônio Carlos Jobim": ["Antonio Carlos Jobim"]
+    }
+  },
+  "album_corrections": {
+    "common_patterns": {
+      "Ágætis byrjun": ["Agaetis byrjun", "Agatis Byrjun"],
+      "Takk...": ["Takk", "Takk..."],
+      "Vespertine": ["Vespertine"],
+      "Odelay": ["Odelay"],
+      "Naïve": ["Naive"]
+    },
+    "special_characters": {
+      "parenthetical_removal": {
+        "pattern": "\\s*\\([^)]*\\)\\s*$",
+        "description": "Remove trailing parentheses like (Deluxe Edition)"
+      },
+      "bracket_removal": {
+        "pattern": "\\s*\\[[^\\]]*\\]\\s*$",
+        "description": "Remove trailing brackets like [Remastered]"
+      },
+      "year_removal": {
+        "pattern": "\\s*\\b(19|20)\\d{2}\\b\\s*",
+        "description": "Remove standalone years that interfere with search"
+      }
+    }
+  },
+  "search_strategies": {
+    "priority_order": [
+      "original",
+      "known_correction", 
+      "ascii_folded",
+      "cyrillic_transliterated",
+      "parentheticals_removed",
+      "component_search"
+    ],
+    "complexity_thresholds": {
+      "requires_unicode_handling": {
+        "has_non_ascii": true,
+        "has_known_problematic_artist": true,
+        "has_diacritics": true,
+        "has_cyrillic": true
+      }
+    }
+  },
+  "test_cases": {
+    "known_difficult": [
+      {
+        "artist": "Sigur Rós",
+        "album": "Ágætis byrjun",
+        "expected_variants": [
+          "Sigur Rós Ágætis byrjun",
+          "Sigur Ros Agaetis byrjun", 
+          "Sigurros Agatis Byrjun"
+        ],
+        "complexity": "International"
+      },
+      {
+        "artist": "Björk",
+        "album": "Homogenic",
+        "expected_variants": [
+          "Björk Homogenic",
+          "Bjork Homogenic"
+        ],
+        "complexity": "International"
+      },
+      {
+        "artist": "Café Tacvba",
+        "album": "Re",
+        "expected_variants": [
+          "Café Tacvba Re",
+          "Cafe Tacvba Re"
+        ],
+        "complexity": "International"
+      },
+      {
+        "artist": "Мумий Тролль",
+        "album": "Икра",
+        "expected_variants": [
+          "Мумий Тролль Икра",
+          "Mumiy Troll Ikra"
+        ],
+        "complexity": "Cyrillic"
+      },
+      {
+        "artist": "Mötley Crüe",
+        "album": "Dr. Feelgood",
+        "expected_variants": [
+          "Mötley Crüe Dr. Feelgood",
+          "Motley Crue Dr. Feelgood"
+        ],
+        "complexity": "International"
+      },
+      {
+        "artist": "Various Artists",
+        "album": "Café del Mar (Chillout Mix)",
+        "expected_variants": [
+          "Various Artists Café del Mar (Chillout Mix)",
+          "Various Artists Cafe del Mar",
+          "Cafe del Mar"
+        ],
+        "complexity": "Complex"
+      }
+    ],
+    "edge_cases": [
+      {
+        "artist": "Sigur Rós",
+        "album": "( )",
+        "description": "Album title is just parentheses",
+        "expected_fallback": "Sigur Ros"
+      },
+      {
+        "artist": "!!!",
+        "album": "Thr!!!er",
+        "description": "Special characters in both artist and album",
+        "expected_fallback": "Thriller"
+      },
+      {
+        "artist": "μ-Ziq",
+        "album": "Lunatic Harness",
+        "description": "Greek letter in artist name",
+        "expected_fallback": "mu-Ziq Lunatic Harness"
+      }
+    ]
+  }
+}
