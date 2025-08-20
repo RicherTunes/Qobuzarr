@@ -179,7 +179,7 @@ class GapAnalyzer:
                                 min_complexity: float = 0.4) -> List[SearchGap]:
         """Analyze library albums for potential Unicode system gaps"""
         
-        logger.info(f"🔍 Analyzing {len(albums)} albums for Unicode gaps")
+        logger.info(f" Analyzing {len(albums)} albums for Unicode gaps")
         logger.info(f"📊 Minimum complexity: {min_complexity}")
         
         gaps = []
@@ -434,7 +434,7 @@ class LibraryGapAnalyzer:
         albums = self.load_library_albums(limit=test_sample, min_complexity=min_complexity)
         
         if not albums:
-            logger.warning("❌ No albums found for analysis")
+            logger.warning("ERROR No albums found for analysis")
             return []
         
         # Analyze for gaps
@@ -515,7 +515,7 @@ class LibraryGapAnalyzer:
         
         return recommendations
 
-async def main():
+def main():
     """Main gap analysis workflow"""
     parser = argparse.ArgumentParser(description="Analyze Unicode system gaps against Lidarr library")
     parser.add_argument('--database', default='scripts/lidarr_library_analysis.db',
@@ -529,7 +529,7 @@ async def main():
     
     args = parser.parse_args()
     
-    print("🔍 Unicode System Gap Analysis")
+    print(" Unicode System Gap Analysis")
     print("=" * 50)
     print(f"📊 Database: {args.database}")
     print(f"🎯 Sample size: {args.test_sample or 'All albums'}")
@@ -560,7 +560,7 @@ async def main():
         print("=" * 50)
         
         if gaps:
-            print(f"🔍 Total gaps found: {len(gaps)}")
+            print(f" Total gaps found: {len(gaps)}")
             print(f"📈 Severity distribution: {report['severity_distribution']}")
             print(f"🔧 Top failure patterns:")
             for pattern, count in list(report['failure_patterns'].items())[:5]:
@@ -590,11 +590,11 @@ async def main():
             print("3. Generate enhanced test cases from confirmed gaps")
         
     except FileNotFoundError as e:
-        print(f"❌ Error: {e}")
+        print(f"ERROR Error: {e}")
         print("First run: python scripts/extract_lidarr_library.py")
     except Exception as e:
-        logger.error(f"💥 Analysis failed: {e}")
+        logger.error(f"ERROR Analysis failed: {e}")
         raise
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    main()
