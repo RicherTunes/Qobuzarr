@@ -7,7 +7,7 @@ import os
 from pathlib import Path
 from typing import Optional
 
-def load_env_file(env_path: str = "scripts/.env") -> bool:
+def load_env_file(env_path: str = ".env") -> bool:
     """Load environment variables from .env file"""
     
     env_file = Path(env_path)
@@ -47,8 +47,9 @@ def load_env_file(env_path: str = "scripts/.env") -> bool:
 def get_config() -> dict:
     """Get configuration from environment variables with defaults"""
     
-    # Try to load .env file
-    load_env_file()
+    # Try to load .env file (check both scripts/.env and .env)
+    if not load_env_file(".env"):
+        load_env_file("scripts/.env")
     
     return {
         # Lidarr configuration
@@ -169,7 +170,7 @@ if __name__ == "__main__":
     print(f"  Validation limit: {config['default_gap_validation_limit']}")
     
     if has_lidarr and has_qobuz:
-        print("\n🎉 Ready for full pipeline!")
+        print("\nSUCCESS Ready for full pipeline!")
     elif has_lidarr:
         print("\nWARNING Ready for extraction + analysis (no Qobuz validation)")
     else:
