@@ -9,8 +9,8 @@
   <ItemGroup>
     <!-- Core Framework -->
     <PackageVersion Include="Newtonsoft.Json" Version="13.0.3" />
-    <!-- NLog 5.0.0 - exact version used by Lidarr 2.13.2.4686 (matches TrevTV's approach) -->
-    <PackageVersion Include="NLog" Version="5.0.0" />
+    <!-- NLog 5.3.4 - needs to be compatible with Lidarr runtime expectations -->
+    <PackageVersion Include="NLog" Version="5.3.4" />
     <PackageVersion Include="FluentValidation" Version="9.5.4" />
     <PackageVersion Include="System.Resources.Extensions" Version="8.0.0" />
     
