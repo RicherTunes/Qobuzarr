@@ -145,9 +145,14 @@ if [ "$NO_BUILD" = false ]; then
     echo -e "${BLUE}🔨 Building...${NC}"
     
     # Override Lidarr assembly version to match target hotio version (like TrevTV does)
-    LIDARR_VERSION_OVERRIDE="2.13.2.4686"
-    echo -e "${BLUE}🔧 Setting Lidarr assembly version to $LIDARR_VERSION_OVERRIDE${NC}"
-    sed -i "s/<AssemblyVersion>[0-9.*]\+<\/AssemblyVersion>/<AssemblyVersion>$LIDARR_VERSION_OVERRIDE<\/AssemblyVersion>/g" ext/Lidarr-source/src/Directory.Build.props
+    # Only apply if Lidarr source exists (not needed for pre-built assemblies)
+    if [ -f "ext/Lidarr-source/src/Directory.Build.props" ]; then
+        LIDARR_VERSION_OVERRIDE="2.13.2.4686"
+        echo -e "${BLUE}🔧 Setting Lidarr assembly version to $LIDARR_VERSION_OVERRIDE${NC}"
+        sed -i "s/<AssemblyVersion>[0-9.*]\+<\/AssemblyVersion>/<AssemblyVersion>$LIDARR_VERSION_OVERRIDE<\/AssemblyVersion>/g" ext/Lidarr-source/src/Directory.Build.props
+    else
+        echo -e "${BLUE}📦 Using pre-built Lidarr assemblies (no version override needed)${NC}"
+    fi
     
     # Prepare build parameters (always suppress analyzers to avoid Lidarr source issues)
     BUILD_PARAMS="Qobuzarr.csproj --configuration $CONFIGURATION --no-restore"
