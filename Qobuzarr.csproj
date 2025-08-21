@@ -96,9 +96,7 @@
     <PackageReference Include="TagLibSharp-Lidarr" />
     <PackageReference Include="Microsoft.ML" />
     <!-- NLog 5.0.0 - exact version matching Lidarr runtime (TrevTV's approach) -->
-    <PackageReference Include="NLog">
-      <ExcludeAssets>runtime</ExcludeAssets>
-    </PackageReference>
+    <PackageReference Include="NLog" />
     <PackageReference Include="FluentValidation" />
     <PackageReference Include="System.Resources.Extensions" />
     <PackageReference Include="ILRepack.Lib.MSBuild.Task" Condition="'$(Configuration)' == 'PluginRelease'">
