@@ -10,6 +10,58 @@ using Lidarr.Plugin.Qobuzarr.Models.Authentication;
 
 namespace Lidarr.Plugin.Qobuzarr.Utilities
 {
+    /// <summary>
+    /// Provides comprehensive testing capabilities for Qobuz API integration and authentication.
+    /// Used for development, debugging, and validation of Qobuz service connectivity.
+    /// </summary>
+    /// <remarks>
+    /// This utility class is designed for testing and validation purposes during development
+    /// and troubleshooting. It provides a structured way to verify that all Qobuz API
+    /// integrations are functioning correctly.
+    /// 
+    /// <para><b>Primary Use Cases:</b></para>
+    /// <list type="bullet">
+    /// <item>Initial setup validation when configuring Qobuz credentials</item>
+    /// <item>Troubleshooting authentication failures or API connectivity issues</item>
+    /// <item>Verifying subscription tier capabilities and permissions</item>
+    /// <item>Testing search and metadata retrieval functionality</item>
+    /// <item>Continuous integration test suites</item>
+    /// </list>
+    /// 
+    /// <para><b>Important Security Note:</b></para>
+    /// This helper should never be used in production code paths. It's intended exclusively
+    /// for testing and diagnostic purposes. Test results may contain sensitive information
+    /// and should be logged carefully.
+    /// 
+    /// <para><b>Dependency Requirements:</b></para>
+    /// Requires properly configured IQobuzAuthenticationService and IQobuzApiClient instances.
+    /// The authentication service must have valid app credentials configured.
+    /// 
+    /// <para><b>Usage Example:</b></para>
+    /// <code>
+    /// // In test or diagnostic context
+    /// var testHelper = new QobuzTestHelper(authService, apiClient, logger);
+    /// 
+    /// // Test authentication
+    /// var authResult = await testHelper.TestAuthenticationAsync(credentials);
+    /// if (!authResult.Success)
+    /// {
+    ///     logger.Error("Authentication failed: {0}", authResult.Message);
+    ///     return;
+    /// }
+    /// 
+    /// // Run full test suite
+    /// var fullResults = await testHelper.RunFullTestSuiteAsync(credentials);
+    /// logger.Info("Test suite results: {0}", fullResults.Message);
+    /// </code>
+    /// 
+    /// <para><b>Limitations:</b></para>
+    /// <list type="bullet">
+    /// <item>Not intended for production use - testing only</item>
+    /// <item>May consume API rate limits during comprehensive testing</item>
+    /// <item>Test results contain dynamic data that may vary between runs</item>
+    /// </list>
+    /// </remarks>
     public class QobuzTestHelper
     {
         private readonly IQobuzAuthenticationService _authService;
@@ -235,11 +287,31 @@ namespace Lidarr.Plugin.Qobuzarr.Utilities
             };
         }
 
+        /// <summary>
+        /// Represents the result of a Qobuz API test operation.
+        /// </summary>
         public class TestResult
         {
+            /// <summary>
+            /// Gets or sets whether the test operation succeeded.
+            /// </summary>
             public bool Success { get; set; }
+            
+            /// <summary>
+            /// Gets or sets a human-readable message describing the test result.
+            /// </summary>
             public string Message { get; set; }
+            
+            /// <summary>
+            /// Gets or sets additional details about the test result.
+            /// May contain structured data specific to the test type.
+            /// </summary>
             public object Details { get; set; }
+            
+            /// <summary>
+            /// Gets or sets the exception if the test failed due to an error.
+            /// Null if the test succeeded or failed without throwing an exception.
+            /// </summary>
             public Exception Exception { get; set; }
         }
     }

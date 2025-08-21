@@ -468,11 +468,215 @@ The project uses [Central Package Management](https://learn.microsoft.com/en-us/
 
 **Restart**: Always restart Lidarr after plugin deployment
 
+**Logs to Check**:
+```bash
+# Lidarr plugin loading logs
+tail -f /config/logs/lidarr.txt | grep -i "plugin\|qobuz"
+
+# Look for these success indicators:
+# [Info] PluginLoader: Loading plugin Lidarr.Plugin.Qobuzarr
+# [Info] PluginLoader: Loaded Qobuzarr v0.2.1
+```
+
 ### Assembly Version Debugging
 
 **Check Runtime Version**: Your Lidarr logs should show `Version 2.13.2.4686`
 **Check Plugin Version**: Build output should compile against matching `AssemblyVersion>2.13.2.4686`
 **Verify Match**: Runtime version and plugin assembly version must exactly match
+
+**Diagnostic Commands**:
+```bash
+# Check compiled assembly version
+dotnet build --configuration Release 2>&1 | grep -i "assembly"
+
+# Verify assembly metadata
+monodis --assembly bin/Release/net6.0/Lidarr.Plugin.Qobuzarr.dll | grep Version
+
+# Check Lidarr's expected version
+docker exec lidarr-container cat /app/lidarr/Lidarr.Core.dll.config | grep assemblyVersion
+```
+
+### Qobuz Authentication Failures
+
+**Symptom**: "Authentication failed: Invalid credentials" or "Session expired"
+
+**Common Causes & Solutions**:
+
+1. **Invalid App Credentials**:
+   ```bash
+   # Verify environment variables are set
+   echo $QOBUZ_APP_ID
+   echo $QOBUZ_APP_SECRET
+   
+   # Test authentication directly
+   dotnet run --project QobuzCLI -- auth test
+   ```
+
+2. **Session Expiration** (sessions last ~1 hour):
+   - Plugin automatically refreshes sessions
+   - If manual refresh needed: Settings → Indexers → Qobuzarr → Test
+
+3. **Rate Limiting** (1000 requests/minute limit):
+   - Check logs for "429 Too Many Requests"
+   - Built-in rate limiter should prevent this
+   - If occurs, wait 60 seconds for limit reset
+
+4. **Geographic Restrictions**:
+   - Qobuz not available in all countries
+   - Use VPN if needed (may affect performance)
+
+### Download Failures
+
+**Symptom**: "Download failed: Track not available" or quality fallback issues
+
+**Diagnostics & Solutions**:
+
+1. **Quality Availability** (especially format_id 27):
+   ```bash
+   # Test specific album quality availability
+   dotnet run --project QobuzCLI -- test album <album_id> --quality 27
+   
+   # Common fallback chain:
+   # 27 (192kHz) → 7 (96kHz) → 6 (CD) → 5 (MP3)
+   ```
+
+2. **Subscription Tier Limitations**:
+   - Studio Premier: All qualities available
+   - Studio: Up to 24-bit/96kHz (no format_id 27)
+   - Premium: CD quality only
+   
+   Check your tier in Lidarr logs or:
+   ```bash
+   dotnet run --project QobuzCLI -- auth info
+   ```
+
+3. **Concurrent Download Issues**:
+   - Adaptive mode auto-adjusts for network conditions
+   - For unstable connections, use Fixed mode with lower concurrency:
+     - Settings → Download Clients → Qobuzarr → Concurrency Mode: Fixed
+     - Set Concurrent Downloads to 1-2
+
+### Search/Indexer Issues
+
+**Symptom**: No results or incorrect results from searches
+
+**ML Optimization Diagnostics**:
+```bash
+# Check ML query classification
+tail -f /config/logs/lidarr.txt | grep "QueryComplexity\|ML"
+
+# Expected log patterns:
+# [Debug] CompiledMLQueryOptimizer: Query 'Artist Album' classified as Simple (confidence: 0.92)
+# [Info] QobuzIndexer: ML optimization reduced API calls by 49%
+```
+
+**Common Issues**:
+
+1. **Over-aggressive ML Filtering**:
+   - Symptom: Missing expected results
+   - Solution: Temporarily disable ML optimization in advanced settings
+   - Monitor: Check if API call reduction > 60% (too aggressive)
+
+2. **Special Characters in Queries**:
+   - Artists with accents/unicode: Ensure UTF-8 encoding
+   - Use normalized search: "Bjork" instead of "Björk"
+
+3. **Compilation Album Confusion**:
+   - Various Artists albums may not match artist searches
+   - Use album-specific searches when possible
+
+### CI/CD Build Failures
+
+**Common GitHub Actions Failures**:
+
+1. **NuGet Package Conflicts** (NU1507, NU1008):
+   ```yaml
+   # Never build Lidarr source! Use pre-built assemblies:
+   - name: Download Lidarr Assemblies
+     run: ./download-lidarr-assemblies.sh --version 2.13.2.4685
+   ```
+
+2. **Assembly Version Mismatch**:
+   ```yaml
+   # Always apply TrevTV's version override:
+   - name: Update Version Info
+     run: |
+       sed -i "s/<AssemblyVersion>[0-9.*]\+<\/AssemblyVersion>/<AssemblyVersion>2.13.2.4686<\/AssemblyVersion>/g" ext/Lidarr-source/src/Directory.Build.props
+   ```
+
+3. **Wrong .NET Version**:
+   ```yaml
+   # Must use .NET 8.0, not 6.0:
+   env:
+     DOTNET_VERSION: 8.0.x
+   ```
+
+### Performance Issues
+
+**Slow Search/Indexing**:
+```bash
+# Monitor query performance
+tail -f /config/logs/lidarr.txt | grep -E "took [0-9]+ ?ms"
+
+# Check rate limiter status
+tail -f /config/logs/lidarr.txt | grep RateLimiter
+
+# Expected performance:
+# - Simple queries: < 500ms
+# - Complex queries: < 2000ms
+# - ML prediction: < 1ms
+```
+
+**Memory Usage**:
+```bash
+# Monitor plugin memory
+ps aux | grep -i lidarr
+htop -p $(pgrep -f lidarr)
+
+# Normal usage: < 500MB additional with plugin
+# If excessive, check for memory leaks in logs
+```
+
+### Development Environment Issues
+
+**StyleCop Analyzer Errors**:
+```bash
+# Always build with analyzer suppression:
+dotnet build -p:RunAnalyzersDuringBuild=false -p:EnableNETAnalyzers=false
+
+# Or use the build scripts which include these flags:
+./build.sh
+```
+
+**Missing Dependencies**:
+```bash
+# Full reset and setup:
+rm -rf ext/Lidarr-source bin obj
+./setup.sh --enable-deploy
+
+# Verify all dependencies:
+dotnet restore --verbosity detailed
+```
+
+### Security & Credential Issues
+
+**Never Commit Credentials**:
+```bash
+# Pre-commit hook should catch these
+# If accidentally committed:
+git filter-branch --force --index-filter \
+  'git rm --cached --ignore-unmatch path/to/file/with/secrets' \
+  --prune-empty --tag-name-filter cat -- --all
+
+# Use environment variables instead:
+export QOBUZ_APP_ID="your_id"
+export QOBUZ_APP_SECRET="your_secret"
+```
+
+**Secure Storage Best Practices**:
+- Use Lidarr's built-in secure storage for production
+- Never log credentials, even at debug level
+- Rotate credentials if exposed
 
 ## CRITICAL CI/CD LESSONS LEARNED (2025-08-18)
 

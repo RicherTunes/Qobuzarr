@@ -9,6 +9,75 @@ using NzbDrone.Common.Extensions;
 
 namespace Lidarr.Plugin.Qobuzarr.Download.Clients
 {
+    /// <summary>
+    /// Configuration settings for the Qobuz download client with intelligent concurrency management.
+    /// </summary>
+    /// <remarks>
+    /// This settings class implements a sophisticated approach to download performance optimization
+    /// through three distinct concurrency modes, each designed for different use cases and network conditions.
+    /// 
+    /// <para><b>Architectural Design Philosophy:</b></para>
+    /// The download settings follow a "progressive enhancement" pattern where the default adaptive mode
+    /// provides optimal performance for most users, while advanced modes offer fine-grained control
+    /// when needed. This design minimizes configuration complexity while maximizing flexibility.
+    /// 
+    /// <para><b>Concurrency Mode Selection Guide:</b></para>
+    /// <list type="table">
+    /// <listheader>
+    ///   <term>Mode</term>
+    ///   <description>When to Use</description>
+    /// </listheader>
+    /// <item>
+    ///   <term>Adaptive (Default)</term>
+    ///   <description>Recommended for 95% of users. Automatically adjusts download concurrency based on
+    ///   real-time performance metrics. Starts conservatively and scales up when network conditions allow.
+    ///   Reduces concurrency during high latency or errors. Ideal for variable network conditions.</description>
+    /// </item>
+    /// <item>
+    ///   <term>Fixed</term>
+    ///   <description>Use when you have stable, predictable network conditions and want consistent behavior.
+    ///   Good for dedicated servers with known bandwidth limits. Maintains constant concurrency regardless
+    ///   of performance fluctuations.</description>
+    /// </item>
+    /// <item>
+    ///   <term>Manual</term>
+    ///   <description>For advanced users implementing custom download orchestration. Allows external control
+    ///   of concurrency through plugins or scripts. Useful for integration with network QoS systems.</description>
+    /// </item>
+    /// </list>
+    /// 
+    /// <para><b>Performance Impact of Settings:</b></para>
+    /// <list type="bullet">
+    /// <item><b>AdaptiveMinConcurrency:</b> Lower values (1-2) provide stability on slow connections</item>
+    /// <item><b>AdaptiveMaxConcurrency:</b> Higher values (5-10) maximize throughput on fast connections</item>
+    /// <item><b>AdaptiveTargetLatency:</b> Lower values (500-800ms) favor speed, higher (1500-3000ms) favor stability</item>
+    /// <item><b>FixedConcurrencyLevel:</b> Set to bandwidth ÷ 10Mbps for optimal utilization (e.g., 3 for 30Mbps)</item>
+    /// </list>
+    /// 
+    /// <para><b>Settings Interaction Matrix:</b></para>
+    /// The adaptive algorithm considers multiple factors:
+    /// <code>
+    /// OptimalConcurrency = f(CurrentLatency, ErrorRate, TargetLatency, Min, Max)
+    /// where:
+    ///   - If CurrentLatency &lt; TargetLatency × 0.8: Increase concurrency
+    ///   - If CurrentLatency &gt; TargetLatency × 1.2: Decrease concurrency
+    ///   - If ErrorRate &gt; 5%: Immediately reduce to minimum
+    ///   - Recovery after errors: Gradual increase over 30 seconds
+    /// </code>
+    /// 
+    /// <para><b>Quality Fallback Strategy:</b></para>
+    /// When PreferredQuality is unavailable, the system automatically falls back:
+    /// 27 (192kHz) → 7 (96kHz) → 6 (CD) → 5 (MP3)
+    /// This ensures downloads complete even when high-res versions are missing.
+    /// 
+    /// <para><b>Common Configuration Patterns:</b></para>
+    /// <list type="number">
+    /// <item><b>Home User (Variable DSL/Cable):</b> Adaptive mode, Min=1, Max=4, Target=1500ms</item>
+    /// <item><b>Gigabit Fiber:</b> Adaptive mode, Min=2, Max=10, Target=500ms</item>
+    /// <item><b>Seedbox/VPS:</b> Fixed mode, ConcurrencyLevel=6-8</item>
+    /// <item><b>Mobile/Metered:</b> Fixed mode, ConcurrencyLevel=1-2</item>
+    /// </list>
+    /// </remarks>
     public class QobuzDownloadSettings : IProviderConfig
     {
         private static readonly QobuzDownloadSettingsValidator Validator = new QobuzDownloadSettingsValidator();

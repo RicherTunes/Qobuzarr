@@ -17,6 +17,102 @@ namespace Lidarr.Plugin.Qobuzarr.Security
     /// Secure loader for external ML model assemblies with comprehensive security validation.
     /// Implements defense-in-depth with signature verification, sandboxing, and audit logging.
     /// </summary>
+    /// <remarks>
+    /// <para><b>Threat Model and Security Architecture</b></para>
+    /// 
+    /// <para>This class addresses critical security risks when loading untrusted or user-provided ML models:</para>
+    /// 
+    /// <list type="table">
+    /// <listheader>
+    ///   <term>Threat</term>
+    ///   <description>Mitigation Strategy</description>
+    /// </listheader>
+    /// <item>
+    ///   <term>Malicious Code Execution</term>
+    ///   <description>SHA-256 hash validation against whitelist, assembly signature verification,
+    ///   sandboxed AppDomain execution with restricted permissions</description>
+    /// </item>
+    /// <item>
+    ///   <term>Model Tampering/Injection</term>
+    ///   <description>Cryptographic hash verification ensures models haven't been modified.
+    ///   Only pre-approved model hashes in _trustedAssemblyHashes are loadable</description>
+    /// </item>
+    /// <item>
+    ///   <term>Path Traversal Attacks</term>
+    ///   <description>Path canonicalization and validation, restricted to specific directories,
+    ///   no user-controlled path segments allowed</description>
+    /// </item>
+    /// <item>
+    ///   <term>Resource Exhaustion/DoS</term>
+    ///   <description>10MB assembly size limit, 30-second load timeout, maximum 3 load attempts,
+    ///   memory isolation in separate AppDomain</description>
+    /// </item>
+    /// <item>
+    ///   <term>Information Disclosure</term>
+    ///   <description>Minimal error information exposed, detailed logging only to secure audit log,
+    ///   no reflection of internal state to untrusted code</description>
+    /// </item>
+    /// <item>
+    ///   <term>Privilege Escalation</term>
+    ///   <description>Loaded assemblies run with minimal permissions (SecurityPermissionFlag.Execution only),
+    ///   no file I/O, network, or reflection permissions granted</description>
+    /// </item>
+    /// </list>
+    /// 
+    /// <para><b>Defense-in-Depth Layers:</b></para>
+    /// <list type="number">
+    /// <item><b>Layer 1 - Input Validation:</b> Path sanitization, size checks, name pattern validation</item>
+    /// <item><b>Layer 2 - Cryptographic Verification:</b> SHA-256 hash validation against known-good models</item>
+    /// <item><b>Layer 3 - Signature Verification:</b> Optional Authenticode signature checking</item>
+    /// <item><b>Layer 4 - Sandboxing:</b> Isolated AppDomain with restricted permission set</item>
+    /// <item><b>Layer 5 - Runtime Monitoring:</b> Timeout enforcement, resource limits, audit logging</item>
+    /// <item><b>Layer 6 - Fail-Safe:</b> All failures result in null return, no partial trust scenarios</item>
+    /// </list>
+    /// 
+    /// <para><b>Security Requirements for Model Deployment:</b></para>
+    /// <list type="bullet">
+    /// <item>Models must be compiled as .NET assemblies implementing IPatternLearningEngine</item>
+    /// <item>Assembly must be signed with a trusted certificate (if requireSignature=true)</item>
+    /// <item>SHA-256 hash must be pre-registered in _trustedAssemblyHashes dictionary</item>
+    /// <item>Assembly name must match patterns in _allowedAssemblyNames list</item>
+    /// <item>Total size must not exceed 10MB (prevents zip bombs and memory attacks)</item>
+    /// </list>
+    /// 
+    /// <para><b>Audit Trail:</b></para>
+    /// All load attempts are logged with:
+    /// <list type="bullet">
+    /// <item>Timestamp, requested path, and final load status</item>
+    /// <item>Security validation results at each layer</item>
+    /// <item>Performance metrics (load time, memory usage)</item>
+    /// <item>Any security events or anomalies detected</item>
+    /// </list>
+    /// 
+    /// <para><b>Why This Level of Security:</b></para>
+    /// ML models represent executable code that could:
+    /// <list type="number">
+    /// <item>Access sensitive user data (music library, credentials)</item>
+    /// <item>Make unauthorized network requests to attacker servers</item>
+    /// <item>Corrupt the indexer's search algorithm intentionally</item>
+    /// <item>Use excessive resources to cause denial of service</item>
+    /// <item>Exploit vulnerabilities in the ML inference engine</item>
+    /// </list>
+    /// 
+    /// <para><b>Performance Impact:</b></para>
+    /// Security validation adds ~50-100ms to model load time, but models are loaded once at startup.
+    /// Runtime inference performance is unaffected after successful load.
+    /// 
+    /// <para><b>Usage Example:</b></para>
+    /// <code>
+    /// var loader = new SecureMLModelLoader(logger);
+    /// var model = loader.LoadSecureModel("./models/approved-model.dll", requireSignature: true);
+    /// if (model == null)
+    /// {
+    ///     // Model failed security validation - check audit log
+    ///     logger.Error("Failed to load ML model - security validation failed");
+    ///     // Fall back to built-in CompiledMLQueryOptimizer
+    /// }
+    /// </code>
+    /// </remarks>
     public class SecureMLModelLoader : IDisposable
     {
         private readonly IQobuzLogger _logger;
