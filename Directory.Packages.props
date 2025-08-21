@@ -1,16 +1,16 @@
 <Project>
   
-  <!-- Enable centralized package management -->
+  <!-- Disable centralized package management for ProjectReference compatibility -->
   <PropertyGroup>
-    <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
+    <ManagePackageVersionsCentrally>false</ManagePackageVersionsCentrally>
   </PropertyGroup>
 
   <!-- Production Dependencies -->
   <ItemGroup>
     <!-- Core Framework -->
     <PackageVersion Include="Newtonsoft.Json" Version="13.0.3" />
-    <!-- NLog 5.3.4 - needs to be compatible with Lidarr runtime expectations -->
-    <PackageVersion Include="NLog" Version="5.3.4" />
+    <!-- NLog 6.0.0 - match runtime expectation, will be bundled with ILRepack -->
+    <PackageVersion Include="NLog" Version="6.0.0" />
     <PackageVersion Include="FluentValidation" Version="9.5.4" />
     <PackageVersion Include="System.Resources.Extensions" Version="8.0.0" />
     
