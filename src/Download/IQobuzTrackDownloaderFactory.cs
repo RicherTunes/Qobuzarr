@@ -12,15 +12,9 @@ namespace Lidarr.Plugin.Qobuzarr.Download
     {
         /// <summary>
         /// Creates a QobuzTrackDownloader instance with all required dependencies
+        /// Note: Metadata optimization is currently disabled to prevent circular dependencies
         /// </summary>
         QobuzTrackDownloader CreateTrackDownloader();
-
-        /// <summary>
-        /// Creates a simple QobuzTrackDownloader instance without metadata optimizer to avoid circular dependencies
-        /// Used by IntelligentReleaseMapper which doesn't need optimization capabilities
-        /// </summary>
-        /// <returns>A QobuzTrackDownloader instance without metadata optimizer</returns>
-        QobuzTrackDownloader CreateSimpleTrackDownloader();
         
         // Legacy method removed - use CreateTrackDownloader() instead
     }

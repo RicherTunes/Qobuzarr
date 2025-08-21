@@ -19,8 +19,9 @@ namespace Lidarr.Plugin.Qobuzarr.Download
         private readonly IFilePathGenerator _filePathGenerator;
         private readonly IQualityFallbackProvider _qualityFallbackProvider;
         private readonly IQobuzLogger _logger;
-        // NOTE: ISafeMetadataOptimizer removed from constructor to break circular dependency
-        // It will be injected via setter or passed as parameter when needed
+        
+        // TODO: Implement metadata optimizer injection via property injection or separate factory
+        // Currently disabled to prevent circular dependency with SafeMetadataOptimizer
 
         public QobuzTrackDownloaderFactory(
             IStreamUrlProvider streamUrlProvider,
@@ -40,8 +41,8 @@ namespace Lidarr.Plugin.Qobuzarr.Download
 
         public QobuzTrackDownloader CreateTrackDownloader()
         {
-            // For now, create without metadata optimizer until we implement proper injection
-            // This prevents circular dependency issues
+            // Create track downloader without metadata optimizer to prevent circular dependencies
+            // All downloaders created by this factory will have the same configuration for consistency
             return new QobuzTrackDownloader(
                 _streamUrlProvider,
                 _audioFileDownloader,
@@ -49,23 +50,7 @@ namespace Lidarr.Plugin.Qobuzarr.Download
                 _filePathGenerator,
                 _qualityFallbackProvider,
                 _logger,
-                null); // Metadata optimizer will be added via separate mechanism
+                null); // Metadata optimizer disabled to break circular dependency
         }
-
-        public QobuzTrackDownloader CreateSimpleTrackDownloader()
-        {
-            // Create a downloader without metadata optimizer to avoid circular dependencies
-            // This is used by IntelligentReleaseMapper which doesn't need optimization
-            return new QobuzTrackDownloader(
-                _streamUrlProvider,
-                _audioFileDownloader,
-                _metadataProcessor,
-                _filePathGenerator,
-                _qualityFallbackProvider,
-                _logger,
-                null); // No metadata optimizer to break circular dependency
-        }
-
-        // Legacy method removed - use CreateTrackDownloader() instead
     }
 }

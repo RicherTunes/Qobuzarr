@@ -58,8 +58,8 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
             if (trackDownloaderFactory == null)
                 throw new ArgumentNullException(nameof(trackDownloaderFactory));
             
-            // Use simple downloader without metadata optimizer to avoid circular dependency
-            _trackDownloader = trackDownloaderFactory.CreateSimpleTrackDownloader();
+            // Create track downloader for release mapping functionality
+            _trackDownloader = trackDownloaderFactory.CreateTrackDownloader();
         }
 
         /// <summary>
