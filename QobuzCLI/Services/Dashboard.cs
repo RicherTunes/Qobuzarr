@@ -13,7 +13,7 @@ namespace QobuzCLI.Services;
 /// <summary>
 /// Unified dashboard implementation with proper column alignment and full console usage
 /// </summary>
-public class Dashboard : IDisposable
+public class Dashboard : IDashboard
 {
     private readonly ILogger<Dashboard> _logger;
     private readonly IServiceProvider _serviceProvider;
