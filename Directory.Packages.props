@@ -9,7 +9,8 @@
   <ItemGroup>
     <!-- Core Framework -->
     <PackageVersion Include="Newtonsoft.Json" Version="13.0.3" />
-    <PackageVersion Include="NLog" Version="5.3.4" />
+    <!-- NLog 5.0.0 - exact version used by Lidarr 2.13.2.4686 (matches TrevTV's approach) -->
+    <PackageVersion Include="NLog" Version="5.0.0" />
     <PackageVersion Include="FluentValidation" Version="9.5.4" />
     <PackageVersion Include="System.Resources.Extensions" Version="8.0.0" />
     
@@ -40,7 +41,7 @@
     <PackageVersion Include="Microsoft.Extensions.Logging.Abstractions" Version="8.0.0" />
     <PackageVersion Include="Microsoft.Extensions.Logging.Console" Version="8.0.0" />
     <PackageVersion Include="Microsoft.Extensions.Http" Version="8.0.0" />
-    <PackageVersion Include="NLog.Extensions.Logging" Version="5.4.0" />
+    <!-- NLog.Extensions.Logging removed - use Lidarr's built-in logging (following TrevTV's pattern) -->
   </ItemGroup>
 
   <!-- Test Dependencies -->
