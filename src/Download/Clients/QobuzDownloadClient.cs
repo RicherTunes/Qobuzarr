@@ -47,7 +47,7 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Clients
         private readonly ConcurrentDictionary<string, QobuzDownloadItem> _activeDownloads;
 
         public override string Name => "Qobuzarr";
-        public override DownloadProtocol Protocol => DownloadProtocol.Usenet;
+        public override string Protocol => nameof(UsenetDownloadProtocol);
 
         public QobuzDownloadClient(IQobuzAuthenticationService authService,
                                   IQobuzApiClient apiClient,

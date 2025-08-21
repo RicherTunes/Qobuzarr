@@ -56,6 +56,11 @@
     <PackageVersion Include="Moq" Version="4.20.69" />
     <PackageVersion Include="NSubstitute" Version="5.1.0" />
     
+    <!-- Missing Test Dependencies for Lidarr assemblies compatibility -->
+    <PackageVersion Include="System.IO.Abstractions" Version="17.2.3" />
+    <PackageVersion Include="System.IO.Abstractions.TestingHelpers" Version="17.2.3" />
+    <PackageVersion Include="Equ" Version="2.3.0" />
+    
     <!-- Integration Test Dependencies -->
     <PackageVersion Include="Docker.DotNet" Version="3.125.15" />
     <PackageVersion Include="DotNetEnv" Version="3.1.1" />
