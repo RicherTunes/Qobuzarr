@@ -64,7 +64,7 @@ jobs:
           -p:RunAnalyzersDuringBuild=false \
           -p:EnableNETAnalyzers=false \
           -p:TreatWarningsAsErrors=false \
-          $DEFINE_SYMBOLS
+          -p:DefineConstants="LIDARR_ENUM_PROTOCOL"
         
         echo "✅ Security validation build completed - no build-blocking security issues"
 

@@ -113,7 +113,7 @@ jobs:
           -p:RunAnalyzersDuringBuild=false \
           -p:EnableNETAnalyzers=false \
           -p:TreatWarningsAsErrors=false \
-          $DEFINE_SYMBOLS
+          -p:DefineConstants="LIDARR_ENUM_PROTOCOL"
         
         echo "🔨 Building CLI..."
         dotnet build QobuzCLI/QobuzCLI.csproj --configuration Release --no-restore \
