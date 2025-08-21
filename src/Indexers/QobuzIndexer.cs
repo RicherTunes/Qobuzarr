@@ -599,7 +599,7 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
                     {
                         success = false,
                         message = "ML engine not initialized",
-                        data = (object)null
+                        data = (object)null!
                     };
                 }
                 
