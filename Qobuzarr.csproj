@@ -92,32 +92,15 @@
 
   <!-- Package dependencies -->
   <ItemGroup>
-    <!-- Newtonsoft.Json - Lidarr provides this, exclude from plugin -->
-    <PackageReference Include="Newtonsoft.Json">
-      <ExcludeAssets>runtime</ExcludeAssets>
-    </PackageReference>
-    
-    <!-- TagLibSharp - This is specific to our plugin, include it -->
+    <PackageReference Include="Newtonsoft.Json" />
     <PackageReference Include="TagLibSharp-Lidarr" />
-    
-    <!-- Microsoft.ML - Plugin-specific ML functionality -->
     <PackageReference Include="Microsoft.ML" />
-    
-    <!-- NLog - Compile-time only, Lidarr provides runtime -->
+    <!-- NLog 5.0.0 - exact version matching Lidarr runtime (TrevTV's approach) -->
     <PackageReference Include="NLog">
-      <PrivateAssets>all</PrivateAssets>
       <ExcludeAssets>runtime</ExcludeAssets>
     </PackageReference>
-    
-    <!-- FluentValidation - Lidarr provides this, exclude from plugin -->
-    <PackageReference Include="FluentValidation">
-      <ExcludeAssets>runtime</ExcludeAssets>
-    </PackageReference>
-    
-    <!-- System.Resources.Extensions - Needed for ML.NET -->
+    <PackageReference Include="FluentValidation" />
     <PackageReference Include="System.Resources.Extensions" />
-    
-    <!-- ILRepack for merging assemblies in plugin release builds -->
     <PackageReference Include="ILRepack.Lib.MSBuild.Task" Condition="'$(Configuration)' == 'PluginRelease'">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
@@ -251,6 +234,7 @@
     <ItemGroup>
       <PluginFiles Include="$(OutputPath)$(AssemblyName).dll" />
       <PluginFiles Include="$(OutputPath)$(AssemblyName).pdb" />
+      <PluginFiles Include="$(OutputPath)$(AssemblyName).dll.config" Condition="Exists('$(OutputPath)$(AssemblyName).dll.config')" />
       <PluginFiles Include="$(OutputPath)plugin.json" />
       <PluginFiles Include="$(OutputPath)src\Indexers\ml-baseline-patterns.json" />
       <!-- Exclude Lidarr assemblies from deployment -->
@@ -258,14 +242,7 @@
       <PluginFiles Remove="$(OutputPath)Lidarr.*.xml" />
     </ItemGroup>
     
-    <!-- Use Overwrite=true to ensure files are always copied -->
-    <Copy SourceFiles="@(PluginFiles)" 
-          DestinationFolder="$(PluginTargetDir)" 
-          SkipUnchangedFiles="false" 
-          OverwriteReadOnlyFiles="true"
-          Retries="3"
-          RetryDelayMilliseconds="500"
-          ContinueOnError="false" />
+    <Copy SourceFiles="@(PluginFiles)" DestinationFolder="$(PluginTargetDir)" SkipUnchangedFiles="false" ContinueOnError="false" />
     
     <!-- Verify deployment worked -->
     <Message Text="   Copied: %(PluginFiles.Filename)%(PluginFiles.Extension) ($(PluginTargetDir))" Importance="normal" Condition="Exists('$(PluginTargetDir)\%(PluginFiles.Filename)%(PluginFiles.Extension)')" />
