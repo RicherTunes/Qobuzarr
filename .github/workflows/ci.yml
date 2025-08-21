@@ -46,7 +46,7 @@ jobs:
         # Use the same approach as local build.ps1
         if [ -f "./download-lidarr-assemblies.sh" ]; then
           chmod +x ./download-lidarr-assemblies.sh
-          ./download-lidarr-assemblies.sh --version 2.13.2.4685 --force
+          ./download-lidarr-assemblies.sh --version 2.13.0.4664 --force
           echo "✅ Used download script like local development"
         else
           echo "⚠️ Using manual download as fallback"
@@ -103,9 +103,11 @@ jobs:
     - name: Build
       run: |
         echo "🔨 Building main plugin with version $PLUGIN_VERSION..."
-        echo "⚠️ CI build temporarily disabled due to Lidarr assembly version incompatibility"
-        echo "Plugin builds and works perfectly in local environment and target Lidarr instance"
-        echo "✅ Core functionality verified: Circular dependency resolved, plugin loads successfully"
+        dotnet build Qobuzarr.csproj --configuration Release --no-restore \
+          -p:Version="$PLUGIN_VERSION" \
+          -p:RunAnalyzersDuringBuild=false \
+          -p:EnableNETAnalyzers=false \
+          -p:TreatWarningsAsErrors=false
         
         echo "🔨 Building CLI..."
         dotnet build QobuzCLI/QobuzCLI.csproj --configuration Release --no-restore \
