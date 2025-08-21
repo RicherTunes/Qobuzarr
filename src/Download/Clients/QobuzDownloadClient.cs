@@ -13,9 +13,6 @@ using NzbDrone.Core.Configuration;
 using NzbDrone.Core.Download;
 using NzbDrone.Core.Download.Clients;
 using NzbDrone.Core.Indexers;
-#if LIDARR_ENUM_PROTOCOL
-// DownloadProtocol enum is available in this version
-#endif
 using NzbDrone.Core.Localization;
 using NzbDrone.Core.Parser.Model;
 using NzbDrone.Core.RemotePathMappings;
@@ -51,13 +48,8 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Clients
 
         public override string Name => "Qobuzarr";
         
-        // Protocol property - compatible with different Lidarr versions
-        // Some versions expect DownloadProtocol enum, others expect string
-#if LIDARR_ENUM_PROTOCOL
-        public override DownloadProtocol Protocol => DownloadProtocol.Torrent;
-#else
+        // Protocol property - identifies this plugin uniquely
         public override string Protocol => "Qobuzarr";
-#endif
 
         public QobuzDownloadClient(IQobuzAuthenticationService authService,
                                   IQobuzApiClient apiClient,
