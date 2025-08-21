@@ -24,8 +24,14 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
     public class QobuzIndexer : HttpIndexerBase<QobuzIndexerSettings>, IDisposable
     {
         public override string Name => "Qobuzarr";
-        // Protocol property - identifies this as Qobuzarr service
+        
+        // Protocol property - compatible with different Lidarr versions
+        // Some versions expect DownloadProtocol enum, others expect string
+#if LIDARR_ENUM_PROTOCOL
+        public override DownloadProtocol Protocol => DownloadProtocol.Torrent;
+#else
         public override string Protocol => "Qobuzarr";
+#endif
         public override bool SupportsRss => false;
         public override bool SupportsSearch => true;
         public override int PageSize => 100;
