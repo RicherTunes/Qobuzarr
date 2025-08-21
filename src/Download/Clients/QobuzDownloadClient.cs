@@ -18,6 +18,7 @@ using NzbDrone.Core.Parser.Model;
 using NzbDrone.Core.RemotePathMappings;
 using NLog;
 using Lidarr.Plugin.Qobuzarr.Abstractions;
+using Lidarr.Plugin.Qobuzarr.Indexers;
 using Lidarr.Plugin.Qobuzarr.API;
 using Lidarr.Plugin.Qobuzarr.Integration;
 using Lidarr.Plugin.Qobuzarr.Authentication;
@@ -47,8 +48,8 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Clients
         private readonly ConcurrentDictionary<string, QobuzDownloadItem> _activeDownloads;
 
         public override string Name => "Qobuzarr";
-        // Protocol property - identifies this as Qobuz service
-        public override string Protocol => "Qobuz";
+        // Protocol property - identifies this as Qobuzarr service
+        public override string Protocol => nameof(QobuzarrDownloadProtocol);
 
         public QobuzDownloadClient(IQobuzAuthenticationService authService,
                                   IQobuzApiClient apiClient,
