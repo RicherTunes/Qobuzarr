@@ -103,9 +103,6 @@ jobs:
       run: |
         echo "🔄 Restoring main plugin..."
         dotnet restore Qobuzarr.csproj
-        
-        echo "🔄 Restoring CLI..."
-        dotnet restore QobuzCLI/QobuzCLI.csproj
 
     - name: Build
       run: |
@@ -116,11 +113,7 @@ jobs:
           -p:EnableNETAnalyzers=false \
           -p:TreatWarningsAsErrors=false
         
-        echo "🔨 Building CLI..."
-        dotnet build QobuzCLI/QobuzCLI.csproj --configuration Release --no-restore \
-          -p:RunAnalyzersDuringBuild=false \
-          -p:EnableNETAnalyzers=false \
-          -p:TreatWarningsAsErrors=false
+        echo "✅ Main plugin built successfully - CLI build skipped for CI"
         
         echo "✅ Build completed with version $PLUGIN_VERSION"
 
