@@ -54,9 +54,11 @@ jobs:
         
         echo "📍 Using Lidarr commit: $(git rev-parse HEAD)"
         
-        # Build the assemblies we need
-        dotnet build src/NzbDrone.Common/Lidarr.Common.csproj -c Release -o ../_output/net6.0/
-        dotnet build src/NzbDrone.Core/Lidarr.Core.csproj -c Release -o ../_output/net6.0/
+        # Build the assemblies we need with analyzer suppression
+        dotnet build src/NzbDrone.Common/Lidarr.Common.csproj -c Release -o ../_output/net6.0/ \
+          -p:RunAnalyzersDuringBuild=false -p:EnableNETAnalyzers=false -p:TreatWarningsAsErrors=false
+        dotnet build src/NzbDrone.Core/Lidarr.Core.csproj -c Release -o ../_output/net6.0/ \
+          -p:RunAnalyzersDuringBuild=false -p:EnableNETAnalyzers=false -p:TreatWarningsAsErrors=false
         
         cd ../..
         echo "✅ Lidarr plugin branch assemblies ready"
