@@ -48,7 +48,7 @@ public class DownloadCommandTests
             _mockSearchService.Object,
             _mockQueueService.Object,
             _mockLogger.Object,
-            new Dashboard(_mockDashboardLogger.Object, _mockServiceProvider.Object),
+            new Mock<IDashboard>().Object,
             _mockBatchDownloadService.Object,
             _queueMonitoring
         );
@@ -154,7 +154,7 @@ public class QualityMappingTests
         var mockSearchService = new Mock<ISearchService>();
         var mockQueueService = new Mock<IQueueService>();
         var mockLogger = new Mock<ILogger<DownloadCommand>>();
-        var mockDashboard = new Mock<Dashboard>();
+        var mockDashboard = new Mock<IDashboard>();
         var mockBatchDownloadService = new Mock<IBatchDownloadService>();
         var queueMonitoring = new QueueMonitoringService(mockQueueService.Object);
 

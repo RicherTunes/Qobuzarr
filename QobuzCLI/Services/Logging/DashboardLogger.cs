@@ -11,10 +11,10 @@ namespace QobuzCLI.Services.Logging;
 public class DashboardLogger<T> : ILogger<T>, IDashboardLogger
 {
     private readonly ILogger<T> _innerLogger;
-    private readonly Dashboard _dashboard;
+    private readonly IDashboard? _dashboard;
     private readonly string _categoryName;
     
-    public DashboardLogger(ILogger<T> innerLogger, Dashboard dashboard)
+    public DashboardLogger(ILogger<T> innerLogger, IDashboard? dashboard)
     {
         _innerLogger = innerLogger;
         _dashboard = dashboard;
