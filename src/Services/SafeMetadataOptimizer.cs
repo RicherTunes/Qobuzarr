@@ -6,6 +6,7 @@ using Lidarr.Plugin.Qobuzarr.Configuration;
 using Lidarr.Plugin.Qobuzarr.Models;
 using Lidarr.Plugin.Qobuzarr.Models.Lidarr;
 using Lidarr.Plugin.Qobuzarr.Indexers;
+using Lidarr.Plugin.Qobuzarr.Download;
 using Lidarr.Plugin.Qobuzarr.Services.Metadata;
 
 namespace Lidarr.Plugin.Qobuzarr.Services
@@ -46,13 +47,17 @@ namespace Lidarr.Plugin.Qobuzarr.Services
         public SafeMetadataOptimizer(
             QobuzIndexerSettings settings,
             HybridMetadataService hybridMetadataService,
-            IntelligentReleaseMapper releaseMapper,
+            IQobuzTrackDownloaderFactory trackDownloaderFactory,
             Logger logger = null)
         {
             _settings = settings ?? throw new ArgumentNullException(nameof(settings));
             _hybridMetadataService = hybridMetadataService ?? throw new ArgumentNullException(nameof(hybridMetadataService));
-            _releaseMapper = releaseMapper ?? throw new ArgumentNullException(nameof(releaseMapper));
             _logger = logger ?? LogManager.GetCurrentClassLogger();
+            
+            // Create IntelligentReleaseMapper with factory to avoid circular dependency
+            if (trackDownloaderFactory == null)
+                throw new ArgumentNullException(nameof(trackDownloaderFactory));
+            _releaseMapper = new IntelligentReleaseMapper(_logger, trackDownloaderFactory);
 
             // Load optimization settings with conservative defaults
             _enableOptimization = false; // Disable by default for now

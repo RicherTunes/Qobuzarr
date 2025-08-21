@@ -7,6 +7,7 @@ using Lidarr.Plugin.Qobuzarr.API;
 using Lidarr.Plugin.Qobuzarr.Models;
 using Lidarr.Plugin.Qobuzarr.Models.Lidarr;
 using Lidarr.Plugin.Qobuzarr.Indexers;
+using Lidarr.Plugin.Qobuzarr.Download;
 using Lidarr.Plugin.Qobuzarr.Services.Metadata;
 using Lidarr.Plugin.Qobuzarr.Utilities;
 
@@ -26,11 +27,15 @@ namespace Lidarr.Plugin.Qobuzarr.Services.Metadata
         public HybridMetadataStrategy(
             Logger logger,
             QobuzApiClient qobuzApiClient,
-            IntelligentReleaseMapper releaseMapper)
+            IQobuzTrackDownloaderFactory trackDownloaderFactory)
         {
             _logger = logger ?? LogManager.GetCurrentClassLogger();
             _qobuzApiClient = qobuzApiClient ?? throw new ArgumentNullException(nameof(qobuzApiClient));
-            _releaseMapper = releaseMapper ?? throw new ArgumentNullException(nameof(releaseMapper));
+            
+            // Create IntelligentReleaseMapper with factory to avoid circular dependency
+            if (trackDownloaderFactory == null)
+                throw new ArgumentNullException(nameof(trackDownloaderFactory));
+            _releaseMapper = new IntelligentReleaseMapper(_logger, trackDownloaderFactory);
         }
 
         public bool CanHandle(QobuzAlbum qobuzAlbum, LidarrAlbum lidarrAlbum)
