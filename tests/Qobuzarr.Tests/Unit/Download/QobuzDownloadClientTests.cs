@@ -28,6 +28,48 @@ namespace Qobuzarr.Tests.Unit.Download
     // Tests restored and updated for current API
     public class QobuzDownloadClientTests : TestFixtureBase
     {
+        // Test-specific DownloadClient that overrides Settings access for testing
+        private class TestableQobuzDownloadClient : QobuzDownloadClient
+        {
+            private QobuzDownloadSettings _testSettings;
+            
+            public TestableQobuzDownloadClient(
+                IQobuzAuthenticationService authService,
+                IQobuzApiClient apiClient,
+                NzbDrone.Common.Http.IHttpClient httpClient,
+                IDownloadQueueService queueService,
+                IDownloadFileService fileService,
+                IConcurrencyManager concurrencyManager,
+                IDownloadOrchestrator orchestrator,
+                IDownloadSummary downloadSummary,
+                IBatchProcessor batchProcessor,
+                IQobuzTrackDownloaderFactory trackDownloaderFactory,
+                NzbDrone.Core.Configuration.IConfigService configService,
+                NzbDrone.Common.Disk.IDiskProvider diskProvider,
+                NzbDrone.Core.RemotePathMappings.IRemotePathMappingService remotePathMappingService,
+                NzbDrone.Core.Localization.ILocalizationService localizationService,
+                NLog.Logger logger) 
+                : base(authService, apiClient, httpClient, queueService, fileService, concurrencyManager, 
+                      orchestrator, downloadSummary, batchProcessor, trackDownloaderFactory, 
+                      configService, diskProvider, remotePathMappingService, localizationService, logger)
+            {
+                _testSettings = new QobuzDownloadSettings
+                {
+                    DownloadPath = @"C:\Downloads\Qobuz",
+                    PreferredQuality = 6, // FLAC CD Quality
+                    CreateAlbumFolders = true,
+                    ConcurrencyMode = (int)DownloadConcurrencyMode.Fixed,
+                    FixedConcurrencyLevel = 3
+                };
+            }
+            
+            protected new QobuzDownloadSettings Settings => _testSettings;
+            
+            public void SetTestSettings(QobuzDownloadSettings settings)
+            {
+                _testSettings = settings;
+            }
+        }
         private readonly Mock<IQobuzAuthenticationService> _mockAuthService;
         private readonly Mock<IQobuzApiClient> _mockApiClient;
         private readonly Mock<IDownloadQueueService> _mockQueueService;
@@ -37,7 +79,7 @@ namespace Qobuzarr.Tests.Unit.Download
         private readonly Mock<IDownloadSummary> _mockDownloadSummary;
         private readonly Mock<IBatchProcessor> _mockBatchProcessor;
         private readonly Mock<IQobuzTrackDownloaderFactory> _mockTrackDownloaderFactory;
-        private readonly QobuzDownloadClient _downloadClient;
+        private readonly TestableQobuzDownloadClient _downloadClient;
         private readonly QobuzSession _testSession;
 
         public QobuzDownloadClientTests()
@@ -52,7 +94,7 @@ namespace Qobuzarr.Tests.Unit.Download
             _mockBatchProcessor = new Mock<IBatchProcessor>();
             _mockTrackDownloaderFactory = new Mock<IQobuzTrackDownloaderFactory>();
             
-            _downloadClient = new QobuzDownloadClient(
+            _downloadClient = new TestableQobuzDownloadClient(
                 _mockAuthService.Object,
                 _mockApiClient.Object,
                 MockHttpClient.Object,
@@ -239,7 +281,7 @@ namespace Qobuzarr.Tests.Unit.Download
         public void Protocol_ShouldReturnQobuzDownloadProtocol()
         {
             // Act & Assert
-            _downloadClient.Protocol.Should().Be(DownloadProtocol.Usenet);
+            _downloadClient.Protocol.Should().Be(nameof(UsenetDownloadProtocol));
         }
 
         [Fact]
