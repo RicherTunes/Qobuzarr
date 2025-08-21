@@ -8,7 +8,7 @@ using System.Security.Cryptography;
 using System.Security.Permissions;
 using System.Security.Policy;
 using System.Text;
-using Lidarr.Plugin.Qobuzarr.Abstractions;
+using NLog;
 using Lidarr.Plugin.Qobuzarr.Indexers;
 
 namespace Lidarr.Plugin.Qobuzarr.Security
@@ -19,7 +19,7 @@ namespace Lidarr.Plugin.Qobuzarr.Security
     /// </summary>
     public class SecureMLModelLoader : IDisposable
     {
-        private readonly IQobuzLogger _logger;
+        private readonly Logger _logger;
         private readonly Dictionary<string, string> _trustedAssemblyHashes;
         private readonly List<string> _allowedAssemblyNames;
         private readonly List<ModelLoadAuditEntry> _auditLog;
@@ -31,7 +31,7 @@ namespace Lidarr.Plugin.Qobuzarr.Security
         private const int MaxLoadAttempts = 3;
         private readonly TimeSpan LoadTimeout = TimeSpan.FromSeconds(30);
 
-        public SecureMLModelLoader(IQobuzLogger logger)
+        public SecureMLModelLoader(Logger logger)
         {
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
             _auditLog = new List<ModelLoadAuditEntry>();
