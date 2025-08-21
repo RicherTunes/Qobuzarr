@@ -400,8 +400,16 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
             if (string.IsNullOrWhiteSpace(query))
                 return string.Empty;
 
+            // SECURITY: Sanitize input to prevent injection attacks
+            var sanitized = Utilities.LidarrInputValidator.SanitizeAlbumTitle(query);
+            if (!Utilities.LidarrInputValidator.IsInputSafe(sanitized))
+            {
+                _logger.Warn("Potentially unsafe input detected in query: {0}", query);
+                return string.Empty;
+            }
+
             // Remove common prefixes/suffixes that might interfere with search
-            var cleaned = query;
+            var cleaned = sanitized;
 
             // Remove year patterns (e.g., "(2023)", "[2023]")
             cleaned = Regex.Replace(cleaned, @"\s*[\(\[]?\d{4}[\)\]]?\s*", " ");

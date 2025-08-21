@@ -24,7 +24,7 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
     public class QobuzIndexer : HttpIndexerBase<QobuzIndexerSettings>, IDisposable
     {
         public override string Name => "Qobuzarr";
-        public override DownloadProtocol Protocol => DownloadProtocol.Usenet;
+        public override string Protocol => "Usenet";
         public override bool SupportsRss => false;
         public override bool SupportsSearch => true;
         public override int PageSize => 100;
