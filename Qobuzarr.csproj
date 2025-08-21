@@ -90,7 +90,7 @@
   <!-- Package dependencies -->
   <ItemGroup>
     <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
-    <PackageReference Include="TagLibSharp-Lidarr" Version="2.2.0.27" />
+    <PackageReference Include="TagLibSharp-Lidarr" Version="2.2.0.19" />
     <PackageReference Include="Microsoft.ML" Version="2.0.1" />
     <!-- NLog for compile-time only - exclude runtime to avoid conflicts -->
     <PackageReference Include="NLog" Version="5.0.0">
