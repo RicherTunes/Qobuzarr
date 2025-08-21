@@ -32,7 +32,7 @@ function Show-Help {
     Write-Host ""
     Write-Host "OPTIONS:" -ForegroundColor Cyan
     Write-Host "  -Deploy               Auto-deploy to test Lidarr instance" -ForegroundColor White
-    Write-Host "  -DeployPath <path>    Custom deployment path" -ForegroundColor White
+    Write-Host "  -DeployPath [path]    Custom deployment path" -ForegroundColor White
     Write-Host "  -Clean                Clean before building" -ForegroundColor White
     Write-Host "  -Restore              Force restore packages" -ForegroundColor White
     Write-Host "  -NoBuild              Skip build (for clean/restore only)" -ForegroundColor White
