@@ -13,6 +13,9 @@ using NzbDrone.Core.Configuration;
 using NzbDrone.Core.Download;
 using NzbDrone.Core.Download.Clients;
 using NzbDrone.Core.Indexers;
+#if LIDARR_ENUM_PROTOCOL
+// DownloadProtocol enum is available in this version
+#endif
 using NzbDrone.Core.Localization;
 using NzbDrone.Core.Parser.Model;
 using NzbDrone.Core.RemotePathMappings;
