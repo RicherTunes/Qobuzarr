@@ -55,16 +55,10 @@ jobs:
     - name: Build validation (ensure no security issues prevent building)
       run: |
         echo "🔨 Building main plugin for security validation..."
-        
-        # CI environments consistently require DownloadProtocol enum
-        echo "✅ CI environment detected - using DownloadProtocol enum"
-        DEFINE_SYMBOLS="-p:DefineConstants=LIDARR_ENUM_PROTOCOL"
-        
         dotnet build Qobuzarr.csproj --configuration Release --no-restore \
           -p:RunAnalyzersDuringBuild=false \
           -p:EnableNETAnalyzers=false \
-          -p:TreatWarningsAsErrors=false \
-          -p:DefineConstants="LIDARR_ENUM_PROTOCOL"
+          -p:TreatWarningsAsErrors=false
         
         echo "✅ Security validation build completed - no build-blocking security issues"
 

@@ -25,13 +25,8 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
     {
         public override string Name => "Qobuzarr";
         
-        // Protocol property - compatible with different Lidarr versions
-        // Some versions expect DownloadProtocol enum, others expect string
-#if LIDARR_ENUM_PROTOCOL
-        public override DownloadProtocol Protocol => DownloadProtocol.Torrent;
-#else
+        // Protocol property - identifies this plugin uniquely
         public override string Protocol => "Qobuzarr";
-#endif
         public override bool SupportsRss => false;
         public override bool SupportsSearch => true;
         public override int PageSize => 100;
