@@ -204,7 +204,7 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
                 
                 // CRITICAL: Set the download protocol to fix frontend display
 #if LIDARR_ENUM_PROTOCOL
-                DownloadProtocol = DownloadProtocol.Torrent.ToString(),
+                DownloadProtocol = DownloadProtocol.Torrent,
 #else
                 DownloadProtocol = "Qobuzarr",
 #endif
