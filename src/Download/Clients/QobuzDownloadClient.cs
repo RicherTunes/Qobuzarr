@@ -47,8 +47,14 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Clients
         private readonly ConcurrentDictionary<string, QobuzDownloadItem> _activeDownloads;
 
         public override string Name => "Qobuzarr";
-        // Protocol property - identifies this as Qobuzarr service
+        
+        // Protocol property - compatible with different Lidarr versions
+        // Some versions expect DownloadProtocol enum, others expect string
+#if LIDARR_ENUM_PROTOCOL
+        public override DownloadProtocol Protocol => DownloadProtocol.Torrent;
+#else
         public override string Protocol => "Qobuzarr";
+#endif
 
         public QobuzDownloadClient(IQobuzAuthenticationService authService,
                                   IQobuzApiClient apiClient,
