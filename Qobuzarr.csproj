@@ -98,6 +98,11 @@
     <PackageReference Include="NLog" />
     <PackageReference Include="FluentValidation" />
     <PackageReference Include="System.Resources.Extensions" />
+    
+    <!-- Security patches for transitive vulnerabilities -->
+    <PackageReference Include="System.Text.Json" />
+    <PackageReference Include="System.Net.Http" />
+    <PackageReference Include="System.Text.RegularExpressions" />
     <PackageReference Include="ILRepack.Lib.MSBuild.Task" Condition="'$(Configuration)' == 'PluginRelease'">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
