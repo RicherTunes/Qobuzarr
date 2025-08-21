@@ -55,10 +55,21 @@ jobs:
     - name: Build validation (ensure no security issues prevent building)
       run: |
         echo "🔨 Building main plugin for security validation..."
+        
+        # Check if DownloadProtocol enum exists in Lidarr assemblies
+        if grep -q "enum DownloadProtocol" ext/Lidarr/_output/net6.0/*.dll 2>/dev/null; then
+          echo "✅ DownloadProtocol enum detected - using enum version"
+          DEFINE_SYMBOLS="-p:DefineConstants=LIDARR_ENUM_PROTOCOL"
+        else
+          echo "✅ Using string Protocol for compatibility"
+          DEFINE_SYMBOLS=""
+        fi
+        
         dotnet build Qobuzarr.csproj --configuration Release --no-restore \
           -p:RunAnalyzersDuringBuild=false \
           -p:EnableNETAnalyzers=false \
-          -p:TreatWarningsAsErrors=false
+          -p:TreatWarningsAsErrors=false \
+          $DEFINE_SYMBOLS
         
         echo "✅ Security validation build completed - no build-blocking security issues"
 
