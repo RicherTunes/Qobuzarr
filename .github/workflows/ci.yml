@@ -93,7 +93,12 @@ jobs:
         sed -i'' -e "s/<AssemblyVersion>[0-9.*]\+<\/AssemblyVersion>/<AssemblyVersion>${{ env.MINIMUM_LIDARR_VERSION }}<\/AssemblyVersion>/g" ext/Lidarr-source/src/Directory.Build.props || echo "No Directory.Build.props found (expected for pre-built approach)"
 
     - name: Restore
-      run: dotnet restore
+      run: |
+        echo "🔄 Restoring main plugin..."
+        dotnet restore Qobuzarr.csproj
+        
+        echo "🔄 Restoring CLI..."
+        dotnet restore QobuzCLI/QobuzCLI.csproj
 
     - name: Build
       run: |
