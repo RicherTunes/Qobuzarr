@@ -19,7 +19,9 @@ namespace Lidarr.Plugin.Qobuzarr.Download
         private readonly IFilePathGenerator _filePathGenerator;
         private readonly IQualityFallbackProvider _qualityFallbackProvider;
         private readonly IQobuzLogger _logger;
-        private readonly ISafeMetadataOptimizer _metadataOptimizer;
+        
+        // TODO: Implement metadata optimizer injection via property injection or separate factory
+        // Currently disabled to prevent circular dependency with SafeMetadataOptimizer
 
         public QobuzTrackDownloaderFactory(
             IStreamUrlProvider streamUrlProvider,
@@ -27,8 +29,7 @@ namespace Lidarr.Plugin.Qobuzarr.Download
             IMetadataProcessor metadataProcessor,
             IFilePathGenerator filePathGenerator,
             IQualityFallbackProvider qualityFallbackProvider,
-            IQobuzLogger logger,
-            ISafeMetadataOptimizer metadataOptimizer = null)
+            IQobuzLogger logger)
         {
             _streamUrlProvider = streamUrlProvider ?? throw new ArgumentNullException(nameof(streamUrlProvider));
             _audioFileDownloader = audioFileDownloader ?? throw new ArgumentNullException(nameof(audioFileDownloader));
@@ -36,11 +37,12 @@ namespace Lidarr.Plugin.Qobuzarr.Download
             _filePathGenerator = filePathGenerator ?? throw new ArgumentNullException(nameof(filePathGenerator));
             _qualityFallbackProvider = qualityFallbackProvider ?? throw new ArgumentNullException(nameof(qualityFallbackProvider));
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
-            _metadataOptimizer = metadataOptimizer;
         }
 
         public QobuzTrackDownloader CreateTrackDownloader()
         {
+            // Create track downloader without metadata optimizer to prevent circular dependencies
+            // All downloaders created by this factory will have the same configuration for consistency
             return new QobuzTrackDownloader(
                 _streamUrlProvider,
                 _audioFileDownloader,
@@ -48,9 +50,7 @@ namespace Lidarr.Plugin.Qobuzarr.Download
                 _filePathGenerator,
                 _qualityFallbackProvider,
                 _logger,
-                _metadataOptimizer);
+                null); // Metadata optimizer disabled to break circular dependency
         }
-
-        // Legacy method removed - use CreateTrackDownloader() instead
     }
 }

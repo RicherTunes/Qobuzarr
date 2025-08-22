@@ -51,12 +51,9 @@
     <FileVersion>$(VersionPrefix).0</FileVersion>
     <AssemblyInformationalVersion>$(Version)</AssemblyInformationalVersion>
     
-    <!-- Enable ILRepack for plugin compatibility like working plugins - only for PluginRelease builds -->
-    <ILRepackEnabled Condition="'$(ILRepackEnabled)' == '' And '$(Configuration)' == 'PluginRelease'">true</ILRepackEnabled>
+    <!-- Enable ILRepack for plugin compatibility like working plugins -->
+    <ILRepackEnabled Condition="'$(ILRepackEnabled)' == '' And ('$(Configuration)' == 'PluginRelease' Or '$(Configuration)' == 'Release')">false</ILRepackEnabled>
     <ILRepackEnabled Condition="'$(ILRepackEnabled)' == ''">false</ILRepackEnabled>
-    
-    <!-- Disable ILRepack for CI builds and non-plugin builds -->
-    <DisableILRepack Condition="'$(Configuration)' != 'PluginRelease'">true</DisableILRepack>
   </PropertyGroup>
 
   <!-- Source files inclusion -->
@@ -92,19 +89,24 @@
 
   <!-- Package dependencies -->
   <ItemGroup>
-    <PackageReference Include="Newtonsoft.Json" />
-    <PackageReference Include="TagLibSharp-Lidarr" />
-    <PackageReference Include="Microsoft.ML" />
-    <PackageReference Include="NLog" />
-    <PackageReference Include="FluentValidation" />
-    <PackageReference Include="System.Resources.Extensions" />
-    <PackageReference Include="ILRepack.Lib.MSBuild.Task" Condition="'$(Configuration)' == 'PluginRelease'">
+    <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
+    <PackageReference Include="TagLibSharp-Lidarr" Version="2.2.0.19" />
+    <PackageReference Include="Microsoft.ML" Version="2.0.1" />
+    <!-- NLog for compile-time only - exclude runtime to avoid conflicts -->
+    <PackageReference Include="NLog" Version="5.0.0">
+      <ExcludeAssets>runtime</ExcludeAssets>
+      <PrivateAssets>all</PrivateAssets>
+    </PackageReference>
+    <PackageReference Include="FluentValidation" Version="9.5.4" />
+    <PackageReference Include="System.Resources.Extensions" Version="8.0.0" />
+    <!-- ILRepack for assembly merging -->
+    <PackageReference Include="ILRepack.Lib.MSBuild.Task" Version="2.0.34.2" Condition="'$(Configuration)' == 'PluginRelease' Or '$(Configuration)' == 'Release'">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
   </ItemGroup>
 
-  <!-- Lidarr assemblies from pre-built release -->
+  <!-- Lidarr assemblies from pre-built release (safer than ProjectReference) -->
   <ItemGroup>
     <Reference Include="Lidarr">
       <HintPath>ext\Lidarr\_output\net6.0\Lidarr.dll</HintPath>
@@ -130,7 +132,6 @@
       <HintPath>ext\Lidarr\_output\net6.0\Lidarr.Host.dll</HintPath>
       <Private>false</Private>
     </Reference>
-    <!-- Lidarr.Console.dll doesn't exist in release assemblies, removing reference -->
     <Reference Include="Lidarr.SignalR">
       <HintPath>ext\Lidarr\_output\net6.0\Lidarr.SignalR.dll</HintPath>
       <Private>false</Private>
@@ -166,12 +167,15 @@
     <None Remove="bin\**" />
   </ItemGroup>
 
-  <!-- Assembly merging with ILRepack - skip for plugins as they shouldn't include Lidarr assemblies -->
-  <Target Name="ILRepack" AfterTargets="Build" Condition="'$(Configuration)' == 'PluginRelease' And '$(ILRepackEnabled)' != 'false'">
+  <!-- Assembly merging with ILRepack -  -->
+  <Target Name="ILRepack" AfterTargets="Build" Condition="'$(ILRepackEnabled)' == 'true'">
     <ItemGroup>
       <InputAssemblies Include="$(OutputPath)$(AssemblyName).dll" />
-      <!-- Only include plugin-specific dependencies, not Lidarr core assemblies -->
+      <!-- Bundle all plugin dependencies including NLog 6.0.0 (TrevTV's self-contained approach) -->
+      <InputAssemblies Include="$(OutputPath)NLog.dll" Condition="Exists('$(OutputPath)NLog.dll')" />
       <InputAssemblies Include="$(OutputPath)TagLibSharp.dll" Condition="Exists('$(OutputPath)TagLibSharp.dll')" />
+      <InputAssemblies Include="$(OutputPath)FluentValidation.dll" Condition="Exists('$(OutputPath)FluentValidation.dll')" />
+      <InputAssemblies Include="$(OutputPath)Newtonsoft.Json.dll" Condition="Exists('$(OutputPath)Newtonsoft.Json.dll')" />
     </ItemGroup>
     
     <!-- Include both output path and Lidarr assemblies path in LibraryPath for resolution -->
@@ -231,10 +235,20 @@
     <ItemGroup>
       <PluginFiles Include="$(OutputPath)$(AssemblyName).dll" />
       <PluginFiles Include="$(OutputPath)$(AssemblyName).pdb" />
+      <PluginFiles Include="$(OutputPath)$(AssemblyName).dll.config" Condition="Exists('$(OutputPath)$(AssemblyName).dll.config')" />
       <PluginFiles Include="$(OutputPath)plugin.json" />
       <PluginFiles Include="$(OutputPath)src\Indexers\ml-baseline-patterns.json" />
-      <!-- Exclude Lidarr assemblies from deployment -->
-      <PluginFiles Remove="$(OutputPath)Lidarr.*.dll" />
+      <!-- Exclude Lidarr core assemblies from deployment (but keep our plugin DLL) -->
+      <PluginFiles Remove="$(OutputPath)Lidarr.dll" />
+      <PluginFiles Remove="$(OutputPath)Lidarr.Api.V1.dll" />
+      <PluginFiles Remove="$(OutputPath)Lidarr.Common.dll" />
+      <PluginFiles Remove="$(OutputPath)Lidarr.Core.dll" />
+      <PluginFiles Remove="$(OutputPath)Lidarr.Host.dll" />
+      <PluginFiles Remove="$(OutputPath)Lidarr.Http.dll" />
+      <PluginFiles Remove="$(OutputPath)Lidarr.SignalR.dll" />
+      <!-- Exclude NLog - Lidarr runtime provides its own version -->
+      <PluginFiles Remove="$(OutputPath)NLog.dll" />
+      <PluginFiles Remove="$(OutputPath)NLog.*.dll" />
       <PluginFiles Remove="$(OutputPath)Lidarr.*.xml" />
     </ItemGroup>
     

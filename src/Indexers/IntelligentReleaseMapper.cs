@@ -52,10 +52,14 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
         private const double MIN_TRACK_TITLE_SIMILARITY = 0.85; // Require 85% title similarity
         private const int MAX_RELEASE_YEAR_VARIANCE = 5; // Allow 5 year difference for remasters
 
-        public IntelligentReleaseMapper(Logger logger, QobuzTrackDownloader trackDownloader)
+        public IntelligentReleaseMapper(Logger logger, IQobuzTrackDownloaderFactory trackDownloaderFactory)
         {
             _logger = logger ?? LogManager.GetCurrentClassLogger();
-            _trackDownloader = trackDownloader ?? throw new ArgumentNullException(nameof(trackDownloader));
+            if (trackDownloaderFactory == null)
+                throw new ArgumentNullException(nameof(trackDownloaderFactory));
+            
+            // Create track downloader for release mapping functionality
+            _trackDownloader = trackDownloaderFactory.CreateTrackDownloader();
         }
 
         /// <summary>

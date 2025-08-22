@@ -23,23 +23,33 @@ jobs:
       with:
         dotnet-version: '6.0.x'
 
-    - name: Download Lidarr assemblies 
-      shell: bash  
+    - name: Setup Lidarr Plugin Branch (same as local)
+      shell: bash
       run: |
-        echo "📦 Setting up Lidarr assemblies for security analysis..."
-        if [ -f "./download-lidarr-assemblies.sh" ]; then
-          chmod +x ./download-lidarr-assemblies.sh
-          ./download-lidarr-assemblies.sh --version 2.13.2.4685 --force
-          echo "✅ Lidarr assemblies ready"
-        else
-          echo "⚠️ Download script not found, skipping assembly setup"
+        echo "📦 Setting up Lidarr from plugin branch for security analysis..."
+        
+        # Clone the same Lidarr source we use locally
+        if [ ! -d "ext/Lidarr-source" ]; then
+          git clone https://github.com/Lidarr/Lidarr.git ext/Lidarr-source
         fi
+        
+        cd ext/Lidarr-source
+        git fetch origin
+        git checkout 6e8228f2f  # Use exact same commit as local development
+        
+        # Build the assemblies we need with analyzer suppression
+        dotnet build src/NzbDrone.Common/Lidarr.Common.csproj -c Release -o ../_output/net6.0/ \
+          -p:RunAnalyzersDuringBuild=false -p:EnableNETAnalyzers=false -p:TreatWarningsAsErrors=false
+        dotnet build src/NzbDrone.Core/Lidarr.Core.csproj -c Release -o ../_output/net6.0/ \
+          -p:RunAnalyzersDuringBuild=false -p:EnableNETAnalyzers=false -p:TreatWarningsAsErrors=false
+        
+        cd ../..
+        echo "✅ Lidarr plugin branch assemblies ready"
 
     - name: Restore dependencies
       run: |
-        echo "📦 Restoring only main plugin dependencies for security analysis..."
+        echo "📦 Restoring main plugin dependencies for security analysis..."
         dotnet restore Qobuzarr.csproj
-        dotnet restore QobuzCLI/QobuzCLI.csproj
 
     - name: Run .NET Security Analysis
       run: |

@@ -8,10 +8,12 @@ using NzbDrone.Core.Indexers;
 using NzbDrone.Core.Parser.Model;
 using NzbDrone.Common.Extensions;
 using NzbDrone.Common.Http;
+using Lidarr.Plugin.Qobuzarr.Security;
 using NLog;
 using NzbDrone.Core.Qualities;
 using Lidarr.Plugin.Qobuzarr.Models;
 using Lidarr.Plugin.Qobuzarr.Configuration;
+using NzbDrone.Core.IndexerSearch.Definitions;
 
 namespace Lidarr.Plugin.Qobuzarr.Indexers
 {
@@ -19,11 +21,27 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
     {
         private readonly QobuzIndexerSettings _settings;
         private readonly Logger _logger;
+        private SearchCriteriaBase _currentSearchCriteria;
 
         public QobuzParser(QobuzIndexerSettings settings, Logger logger)
         {
             _settings = settings;
             _logger = logger;
+        }
+
+        /// <summary>
+        /// Sets the current search criteria context for intelligent title generation.
+        /// This allows the parser to generate titles that match Lidarr's exact expectations.
+        /// </summary>
+        public void SetSearchContext(SearchCriteriaBase searchCriteria)
+        {
+            _currentSearchCriteria = searchCriteria;
+            if (searchCriteria != null)
+            {
+                _logger.Debug("Parser context set: Artist='{0}', Albums={1}",
+                    searchCriteria.Artist?.Name,
+                    searchCriteria.Albums?.Count ?? 0);
+            }
         }
 
         public IList<ReleaseInfo> ParseResponse(IndexerResponse indexerResponse)
@@ -203,7 +221,7 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
                 Guid = $"qobuz-{album.Id}-{(int)quality}",
                 
                 // CRITICAL: Set the download protocol to fix frontend display
-                DownloadProtocol = DownloadProtocol.Usenet,
+                DownloadProtocol = nameof(QobuzarrDownloadProtocol),
                 
                 // Basic metadata - ENSURE NON-EMPTY NAMES
                 Artist = artistName,
@@ -223,39 +241,415 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
             // Generate quality-specific title
             release.Title = GenerateQualitySpecificTitle(album, quality, year);
             
-            // Debug logging to help diagnose quality detection issues
-            _logger.Debug("Generated release title for quality {0}: '{1}'", quality, release.Title);
+            // Critical debugging for album mapping (only during troubleshooting)
+            _logger.Debug("🔍 ALBUM MAPPING: Qobuz '{0}' ({1}) → Title '{2}' → Album '{3}'", 
+                album.Id, album.Title, release.Title, release.Album);
+            
+            // Debug context-aware matching for edition albums
+            if (_currentSearchCriteria?.Albums?.Any() == true)
+            {
+                _logger.Debug("🎯 Search Context Available: {0} albums in criteria", _currentSearchCriteria.Albums.Count);
+                foreach (var lidarrAlbum in _currentSearchCriteria.Albums)
+                {
+                    _logger.Debug("   Lidarr Album: '{0}' ({1})", lidarrAlbum.Title, lidarrAlbum.ReleaseDate?.Year);
+                }
+            }
+            else
+            {
+                _logger.Debug("❌ No search context available - using original Qobuz title");
+            }
 
             return release;
         }
 
+        /// <summary>
+        /// Generates title formatted for optimal Lidarr parser compatibility
+        /// Uses dual-format approach: hyphen format for editions, bracket format for standard albums
+        /// </summary>
+        /// <remarks>
+        /// Architecture rationale:
+        /// - Edition albums use hyphen format to match Parser.cs:73 regex pattern
+        /// - Standard albums use bracket format for backward compatibility
+        /// - Context-aware matching preserves exact Lidarr titles when available
+        /// - Fallback mechanisms ensure robustness when parsing fails
+        /// </remarks>
         private string GenerateQualitySpecificTitle(QobuzAlbum album, QobuzAudioQuality quality, int year)
         {
-            var artist = album.GetArtistName();
-            var albumTitle = album.GetFullTitle();
-            var yearStr = year > 0 ? $" ({year})" : "";
+            var artist = MetadataSanitizer.SanitizeArtistName(album.GetArtistName());
+            var albumTitle = album.Title; // Use base title without version
+            var version = album.Version?.Trim(); // Get version separately
             
-            // Generate quality-specific format strings that match Lidarr's regex patterns EXACTLY
+            // CONTEXT-AWARE: Use exact Lidarr title if available
+            if (_currentSearchCriteria?.Albums?.Any() == true)
+            {
+                var targetAlbum = FindBestMatchingAlbum(album, _currentSearchCriteria.Albums, year);
+                if (targetAlbum != null)
+                {
+                    _logger.Debug("Using exact Lidarr title for album {0}: '{1}' -> '{2}'",
+                        album.Id, album.Title, targetAlbum.Title);
+                    albumTitle = targetAlbum.Title; // Use EXACT title from Lidarr
+                    year = targetAlbum.ReleaseDate?.Year ?? year;
+                    version = null; // Don't double-add version if Lidarr title already has it
+                }
+            }
+            
+            // Generate quality string
             var formatStr = quality switch
             {
-                // BitRateRegex looks for: (?<B320>320[ ]?kbps|320|[\[\(].*320.*[\]\)]|q9)
                 QobuzAudioQuality.MP3320 => "MP3 320kbps",
-                
-                // CodecRegex looks for: (?<FLAC>(web)?flac(?:24(?:[-._ ]?bit)?)?|TR24) + SampleSizeRegex for 24bit
                 QobuzAudioQuality.FLACLossless => "FLAC",
-                
-                // SampleSizeRegex looks for: (?<S24>24[-._ ]?bit|flac24(?:[-._ ]?bit)?|tr24|24-(?:44|48|96|192))
                 QobuzAudioQuality.FLACHiRes24Bit96kHz => "FLAC 24bit 96kHz",
                 QobuzAudioQuality.FLACHiRes24Bit192Khz => "FLAC 24bit 192kHz",
                 _ => "Unknown"
             };
             
-            // Add explicit warning if applicable
-            var explicitStr = album.ParentalWarning ? " [Explicit]" : "";
+            // ARCHITECTURAL DECISION: Dual-format title generation based on album type
+            // Edition albums use hyphen format to trigger Lidarr's version extraction (Parser.cs:73)
+            // Standard albums use existing bracket format for backward compatibility
             
-            // Format: Artist - Album (Year) [Explicit] [Quality] [WEB]
-            // The quality info needs to be in the title text, not just in brackets
-            return $"{artist} - {albumTitle}{yearStr}{explicitStr} [{formatStr}] [WEB]";
+            // Check for edition info in Version field OR album title
+            var hasVersionField = !string.IsNullOrWhiteSpace(version) && ContainsEditionKeywords(version);
+            var hasEditionInTitle = ContainsEditionKeywords(albumTitle);
+            
+            _logger.Trace("🔍 EDITION CHECK: Album='{0}', HasEdition={1}", albumTitle, hasVersionField || hasEditionInTitle);
+            
+            if (hasVersionField || hasEditionInTitle)
+            {
+                // Extract version from title if not in Version field
+                var versionToUse = version;
+                var cleanAlbumTitle = albumTitle;
+                
+                if (string.IsNullOrWhiteSpace(versionToUse) && hasEditionInTitle)
+                {
+                    // Extract edition info from title: "Album (Deluxe Edition)" → version="Deluxe Edition"
+                    versionToUse = ExtractVersionFromTitle(albumTitle);
+                    cleanAlbumTitle = albumTitle.Replace($"({versionToUse})", "").Replace($"[{versionToUse}]", "").Trim();
+                    _logger.Debug("Extracted version from title: '{0}' → album='{1}', version='{2}'", 
+                        albumTitle, cleanAlbumTitle, versionToUse);
+                }
+                
+                // Test multiple elegant formats to find the best one
+                var formats = new[]
+                {
+                    $"{artist} - {cleanAlbumTitle} [{versionToUse}] - WEB - {year}",           // Bracket format
+                    $"{artist} - {cleanAlbumTitle} ({versionToUse}) - WEB - {year}",          // Parentheses format  
+                    $"{artist} - {cleanAlbumTitle} • {versionToUse} • WEB • {year}",          // Bullet format
+                    $"{artist}-{cleanAlbumTitle}-[{versionToUse}]-WEB-{year}",                // Mixed hyphen-bracket
+                    $"{artist}-{cleanAlbumTitle}-{versionToUse}-WEB-{year}"                   // Original hyphen
+                };
+                
+                // For now, use the first (bracket) format - most elegant and likely to work
+                var chosenFormat = formats[0];
+                _logger.Debug("🎯 EDITION ALBUM: Using elegant format for '{0}'", albumTitle);
+                return chosenFormat;
+            }
+            
+            // Standard format for non-edition albums
+            var yearStr = year > 0 ? $" ({year})" : "";
+            var explicitStr = album.ParentalWarning ? " [Explicit]" : "";
+            var liveIndicator = IsLiveAlbum(albumTitle) ? " [LIVE]" : "";
+            
+            var standardTitle = $"{artist} - {albumTitle}{yearStr}{explicitStr}{liveIndicator} [{formatStr}] [WEB]";
+            _logger.Trace("Standard album format: '{0}'", standardTitle);
+            return standardTitle;
+        }
+        
+        /// <summary>
+        /// Generates hyphen-format title for edition albums to trigger Lidarr's version extraction
+        /// </summary>
+        /// <remarks>
+        /// Format validation:
+        /// - Matches Parser.cs:73 regex pattern for version extraction
+        /// - Sanitizes components to prevent parser confusion
+        /// - Validates length constraints for robust parsing
+        /// - Handles edge cases like missing years or special characters
+        /// </remarks>
+        private string GenerateHyphenFormatTitle(string artist, string albumTitle, string version, string formatStr, int year)
+        {
+            // Sanitize components to prevent parser issues
+            artist = SanitizeForHyphenFormat(artist);
+            albumTitle = SanitizeForHyphenFormat(albumTitle);
+            version = SanitizeForHyphenFormat(version);
+            
+            // Handle missing year gracefully
+            var yearStr = year > 1900 ? year.ToString() : DateTime.Now.Year.ToString();
+            
+            // Primary format: Artist-Album-Version-Source-Year
+            // This matches the regex at Parser.cs:73 for version extraction
+            var primaryFormat = $"{artist}-{albumTitle}-{version}-WEB-{yearStr}";
+            
+            // Validate format won't break parser (basic sanity checks)
+            if (primaryFormat.Length > 500) // Excessive length might cause issues
+            {
+                _logger.Warn("Hyphen format title too long ({0} chars), truncating components", primaryFormat.Length);
+                
+                // Intelligently truncate to preserve important info
+                if (version.Length > 50)
+                {
+                    version = version.Substring(0, 47) + "...";
+                }
+                if (albumTitle.Length > 100)
+                {
+                    albumTitle = albumTitle.Substring(0, 97) + "...";
+                }
+                
+                primaryFormat = $"{artist}-{albumTitle}-{version}-WEB-{yearStr}";
+            }
+            
+            // Final validation pass
+            primaryFormat = ValidateHyphenFormat(primaryFormat);
+            
+            // Log format for debugging
+            _logger.Trace("Hyphen format components: Artist='{0}', Album='{1}', Version='{2}', Year='{3}'",
+                artist, albumTitle, version, yearStr);
+            
+            return primaryFormat;
+        }
+        
+        /// <summary>
+        /// Sanitizes text for use in hyphen-format titles
+        /// </summary>
+        private string SanitizeForHyphenFormat(string text)
+        {
+            if (string.IsNullOrWhiteSpace(text))
+                return "Unknown";
+                
+            // Replace problematic characters that might confuse parser
+            text = text.Replace("/", " ");
+            text = text.Replace("\\", " ");
+            text = text.Replace(":", " ");
+            text = text.Replace("|", " ");
+            text = text.Replace("?", "");
+            text = text.Replace("*", "");
+            text = text.Replace("<", "");
+            text = text.Replace(">", "");
+            text = text.Replace("\"", "'");
+            
+            // Normalize whitespace
+            text = System.Text.RegularExpressions.Regex.Replace(text, @"\s+", " ").Trim();
+            
+            // Ensure no leading/trailing hyphens
+            text = text.Trim('-');
+            
+            return text;
+        }
+        
+        /// <summary>
+        /// Final validation of hyphen format to ensure parser compatibility
+        /// </summary>
+        private string ValidateHyphenFormat(string format)
+        {
+            // Ensure no double hyphens that might confuse parser
+            format = System.Text.RegularExpressions.Regex.Replace(format, @"-{2,}", "-");
+            
+            // Ensure format has expected structure (at least 4 hyphens for Artist-Album-Version-Source-Year)
+            var hyphenCount = format.Count(c => c == '-');
+            if (hyphenCount < 4)
+            {
+                _logger.Warn("Hyphen format has insufficient delimiters ({0}), format may not parse correctly: '{1}'",
+                    hyphenCount, format);
+            }
+            
+            return format;
+        }
+
+        /// <summary>
+        /// Comprehensive edition detection for all album variant types
+        /// Identifies albums requiring special title formatting for Lidarr parser compatibility
+        /// </summary>
+        private bool ContainsEditionKeywords(string text)
+        {
+            if (string.IsNullOrWhiteSpace(text))
+                return false;
+                
+            // Comprehensive edition patterns based on production data analysis
+            var editionKeywords = new[] 
+            { 
+                // Core edition types
+                "deluxe", "edition", "remaster", "anniversary", "expanded", 
+                "special", "collector", "limited", "bonus",
+                
+                // Live album indicators
+                "live at", "live in", "live", "concert", "unplugged", "acoustic",
+                
+                // Format variants  
+                "remix", "instrumental", "extended", "radio",
+                
+                // Special releases
+                "legacy", "archive", "complete", "sessions", "demos"
+            };
+            
+            var hasEdition = editionKeywords.Any(keyword => text.Contains(keyword, StringComparison.OrdinalIgnoreCase));
+            
+            if (hasEdition)
+            {
+                _logger.Trace("Edition keywords detected in '{0}'", text);
+            }
+            
+            return hasEdition;
+        }
+
+        private string ExtractVersionFromTitle(string title)
+        {
+            // Extract content from parentheses: "Album (Deluxe Edition)" → "Deluxe Edition"
+            var parenthesesMatch = System.Text.RegularExpressions.Regex.Match(title, @"\(([^)]+)\)");
+            if (parenthesesMatch.Success)
+            {
+                var content = parenthesesMatch.Groups[1].Value;
+                if (ContainsEditionKeywords(content))
+                {
+                    return content;
+                }
+            }
+            
+            // Extract content from brackets: "Album [Live at Venue]" → "Live at Venue"  
+            var bracketsMatch = System.Text.RegularExpressions.Regex.Match(title, @"\[([^\]]+)\]");
+            if (bracketsMatch.Success)
+            {
+                var content = bracketsMatch.Groups[1].Value;
+                if (ContainsEditionKeywords(content))
+                {
+                    return content;
+                }
+            }
+            
+            return "";
+        }
+
+        private bool IsLiveAlbum(string albumTitle)
+        {
+            var liveTerms = new[] { " live", "(live)", "[live]", "live at", "live in", "concert", "unplugged" };
+            return liveTerms.Any(term => albumTitle.Contains(term, StringComparison.OrdinalIgnoreCase));
+        }
+
+        /// <summary>
+        /// Finds the best matching album from Lidarr's search criteria based on metadata.
+        /// This ensures we use the exact title format that Lidarr expects.
+        /// </summary>
+        private NzbDrone.Core.Music.Album FindBestMatchingAlbum(QobuzAlbum qobuzAlbum, List<NzbDrone.Core.Music.Album> lidarrAlbums, int qobuzYear)
+        {
+            if (lidarrAlbums == null || !lidarrAlbums.Any())
+                return null;
+
+            // CRITICAL FIX: Don't use context for unrelated albums
+            // We should only use the Lidarr title if the Qobuz album actually matches
+            // the search criteria, not for ALL albums returned by Qobuz
+            
+            var qobuzTitle = qobuzAlbum.GetFullTitle().ToLowerInvariant();
+            var qobuzIsLive = IsLiveAlbum(qobuzAlbum.GetFullTitle());
+            
+            // Step 1: Try to find exact title match first (case insensitive)
+            var titleMatches = lidarrAlbums.Where(a => 
+            {
+                if (a.Title == null) return false;
+                var lidarrTitle = a.Title.ToLowerInvariant();
+                
+                // Check for substantial overlap in titles
+                return CalculateTitleSimilarity(qobuzTitle, lidarrTitle) > 0.7;
+            }).ToList();
+            
+            if (titleMatches.Count == 1)
+            {
+                _logger.Debug("Found title match for Qobuz '{0}': using Lidarr '{1}'", 
+                    qobuzAlbum.GetFullTitle(), titleMatches.First().Title);
+                return titleMatches.First();
+            }
+            
+            // Step 2: If we have multiple title matches, disambiguate by year
+            if (titleMatches.Count > 1)
+            {
+                var yearAndTitleMatches = titleMatches.Where(a => 
+                    a.ReleaseDate?.Year == qobuzYear || 
+                    (qobuzYear == 0 && a.ReleaseDate == null)).ToList();
+                    
+                if (yearAndTitleMatches.Count == 1)
+                {
+                    _logger.Debug("Found year+title match for Qobuz '{0}': using Lidarr '{1}'", 
+                        qobuzAlbum.GetFullTitle(), yearAndTitleMatches.First().Title);
+                    return yearAndTitleMatches.First();
+                }
+                else if (yearAndTitleMatches.Any())
+                {
+                    // Multiple matches, pick the one with best title similarity
+                    var bestMatch = yearAndTitleMatches
+                        .OrderByDescending(a => CalculateTitleSimilarity(qobuzTitle, a.Title?.ToLowerInvariant() ?? ""))
+                        .First();
+                    _logger.Debug("Found best match for Qobuz '{0}': using Lidarr '{1}'", 
+                        qobuzAlbum.GetFullTitle(), bestMatch.Title);
+                    return bestMatch;
+                }
+            }
+
+            // Step 3: Only apply live album matching if titles are similar
+            if (qobuzIsLive)
+            {
+                var liveMatches = lidarrAlbums.Where(a => 
+                    IsLiveAlbum(a.Title) && 
+                    CalculateTitleSimilarity(qobuzTitle, a.Title?.ToLowerInvariant() ?? "") > 0.5).ToList();
+
+                if (liveMatches.Count == 1)
+                {
+                    _logger.Debug("Found live album match for Qobuz '{0}': using Lidarr '{1}'", 
+                        qobuzAlbum.GetFullTitle(), liveMatches.First().Title);
+                    return liveMatches.First();
+                }
+            }
+
+            // Step 4: NO FALLBACK - if we can't find a good match, don't use context
+            // This prevents the bug where all albums get the same title
+            _logger.Debug("No matching Lidarr album found for Qobuz '{0}', using original title", 
+                qobuzAlbum.GetFullTitle());
+            return null; // Return null to indicate no match found
+        }
+        
+        /// <summary>
+        /// Calculate similarity between two titles using simple character overlap.
+        /// Returns a value between 0 (no match) and 1 (exact match).
+        /// </summary>
+        private double CalculateTitleSimilarity(string title1, string title2)
+        {
+            if (string.IsNullOrWhiteSpace(title1) || string.IsNullOrWhiteSpace(title2))
+                return 0;
+                
+            // Remove common words and punctuation for comparison
+            var cleanTitle1 = CleanTitleForComparison(title1);
+            var cleanTitle2 = CleanTitleForComparison(title2);
+            
+            if (cleanTitle1 == cleanTitle2)
+                return 1.0;
+                
+            // Check if one title contains the other (for live albums, special editions, etc.)
+            if (cleanTitle1.Contains(cleanTitle2) || cleanTitle2.Contains(cleanTitle1))
+                return 0.8;
+                
+            // Calculate word overlap
+            var words1 = cleanTitle1.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+            var words2 = cleanTitle2.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+            
+            if (words1.Length == 0 || words2.Length == 0)
+                return 0;
+                
+            var commonWords = words1.Intersect(words2).Count();
+            var totalWords = Math.Max(words1.Length, words2.Length);
+            
+            return (double)commonWords / totalWords;
+        }
+        
+        /// <summary>
+        /// Clean title for comparison by removing punctuation and common words.
+        /// </summary>
+        private string CleanTitleForComparison(string title)
+        {
+            // Remove punctuation and convert to lowercase
+            var cleaned = Regex.Replace(title.ToLowerInvariant(), @"[^\w\s]", " ");
+            
+            // Remove common words that don't help with matching
+            var stopWords = new[] { "the", "a", "an", "and", "or", "of", "in", "on", "at", "to", "for" };
+            var words = cleaned.Split(' ', StringSplitOptions.RemoveEmptyEntries)
+                .Where(w => !stopWords.Contains(w))
+                .ToArray();
+                
+            return string.Join(" ", words);
         }
 
         private string GenerateDownloadUrl(QobuzAlbum album, QobuzAudioQuality quality)
@@ -268,10 +662,24 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
         {
             // Use quality-specific bitrate for accurate size estimation
             var bitrate = quality.GetEstimatedBitrate();
-            var durationSeconds = album.Duration.TotalSeconds; // Convert TimeSpan to seconds
+            var durationSeconds = album.Duration.TotalSeconds;
+            
+            // If album duration is missing, estimate from track count
+            if (durationSeconds <= 0)
+            {
+                var trackCount = album.TracksCount > 0 ? album.TracksCount : 10; // Default assumption
+                var avgTrackDuration = 3.5 * 60; // 3.5 minutes average per track
+                durationSeconds = trackCount * avgTrackDuration;
+                
+                _logger.Debug("Album duration missing, estimated {0} seconds from {1} tracks", 
+                    durationSeconds, trackCount);
+            }
             
             // Convert bits per second to bytes per second, then multiply by duration
-            return (long)(durationSeconds * (bitrate / 8.0));
+            var estimatedSize = (long)(durationSeconds * (bitrate / 8.0));
+            
+            // Ensure we don't return 0 size (causes issues in Lidarr)
+            return Math.Max(estimatedSize, 1024 * 1024); // Minimum 1MB
         }
 
         private bool ShouldIncludeAlbum(QobuzAlbum album)

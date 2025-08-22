@@ -4,7 +4,7 @@ using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using FluentAssertions;
-using Moq;
+using NSubstitute;
 using Newtonsoft.Json;
 using NzbDrone.Core.Download;
 using NzbDrone.Core.Indexers;
@@ -28,46 +28,88 @@ namespace Qobuzarr.Tests.Unit.Download
     // Tests restored and updated for current API
     public class QobuzDownloadClientTests : TestFixtureBase
     {
-        private readonly Mock<IQobuzAuthenticationService> _mockAuthService;
-        private readonly Mock<IQobuzApiClient> _mockApiClient;
-        private readonly Mock<IDownloadQueueService> _mockQueueService;
-        private readonly Mock<IDownloadFileService> _mockFileService;
-        private readonly Mock<IConcurrencyManager> _mockConcurrencyManager;
-        private readonly Mock<IDownloadOrchestrator> _mockOrchestrator;
-        private readonly Mock<IDownloadSummary> _mockDownloadSummary;
-        private readonly Mock<IBatchProcessor> _mockBatchProcessor;
-        private readonly Mock<IQobuzTrackDownloaderFactory> _mockTrackDownloaderFactory;
-        private readonly QobuzDownloadClient _downloadClient;
+        // Test-specific DownloadClient that overrides Settings access for testing
+        private class TestableQobuzDownloadClient : QobuzDownloadClient
+        {
+            private QobuzDownloadSettings _testSettings;
+            
+            public TestableQobuzDownloadClient(
+                IQobuzAuthenticationService authService,
+                IQobuzApiClient apiClient,
+                NzbDrone.Common.Http.IHttpClient httpClient,
+                IDownloadQueueService queueService,
+                IDownloadFileService fileService,
+                IConcurrencyManager concurrencyManager,
+                IDownloadOrchestrator orchestrator,
+                IDownloadSummary downloadSummary,
+                IBatchProcessor batchProcessor,
+                IQobuzTrackDownloaderFactory trackDownloaderFactory,
+                NzbDrone.Core.Configuration.IConfigService configService,
+                NzbDrone.Common.Disk.IDiskProvider diskProvider,
+                NzbDrone.Core.RemotePathMappings.IRemotePathMappingService remotePathMappingService,
+                NzbDrone.Core.Localization.ILocalizationService localizationService,
+                NLog.Logger logger) 
+                : base(authService, apiClient, httpClient, queueService, fileService, concurrencyManager, 
+                      orchestrator, downloadSummary, batchProcessor, trackDownloaderFactory, 
+                      configService, diskProvider, remotePathMappingService, localizationService, logger)
+            {
+                _testSettings = new QobuzDownloadSettings
+                {
+                    DownloadPath = @"C:\Downloads\Qobuz",
+                    PreferredQuality = 6, // FLAC CD Quality
+                    CreateAlbumFolders = true,
+                    ConcurrencyMode = (int)DownloadConcurrencyMode.Fixed,
+                    FixedConcurrencyLevel = 3
+                };
+            }
+            
+            protected new QobuzDownloadSettings Settings => _testSettings;
+            
+            public void SetTestSettings(QobuzDownloadSettings settings)
+            {
+                _testSettings = settings;
+            }
+        }
+        private readonly IQobuzAuthenticationService _mockAuthService;
+        private readonly IQobuzApiClient _mockApiClient;
+        private readonly IDownloadQueueService _mockQueueService;
+        private readonly IDownloadFileService _mockFileService;
+        private readonly IConcurrencyManager _mockConcurrencyManager;
+        private readonly IDownloadOrchestrator _mockOrchestrator;
+        private readonly IDownloadSummary _mockDownloadSummary;
+        private readonly IBatchProcessor _mockBatchProcessor;
+        private readonly IQobuzTrackDownloaderFactory _mockTrackDownloaderFactory;
+        private readonly TestableQobuzDownloadClient _downloadClient;
         private readonly QobuzSession _testSession;
 
         public QobuzDownloadClientTests()
         {
-            _mockAuthService = new Mock<IQobuzAuthenticationService>();
-            _mockApiClient = new Mock<IQobuzApiClient>();
-            _mockQueueService = new Mock<IDownloadQueueService>();
-            _mockFileService = new Mock<IDownloadFileService>();
-            _mockConcurrencyManager = new Mock<IConcurrencyManager>();
-            _mockOrchestrator = new Mock<IDownloadOrchestrator>();
-            _mockDownloadSummary = new Mock<IDownloadSummary>();
-            _mockBatchProcessor = new Mock<IBatchProcessor>();
-            _mockTrackDownloaderFactory = new Mock<IQobuzTrackDownloaderFactory>();
+            _mockAuthService = Substitute.For<IQobuzAuthenticationService>();
+            _mockApiClient = Substitute.For<IQobuzApiClient>();
+            _mockQueueService = Substitute.For<IDownloadQueueService>();
+            _mockFileService = Substitute.For<IDownloadFileService>();
+            _mockConcurrencyManager = Substitute.For<IConcurrencyManager>();
+            _mockOrchestrator = Substitute.For<IDownloadOrchestrator>();
+            _mockDownloadSummary = Substitute.For<IDownloadSummary>();
+            _mockBatchProcessor = Substitute.For<IBatchProcessor>();
+            _mockTrackDownloaderFactory = Substitute.For<IQobuzTrackDownloaderFactory>();
             
-            _downloadClient = new QobuzDownloadClient(
-                _mockAuthService.Object,
-                _mockApiClient.Object,
-                MockHttpClient.Object,
-                _mockQueueService.Object,
-                _mockFileService.Object,
-                _mockConcurrencyManager.Object,
-                _mockOrchestrator.Object,
-                _mockDownloadSummary.Object,
-                _mockBatchProcessor.Object,
-                _mockTrackDownloaderFactory.Object,
-                MockConfigService.Object,
-                MockDiskProvider.Object,
-                MockRemotePathMappingService.Object,
-                MockLocalizationService.Object,
-                MockLogger.Object
+            _downloadClient = new TestableQobuzDownloadClient(
+                _mockAuthService,
+                _mockApiClient,
+                MockHttpClient,
+                _mockQueueService,
+                _mockFileService,
+                _mockConcurrencyManager,
+                _mockOrchestrator,
+                _mockDownloadSummary,
+                _mockBatchProcessor,
+                _mockTrackDownloaderFactory,
+                MockConfigService,
+                MockDiskProvider,
+                MockRemotePathMappingService,
+                MockLocalizationService,
+                MockLogger
             );
 
             _testSession = new QobuzSession
@@ -82,14 +124,14 @@ namespace Qobuzarr.Tests.Unit.Download
 
         private void SetupMockDefaults()
         {
-            _mockAuthService.Setup(x => x.GetCachedSession()).Returns(_testSession);
+            _mockAuthService.GetCachedSession().Returns(_testSession);
             
-            MockDiskProvider.Setup(x => x.FolderExists(It.IsAny<string>())).Returns(true);
-            MockDiskProvider.Setup(x => x.CreateFolder(It.IsAny<string>()));
+            MockDiskProvider.FolderExists(Arg.Any<string>()).Returns(true);
+            MockDiskProvider.When(x => x.CreateFolder(Arg.Any<string>())).DoNothing();
             
             var album = JsonConvert.DeserializeObject<QobuzAlbum>(SampleQobuzResponses.SampleAlbumResponse);
-            _mockApiClient.Setup(x => x.GetAsync<QobuzAlbum>("/album/get", It.IsAny<Dictionary<string, string>>()))
-                         .ReturnsAsync(album);
+            _mockApiClient.GetAsync<QobuzAlbum>("/album/get", Arg.Any<Dictionary<string, string>>())
+                         .Returns(album);
         }
 
         [Fact]
@@ -99,7 +141,7 @@ namespace Qobuzarr.Tests.Unit.Download
             var remoteAlbum = CreateTestRemoteAlbum();
 
             // Act
-            var downloadId = await _downloadClient.Download(remoteAlbum, Mock.Of<IIndexer>());
+            var downloadId = await _downloadClient.Download(remoteAlbum, Substitute.For<IIndexer>());
 
             // Assert
             downloadId.Should().NotBeNullOrEmpty();
@@ -115,7 +157,7 @@ namespace Qobuzarr.Tests.Unit.Download
 
             // Act & Assert
             var exception = await Assert.ThrowsAsync<InvalidOperationException>(() => 
-                _downloadClient.Download(remoteAlbum, Mock.Of<IIndexer>()));
+                _downloadClient.Download(remoteAlbum, Substitute.For<IIndexer>()));
             
             exception.Message.Should().Contain("Could not extract album ID");
         }
@@ -127,7 +169,7 @@ namespace Qobuzarr.Tests.Unit.Download
             var remoteAlbum = CreateTestRemoteAlbum();
 
             // Act
-            var downloadId = await _downloadClient.Download(remoteAlbum, Mock.Of<IIndexer>());
+            var downloadId = await _downloadClient.Download(remoteAlbum, Substitute.For<IIndexer>());
 
             // Assert
             var items = _downloadClient.GetItems();
@@ -144,7 +186,7 @@ namespace Qobuzarr.Tests.Unit.Download
         {
             // Arrange
             var remoteAlbum = CreateTestRemoteAlbum();
-            var downloadId = await _downloadClient.Download(remoteAlbum, Mock.Of<IIndexer>());
+            var downloadId = await _downloadClient.Download(remoteAlbum, Substitute.For<IIndexer>());
 
             // Act
             var items = _downloadClient.GetItems();
@@ -171,7 +213,7 @@ namespace Qobuzarr.Tests.Unit.Download
         {
             // Arrange
             var remoteAlbum = CreateTestRemoteAlbum();
-            var downloadId = await _downloadClient.Download(remoteAlbum, Mock.Of<IIndexer>());
+            var downloadId = await _downloadClient.Download(remoteAlbum, Substitute.For<IIndexer>());
 
             _downloadClient.GetItems().Should().HaveCount(1);
             var downloadItem = _downloadClient.GetItems().First(x => x.DownloadId == downloadId);
@@ -188,16 +230,16 @@ namespace Qobuzarr.Tests.Unit.Download
         {
             // Arrange
             var remoteAlbum = CreateTestRemoteAlbum();
-            var downloadId = await _downloadClient.Download(remoteAlbum, Mock.Of<IIndexer>());
+            var downloadId = await _downloadClient.Download(remoteAlbum, Substitute.For<IIndexer>());
 
-            MockDiskProvider.Setup(x => x.FolderExists(It.IsAny<string>())).Returns(true);
+            MockDiskProvider.FolderExists(Arg.Any<string>()).Returns(true);
             var downloadItem = _downloadClient.GetItems().First(x => x.DownloadId == downloadId);
 
             // Act
             _downloadClient.RemoveItem(downloadItem, true);
 
             // Assert
-            MockDiskProvider.Verify(x => x.DeleteFolder(It.IsAny<string>(), true), Times.Once);
+            MockDiskProvider.Received(1).DeleteFolder(Arg.Any<string>(), true);
         }
 
         [Fact]
@@ -216,30 +258,21 @@ namespace Qobuzarr.Tests.Unit.Download
         }
 
         [Fact]
-        public void AddFromMagnetLink_ShouldThrowNotSupportedException()
+        public void Test_ShouldReturnValidationResult()
         {
-            // Arrange
-            var remoteAlbum = CreateTestRemoteAlbum();
+            // Act
+            var result = _downloadClient.Test();
 
-            // Act & Assert
-            Assert.Throws<NotSupportedException>(() => _downloadClient.Test());
-        }
-
-        [Fact]
-        public void AddFromTorrentFile_ShouldThrowNotSupportedException()
-        {
-            // Arrange
-            var remoteAlbum = CreateTestRemoteAlbum();
-
-            // Act & Assert
-            Assert.Throws<NotSupportedException>(() => _downloadClient.Test());
+            // Assert
+            result.Should().NotBeNull();
+            result.IsValid.Should().BeTrue();
         }
 
         [Fact]
         public void Protocol_ShouldReturnQobuzDownloadProtocol()
         {
             // Act & Assert
-            _downloadClient.Protocol.Should().Be(DownloadProtocol.Usenet);
+            _downloadClient.Protocol.Should().Be("QobuzarrDownloadProtocol");
         }
 
         [Fact]
@@ -254,7 +287,7 @@ namespace Qobuzarr.Tests.Unit.Download
         {
             // Arrange
             var remoteAlbum = CreateTestRemoteAlbum();
-            var downloadId = await _downloadClient.Download(remoteAlbum, Mock.Of<IIndexer>());
+            var downloadId = await _downloadClient.Download(remoteAlbum, Substitute.For<IIndexer>());
 
             // Wait for download to process
             await Task.Delay(100);
@@ -273,10 +306,10 @@ namespace Qobuzarr.Tests.Unit.Download
         public async Task PerformDownload_WithoutAuthentication_ShouldFail()
         {
             // Arrange
-            _mockAuthService.Setup(x => x.GetCachedSession()).Returns((QobuzSession)null);
+            _mockAuthService.GetCachedSession().Returns((QobuzSession)null);
             
             var remoteAlbum = CreateTestRemoteAlbum();
-            var downloadId = await _downloadClient.Download(remoteAlbum, Mock.Of<IIndexer>());
+            var downloadId = await _downloadClient.Download(remoteAlbum, Substitute.For<IIndexer>());
 
             // Wait for download to process
             await Task.Delay(200);
@@ -355,7 +388,7 @@ namespace Qobuzarr.Tests.Unit.Download
         {
             // Arrange
             var remoteAlbum = CreateTestRemoteAlbum();
-            var downloadId = await _downloadClient.Download(remoteAlbum, Mock.Of<IIndexer>());
+            var downloadId = await _downloadClient.Download(remoteAlbum, Substitute.For<IIndexer>());
 
             // Simulate old completed download by manipulating internal state
             var items = _downloadClient.GetItems();
@@ -377,11 +410,11 @@ namespace Qobuzarr.Tests.Unit.Download
         public async Task Download_WithApiError_ShouldMarkAsFailed()
         {
             // Arrange
-            _mockApiClient.Setup(x => x.GetAsync<QobuzAlbum>("/album/get", It.IsAny<Dictionary<string, string>>()))
-                         .ThrowsAsync(new InvalidOperationException("API Error"));
+            _mockApiClient.GetAsync<QobuzAlbum>("/album/get", Arg.Any<Dictionary<string, string>>())
+                         .Returns<QobuzAlbum>(x => throw new InvalidOperationException("API Error"));
 
             var remoteAlbum = CreateTestRemoteAlbum();
-            var downloadId = await _downloadClient.Download(remoteAlbum, Mock.Of<IIndexer>());
+            var downloadId = await _downloadClient.Download(remoteAlbum, Substitute.For<IIndexer>());
 
             // Wait for download to process and fail
             await Task.Delay(200);
@@ -404,8 +437,8 @@ namespace Qobuzarr.Tests.Unit.Download
             var remoteAlbum2 = CreateTestRemoteAlbum("Album 2");
             
             // Act
-            var downloadId1 = await _downloadClient.Download(remoteAlbum1, Mock.Of<IIndexer>());
-            var downloadId2 = await _downloadClient.Download(remoteAlbum2, Mock.Of<IIndexer>());
+            var downloadId1 = await _downloadClient.Download(remoteAlbum1, Substitute.For<IIndexer>());
+            var downloadId2 = await _downloadClient.Download(remoteAlbum2, Substitute.For<IIndexer>());
 
             // Assert
             var items = _downloadClient.GetItems();

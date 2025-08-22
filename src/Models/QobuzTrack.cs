@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using Newtonsoft.Json;
 using NzbDrone.Common.Extensions;
+using Lidarr.Plugin.Qobuzarr.Security;
 
 namespace Lidarr.Plugin.Qobuzarr.Models
 {
@@ -145,13 +146,17 @@ namespace Lidarr.Plugin.Qobuzarr.Models
         public int? BitDepth => MaximumBitDepth;
 
         /// <summary>
-        /// Get full track title including version if available
+        /// Get full track title including version if available.
+        /// Version field is sanitized to prevent injection attacks.
         /// </summary>
         public string GetFullTitle()
         {
-            if (Version.IsNotNullOrWhiteSpace() && !Title.Contains(Version))
+            // Sanitize version to prevent injection attacks
+            var sanitizedVersion = MetadataSanitizer.SanitizeVersion(Version);
+            
+            if (!string.IsNullOrWhiteSpace(sanitizedVersion) && !Title.Contains(sanitizedVersion))
             {
-                return $"{Title} ({Version})";
+                return $"{Title} ({sanitizedVersion})";
             }
             return Title;
         }
