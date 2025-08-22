@@ -669,10 +669,8 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
                 {"query", query},
                 {"limit", PAGE_SIZE},
                 {"offset", 0}, // Will be updated per page in GetPagedRequests
-                // TEMPORARILY REMOVED: {"country_code", _settings.GetCountryCode()} // Testing if this blocks results
+                {"country_code", _settings.GetCountryCode()}
             };
-            
-            _logger.Info("🌍 TESTING: Country code parameter removed to test regional restrictions");
 
             // Use URL parameter authentication with session credentials
             parameters["app_id"] = session.AppId;
@@ -710,7 +708,7 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
                 httpRequest.Url = new HttpUri(httpRequest.Url.ToString() + separator + string.Join("&", queryParams));
             }
 
-            _logger.Info("🌐 Final URL constructed: {0}", httpRequest.Url);
+            _logger.Debug("🌐 Final URL constructed: {0}", httpRequest.Url);
             _logger.Debug("Created search request for query: {0}", query);
 
             return requestBuilder;
