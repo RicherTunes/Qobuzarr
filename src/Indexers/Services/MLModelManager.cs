@@ -19,7 +19,7 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers.Services
         public MLModelManager(Logger logger)
         {
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
-            _secureModelLoader = new SecureMLModelLoader(new NLogAdapter(logger));
+            _secureModelLoader = new SecureMLModelLoader(logger);
         }
 
         public IPatternLearningEngine GetOptimizer(MLModelType modelType)

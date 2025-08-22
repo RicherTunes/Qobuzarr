@@ -157,7 +157,7 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Clients
         /// <summary>
         /// Convert to Lidarr's DownloadClientItem format
         /// </summary>
-        public DownloadClientItem ToDownloadClientItem()
+        public DownloadClientItem ToDownloadClientItem(int downloadClientId, string downloadClientName)
         {
             var artistName = ArtistName ?? Artist ?? "Unknown Artist";
             var albumTitle = AlbumTitle ?? Title ?? "Unknown Album";
@@ -173,7 +173,14 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Clients
                 Message = GetStatusMessage(),
                 CanMoveFiles = Status == DownloadItemStatus.Completed,
                 CanBeRemoved = Status == DownloadItemStatus.Completed || Status == DownloadItemStatus.Failed,
-                OutputPath = new NzbDrone.Common.Disk.OsPath(OutputPath ?? "")
+                OutputPath = new NzbDrone.Common.Disk.OsPath(OutputPath ?? ""),
+                DownloadClientInfo = new DownloadClientItemClientInfo
+                {
+                    Id = downloadClientId,
+                    Name = downloadClientName,
+                    Protocol = "Qobuzarr",
+                    Type = "Qobuzarr"
+                }
             };
         }
     }

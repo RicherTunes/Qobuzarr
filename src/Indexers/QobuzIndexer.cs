@@ -52,7 +52,7 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
             _apiClient = apiClient;
             
             // Initialize secure model loader for ML components
-            _secureModelLoader = new SecureMLModelLoader(new NLogAdapter(logger));
+            _secureModelLoader = new SecureMLModelLoader(logger);
             
             // Initialize ML query optimizer based on user configuration with security
             _patternLearningEngine = new Lazy<IPatternLearningEngine>(() => CreateMLOptimizer(logger));
