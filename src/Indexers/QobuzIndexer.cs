@@ -35,7 +35,7 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
         private readonly IQobuzAuthenticationService _authService;
         private readonly IQobuzApiClient _apiClient;
         private readonly Lazy<IPatternLearningEngine> _patternLearningEngine;
-        private readonly SecureMLModelLoader _secureModelLoader;
+        private readonly ISecureMLModelLoader _secureModelLoader;
         private DateTime _lastRequestTime = DateTime.MinValue;
         private readonly object _rateLimitLock = new object();
 
@@ -45,14 +45,13 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
                            IParsingService parsingService,
                            IQobuzAuthenticationService authService,
                            IQobuzApiClient apiClient,
+                           ISecureMLModelLoader secureModelLoader,
                            Logger logger)
             : base(httpClient, indexerStatusService, configService, parsingService, logger)
         {
-            _authService = authService;
-            _apiClient = apiClient;
-            
-            // Initialize secure model loader for ML components
-            _secureModelLoader = new SecureMLModelLoader(logger);
+            _authService = authService ?? throw new ArgumentNullException(nameof(authService));
+            _apiClient = apiClient ?? throw new ArgumentNullException(nameof(apiClient));
+            _secureModelLoader = secureModelLoader ?? throw new ArgumentNullException(nameof(secureModelLoader));
             
             // Initialize ML query optimizer based on user configuration with security
             _patternLearningEngine = new Lazy<IPatternLearningEngine>(() => CreateMLOptimizer(logger));
@@ -146,15 +145,15 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
                 logger.Info("Attempting to load personal ML model with security validation");
                 
                 // Try to load from external assemblies with full security validation
-                var externalModel = _secureModelLoader.TryLoadFromPaths(possiblePaths, requireSignature: false);
+                var externalModel = _secureModelLoader.TryLoadFromPaths(possiblePaths.AsEnumerable(), requireSignature: false);
                 if (externalModel != null)
                 {
                     // Log successful secure load
                     logger.Info("Successfully loaded and validated external personal ML model");
                     
-                    // Log security statistics for monitoring
+                    // Log security statistics for monitoring (shared service stats)
                     var securityStats = _secureModelLoader.GetSecurityStats();
-                    logger.Debug("Model loader security stats - Total attempts: {0}, Successful: {1}, Failed: {2}", 
+                    logger.Debug("Shared model loader security stats - Total attempts: {0}, Successful: {1}, Failed: {2}", 
                         securityStats.TotalLoadAttempts, 
                         securityStats.SuccessfulLoads, 
                         securityStats.FailedValidations);
@@ -177,8 +176,8 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
                 {
                     var personalType = personalTypes.First();
                     
-                    // Validate type name against security policy
-                    if (!IsTypeNameSecure(personalType.Name))
+                    // Validate type name against security policy (using shared service)
+                    if (!_secureModelLoader.IsTypeNameSecure(personalType.Name))
                     {
                         logger.Warn("Embedded personal model type name failed security validation: {0}", personalType.Name);
                         return null;
@@ -188,8 +187,8 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
                     {
                         var personalOptimizer = Activator.CreateInstance(personalType, logger) as IPatternLearningEngine;
                         
-                        // Validate the instance behaves correctly before returning
-                        if (personalOptimizer != null && ValidateModelBehavior(personalOptimizer, logger))
+                        // Validate the instance behaves correctly before returning (using shared service)
+                        if (personalOptimizer != null && _secureModelLoader.ValidateModelBehavior(personalOptimizer))
                         {
                             logger.Info("Loaded and validated embedded personal model: {0}", personalType.Name);
                             return personalOptimizer;
@@ -215,53 +214,6 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
             }
         }
 
-        /// <summary>
-        /// Validates that a type name meets security requirements.
-        /// </summary>
-        private bool IsTypeNameSecure(string typeName)
-        {
-            // Ensure type name doesn't contain injection patterns
-            var suspiciousPatterns = new[] { "..", "\\", "/", "<", ">", "|", ":", "*", "?", "\"", "\0" };
-            return !suspiciousPatterns.Any(pattern => typeName.Contains(pattern));
-        }
-
-        /// <summary>
-        /// Validates that a loaded model instance behaves correctly and safely.
-        /// </summary>
-        private bool ValidateModelBehavior(IPatternLearningEngine model, Logger logger)
-        {
-            try
-            {
-                // Test basic functionality with safe inputs
-                var testComplexity = model.PredictComplexity("Test Artist", "Test Album");
-                var testConfidence = model.GetConfidenceScore("Test Artist", "Test Album", testComplexity);
-                var testStats = model.GetStatistics();
-
-                // Validate outputs are within expected ranges
-                if (testConfidence < 0 || testConfidence > 1)
-                {
-                    logger.Warn("Model returned invalid confidence score: {0}", testConfidence);
-                    return false;
-                }
-
-                if (testStats == null)
-                {
-                    logger.Warn("Model returned null statistics");
-                    return false;
-                }
-
-                // Test with edge cases to ensure model handles them safely
-                model.PredictComplexity("", "");
-                model.PredictComplexity(null, null);
-                
-                return true;
-            }
-            catch (Exception ex)
-            {
-                logger.Warn(ex, "Model behavior validation failed");
-                return false;
-            }
-        }
 
         protected override async Task<IList<ReleaseInfo>> FetchReleases(Func<IIndexerRequestGenerator, IndexerPageableRequestChain> pageableRequestChainSelector, bool isRecent = false)
         {
@@ -759,6 +711,7 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
             var minDelayMs = 60000.0 / Settings.ApiRateLimit; // Convert to minimum milliseconds between requests
             
             TimeSpan? delayTime = null;
+            DateTime targetTime;
             
             lock (_rateLimitLock)
             {
@@ -769,16 +722,25 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
                 {
                     var delayMs = (int)(minDelayMs - timeSinceLastRequest);
                     delayTime = TimeSpan.FromMilliseconds(delayMs);
+                    targetTime = _lastRequestTime.AddMilliseconds(minDelayMs);
                     _logger.Debug("Rate limiting: Waiting {0}ms (configured for {1} req/min)", delayMs, Settings.ApiRateLimit);
                 }
-                
-                _lastRequestTime = DateTime.UtcNow;
+                else
+                {
+                    targetTime = now;
+                }
             }
             
             // Perform delay outside the lock to avoid blocking other operations
             if (delayTime.HasValue)
             {
                 await Task.Delay(delayTime.Value).ConfigureAwait(false);
+            }
+            
+            // Update last request time AFTER the delay to prevent race conditions
+            lock (_rateLimitLock)
+            {
+                _lastRequestTime = DateTime.UtcNow;
             }
         }
 

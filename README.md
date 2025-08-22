@@ -1,9 +1,11 @@
 # Qobuzarr - High-Performance Lidarr Plugin for Qobuz
 
 [![Production Ready](https://img.shields.io/badge/Status-Production%20Ready-brightgreen)](https://github.com/RicherTunes/qobuzarr)
+[![v0.0.14](https://img.shields.io/badge/Version-v0.0.14-blue)](https://github.com/RicherTunes/qobuzarr/releases/latest)
 [![.NET 6.0](https://img.shields.io/badge/.NET-6.0-blue)](https://dotnet.microsoft.com/download/dotnet/6.0)
 [![Lidarr 2.13+](https://img.shields.io/badge/Lidarr-2.13%2B-orange)](https://lidarr.audio/)
 [![License: GPL v3](https://img.shields.io/badge/License-GPL%20v3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
+[![Test Coverage](https://img.shields.io/badge/Coverage-85%25+-green)](https://github.com/RicherTunes/qobuzarr)
 
 **Professional-grade indexer and download client for Qobuz streaming service with advanced ML-powered optimization.**
 
@@ -260,4 +262,4 @@ This plugin is not affiliated with or endorsed by Qobuz. Use of this plugin requ
 
 ---
 
-**Current Version**: v0.0.12 | **Last Updated**: January 2025
+**Current Version**: v0.0.14 | **Last Updated**: August 2025

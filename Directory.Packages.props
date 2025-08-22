@@ -20,6 +20,10 @@
     <!-- Machine Learning -->
     <PackageVersion Include="Microsoft.ML" Version="2.0.1" />
     
+    <!-- Resilience and Reliability -->
+    <PackageVersion Include="Polly" Version="8.2.0" />
+    <PackageVersion Include="Polly.Extensions.Http" Version="3.0.0" />
+    
     <!-- Build Tools -->
     <PackageVersion Include="ILRepack.Lib.MSBuild.Task" Version="2.0.34.2" />
   </ItemGroup>
