@@ -6,6 +6,7 @@ using NLog;
 using Lidarr.Plugin.Qobuzarr.Models;
 using Lidarr.Plugin.Qobuzarr.Models.Lidarr;
 using Lidarr.Plugin.Qobuzarr.Indexers;
+using Lidarr.Plugin.Qobuzarr.Download;
 using Lidarr.Plugin.Qobuzarr.Services.Metadata;
 
 namespace Lidarr.Plugin.Qobuzarr.Services.Metadata
@@ -22,11 +23,16 @@ namespace Lidarr.Plugin.Qobuzarr.Services.Metadata
 
         public MetadataStrategyEngine(
             Logger logger,
-            IntelligentReleaseMapper releaseMapper,
+            IQobuzTrackDownloaderFactory trackDownloaderFactory,
             IEnumerable<IMetadataStrategy> strategies)
         {
             _logger = logger ?? LogManager.GetCurrentClassLogger();
-            _releaseMapper = releaseMapper ?? throw new ArgumentNullException(nameof(releaseMapper));
+            
+            // Create IntelligentReleaseMapper with factory to avoid circular dependency
+            if (trackDownloaderFactory == null)
+                throw new ArgumentNullException(nameof(trackDownloaderFactory));
+            _releaseMapper = new IntelligentReleaseMapper(_logger, trackDownloaderFactory);
+            
             _strategies = strategies?.ToList() ?? throw new ArgumentNullException(nameof(strategies));
             _stats = new MetadataOptimizationStats();
         }

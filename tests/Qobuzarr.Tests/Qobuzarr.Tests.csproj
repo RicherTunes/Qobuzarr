@@ -8,16 +8,22 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="xunit" />
-    <PackageReference Include="xunit.runner.visualstudio">
+    <PackageReference Include="xunit" Version="2.4.2" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="2.4.5">
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
       <PrivateAssets>all</PrivateAssets>
     </PackageReference>
-    <PackageReference Include="Moq" />
-    <PackageReference Include="FluentAssertions" />
-    <PackageReference Include="Microsoft.NET.Test.Sdk" />
-    <PackageReference Include="NSubstitute" />
-    <PackageReference Include="coverlet.collector">
+    <PackageReference Include="Moq" Version="4.20.69" />
+    <PackageReference Include="FluentAssertions" Version="6.12.0" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.8.0" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="8.0.0" />
+    <PackageReference Include="NSubstitute" Version="5.1.0" />
+    <PackageReference Include="System.IO.Abstractions" Version="17.2.3" />
+    <PackageReference Include="System.IO.Abstractions.TestingHelpers" Version="17.2.3" />
+    <PackageReference Include="Equ" Version="2.3.0" />
+    <PackageReference Include="FsCheck" Version="2.16.5" />
+    <PackageReference Include="FsCheck.Xunit" Version="2.16.5" />
+    <PackageReference Include="coverlet.collector" Version="6.0.0">
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
       <PrivateAssets>all</PrivateAssets>
     </PackageReference>
@@ -27,35 +33,42 @@
     <ProjectReference Include="..\..\Qobuzarr.csproj" />
   </ItemGroup>
 
-  <!-- Lidarr assemblies for test compilation -->
+  <!-- Lidarr assemblies for test compilation - USE CORRECT PATHS MATCHING MAIN PROJECT -->
   <ItemGroup>
     <Reference Include="Lidarr">
       <HintPath>..\..\ext\Lidarr\_output\net6.0\Lidarr.dll</HintPath>
-      <Private>false</Private>
+      <Private>true</Private>
+      <CopyLocal>true</CopyLocal>
     </Reference>
     <Reference Include="Lidarr.Common">
       <HintPath>..\..\ext\Lidarr\_output\net6.0\Lidarr.Common.dll</HintPath>
-      <Private>false</Private>
+      <Private>true</Private>
+      <CopyLocal>true</CopyLocal>
     </Reference>
     <Reference Include="Lidarr.Core">
       <HintPath>..\..\ext\Lidarr\_output\net6.0\Lidarr.Core.dll</HintPath>
-      <Private>false</Private>
+      <Private>true</Private>
+      <CopyLocal>true</CopyLocal>
     </Reference>
     <Reference Include="Lidarr.Api.V1">
       <HintPath>..\..\ext\Lidarr\_output\net6.0\Lidarr.Api.V1.dll</HintPath>
-      <Private>false</Private>
+      <Private>true</Private>
+      <CopyLocal>true</CopyLocal>
     </Reference>
     <Reference Include="Lidarr.Http">
       <HintPath>..\..\ext\Lidarr\_output\net6.0\Lidarr.Http.dll</HintPath>
-      <Private>false</Private>
+      <Private>true</Private>
+      <CopyLocal>true</CopyLocal>
     </Reference>
     <Reference Include="Lidarr.Host">
       <HintPath>..\..\ext\Lidarr\_output\net6.0\Lidarr.Host.dll</HintPath>
-      <Private>false</Private>
+      <Private>true</Private>
+      <CopyLocal>true</CopyLocal>
     </Reference>
     <Reference Include="Lidarr.SignalR">
       <HintPath>..\..\ext\Lidarr\_output\net6.0\Lidarr.SignalR.dll</HintPath>
-      <Private>false</Private>
+      <Private>true</Private>
+      <CopyLocal>true</CopyLocal>
     </Reference>
   </ItemGroup>
 

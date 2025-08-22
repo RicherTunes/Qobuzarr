@@ -32,7 +32,7 @@ function Show-Help {
     Write-Host ""
     Write-Host "OPTIONS:" -ForegroundColor Cyan
     Write-Host "  -Deploy               Auto-deploy to test Lidarr instance" -ForegroundColor White
-    Write-Host "  -DeployPath <path>    Custom deployment path" -ForegroundColor White
+    Write-Host "  -DeployPath [path]    Custom deployment path" -ForegroundColor White
     Write-Host "  -Clean                Clean before building" -ForegroundColor White
     Write-Host "  -Restore              Force restore packages" -ForegroundColor White
     Write-Host "  -NoBuild              Skip build (for clean/restore only)" -ForegroundColor White
@@ -101,9 +101,14 @@ if (-not $NoBuild) {
     Write-Host "🔨 Building..." -ForegroundColor Blue
     
     # Override Lidarr assembly version to match target hotio version (like TrevTV does)
-    $lidarrVersionOverride = "2.13.2.4686"
-    Write-Host "🔧 Setting Lidarr assembly version to $lidarrVersionOverride" -ForegroundColor Blue
-    (Get-Content "ext\Lidarr-source\src\Directory.Build.props") -replace '<AssemblyVersion>[\d\.\*]+</AssemblyVersion>', "<AssemblyVersion>$lidarrVersionOverride</AssemblyVersion>" | Set-Content "ext\Lidarr-source\src\Directory.Build.props"
+    # Only apply if Lidarr source exists (not needed for pre-built assemblies)
+    if (Test-Path "ext\Lidarr-source\src\Directory.Build.props") {
+        $lidarrVersionOverride = "2.13.2.4686"
+        Write-Host "🔧 Setting Lidarr assembly version to $lidarrVersionOverride" -ForegroundColor Blue
+        (Get-Content "ext\Lidarr-source\src\Directory.Build.props") -replace '<AssemblyVersion>[\d\.\*]+</AssemblyVersion>', "<AssemblyVersion>$lidarrVersionOverride</AssemblyVersion>" | Set-Content "ext\Lidarr-source\src\Directory.Build.props"
+    } else {
+        Write-Host "📦 Using pre-built Lidarr assemblies (no version override needed)" -ForegroundColor Blue
+    }
     
     # Prepare build parameters (always suppress analyzers to avoid Lidarr source issues)
     $buildParams = @(

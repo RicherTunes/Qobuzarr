@@ -117,6 +117,9 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
         [FieldDefinition(31, Label = "Hybrid Mode Threshold", Type = FieldType.Number, Advanced = true, HelpText = "Threshold for hybrid metadata mode activation (0.0-1.0, default: 0.6)")]
         public double HybridModeThreshold { get; set; } = 0.6;
 
+        [FieldDefinition(32, Label = "Subscription Tier", Type = FieldType.Select, SelectOptions = typeof(QobuzSubscriptionTier), HelpText = "🎵 Your Qobuz subscription tier. This optimizes quality fallback behavior - e.g., Sublime users won't waste API calls trying Hi-Res qualities.")]
+        public int SubscriptionTier { get; set; } = (int)QobuzSubscriptionTier.Unknown;
+
         public NzbDroneValidationResult Validate()
         {
             return new NzbDroneValidationResult(Validator.Validate(this));
@@ -233,6 +236,21 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
         
         [Description("👨‍💻 Manual (Advanced) - For custom implementations")]
         Manual = 2
+    }
+
+    public enum QobuzSubscriptionTier
+    {
+        [Description("❓ Unknown - Detect automatically")]
+        Unknown = 0,
+        
+        [Description("🆓 Free - 30-second samples only")]
+        Free = 1,
+        
+        [Description("💿 Studio Sublime - CD Quality (16-bit/44.1kHz)")]
+        Sublime = 2,
+        
+        [Description("🏆 Studio Premier - Hi-Res (up to 24-bit/192kHz)")]
+        Premier = 3
     }
 
 

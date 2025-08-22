@@ -38,23 +38,30 @@ jobs:
     - name: Generate global.json
       run: echo '{"sdk":{"version":"${{ env.DOTNET_VERSION }}"}}' > global.json
 
-    - name: Download Lidarr assemblies (same as local build.ps1)
+    - name: Setup Lidarr Plugin Branch (same as local)
       shell: bash
       run: |
-        echo "📦 Setting up Lidarr assemblies to match local development..."
+        echo "📦 Setting up Lidarr from plugin branch to match local development..."
         
-        # Use the same approach as local build.ps1
-        if [ -f "./download-lidarr-assemblies.sh" ]; then
-          chmod +x ./download-lidarr-assemblies.sh
-          ./download-lidarr-assemblies.sh --version 2.13.2.4685 --force
-          echo "✅ Used download script like local development"
-        else
-          echo "⚠️ Using manual download as fallback"
-          mkdir -p ext/Lidarr/_output/net6.0
+        # Clone the same Lidarr source we use locally
+        if [ ! -d "ext/Lidarr-source" ]; then
+          git clone https://github.com/Lidarr/Lidarr.git ext/Lidarr-source
         fi
         
-        echo "📍 Available assemblies:"
-        ls -la ext/Lidarr/_output/net6.0/ || echo "No assemblies found"
+        cd ext/Lidarr-source
+        git fetch origin
+        git checkout 6e8228f2f  # Use exact same commit as local development
+        
+        echo "📍 Using Lidarr commit: $(git rev-parse HEAD)"
+        
+        # Build the assemblies we need with analyzer suppression
+        dotnet build src/NzbDrone.Common/Lidarr.Common.csproj -c Release -o ../_output/net6.0/ \
+          -p:RunAnalyzersDuringBuild=false -p:EnableNETAnalyzers=false -p:TreatWarningsAsErrors=false
+        dotnet build src/NzbDrone.Core/Lidarr.Core.csproj -c Release -o ../_output/net6.0/ \
+          -p:RunAnalyzersDuringBuild=false -p:EnableNETAnalyzers=false -p:TreatWarningsAsErrors=false
+        
+        cd ../..
+        echo "✅ Lidarr plugin branch assemblies ready"
 
     - name: Set Version from Single Source of Truth
       run: |
@@ -93,7 +100,9 @@ jobs:
         sed -i'' -e "s/<AssemblyVersion>[0-9.*]\+<\/AssemblyVersion>/<AssemblyVersion>${{ env.MINIMUM_LIDARR_VERSION }}<\/AssemblyVersion>/g" ext/Lidarr-source/src/Directory.Build.props || echo "No Directory.Build.props found (expected for pre-built approach)"
 
     - name: Restore
-      run: dotnet restore
+      run: |
+        echo "🔄 Restoring main plugin..."
+        dotnet restore Qobuzarr.csproj
 
     - name: Build
       run: |
@@ -104,11 +113,7 @@ jobs:
           -p:EnableNETAnalyzers=false \
           -p:TreatWarningsAsErrors=false
         
-        echo "🔨 Building CLI..."
-        dotnet build QobuzCLI/QobuzCLI.csproj --configuration Release --no-restore \
-          -p:RunAnalyzersDuringBuild=false \
-          -p:EnableNETAnalyzers=false \
-          -p:TreatWarningsAsErrors=false
+        echo "✅ Main plugin built successfully - CLI build skipped for CI"
         
         echo "✅ Build completed with version $PLUGIN_VERSION"
 

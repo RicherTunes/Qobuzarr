@@ -60,7 +60,7 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
                     // Preload related queries based on access patterns
                     PreloadRelatedQueries(artist, album, complexity);
                     
-                    return (true, entry.Data as T);
+                    return (true, entry.Data as T ?? default(T)!);
                 }
                 else
                 {
@@ -77,7 +77,7 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
                 Interlocked.Increment(ref _preloadHits);
             }
             
-            return (false, null);
+            return (false, default(T)!);
         }
         
         /// <summary>

@@ -24,7 +24,8 @@ public class DownloadCommandTests
     private readonly Mock<ISearchService> _mockSearchService;
     private readonly Mock<IQueueService> _mockQueueService;
     private readonly Mock<ILogger<DownloadCommand>> _mockLogger;
-    // Dashboard doesn't need to be mocked for basic tests
+    private readonly Mock<ILogger<Dashboard>> _mockDashboardLogger;
+    private readonly Mock<IServiceProvider> _mockServiceProvider;
     private readonly Mock<IBatchDownloadService> _mockBatchDownloadService;
     private readonly QueueMonitoringService _queueMonitoring;
     private readonly DownloadCommand _downloadCommand;
@@ -36,7 +37,8 @@ public class DownloadCommandTests
         _mockSearchService = new Mock<ISearchService>();
         _mockQueueService = new Mock<IQueueService>();
         _mockLogger = new Mock<ILogger<DownloadCommand>>();
-        // Dashboard instantiation removed
+        _mockDashboardLogger = new Mock<ILogger<Dashboard>>();
+        _mockServiceProvider = new Mock<IServiceProvider>();
         _mockBatchDownloadService = new Mock<IBatchDownloadService>();
         _queueMonitoring = new QueueMonitoringService(_mockQueueService.Object);
 
@@ -46,7 +48,7 @@ public class DownloadCommandTests
             _mockSearchService.Object,
             _mockQueueService.Object,
             _mockLogger.Object,
-            new Dashboard(_mockConfigService.Object, _mockLogger.Object),
+            new Mock<IDashboard>().Object,
             _mockBatchDownloadService.Object,
             _queueMonitoring
         );
@@ -152,7 +154,7 @@ public class QualityMappingTests
         var mockSearchService = new Mock<ISearchService>();
         var mockQueueService = new Mock<IQueueService>();
         var mockLogger = new Mock<ILogger<DownloadCommand>>();
-        var mockDashboard = new Mock<Dashboard>();
+        var mockDashboard = new Mock<IDashboard>();
         var mockBatchDownloadService = new Mock<IBatchDownloadService>();
         var queueMonitoring = new QueueMonitoringService(mockQueueService.Object);
 

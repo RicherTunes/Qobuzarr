@@ -43,6 +43,9 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
         private readonly SemanticQueryStrategy _semanticQueryStrategy;
         private readonly QobuzSubstringCache _substringCache;
         
+        // Store the current search criteria for context sharing
+        private SearchCriteriaBase _currentSearchCriteria;
+        
         // Query Intelligence metrics
         private int _totalQueries = 0;
         private int _optimizedQueries = 0;
@@ -90,6 +93,15 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
             
             _substringCache = new QobuzSubstringCache(logger);
         }
+        
+        /// <summary>
+        /// Gets the current search criteria being processed.
+        /// Used to provide context to the parser for intelligent title generation.
+        /// </summary>
+        public SearchCriteriaBase GetCurrentSearchCriteria()
+        {
+            return _currentSearchCriteria;
+        }
 
         /// <summary>
         /// Generates optimized search requests for album-specific queries with Query Intelligence
@@ -116,6 +128,9 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
         /// </remarks>
         public IndexerPageableRequestChain GetSearchRequests(AlbumSearchCriteria searchCriteria)
         {
+            // Store the search criteria for context sharing
+            _currentSearchCriteria = searchCriteria;
+            
             var pageableRequests = new IndexerPageableRequestChain();
 
             // Check intelligent cache first to avoid repeat API calls
@@ -169,6 +184,9 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
         /// </remarks>
         public IndexerPageableRequestChain GetSearchRequests(ArtistSearchCriteria searchCriteria)
         {
+            // Store the search criteria for context sharing
+            _currentSearchCriteria = searchCriteria;
+            
             var pageableRequests = new IndexerPageableRequestChain();
 
             // For artist search, we want to find albums by that artist, not the artist itself
@@ -242,6 +260,9 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
         {
             var queries = new List<string>();
 
+            _logger.Info("🔍 Building search queries for: Artist='{0}', Album='{1}'", 
+                searchCriteria?.ArtistQuery ?? "null", searchCriteria?.AlbumQuery ?? "null");
+
             // Validate input - ensure we have at least something to search for
             if (searchCriteria?.ArtistQuery.IsNullOrWhiteSpace() == true && 
                 searchCriteria?.AlbumQuery.IsNullOrWhiteSpace() == true)
@@ -256,41 +277,114 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
             // Primary query: Artist + Album with Semantic Intelligence
             if (searchCriteria.ArtistQuery.IsNotNullOrWhiteSpace() && searchCriteria.AlbumQuery.IsNotNullOrWhiteSpace())
             {
-                // Use semantic intelligence to determine optimal query strategy
-                var semanticStrategy = _semanticQueryStrategy.DetermineStrategy(searchCriteria.ArtistQuery, searchCriteria.AlbumQuery);
+                // FIRST: Detect complex albums that often have formatting mismatches with Qobuz
+                bool isComplexAlbum = searchCriteria.AlbumQuery.Contains("(") || 
+                                     searchCriteria.AlbumQuery.Contains("live", StringComparison.OrdinalIgnoreCase) ||
+                                     searchCriteria.AlbumQuery.Contains("remix", StringComparison.OrdinalIgnoreCase) ||
+                                     searchCriteria.AlbumQuery.Contains("deluxe", StringComparison.OrdinalIgnoreCase) ||
+                                     searchCriteria.AlbumQuery.Contains("edition", StringComparison.OrdinalIgnoreCase) ||
+                                     searchCriteria.AlbumQuery.Contains("remaster", StringComparison.OrdinalIgnoreCase) ||
+                                     searchCriteria.AlbumQuery.Contains("anniversary", StringComparison.OrdinalIgnoreCase);
                 
-                _logger.Debug("🧠 Semantic Analysis for '{0} - {1}': {2} (Level: {3}, Variants: {4})", 
-                             searchCriteria.ArtistQuery, searchCriteria.AlbumQuery, 
-                             semanticStrategy.Rationale, semanticStrategy.CleaningLevel, semanticStrategy.QueryVariants);
-
-                // Generate semantically-aware queries
-                var semanticQueries = _semanticQueryStrategy.BuildQueriesForStrategy(
-                    searchCriteria.ArtistQuery, 
-                    searchCriteria.AlbumQuery, 
-                    semanticStrategy);
-
-                if (semanticQueries.Any())
+                if (isComplexAlbum)
                 {
-                    // Log semantic intelligence usage for debugging
-                    _logger.Debug("🎯 Semantic Queries Generated: {0}", string.Join(" | ", semanticQueries));
-                    queries.AddRange(semanticQueries);
+                    _logger.Info("🎯 Complex album detected, using progressive search strategy: '{0} - {1}'", 
+                                searchCriteria.ArtistQuery, searchCriteria.AlbumQuery);
+                    
+                    // Strategy 1: Try exact as provided by Lidarr
+                    queries.Add($"{searchCriteria.ArtistQuery} {searchCriteria.AlbumQuery}");
+                    
+                    // Strategy 2: Remove year first (Lidarr often adds years that don't match Qobuz)
+                    var withoutYear = System.Text.RegularExpressions.Regex.Replace(
+                        searchCriteria.AlbumQuery,
+                        @"\s*\(?\d{4}\)?\s*$",
+                        "").Trim();
+                    
+                    if (withoutYear != searchCriteria.AlbumQuery && withoutYear.Length > 0)
+                    {
+                        queries.Add($"{searchCriteria.ArtistQuery} {withoutYear}");
+                        _logger.Debug("📅 Added variant without year: '{0}'", withoutYear);
+                    }
+                    
+                    // Strategy 3: Remove ALL parenthetical content (most effective for live albums)
+                    var withoutParentheses = System.Text.RegularExpressions.Regex.Replace(
+                        withoutYear.Length > 0 ? withoutYear : searchCriteria.AlbumQuery,
+                        @"\s*\([^)]*\)\s*",
+                        " ").Trim();
+                    
+                    // Clean up multiple spaces
+                    withoutParentheses = System.Text.RegularExpressions.Regex.Replace(withoutParentheses, @"\s+", " ");
+                    
+                    if (withoutParentheses.Length > 0 && !queries.Contains($"{searchCriteria.ArtistQuery} {withoutParentheses}"))
+                    {
+                        queries.Add($"{searchCriteria.ArtistQuery} {withoutParentheses}");
+                        _logger.Debug("🎭 Added core album title: '{0}'", withoutParentheses);
+                    }
+                    
+                    // Strategy 4: Artist-only fallback - DISABLED for targeted album searches
+                    // For specific album searches, artist-only queries return too many irrelevant results
+                    // Only enable artist-only for very rare edge cases (extremely short album titles)
+                    var albumTooShort = withoutParentheses.IsNullOrWhiteSpace() || withoutParentheses.Length < 3;
+                    var shouldAddArtistFallback = albumTooShort && queries.Count == 0; // Only if no other queries worked
+                    
+                    if (shouldAddArtistFallback)
+                    {
+                        queries.Add(searchCriteria.ArtistQuery);
+                        _logger.Debug("👤 Added artist-only fallback query (emergency fallback)");
+                    }
+                    else
+                    {
+                        _logger.Debug("🚫 Skipped artist-only query - preserving search specificity for album '{0}'", searchCriteria.AlbumQuery);
+                    }
+                    
+                    _logger.Info("📝 Progressive search queries ({0}): [{1}]", 
+                        queries.Count, string.Join("] [", queries));
                 }
                 else
                 {
-                    // Fallback to traditional approach if semantic fails
-                    _logger.Warn("⚠️  Semantic query generation failed, falling back to traditional approach");
+                    // Use semantic intelligence for simple albums (it works well for those)
+                    var semanticStrategy = _semanticQueryStrategy.DetermineStrategy(searchCriteria.ArtistQuery, searchCriteria.AlbumQuery);
                     
-                    var cleanArtist = CleanQuery(searchCriteria.ArtistQuery);
-                    var cleanAlbum = CleanQuery(searchCriteria.AlbumQuery);
+                    _logger.Debug("🧠 Semantic Analysis for '{0} - {1}': {2} (Level: {3}, Variants: {4})", 
+                                 searchCriteria.ArtistQuery, searchCriteria.AlbumQuery, 
+                                 semanticStrategy.Rationale, semanticStrategy.CleaningLevel, semanticStrategy.QueryVariants);
+
+                    // Generate semantically-aware queries
+                    var semanticQueries = _semanticQueryStrategy.BuildQueriesForStrategy(
+                        searchCriteria.ArtistQuery, 
+                        searchCriteria.AlbumQuery, 
+                        semanticStrategy);
+
+                    if (semanticQueries.Any())
+                    {
+                        // Log semantic intelligence usage for debugging
+                        _logger.Debug("🎯 Semantic Queries Generated: {0}", string.Join(" | ", semanticQueries));
+                        queries.AddRange(semanticQueries);
+                    }
+                    else
+                    {
+                        // Fallback to traditional approach if semantic fails - KEEP THE OPTIMIZATION!
+                        _logger.Warn("⚠️  Semantic query generation failed, falling back to traditional approach");
+                        
+                        var cleanArtist = CleanQuery(searchCriteria.ArtistQuery);
+                        var cleanAlbum = CleanQuery(searchCriteria.AlbumQuery);
                     
                     if (cleanArtist.IsNotNullOrWhiteSpace() && cleanAlbum.IsNotNullOrWhiteSpace())
                     {
+                        // Smart query variants: Try core album title first, then full
+                        var coreAlbum = ExtractCoreAlbumTitle(cleanAlbum);
+                        
+                        if (coreAlbum.IsNotNullOrWhiteSpace() && coreAlbum != cleanAlbum)
+                        {
+                            // Try core album title (better chance of matching Qobuz metadata)
+                            var coreQuery = $"{cleanArtist} {coreAlbum}";
+                            originalQueries.Add(coreQuery);
+                            _logger.Debug("🎯 Added smart core query: '{0}'", coreQuery);
+                        }
+                        
+                        // Full query as fallback
                         var primaryQuery = $"{cleanArtist} {cleanAlbum}";
                         originalQueries.Add(primaryQuery);
-
-                        // Alternative format: "Artist - Album"
-                        var dashQuery = $"{cleanArtist} - {cleanAlbum}";
-                        originalQueries.Add(dashQuery);
 
                         // Apply traditional Query Intelligence if enabled
                         if (_settings.EnableQueryIntelligence)
@@ -315,6 +409,7 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
                         }
                     }
                 }
+                }
             }
 
             // Album only query
@@ -338,7 +433,12 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
             }
 
             // Remove duplicates and empty queries
-            return queries.Where(q => q.IsNotNullOrWhiteSpace()).Distinct().ToList();
+            var finalQueries = queries.Where(q => q.IsNotNullOrWhiteSpace()).Distinct().ToList();
+            
+            _logger.Info("📝 Final search queries generated ({0}): [{1}]", 
+                finalQueries.Count, string.Join("] [", finalQueries));
+            
+            return finalQueries;
         }
 
         private List<string> BuildArtistSearchQueries(ArtistSearchCriteria searchCriteria)
@@ -400,26 +500,32 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
             if (string.IsNullOrWhiteSpace(query))
                 return string.Empty;
 
+            _logger.Debug("🧹 Cleaning query: '{0}'", query);
+
             // Remove common prefixes/suffixes that might interfere with search
             var cleaned = query;
 
-            // Remove year patterns (e.g., "(2023)", "[2023]")
-            cleaned = Regex.Replace(cleaned, @"\s*[\(\[]?\d{4}[\)\]]?\s*", " ");
-
-            // Remove edition information (e.g., "Deluxe Edition", "Remastered")
-            var editionPatterns = new[]
+            // CONSERVATIVE CLEANING - Only remove clearly problematic patterns
+            
+            // Only remove standalone year patterns at the end of queries: "(2023)" or "[2023]"
+            // BUT preserve years that are part of meaningful content like "(live 2020)"
+            cleaned = Regex.Replace(cleaned, @"\s*[\(\[]\s*(\d{4})\s*[\)\]]\s*$", "", RegexOptions.IgnoreCase);
+            
+            // Only remove specific edition words when they appear with "edition" or "version"
+            // This preserves important location/context info like "(live at Brixton)"
+            var conservativeEditionPatterns = new[]
             {
-                @"\b(deluxe|expanded|remastered|anniversary|special|limited|collector[']?s?|bonus|extended)\s*(edition|version)?\b",
-                @"\b(re-?master(ed)?|re-?issue|re-?release)\b",
-                @"\b\d+th\s+anniversary\b"
+                @"\b(deluxe|expanded|remastered|anniversary|special|limited|collector[']?s?)\s+(edition|version)\b",
+                @"\b(re-?master(ed)|re-?issue|re-?release)\s+(edition|version)\b",
+                @"\b\d+th\s+anniversary\s+(edition|version)\b"
             };
 
-            foreach (var pattern in editionPatterns)
+            foreach (var pattern in conservativeEditionPatterns)
             {
-                cleaned = Regex.Replace(cleaned, pattern, " ", RegexOptions.IgnoreCase);
+                cleaned = Regex.Replace(cleaned, pattern, "", RegexOptions.IgnoreCase);
             }
 
-            // Remove featuring information (e.g., "feat.", "ft.", "featuring")
+            // More conservative featuring removal - only at the end and only explicit "feat/ft/featuring"
             cleaned = Regex.Replace(cleaned, @"\s+(feat\.?|ft\.?|featuring)\s+.+$", "", RegexOptions.IgnoreCase);
 
             // Remove extra whitespace
@@ -428,7 +534,121 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
             // Handle special characters that might cause issues
             cleaned = cleaned.Replace("&", "and");
 
+            if (query != cleaned)
+            {
+                _logger.Info("🧹 Query cleaned: '{0}' -> '{1}'", query, cleaned);
+            }
+            else
+            {
+                _logger.Debug("🧹 Query unchanged: '{0}'", query);
+            }
+
             return cleaned;
+        }
+
+        /// <summary>
+        /// Applies proper title case formatting to match Qobuz's capitalization standards
+        /// Capitalizes all significant words including conjunctions like "But", "And", etc.
+        /// </summary>
+        /// <param name="text">Text to apply title case to</param>
+        /// <returns>Title-cased text matching Qobuz format</returns>
+        /// <remarks>
+        /// Unlike standard title case rules that keep small words lowercase,
+        /// Qobuz appears to capitalize most words in album titles for consistency.
+        /// This method ensures "but" becomes "But", "and" becomes "And", etc.
+        /// </remarks>
+        private string ApplyTitleCase(string text)
+        {
+            if (string.IsNullOrWhiteSpace(text))
+                return text;
+
+            _logger.Debug("🔤 Applying title case to: '{0}'", text);
+
+            // Split on word boundaries while preserving punctuation and spaces
+            var result = Regex.Replace(text, @"\b\w+", match => 
+            {
+                var word = match.Value;
+                
+                // Handle special cases where we want specific capitalization
+                var lowerWord = word.ToLowerInvariant();
+                switch (lowerWord)
+                {
+                    // Common words that Qobuz capitalizes (contrary to traditional title case)
+                    case "but":
+                        return "But";
+                    case "and": 
+                        return "And";
+                    case "or":
+                        return "Or";
+                    case "the":
+                        return "The";
+                    case "of":
+                        return "Of";
+                    case "in":
+                        return "In";
+                    case "on":
+                        return "On";
+                    case "at":
+                        return "At";
+                    case "to":
+                        return "To";
+                    case "for":
+                        return "For";
+                    case "with":
+                        return "With";
+                    case "by":
+                        return "By";
+                    case "from":
+                        return "From";
+                    // Always capitalize these content words
+                    case "live":
+                        return "Live";
+                    case "remix":
+                        return "Remix";
+                    case "version":
+                        return "Version";
+                    case "edition":
+                        return "Edition";
+                    default:
+                        // Apply standard title case for other words
+                        return System.Globalization.CultureInfo.CurrentCulture.TextInfo.ToTitleCase(lowerWord);
+                }
+            });
+
+            if (result != text)
+            {
+                _logger.Debug("🔤 Title case applied: '{0}' -> '{1}'", text, result);
+            }
+
+            return result;
+        }
+
+        /// <summary>
+        /// Extract the core album title by removing descriptive/contextual information
+        /// that might not match Qobuz's internal metadata
+        /// </summary>
+        private string ExtractCoreAlbumTitle(string albumTitle)
+        {
+            if (string.IsNullOrWhiteSpace(albumTitle))
+                return string.Empty;
+
+            var core = albumTitle;
+            
+            // Remove location information: "(live at X)", "(live in X)", "(recorded at X)"
+            core = Regex.Replace(core, @"\s*\(?(live|recorded)\s+(at|in)\s+[^)]+\)?", "", RegexOptions.IgnoreCase);
+            
+            // Remove simple "(live)" indicators
+            core = Regex.Replace(core, @"\s*\(?\s*live\s*\)?", "", RegexOptions.IgnoreCase);
+            
+            // Remove remix information: "(X remix)", "(X remixes)", "(remixed by X)"
+            core = Regex.Replace(core, @"\s*\([^)]*remix[^)]*\)", "", RegexOptions.IgnoreCase);
+            
+            // Clean up extra whitespace
+            core = Regex.Replace(core, @"\s+", " ").Trim();
+            
+            _logger.Debug("🎯 Core title extracted: '{0}' -> '{1}'", albumTitle, core);
+            
+            return core;
         }
 
         private IndexerRequest CreateSearchRequest(string query, SearchCriteriaBase searchCriteria)
@@ -449,7 +669,7 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
                 {"query", query},
                 {"limit", PAGE_SIZE},
                 {"offset", 0}, // Will be updated per page in GetPagedRequests
-                {"country_code", _settings.GetCountryCode()} // Use configured country code
+                {"country_code", _settings.GetCountryCode()}
             };
 
             // Use URL parameter authentication with session credentials
@@ -464,6 +684,11 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
             {
                 parameters["released_after"] = $"{year}-01-01";
                 parameters["released_before"] = $"{year}-12-31";
+                _logger.Debug("📅 Year filter applied: {0} (from query: '{1}')", year, query);
+            }
+            else
+            {
+                _logger.Debug("📅 No year detected in query: '{0}'", query);
             }
 
             // Genre and minimum year filters removed - now handled in parser stage
@@ -483,6 +708,7 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
                 httpRequest.Url = new HttpUri(httpRequest.Url.ToString() + separator + string.Join("&", queryParams));
             }
 
+            _logger.Debug("🌐 Final URL constructed: {0}", httpRequest.Url);
             _logger.Debug("Created search request for query: {0}", query);
 
             return requestBuilder;
