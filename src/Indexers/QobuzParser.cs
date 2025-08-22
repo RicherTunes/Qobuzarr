@@ -242,8 +242,22 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
             release.Title = GenerateQualitySpecificTitle(album, quality, year);
             
             // Critical debugging for album mapping (only during troubleshooting)
-            _logger.Debug("🔍 ALBUM MAPPING: Qobuz '{0}' → Title '{1}' → Album '{2}'", 
-                album.Id, release.Title, release.Album);
+            _logger.Debug("🔍 ALBUM MAPPING: Qobuz '{0}' ({1}) → Title '{2}' → Album '{3}'", 
+                album.Id, album.Title, release.Title, release.Album);
+            
+            // Debug context-aware matching for edition albums
+            if (_currentSearchCriteria?.Albums?.Any() == true)
+            {
+                _logger.Debug("🎯 Search Context Available: {0} albums in criteria", _currentSearchCriteria.Albums.Count);
+                foreach (var lidarrAlbum in _currentSearchCriteria.Albums)
+                {
+                    _logger.Debug("   Lidarr Album: '{0}' ({1})", lidarrAlbum.Title, lidarrAlbum.ReleaseDate?.Year);
+                }
+            }
+            else
+            {
+                _logger.Debug("❌ No search context available - using original Qobuz title");
+            }
 
             return release;
         }
