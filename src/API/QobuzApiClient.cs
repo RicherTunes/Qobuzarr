@@ -153,6 +153,8 @@ namespace Lidarr.Plugin.Qobuzarr.API
                 // Build request URL
                 var url = $"{QobuzConstants.Api.BaseUrl}{endpoint}";
                 
+                _logger.Trace("🔗 API Client building request: {0} {1}", method, url);
+                
                 // Prepare parameters
                 var allParameters = new Dictionary<string, string>();
                 
@@ -162,6 +164,8 @@ namespace Lidarr.Plugin.Qobuzarr.API
                 {
                     allParameters["app_id"] = currentSession.AppId;
                     allParameters["user_auth_token"] = currentSession.AuthToken;
+                    _logger.Trace("🔐 Added authentication: app_id={0}, token=***{1}", 
+                        currentSession.AppId, currentSession.AuthToken?.Substring(Math.Max(0, currentSession.AuthToken.Length - 4)) ?? "null");
                 }
 
                 // Add custom parameters
@@ -171,6 +175,8 @@ namespace Lidarr.Plugin.Qobuzarr.API
                     {
                         allParameters[param.Key] = param.Value;
                     }
+                    _logger.Trace("📋 Custom parameters added: {0}", 
+                        string.Join(", ", parameters.Select(kv => $"{kv.Key}={kv.Value}")));
                 }
 
                 // Handle request signing for protected endpoints
@@ -199,6 +205,11 @@ namespace Lidarr.Plugin.Qobuzarr.API
                     {
                         requestBuilder.AddQueryParam(param.Key, param.Value);
                     }
+                    
+                    // Log the final URL being called (without auth token for security)
+                    var safeParams = allParameters.Where(kv => kv.Key != "user_auth_token")
+                                                 .Select(kv => $"{kv.Key}={kv.Value}");
+                    _logger.Debug("🚀 Final API call: {0}?{1}&user_auth_token=***", url, string.Join("&", safeParams));
                 }
 
                 var request = requestBuilder.Build();
@@ -214,13 +225,26 @@ namespace Lidarr.Plugin.Qobuzarr.API
                 // Execute request through HTTP client (includes rate limiting and retries)
                 var response = await _httpClient.ExecuteAsync(request).ConfigureAwait(false);
 
+                _logger.Debug("📡 API response received: Status={0}, Length={1} chars", 
+                    response.StatusCode, response.Content?.Length ?? 0);
+
                 if (response.HasHttpError)
                 {
+                    _logger.Error("❌ API Error Response: {0}", response.Content);
                     HandleErrorResponse(response);
                 }
 
                 // Deserialize response
                 var result = JsonConvert.DeserializeObject<T>(response.Content);
+                
+                _logger.Debug("✅ Response deserialized to: {0}", typeof(T).Name);
+                
+                // Log first 500 chars of response for debugging (sanitized)
+                if (response.Content?.Length > 0)
+                {
+                    var sanitized = response.Content.Length > 500 ? response.Content.Substring(0, 500) + "..." : response.Content;
+                    _logger.Trace("📄 Response content: {0}", sanitized);
+                }
 
                 // Cache successful GET responses
                 if (method == "GET" && result != null)
