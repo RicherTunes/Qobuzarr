@@ -241,14 +241,9 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
             // Generate quality-specific title
             release.Title = GenerateQualitySpecificTitle(album, quality, year);
             
-            // Critical debugging for album mapping
-            _logger.Warn("🔍 ALBUM MAPPING DEBUG:");
-            _logger.Warn("   Qobuz Album ID: {0}", album.Id);
-            _logger.Warn("   Qobuz Title: '{0}'", album.Title);
-            _logger.Warn("   Qobuz Version: '{0}'", album.Version ?? "null");
-            _logger.Warn("   Generated Title: '{0}'", release.Title);
-            _logger.Warn("   Release Album Field: '{0}'", release.Album);
-            _logger.Warn("   Expected to map to: LIVE album (2020), NOT studio album (2008)");
+            // Critical debugging for album mapping (only during troubleshooting)
+            _logger.Debug("🔍 ALBUM MAPPING: Qobuz '{0}' → Title '{1}' → Album '{2}'", 
+                album.Id, release.Title, release.Album);
 
             return release;
         }
