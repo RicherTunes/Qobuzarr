@@ -8,10 +8,12 @@ using NzbDrone.Core.Indexers;
 using NzbDrone.Core.Parser.Model;
 using NzbDrone.Common.Extensions;
 using NzbDrone.Common.Http;
+using Lidarr.Plugin.Qobuzarr.Security;
 using NLog;
 using NzbDrone.Core.Qualities;
 using Lidarr.Plugin.Qobuzarr.Models;
 using Lidarr.Plugin.Qobuzarr.Configuration;
+using NzbDrone.Core.IndexerSearch.Definitions;
 
 namespace Lidarr.Plugin.Qobuzarr.Indexers
 {
@@ -19,11 +21,27 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
     {
         private readonly QobuzIndexerSettings _settings;
         private readonly Logger _logger;
+        private SearchCriteriaBase _currentSearchCriteria;
 
         public QobuzParser(QobuzIndexerSettings settings, Logger logger)
         {
             _settings = settings;
             _logger = logger;
+        }
+
+        /// <summary>
+        /// Sets the current search criteria context for intelligent title generation.
+        /// This allows the parser to generate titles that match Lidarr's exact expectations.
+        /// </summary>
+        public void SetSearchContext(SearchCriteriaBase searchCriteria)
+        {
+            _currentSearchCriteria = searchCriteria;
+            if (searchCriteria != null)
+            {
+                _logger.Debug("Parser context set: Artist='{0}', Albums={1}",
+                    searchCriteria.Artist?.Name,
+                    searchCriteria.Albums?.Count ?? 0);
+            }
         }
 
         public IList<ReleaseInfo> ParseResponse(IndexerResponse indexerResponse)
@@ -223,16 +241,37 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
             // Generate quality-specific title
             release.Title = GenerateQualitySpecificTitle(album, quality, year);
             
-            // Debug logging to help diagnose quality detection issues
-            _logger.Debug("Generated release title for quality {0}: '{1}'", quality, release.Title);
+            // Critical debugging for album mapping
+            _logger.Warn("🔍 ALBUM MAPPING DEBUG:");
+            _logger.Warn("   Qobuz Album ID: {0}", album.Id);
+            _logger.Warn("   Qobuz Title: '{0}'", album.Title);
+            _logger.Warn("   Qobuz Version: '{0}'", album.Version ?? "null");
+            _logger.Warn("   Generated Title: '{0}'", release.Title);
+            _logger.Warn("   Release Album Field: '{0}'", release.Album);
+            _logger.Warn("   Expected to map to: LIVE album (2020), NOT studio album (2008)");
 
             return release;
         }
 
         private string GenerateQualitySpecificTitle(QobuzAlbum album, QobuzAudioQuality quality, int year)
         {
-            var artist = album.GetArtistName();
-            var albumTitle = album.GetFullTitle();
+            // Sanitize metadata to prevent injection attacks
+            var artist = MetadataSanitizer.SanitizeArtistName(album.GetArtistName());
+            var albumTitle = album.GetFullTitle(); // Already sanitized in GetFullTitle()
+            
+            // CONTEXT-AWARE TITLE GENERATION: Match exact Lidarr database title if we have context
+            if (_currentSearchCriteria?.Albums?.Any() == true)
+            {
+                var targetAlbum = FindBestMatchingAlbum(album, _currentSearchCriteria.Albums, year);
+                if (targetAlbum != null)
+                {
+                    _logger.Debug("Using exact Lidarr title for album {0}: '{1}' -> '{2}'",
+                        album.Id, albumTitle, targetAlbum.Title);
+                    albumTitle = targetAlbum.Title; // Use EXACT title from Lidarr's database
+                    year = targetAlbum.ReleaseDate?.Year ?? year; // Also use Lidarr's year
+                }
+            }
+            
             var yearStr = year > 0 ? $" ({year})" : "";
             
             // Generate quality-specific format strings that match Lidarr's regex patterns EXACTLY
@@ -253,9 +292,148 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
             // Add explicit warning if applicable
             var explicitStr = album.ParentalWarning ? " [Explicit]" : "";
             
-            // Format: Artist - Album (Year) [Explicit] [Quality] [WEB]
+            // Ensure live albums are clearly differentiated in title
+            var liveIndicator = IsLiveAlbum(albumTitle) ? " [LIVE]" : "";
+            
+            // Format: Artist - Album (Year) [Explicit] [LIVE] [Quality] [WEB]
             // The quality info needs to be in the title text, not just in brackets
-            return $"{artist} - {albumTitle}{yearStr}{explicitStr} [{formatStr}] [WEB]";
+            return $"{artist} - {albumTitle}{yearStr}{explicitStr}{liveIndicator} [{formatStr}] [WEB]";
+        }
+
+        private bool IsLiveAlbum(string albumTitle)
+        {
+            var liveTerms = new[] { " live", "(live)", "[live]", "live at", "live in", "concert", "unplugged" };
+            return liveTerms.Any(term => albumTitle.Contains(term, StringComparison.OrdinalIgnoreCase));
+        }
+
+        /// <summary>
+        /// Finds the best matching album from Lidarr's search criteria based on metadata.
+        /// This ensures we use the exact title format that Lidarr expects.
+        /// </summary>
+        private NzbDrone.Core.Music.Album FindBestMatchingAlbum(QobuzAlbum qobuzAlbum, List<NzbDrone.Core.Music.Album> lidarrAlbums, int qobuzYear)
+        {
+            if (lidarrAlbums == null || !lidarrAlbums.Any())
+                return null;
+
+            // CRITICAL FIX: Don't use context for unrelated albums
+            // We should only use the Lidarr title if the Qobuz album actually matches
+            // the search criteria, not for ALL albums returned by Qobuz
+            
+            var qobuzTitle = qobuzAlbum.GetFullTitle().ToLowerInvariant();
+            var qobuzIsLive = IsLiveAlbum(qobuzAlbum.GetFullTitle());
+            
+            // Step 1: Try to find exact title match first (case insensitive)
+            var titleMatches = lidarrAlbums.Where(a => 
+            {
+                if (a.Title == null) return false;
+                var lidarrTitle = a.Title.ToLowerInvariant();
+                
+                // Check for substantial overlap in titles
+                return CalculateTitleSimilarity(qobuzTitle, lidarrTitle) > 0.7;
+            }).ToList();
+            
+            if (titleMatches.Count == 1)
+            {
+                _logger.Debug("Found title match for Qobuz '{0}': using Lidarr '{1}'", 
+                    qobuzAlbum.GetFullTitle(), titleMatches.First().Title);
+                return titleMatches.First();
+            }
+            
+            // Step 2: If we have multiple title matches, disambiguate by year
+            if (titleMatches.Count > 1)
+            {
+                var yearAndTitleMatches = titleMatches.Where(a => 
+                    a.ReleaseDate?.Year == qobuzYear || 
+                    (qobuzYear == 0 && a.ReleaseDate == null)).ToList();
+                    
+                if (yearAndTitleMatches.Count == 1)
+                {
+                    _logger.Debug("Found year+title match for Qobuz '{0}': using Lidarr '{1}'", 
+                        qobuzAlbum.GetFullTitle(), yearAndTitleMatches.First().Title);
+                    return yearAndTitleMatches.First();
+                }
+                else if (yearAndTitleMatches.Any())
+                {
+                    // Multiple matches, pick the one with best title similarity
+                    var bestMatch = yearAndTitleMatches
+                        .OrderByDescending(a => CalculateTitleSimilarity(qobuzTitle, a.Title?.ToLowerInvariant() ?? ""))
+                        .First();
+                    _logger.Debug("Found best match for Qobuz '{0}': using Lidarr '{1}'", 
+                        qobuzAlbum.GetFullTitle(), bestMatch.Title);
+                    return bestMatch;
+                }
+            }
+
+            // Step 3: Only apply live album matching if titles are similar
+            if (qobuzIsLive)
+            {
+                var liveMatches = lidarrAlbums.Where(a => 
+                    IsLiveAlbum(a.Title) && 
+                    CalculateTitleSimilarity(qobuzTitle, a.Title?.ToLowerInvariant() ?? "") > 0.5).ToList();
+
+                if (liveMatches.Count == 1)
+                {
+                    _logger.Debug("Found live album match for Qobuz '{0}': using Lidarr '{1}'", 
+                        qobuzAlbum.GetFullTitle(), liveMatches.First().Title);
+                    return liveMatches.First();
+                }
+            }
+
+            // Step 4: NO FALLBACK - if we can't find a good match, don't use context
+            // This prevents the bug where all albums get the same title
+            _logger.Debug("No matching Lidarr album found for Qobuz '{0}', using original title", 
+                qobuzAlbum.GetFullTitle());
+            return null; // Return null to indicate no match found
+        }
+        
+        /// <summary>
+        /// Calculate similarity between two titles using simple character overlap.
+        /// Returns a value between 0 (no match) and 1 (exact match).
+        /// </summary>
+        private double CalculateTitleSimilarity(string title1, string title2)
+        {
+            if (string.IsNullOrWhiteSpace(title1) || string.IsNullOrWhiteSpace(title2))
+                return 0;
+                
+            // Remove common words and punctuation for comparison
+            var cleanTitle1 = CleanTitleForComparison(title1);
+            var cleanTitle2 = CleanTitleForComparison(title2);
+            
+            if (cleanTitle1 == cleanTitle2)
+                return 1.0;
+                
+            // Check if one title contains the other (for live albums, special editions, etc.)
+            if (cleanTitle1.Contains(cleanTitle2) || cleanTitle2.Contains(cleanTitle1))
+                return 0.8;
+                
+            // Calculate word overlap
+            var words1 = cleanTitle1.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+            var words2 = cleanTitle2.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+            
+            if (words1.Length == 0 || words2.Length == 0)
+                return 0;
+                
+            var commonWords = words1.Intersect(words2).Count();
+            var totalWords = Math.Max(words1.Length, words2.Length);
+            
+            return (double)commonWords / totalWords;
+        }
+        
+        /// <summary>
+        /// Clean title for comparison by removing punctuation and common words.
+        /// </summary>
+        private string CleanTitleForComparison(string title)
+        {
+            // Remove punctuation and convert to lowercase
+            var cleaned = Regex.Replace(title.ToLowerInvariant(), @"[^\w\s]", " ");
+            
+            // Remove common words that don't help with matching
+            var stopWords = new[] { "the", "a", "an", "and", "or", "of", "in", "on", "at", "to", "for" };
+            var words = cleaned.Split(' ', StringSplitOptions.RemoveEmptyEntries)
+                .Where(w => !stopWords.Contains(w))
+                .ToArray();
+                
+            return string.Join(" ", words);
         }
 
         private string GenerateDownloadUrl(QobuzAlbum album, QobuzAudioQuality quality)
