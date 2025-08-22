@@ -124,20 +124,33 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Clients
         /// <summary>
         /// Convert to Lidarr's DownloadClientItem format
         /// </summary>
-        public DownloadClientItem ToDownloadClientItem()
+        public DownloadClientItem ToDownloadClientItem(int downloadClientId = 0, string downloadClientName = "Qobuzarr")
         {
             return new DownloadClientItem
             {
-                DownloadId = DownloadId,
-                Title = $"{Artist} - {Title}",
+                DownloadId = DownloadId ?? "",
+                Title = $"{Artist ?? "Unknown Artist"} - {Title ?? "Unknown Album"}",
                 TotalSize = TotalSize,
                 RemainingSize = Math.Max(0, TotalSize - DownloadedSize),
                 RemainingTime = GetEstimatedTimeRemaining(),
                 Status = Status,
-                Message = GetStatusMessage(),
+                Message = GetStatusMessage() ?? "",
                 CanMoveFiles = Status == DownloadItemStatus.Completed,
                 CanBeRemoved = Status == DownloadItemStatus.Completed || Status == DownloadItemStatus.Failed,
-                OutputPath = new NzbDrone.Common.Disk.OsPath(OutputPath ?? "")
+                OutputPath = new NzbDrone.Common.Disk.OsPath(OutputPath ?? ""),
+                IsEncrypted = false,
+                Category = "",
+                SeedRatio = null, // Not applicable for direct downloads
+                Removed = false,
+                DownloadClientInfo = new DownloadClientItemClientInfo
+                {
+                    Protocol = "QobuzarrDownloadProtocol",
+                    Type = "Qobuzarr",
+                    Id = downloadClientId, // Use actual download client ID
+                    Name = downloadClientName,
+                    RemoveCompletedDownloads = false,
+                    HasPostImportCategory = false
+                }
             };
         }
     }

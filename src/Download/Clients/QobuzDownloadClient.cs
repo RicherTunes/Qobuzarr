@@ -153,7 +153,7 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Clients
 
                 // Convert active downloads to DownloadClientItem format
                 return _queueService.GetActiveDownloads()
-                    .Select(item => item.ToDownloadClientItem())
+                    .Select(item => item.ToDownloadClientItem(Definition.Id, Definition.Name))
                     .ToList();
             }
             catch (Exception ex)

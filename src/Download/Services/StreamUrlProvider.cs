@@ -4,6 +4,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using Lidarr.Plugin.Qobuzarr.API;
 using Lidarr.Plugin.Qobuzarr.Abstractions;
+using Lidarr.Plugin.Qobuzarr.Indexers;
 using Lidarr.Plugin.Qobuzarr.Models;
 using Lidarr.Plugin.Qobuzarr.Utilities;
 using NzbDrone.Common.Extensions;
@@ -18,12 +19,14 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Services
         private readonly IQobuzApiClient _apiClient;
         private readonly IQobuzLogger _logger;
         private readonly IQualityFallbackProvider _qualityFallbackProvider;
+        private readonly QobuzIndexerSettings _settings;
 
-        public StreamUrlProvider(IQobuzApiClient apiClient, IQobuzLogger logger, IQualityFallbackProvider qualityFallbackProvider)
+        public StreamUrlProvider(IQobuzApiClient apiClient, IQobuzLogger logger, IQualityFallbackProvider qualityFallbackProvider, QobuzIndexerSettings settings = null)
         {
             _apiClient = Guard.NotNull(apiClient, nameof(apiClient));
             _logger = Guard.NotNull(logger, nameof(logger));
             _qualityFallbackProvider = Guard.NotNull(qualityFallbackProvider, nameof(qualityFallbackProvider));
+            _settings = settings; // Optional - may be null in some contexts
         }
 
         public async Task<string> GetStreamUrlAsync(string trackId, int preferredQuality)
@@ -40,173 +43,69 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Services
         {
             try
             {
-                var parameters = new Dictionary<string, string>
-                {
-                    {"track_id", trackId},
-                    {"format_id", preferredQuality.ToString()},
-                    {"intent", "stream"}
-                };
-
-                var streamResponse = await _apiClient.GetAsync<QobuzStreamResponse>("/track/getFileUrl", parameters).ConfigureAwait(false);
-                var lastRestrictionMessage = string.Empty;
-                
-                // Enhanced error handling for failed attempts
-                if (streamResponse?.IsSuccess != true || string.IsNullOrWhiteSpace(streamResponse.Url))
-                {
-                    if (streamResponse?.IsSuccess == false)
-                    {
-                        lastRestrictionMessage = GetDetailedErrorMessage(streamResponse);
-                        _logger.Debug("Quality {0} not available for track {1}: {2}", preferredQuality, trackId, lastRestrictionMessage);
-                    }
-                    else if (streamResponse == null)
-                    {
-                        lastRestrictionMessage = "No response from Qobuz API";
-                        _logger.Debug("No response for quality {0} on track {1}", preferredQuality, trackId);
-                    }
-                    else
-                    {
-                        lastRestrictionMessage = "Empty stream URL returned";
-                        _logger.Debug("Empty URL for quality {0} on track {1}", preferredQuality, trackId);
-                    }
-                }
-                
                 // Try preferred quality first
-                if (streamResponse?.IsSuccess == true && streamResponse.Url.IsNotNullOrWhiteSpace())
+                var streamResponse = await TryGetStreamUrl(trackId, preferredQuality).ConfigureAwait(false);
+                
+                if (streamResponse != null && IsValidStreamUrl(streamResponse))
                 {
-                    // Check for restrictions that would prevent actual downloading
-                    if (streamResponse.HasRestrictions())
-                    {
-                        var restrictionMessage = streamResponse.GetRestrictionMessage();
-                        lastRestrictionMessage = restrictionMessage;
-                        
-                        // Only log format restrictions as debug - these are handled by fallback
-                        if (restrictionMessage?.Contains("format not available") == true)
-                        {
-                            _logger.Debug("Preferred quality {0} not available for track {1}: {2}", preferredQuality, trackId, restrictionMessage);
-                        }
-                        else
-                        {
-                            // Check if this is a preview-only restriction
-                            if (IsPreviewOrSampleUrl(streamResponse.Url))
-                            {
-                                _logger.Debug("Track {0} only available as preview/sample in quality {1}", trackId, preferredQuality);
-                                // Continue to try fallback qualities
-                            }
-                            else
-                            {
-                                // Other restrictions (geo, subscription) are real blockers
-                                var reason = _qualityFallbackProvider.DetermineUnavailableReason(restrictionMessage);
-                                throw new TrackUnavailableException(trackId, restrictionMessage, reason);
-                            }
-                        }
-                    }
-                    else
-                    {
-                        // Check if this is a preview/sample URL even without explicit restrictions
-                        if (IsPreviewOrSampleUrl(streamResponse.Url))
-                        {
-                            _logger.Debug("Track {0} appears to be preview/sample only in quality {1}", trackId, preferredQuality);
-                            lastRestrictionMessage = "Preview/sample only";
-                            // Continue to try fallback qualities
-                        }
-                        else
-                        {
-                            // No restrictions, preferred quality works
-                            _logger.Debug("Successfully obtained stream URL for track {0} in preferred quality {1}", trackId, preferredQuality);
-                            return streamResponse.Url;
-                        }
-                    }
+                    return streamResponse.Url;
                 }
-
-                // Try fallback qualities if preferred quality failed or had format restrictions
+                
+                // Log why preferred quality failed
+                var preferredFailureReason = GetFailureReason(streamResponse);
+                
+                // Try fallback qualities with smart handling for subscription issues
                 var fallbackQualities = _qualityFallbackProvider.GetFallbackQualities(preferredQuality);
+                
+                // Optimize fallback based on known subscription tier
+                if (_settings?.SubscriptionTier == (int)QobuzSubscriptionTier.Sublime)
+                {
+                    // Sublime users can't get Hi-Res, cap at CD quality
+                    fallbackQualities = fallbackQualities.Where(q => q <= 6).ToList();
+                    _logger.Debug("💿 Sublime subscription detected, limiting to CD quality");
+                }
+                else if (_settings?.SubscriptionTier == (int)QobuzSubscriptionTier.Free)
+                {
+                    // Free users only get samples, no point trying any quality
+                    _logger.Warn("🆓 Free tier detected - only samples available");
+                    var reason = GetFailureReason(streamResponse);
+                    throw new TrackUnavailableException(trackId, "Free tier - only 30-second samples available", TrackUnavailableReason.SubscriptionRestriction);
+                }
+                else if (IsSubscriptionIssue(streamResponse) && preferredQuality > 6)
+                {
+                    // Unknown tier but subscription issue detected, try CD quality
+                    fallbackQualities = fallbackQualities.Where(q => q <= 6).ToList();
+                    _logger.Debug("🔽 High-res subscription issue detected, trying CD quality and below");
+                }
                 
                 foreach (var fallbackQuality in fallbackQualities)
                 {
-                    _logger.Debug("Trying fallback quality {0} for track {1}", fallbackQuality, trackId);
+                    streamResponse = await TryGetStreamUrl(trackId, fallbackQuality).ConfigureAwait(false);
                     
-                    parameters["format_id"] = fallbackQuality.ToString();
-                    streamResponse = await _apiClient.GetAsync<QobuzStreamResponse>("/track/getFileUrl", parameters).ConfigureAwait(false);
-                    
-                    // Track fallback errors
-                    if (streamResponse?.IsSuccess != true || string.IsNullOrWhiteSpace(streamResponse.Url))
+                    if (streamResponse != null && IsValidStreamUrl(streamResponse))
                     {
-                        if (streamResponse?.IsSuccess == false)
-                        {
-                            lastRestrictionMessage = GetDetailedErrorMessage(streamResponse, $"Fallback quality {fallbackQuality} failed");
-                        }
-                        else if (streamResponse == null)
-                        {
-                            lastRestrictionMessage = $"No response for fallback quality {fallbackQuality}";
-                        }
-                        else
-                        {
-                            lastRestrictionMessage = $"Empty URL for fallback quality {fallbackQuality}";
-                        }
-                        _logger.Debug("Fallback quality {0} failed for track {1}: {2}", fallbackQuality, trackId, lastRestrictionMessage);
-                        continue;
-                    }
-                    
-                    if (streamResponse?.IsSuccess == true && streamResponse.Url.IsNotNullOrWhiteSpace())
-                    {
-                        // Check restrictions for fallback quality
-                        if (streamResponse.HasRestrictions())
-                        {
-                            var restrictionMessage = streamResponse.GetRestrictionMessage();
-                            lastRestrictionMessage = restrictionMessage;
-                            
-                            // Skip format-related restrictions for fallback (expected)
-                            if (restrictionMessage?.Contains("format not available") == true)
-                            {
-                                _logger.Debug("Fallback quality {0} has format restriction for track {1}, continuing fallback", fallbackQuality, trackId);
-                                continue;
-                            }
-                            else if (IsPreviewOrSampleUrl(streamResponse.Url))
-                            {
-                                _logger.Debug("Fallback quality {0} is preview/sample only for track {1}, continuing fallback", fallbackQuality, trackId);
-                                continue;
-                            }
-                            else
-                            {
-                                // Other restrictions are real blockers
-                                var reason = _qualityFallbackProvider.DetermineUnavailableReason(restrictionMessage);
-                                throw new TrackUnavailableException(trackId, restrictionMessage, reason);
-                            }
-                        }
-                        else
-                        {
-                            // Check if this fallback URL is a preview/sample
-                            if (IsPreviewOrSampleUrl(streamResponse.Url))
-                            {
-                                _logger.Debug("Fallback quality {0} is preview/sample only for track {1}, continuing fallback", fallbackQuality, trackId);
-                                lastRestrictionMessage = "Preview/sample only";
-                                continue;
-                            }
-                        }
-                        
-                        // Enhanced logging with Smart Quality Badges format
                         LogQualitySelection(track, album, fallbackQuality, preferredQuality);
                         return streamResponse.Url;
                     }
+                    
+                    // If we hit subscription issues at CD quality or below, stop trying
+                    if (IsSubscriptionIssue(streamResponse) && fallbackQuality <= 6)
+                    {
+                        var fallbackFailureReason = GetFailureReason(streamResponse);
+                        LogTrackUnavailable(track, album, fallbackFailureReason);
+                        var reason = DetermineUnavailableReason(fallbackFailureReason, streamResponse);
+                        throw new TrackUnavailableException(trackId, fallbackFailureReason, reason);
+                    }
                 }
 
-                // All qualities failed - log detailed information about why
-                LogTrackUnavailable(track, album, lastRestrictionMessage);
-                
-                // Determine the most appropriate exception based on what we learned
-                var analyzedReason = AnalyzeErrorReason(lastRestrictionMessage);
-                var fallbackReason = _qualityFallbackProvider.DetermineUnavailableReason(lastRestrictionMessage);
-                var finalReason = analyzedReason != TrackUnavailableReason.Unknown ? analyzedReason : fallbackReason;
-                
-                var detailedMessage = string.IsNullOrEmpty(lastRestrictionMessage) 
-                    ? "No stream URL available in any quality (track may be removed or region-locked)"
-                    : lastRestrictionMessage;
-                    
-                throw new TrackUnavailableException(trackId, detailedMessage, finalReason);
+                // All qualities failed
+                var finalFailureReason = GetFailureReason(streamResponse) ?? "No stream URL available in any quality";
+                LogTrackUnavailable(track, album, finalFailureReason);
+                var finalReason = DetermineUnavailableReason(finalFailureReason, streamResponse);
+                throw new TrackUnavailableException(trackId, finalFailureReason, finalReason);
             }
             catch (TrackUnavailableException)
             {
-                // Re-throw our custom exceptions
                 throw;
             }
             catch (Exception ex)
@@ -214,6 +113,91 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Services
                 _logger.Error(ex, "Failed to get stream URL for track: {0}", trackId);
                 throw new TrackUnavailableException(trackId, ex.Message, TrackUnavailableReason.ApiError);
             }
+        }
+
+        private async Task<QobuzStreamResponse> TryGetStreamUrl(string trackId, int quality)
+        {
+            var parameters = new Dictionary<string, string>
+            {
+                {"track_id", trackId},
+                {"format_id", quality.ToString()},
+                {"intent", "stream"}
+            };
+
+            return await _apiClient.GetAsync<QobuzStreamResponse>("/track/getFileUrl", parameters).ConfigureAwait(false);
+        }
+
+        private bool IsValidStreamUrl(QobuzStreamResponse response)
+        {
+            // Check basic response validity
+            if (response?.IsSuccess != true || string.IsNullOrWhiteSpace(response.Url))
+                return false;
+                
+            // Check for sample/preview - following QobuzApiSharp pattern
+            if (response.Sample == true)
+                return false;
+                
+            // Check if URL appears to be a sample/preview
+            if (IsPreviewOrSampleUrl(response.Url))
+                return false;
+                
+            return true;
+        }
+
+        private string GetFailureReason(QobuzStreamResponse response)
+        {
+            if (response == null)
+                return "No response from Qobuz API";
+                
+            if (response.Sample == true)
+                return "Track is only available as a sample/preview (subscription insufficient)";
+                
+            if (!response.IsSuccess)
+                return GetDetailedErrorMessage(response);
+                
+            if (string.IsNullOrWhiteSpace(response.Url))
+                return "Empty stream URL returned";
+                
+            if (IsPreviewOrSampleUrl(response.Url))
+                return "Stream URL appears to be preview/sample only";
+                
+            return "Unknown failure";
+        }
+
+        private bool IsSubscriptionIssue(QobuzStreamResponse response)
+        {
+            // Trust the API response structure first
+            if (response?.Sample == true)
+                return true;
+            
+            // Check for forbidden status (subscription insufficient)
+            if (response?.Code == 403)
+                return true;
+            
+            // Check for explicit subscription restriction message
+            if (response?.Message?.Contains("FormatRestrictedBySubscription") == true ||
+                response?.Message?.Contains("TrackRestrictedByPurchaseCredentials") == true)
+                return true;
+            
+            // Check restriction codes
+            var restrictionMessage = response?.GetRestrictionMessage();
+            if (!string.IsNullOrWhiteSpace(restrictionMessage))
+            {
+                var lowerRestriction = restrictionMessage.ToLowerInvariant();
+                return lowerRestriction.Contains("subscription") ||
+                       lowerRestriction.Contains("purchase") ||
+                       lowerRestriction.Contains("credentials");
+            }
+            
+            return false;
+        }
+
+        private TrackUnavailableReason DetermineUnavailableReason(string failureReason, QobuzStreamResponse response)
+        {
+            if (response?.Sample == true)
+                return TrackUnavailableReason.SubscriptionRestriction;
+                
+            return AnalyzeErrorReason(failureReason);
         }
 
         private void LogQualitySelection(QobuzTrack track, QobuzAlbum album, int actualQuality, int preferredQuality)

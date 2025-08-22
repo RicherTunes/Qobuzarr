@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using Newtonsoft.Json;
 using NzbDrone.Common.Extensions;
+using Lidarr.Plugin.Qobuzarr.Security;
 
 namespace Lidarr.Plugin.Qobuzarr.Models
 {
@@ -163,15 +164,19 @@ namespace Lidarr.Plugin.Qobuzarr.Models
         }
 
         /// <summary>
-        /// Get full album title including version if available
+        /// Get full album title including version if available.
+        /// Version field is sanitized to prevent injection attacks.
         /// </summary>
         public string GetFullTitle()
         {
             var title = Title ?? "Unknown Album";
             
-            if (Version.IsNotNullOrWhiteSpace() && !title.Contains(Version))
+            // Sanitize version to prevent injection attacks
+            var sanitizedVersion = MetadataSanitizer.SanitizeVersion(Version);
+            
+            if (!string.IsNullOrWhiteSpace(sanitizedVersion) && !title.Contains(sanitizedVersion))
             {
-                return $"{title} ({Version})";
+                return $"{title} ({sanitizedVersion})";
             }
             return title;
         }
