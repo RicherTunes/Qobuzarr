@@ -44,6 +44,9 @@ namespace Lidarr.Plugin.Qobuzarr.Models
         [JsonProperty("code")]
         public int? Code { get; set; }
 
+        [JsonProperty("sample")]
+        public bool? Sample { get; set; }
+
         /// <summary>
         /// Check if the stream response is successful
         /// </summary>

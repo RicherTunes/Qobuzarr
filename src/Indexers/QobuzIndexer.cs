@@ -4,6 +4,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using FluentValidation.Results;
+using Newtonsoft.Json;
 using NLog;
 using NzbDrone.Common.Http;
 using NzbDrone.Core.Configuration;
@@ -15,6 +16,7 @@ using NzbDrone.Core.Validation;
 using NzbDrone.Common.Extensions;
 using Lidarr.Plugin.Qobuzarr.Authentication;
 using Lidarr.Plugin.Qobuzarr.API;
+using Lidarr.Plugin.Qobuzarr.Models;
 using Lidarr.Plugin.Qobuzarr.Models.Authentication;
 using Lidarr.Plugin.Qobuzarr.Security;
 using Lidarr.Plugin.Qobuzarr.Abstractions;
@@ -37,6 +39,10 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
         private readonly SecureMLModelLoader _secureModelLoader;
         private DateTime _lastRequestTime = DateTime.MinValue;
         private readonly object _rateLimitLock = new object();
+        
+        // Cached instances for context sharing between generator and parser
+        private QobuzRequestGenerator _requestGenerator;
+        private QobuzParser _parser;
 
         public QobuzIndexer(IHttpClient httpClient,
                            IIndexerStatusService indexerStatusService,
@@ -59,12 +65,33 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
 
         public override IIndexerRequestGenerator GetRequestGenerator()
         {
-            return new QobuzRequestGenerator(Settings, _logger, () => _authService.GetCachedSession(), _patternLearningEngine.Value);
+            // Use cached instance to maintain context across calls
+            if (_requestGenerator == null)
+            {
+                _requestGenerator = new QobuzRequestGenerator(Settings, _logger, () => _authService.GetCachedSession(), _patternLearningEngine.Value);
+            }
+            return _requestGenerator;
         }
 
         public override IParseIndexerResponse GetParser()
         {
-            return new QobuzParser(Settings, _logger);
+            // Use cached instance to maintain context
+            if (_parser == null)
+            {
+                _parser = new QobuzParser(Settings, _logger);
+            }
+            
+            // Update context from request generator if available
+            if (_requestGenerator != null)
+            {
+                var currentCriteria = _requestGenerator.GetCurrentSearchCriteria();
+                if (currentCriteria != null)
+                {
+                    _parser.SetSearchContext(currentCriteria);
+                }
+            }
+            
+            return _parser;
         }
 
         /// <summary>
@@ -304,15 +331,46 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
                             
                             _logger.Debug("Qobuz search: {0}", pageableRequest.Url);
 
-                            var response = await FetchIndexerResponse(pageableRequest).ConfigureAwait(false);
+                            // Extract query parameters from the URL to call QobuzApiClient properly
+                            var queryParams = ExtractQueryParameters(pageableRequest.Url);
+                            
+                            _logger.Debug("Extracted parameters: {0}", string.Join(", ", queryParams.Select(kv => $"{kv.Key}={kv.Value}")));
+                            
+                            // Use QobuzApiClient instead of generic HTTP calls
+                            var qobuzResponse = await _apiClient.GetAsync<QobuzAlbumSearchResponse>("/album/search", queryParams).ConfigureAwait(false);
                             
                             stopwatch.Stop();
                             _logger.Debug("Qobuz search completed in {0}ms", stopwatch.ElapsedMilliseconds);
 
-                            if (response.Content.IsNotNullOrWhiteSpace())
+                            if (qobuzResponse != null)
                             {
+                                _logger.Info("🔍 Qobuz API response - Success: {0}, Album count: {1}, Status: {2}, Message: {3}", 
+                                    qobuzResponse.IsSuccess, qobuzResponse.Albums?.Items?.Count ?? 0, 
+                                    qobuzResponse.Status ?? "null", qobuzResponse.Message ?? "null");
+                                    
+                                if (qobuzResponse.Albums?.Total > 0)
+                                {
+                                    _logger.Info("📊 Qobuz total results available: {0}, showing: {1}", 
+                                        qobuzResponse.Albums.Total, qobuzResponse.Albums.Items?.Count ?? 0);
+                                }
+                                else
+                                {
+                                    // Log raw response to understand why no results
+                                    var rawResponse = JsonConvert.SerializeObject(qobuzResponse);
+                                    _logger.Info("❌ Empty result - Raw response: {0}", rawResponse);
+                                }
+                            }
+                            else
+                            {
+                                _logger.Error("❌ Qobuz API returned null response");
+                            }
+
+                            if (qobuzResponse != null && qobuzResponse.HasResults())
+                            {
+                                // Create a mock IndexerResponse for the parser to maintain compatibility
+                                var mockResponse = CreateMockIndexerResponse(qobuzResponse, pageableRequest);
                                 var parser = GetParser();
-                                var parsedReleases = parser.ParseResponse(response);
+                                var parsedReleases = parser.ParseResponse(mockResponse);
                                 
                                 _logger.Debug("Parsed {0} releases from Qobuz", parsedReleases.Count);
                                 
@@ -364,6 +422,10 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
                                 }
                                 
                                 tierReleases.AddRange(parsedReleases);
+                            }
+                            else
+                            {
+                                _logger.Debug("No results returned from Qobuz API for query: {0}", string.Join("&", queryParams.Select(kv => $"{kv.Key}={kv.Value}")));
                             }
                         }
                         catch (Exception ex)
@@ -960,6 +1022,51 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
             {
                 return $"Error generating ML performance report: {ex.Message}";
             }
+        }
+
+        /// <summary>
+        /// Extract query parameters from IndexerRequest URL for QobuzApiClient
+        /// </summary>
+        private Dictionary<string, string> ExtractQueryParameters(HttpUri url)
+        {
+            var parameters = new Dictionary<string, string>();
+            
+            if (!string.IsNullOrEmpty(url.Query))
+            {
+                var queryString = url.Query.TrimStart('?');
+                foreach (var param in queryString.Split('&'))
+                {
+                    var parts = param.Split('=', 2);
+                    if (parts.Length == 2)
+                    {
+                        var key = Uri.UnescapeDataString(parts[0]);
+                        var value = Uri.UnescapeDataString(parts[1]);
+                        
+                        // Skip authentication parameters as they'll be handled by QobuzApiClient
+                        if (key != "app_id" && key != "user_auth_token")
+                        {
+                            parameters[key] = value;
+                        }
+                    }
+                }
+            }
+            
+            return parameters;
+        }
+
+        /// <summary>
+        /// Create a mock IndexerResponse from QobuzAlbumSearchResponse for parser compatibility
+        /// </summary>
+        private IndexerResponse CreateMockIndexerResponse(QobuzAlbumSearchResponse qobuzResponse, IndexerRequest originalRequest)
+        {
+            // Serialize the QobuzAlbumSearchResponse back to JSON for the parser
+            var responseJson = JsonConvert.SerializeObject(qobuzResponse);
+            
+            // Create a mock HTTP response
+            var mockHttpResponse = new HttpResponse(originalRequest.HttpRequest, new HttpHeader(), responseJson);
+            mockHttpResponse.Headers.ContentType = "application/json";
+            
+            return new IndexerResponse(originalRequest, mockHttpResponse);
         }
 
         #region IDisposable Implementation

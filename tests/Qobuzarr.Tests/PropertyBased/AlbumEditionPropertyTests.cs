@@ -1,0 +1,386 @@
+using System;
+using System.Linq;
+using FluentAssertions;
+using FsCheck;
+using FsCheck.Xunit;
+using Lidarr.Plugin.Qobuzarr.Models;
+using Qobuzarr.Tests.Builders;
+
+namespace Qobuzarr.Tests.PropertyBased
+{
+    /// <summary>
+    /// Property-based tests for album edition handling using FsCheck.
+    /// Tests invariants and properties that should hold for any album edition scenario.
+    /// </summary>
+    public class AlbumEditionPropertyTests
+    {
+        #region Property Generators
+
+        /// <summary>
+        /// Generates arbitrary album versions for property testing
+        /// </summary>
+        public static Arbitrary<string> AlbumVersions()
+        {
+            var validVersions = Gen.Elements(new[]
+            {
+                "Live", "Deluxe Edition", "Remastered", "Special Edition",
+                "Live at Wembley", "2023 Remaster", "Anniversary Edition",
+                "Acoustic", "Unplugged", "Director's Cut", "Extended Version",
+                "Collector's Edition", "Limited Edition", "Box Set",
+                "Complete Sessions", "Expanded Edition"
+            });
+
+            var nullOrEmpty = Gen.Elements<string>(null, "", "   ");
+            
+            var unicodeVersions = Gen.Elements(new[]
+            {
+                "Édition Spéciale", "特別版", "Версия делюкс", "Ausgabe"
+            });
+
+            var complexVersions = Gen.Elements(new[]
+            {
+                "25th Anniversary Deluxe Remastered Edition",
+                "Live at Madison Square Garden, December 2019",
+                "Director's Cut Special Edition with Bonus Content"
+            });
+
+            return Gen.OneOf(validVersions, nullOrEmpty, unicodeVersions, complexVersions).ToArbitrary();
+        }
+
+        /// <summary>
+        /// Generates arbitrary QobuzAlbum objects for property testing
+        /// </summary>
+        public static Arbitrary<QobuzAlbum> QobuzAlbums()
+        {
+            return Arb.Generate<string>()
+                .Where(s => !string.IsNullOrWhiteSpace(s))
+                .Select(title => QobuzAlbumBuilder.New()
+                    .WithTitle(title)
+                    .WithArtist("Test Artist")
+                    .WithReleaseYear(Gen.Choose(1950, 2030).Sample(0, 1).First())
+                    .Build())
+                .ToArbitrary();
+        }
+
+        #endregion
+
+        #region Title Generation Properties
+
+        [Property(Arbitrary = new[] { typeof(AlbumEditionPropertyTests) })]
+        public Property GetFullTitle_WithAnyVersion_ShouldNeverReturnNull(string version)
+        {
+            return Prop.ForAll<string>(v =>
+            {
+                // Arrange
+                var album = QobuzAlbumBuilder.New()
+                    .WithTitle("Test Album")
+                    .Build();
+                album.Version = v;
+
+                // Act
+                var fullTitle = album.GetFullTitle();
+
+                // Assert
+                return !string.IsNullOrEmpty(fullTitle);
+            }).When(!string.IsNullOrWhiteSpace(version) || version == null || version == "");
+        }
+
+        [Property(Arbitrary = new[] { typeof(AlbumEditionPropertyTests) })]
+        public Property GetFullTitle_WithValidVersion_ShouldContainOriginalTitle(string version)
+        {
+            return Prop.ForAll<string>(v =>
+            {
+                // Arrange
+                var originalTitle = "Original Album Title";
+                var album = QobuzAlbumBuilder.New()
+                    .WithTitle(originalTitle)
+                    .Build();
+                album.Version = v;
+
+                // Act
+                var fullTitle = album.GetFullTitle();
+
+                // Assert
+                return fullTitle.Contains(originalTitle);
+            }).When(!string.IsNullOrWhiteSpace(version));
+        }
+
+        [Property(Arbitrary = new[] { typeof(AlbumEditionPropertyTests) })]
+        public Property GetFullTitle_WithVersion_ShouldNotHaveDoubleParentheses(string version)
+        {
+            return Prop.ForAll<string>(v =>
+            {
+                // Arrange
+                var album = QobuzAlbumBuilder.New()
+                    .WithTitle("Test Album")
+                    .Build();
+                album.Version = v;
+
+                // Act
+                var fullTitle = album.GetFullTitle();
+
+                // Assert
+                return !fullTitle.Contains("((") && !fullTitle.Contains("))");
+            }).When(!string.IsNullOrWhiteSpace(version));
+        }
+
+        [Property(Arbitrary = new[] { typeof(AlbumEditionPropertyTests) })]
+        public Property GetFullTitle_WhenVersionInTitle_ShouldNotDuplicate(NonEmptyString title, NonEmptyString version)
+        {
+            // Arrange
+            var albumTitle = $"{title.Get} {version.Get}";
+            var album = QobuzAlbumBuilder.New()
+                .WithTitle(albumTitle)
+                .Build();
+            album.Version = version.Get;
+
+            // Act
+            var fullTitle = album.GetFullTitle();
+
+            // Assert - Should not have version duplicated in parentheses
+            return fullTitle == albumTitle;
+        }
+
+        #endregion
+
+        #region Version Field Properties
+
+        [Property(Arbitrary = new[] { typeof(AlbumEditionPropertyTests) })]
+        public Property Version_ShouldBePreservedInFullTitle(string version)
+        {
+            return Prop.ForAll<string>(v =>
+            {
+                // Arrange
+                var album = QobuzAlbumBuilder.New()
+                    .WithTitle("Test Album")
+                    .Build();
+                album.Version = v;
+
+                // Act
+                var fullTitle = album.GetFullTitle();
+
+                // Assert
+                if (string.IsNullOrWhiteSpace(v))
+                {
+                    return !fullTitle.Contains("()"); // No empty parentheses
+                }
+                else
+                {
+                    return fullTitle.Contains($"({v})");
+                }
+            }).When(version != null);
+        }
+
+        [Property]
+        public Property Version_WithUnicodeCharacters_ShouldBePreserved(NonEmptyString version)
+        {
+            // Arrange
+            var unicodeVersion = version.Get + "éñ中文🎵";
+            var album = QobuzAlbumBuilder.New()
+                .WithTitle("Test Album")
+                .Build();
+            album.Version = unicodeVersion;
+
+            // Act
+            var fullTitle = album.GetFullTitle();
+
+            // Assert
+            return fullTitle.Contains(unicodeVersion);
+        }
+
+        #endregion
+
+        #region Album Comparison Properties
+
+        [Property(Arbitrary = new[] { typeof(AlbumEditionPropertyTests) })]
+        public Property DifferentVersions_ShouldProduceDifferentFullTitles(
+            NonEmptyString version1, 
+            NonEmptyString version2)
+        {
+            return Prop.ForAll<NonEmptyString, NonEmptyString>((v1, v2) =>
+            {
+                // Arrange
+                var album1 = QobuzAlbumBuilder.New()
+                    .WithTitle("Same Album")
+                    .WithArtist("Same Artist")
+                    .Build();
+                album1.Version = v1.Get;
+
+                var album2 = QobuzAlbumBuilder.New()
+                    .WithTitle("Same Album")
+                    .WithArtist("Same Artist")
+                    .Build();
+                album2.Version = v2.Get;
+
+                // Act
+                var title1 = album1.GetFullTitle();
+                var title2 = album2.GetFullTitle();
+
+                // Assert
+                return title1 != title2;
+            }).When(version1.Get != version2.Get);
+        }
+
+        [Property(Arbitrary = new[] { typeof(AlbumEditionPropertyTests) })]
+        public Property SameVersions_ShouldProduceSameFullTitles(NonEmptyString version)
+        {
+            // Arrange
+            var album1 = QobuzAlbumBuilder.New()
+                .WithTitle("Same Album")
+                .WithArtist("Same Artist")
+                .Build();
+            album1.Version = version.Get;
+
+            var album2 = QobuzAlbumBuilder.New()
+                .WithTitle("Same Album")
+                .WithArtist("Same Artist")
+                .Build();
+            album2.Version = version.Get;
+
+            // Act
+            var title1 = album1.GetFullTitle();
+            var title2 = album2.GetFullTitle();
+
+            // Assert
+            return title1 == title2;
+        }
+
+        #endregion
+
+        #region Title Generation Format Properties
+
+        [Property]
+        public Property RedactedStyleTitle_ShouldAlwaysHaveCorrectStructure(
+            NonEmptyString artist, 
+            NonEmptyString album, 
+            PositiveInt year)
+        {
+            // Arrange
+            var qobuzAlbum = QobuzAlbumBuilder.New()
+                .WithTitle(album.Get)
+                .WithArtist(artist.Get)
+                .WithReleaseYear(1950 + (year.Get % 80)) // Keep year reasonable
+                .AsCdQualityFlac()
+                .Build();
+
+            // Act
+            var title = GenerateRedactedStyleTitle(qobuzAlbum);
+
+            // Assert
+            var hasCorrectStructure = title.Contains(" - ") && 
+                                    title.Contains("(") && 
+                                    title.Contains(")") &&
+                                    title.EndsWith("]");
+
+            return hasCorrectStructure;
+        }
+
+        [Property(Arbitrary = new[] { typeof(AlbumEditionPropertyTests) })]
+        public Property RedactedStyleTitle_WithVersion_ShouldHaveVersionBracket(
+            NonEmptyString version)
+        {
+            // Arrange
+            var album = QobuzAlbumBuilder.New()
+                .WithTitle("Test Album")
+                .WithArtist("Test Artist")
+                .WithReleaseYear(2020)
+                .AsCdQualityFlac()
+                .Build();
+            album.Version = version.Get;
+
+            // Act
+            var title = GenerateRedactedStyleTitle(album);
+
+            // Assert
+            // Should have version in brackets and quality in brackets
+            var versionBracketCount = title.Split('[').Length - 1;
+            return versionBracketCount >= 2; // At least version bracket and quality bracket
+        }
+
+        [Property]
+        public Property RedactedStyleTitle_ShouldAlwaysEndWithQualityBracket(
+            NonEmptyString artist, 
+            NonEmptyString album)
+        {
+            // Arrange
+            var qobuzAlbum = QobuzAlbumBuilder.New()
+                .WithTitle(album.Get)
+                .WithArtist(artist.Get)
+                .WithReleaseYear(2020)
+                .AsCdQualityFlac()
+                .Build();
+
+            // Act
+            var title = GenerateRedactedStyleTitle(qobuzAlbum);
+
+            // Assert
+            return title.EndsWith("[FLAC WEB]") || title.EndsWith("[MP3 WEB]");
+        }
+
+        #endregion
+
+        #region Performance Properties
+
+        [Property]
+        public Property GetFullTitle_ShouldBeIdempotent(NonEmptyString version)
+        {
+            // Arrange
+            var album = QobuzAlbumBuilder.New()
+                .WithTitle("Test Album")
+                .Build();
+            album.Version = version.Get;
+
+            // Act
+            var title1 = album.GetFullTitle();
+            var title2 = album.GetFullTitle();
+
+            // Assert - Multiple calls should return same result
+            return title1 == title2;
+        }
+
+        [Property]
+        public Property GetFullTitle_ShouldBeFast()
+        {
+            // Arrange
+            var album = QobuzAlbumBuilder.New()
+                .WithTitle("Test Album")
+                .Build();
+            album.Version = "Very Long Version String That Could Potentially Cause Performance Issues";
+
+            // Act & Assert - Should complete quickly
+            var startTime = DateTime.UtcNow;
+            var title = album.GetFullTitle();
+            var endTime = DateTime.UtcNow;
+
+            var duration = endTime - startTime;
+            return duration.TotalMilliseconds < 10; // Should be very fast
+        }
+
+        #endregion
+
+        #region Helper Methods
+
+        /// <summary>
+        /// Simplified version of Redacted style title generation for property testing
+        /// </summary>
+        private string GenerateRedactedStyleTitle(QobuzAlbum album)
+        {
+            var artistName = album.GetArtistName();
+            var albumTitle = album.Title;
+            var year = album.ReleaseDate.Year;
+            var quality = album.MaximumBitDepth >= 16 ? "FLAC" : "MP3";
+            
+            var titleBuilder = $"{artistName} - {albumTitle} ({year})";
+            
+            if (!string.IsNullOrWhiteSpace(album.Version))
+            {
+                titleBuilder += $" [{album.Version}]";
+            }
+            
+            titleBuilder += $" [{quality} WEB]";
+            return titleBuilder;
+        }
+
+        #endregion
+    }
+}
