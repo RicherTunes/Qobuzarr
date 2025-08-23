@@ -122,36 +122,29 @@
     </PackageReference> -->
   </ItemGroup>
 
-  <!-- Lidarr assemblies from pre-built release (safer than ProjectReference) -->
+  <!-- Lidarr assemblies from plugins branch source (REQUIRED for string Protocol) -->
   <ItemGroup>
-    <Reference Include="Lidarr">
-      <HintPath>$(MSBuildProjectDirectory)\ext\Lidarr\_output\net6.0\Lidarr.dll</HintPath>
+    <ProjectReference Include="ext\Lidarr-source\src\NzbDrone\Lidarr.csproj">
       <Private>false</Private>
-    </Reference>
-    <Reference Include="Lidarr.Common">
-      <HintPath>$(MSBuildProjectDirectory)\ext\Lidarr\_output\net6.0\Lidarr.Common.dll</HintPath>
+    </ProjectReference>
+    <ProjectReference Include="ext\Lidarr-source\src\NzbDrone.Common\Lidarr.Common.csproj">
       <Private>false</Private>
-    </Reference>
-    <Reference Include="Lidarr.Core">
-      <HintPath>$(MSBuildProjectDirectory)\ext\Lidarr\_output\net6.0\Lidarr.Core.dll</HintPath>
+    </ProjectReference>
+    <ProjectReference Include="ext\Lidarr-source\src\NzbDrone.Core\Lidarr.Core.csproj">
       <Private>false</Private>
-    </Reference>
-    <Reference Include="Lidarr.Api.V1">
-      <HintPath>$(MSBuildProjectDirectory)\ext\Lidarr\_output\net6.0\Lidarr.Api.V1.dll</HintPath>
+    </ProjectReference>
+    <ProjectReference Include="ext\Lidarr-source\src\Lidarr.Api.V1\Lidarr.Api.V1.csproj">
       <Private>false</Private>
-    </Reference>
-    <Reference Include="Lidarr.Http">
-      <HintPath>$(MSBuildProjectDirectory)\ext\Lidarr\_output\net6.0\Lidarr.Http.dll</HintPath>
+    </ProjectReference>
+    <ProjectReference Include="ext\Lidarr-source\src\Lidarr.Http\Lidarr.Http.csproj">
       <Private>false</Private>
-    </Reference>
-    <Reference Include="Lidarr.Host">
-      <HintPath>$(MSBuildProjectDirectory)\ext\Lidarr\_output\net6.0\Lidarr.Host.dll</HintPath>
+    </ProjectReference>
+    <ProjectReference Include="ext\Lidarr-source\src\NzbDrone.Host\Lidarr.Host.csproj">
       <Private>false</Private>
-    </Reference>
-    <Reference Include="Lidarr.SignalR">
-      <HintPath>$(MSBuildProjectDirectory)\ext\Lidarr\_output\net6.0\Lidarr.SignalR.dll</HintPath>
+    </ProjectReference>
+    <ProjectReference Include="ext\Lidarr-source\src\NzbDrone.SignalR\Lidarr.SignalR.csproj">
       <Private>false</Private>
-    </Reference>
+    </ProjectReference>
   </ItemGroup>
 
   <!-- File exclusions -->

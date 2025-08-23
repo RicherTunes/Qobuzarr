@@ -392,7 +392,7 @@ namespace Qobuzarr.Tests.Unit.Indexers
                 release.Album.Should().Be("Integration Test Album");
                 release.DownloadUrl.Should().StartWith("qobuz://");
                 release.Size.Should().BeGreaterThan(0, "Size must be calculated");
-                release.Indexer.Should().Be("Qobuzarr");
+                release.Indexer.Should().Be(QobuzarrConstants.ProtocolName);
                 release.PublishDate.Date.Should().Be(new DateTime(2023, 12, 25).Date, "Date should match regardless of timezone");
 
                 // The most critical test: Title should contain quality markers

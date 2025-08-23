@@ -30,6 +30,7 @@ using Lidarr.Plugin.Qobuzarr.Utilities;
 using Lidarr.Plugin.Qobuzarr.Exceptions;
 using Lidarr.Plugin.Qobuzarr.Download.Services;
 using Lidarr.Plugin.Qobuzarr.Download.Orchestration;
+using Lidarr.Plugin.Qobuzarr.Constants;
 
 namespace Lidarr.Plugin.Qobuzarr.Download.Clients
 {
@@ -47,10 +48,10 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Clients
         private readonly IQobuzTrackDownloaderFactory _trackDownloaderFactory;
         private readonly ConcurrentDictionary<string, QobuzDownloadItem> _activeDownloads;
 
-        public override string Name => "Qobuzarr";
+        public override string Name => QobuzarrConstants.ProtocolName;
         
-        // Protocol property - use Unknown for streaming services (proper Lidarr pattern)
-        public override DownloadProtocol Protocol => DownloadProtocol.Unknown;
+        // Protocol property - returns string identifier for plugins branch
+        public override string Protocol => QobuzarrConstants.ProtocolName;
 
         public QobuzDownloadClient(IQobuzAuthenticationService authService,
                                   IQobuzApiClient apiClient,

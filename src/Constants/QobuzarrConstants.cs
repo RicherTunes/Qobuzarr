@@ -19,5 +19,10 @@ namespace Lidarr.Plugin.Qobuzarr.Constants
         /// The plugin folder name used for file system operations
         /// </summary>
         public const string PluginFolderName = "Qobuzarr";
+        
+        /// <summary>
+        /// The protocol identifier used for Lidarr plugin system
+        /// </summary>
+        public const string ProtocolName = "Qobuzarr";
     }
 }
