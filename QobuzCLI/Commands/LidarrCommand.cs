@@ -12,6 +12,58 @@ using Lidarr.Plugin.Qobuzarr.Integration;
 namespace QobuzCLI.Commands;
 
 /// <summary>
+/// Options for the test-connection subcommand.
+/// </summary>
+record TestConnectionOptions(
+    string? Url,
+    string? ApiKey, 
+    int Timeout,
+    bool Verbose
+);
+
+/// <summary>
+/// Options for the export subcommand.
+/// </summary>
+record ExportOptions(
+    string? Url,
+    string? ApiKey,
+    string Output,
+    string Format,
+    int? Limit,
+    string? FilterType,
+    int? MinYear,
+    int? MaxYear,
+    string? Artists,
+    bool OptimizeOrder,
+    bool IncludeMetadata,
+    bool Verbose
+);
+
+/// <summary>
+/// Options for the download-wanted subcommand.
+/// </summary>
+record DownloadWantedOptions(
+    int? YearFrom,
+    int? YearTo, 
+    int? LastDays,
+    string? Artists,
+    string? ArtistsExclude,
+    string? AlbumTypes,
+    int? MinTracks,
+    int? MaxTracks,
+    bool Immediate,
+    string? Quality,
+    string? QualityProfile,
+    bool IgnoreProfiles,
+    bool ShowProfiles,
+    int Limit,
+    bool DryRun,
+    int Concurrency,
+    string? OutputPath,
+    bool Verbose
+);
+
+/// <summary>
 /// Implements the 'lidarr' command for Lidarr integration functionality.
 /// This is a thin CLI wrapper around the plugin's LidarrIntegrationService.
 /// Follows the plugin-first architecture where CLI only adds UI/UX while delegating core functionality.
@@ -85,12 +137,14 @@ public class LidarrCommand
 
         command.SetHandler(async (context) =>
         {
-            var url = context.ParseResult.GetValueForOption(urlOption);
-            var apiKey = context.ParseResult.GetValueForOption(apiKeyOption);
-            var timeout = context.ParseResult.GetValueForOption(timeoutOption);
-            var verbose = context.ParseResult.GetValueForOption(verboseOption);
+            var options = new TestConnectionOptions(
+                context.ParseResult.GetValueForOption(urlOption),
+                context.ParseResult.GetValueForOption(apiKeyOption),
+                context.ParseResult.GetValueForOption(timeoutOption),
+                context.ParseResult.GetValueForOption(verboseOption)
+            );
             
-            await HandleTestConnectionAsync(url, apiKey, timeout, verbose).ConfigureAwait(false);
+            await HandleTestConnectionAsync(options).ConfigureAwait(false);
         });
 
         return command;
@@ -135,21 +189,22 @@ public class LidarrCommand
 
         command.SetHandler(async (context) =>
         {
-            var url = context.ParseResult.GetValueForOption(urlOption);
-            var apiKey = context.ParseResult.GetValueForOption(apiKeyOption);
-            var output = context.ParseResult.GetValueForOption(outputOption)!;
-            var format = context.ParseResult.GetValueForOption(formatOption)!;
-            var limit = context.ParseResult.GetValueForOption(limitOption);
-            var filterType = context.ParseResult.GetValueForOption(filterTypeOption);
-            var minYear = context.ParseResult.GetValueForOption(minYearOption);
-            var maxYear = context.ParseResult.GetValueForOption(maxYearOption);
-            var artists = context.ParseResult.GetValueForOption(artistsOption);
-            var optimizeOrder = context.ParseResult.GetValueForOption(optimizeOrderOption);
-            var includeMetadata = context.ParseResult.GetValueForOption(includeMetadataOption);
-            var verbose = context.ParseResult.GetValueForOption(verboseOption);
+            var options = new ExportOptions(
+                context.ParseResult.GetValueForOption(urlOption),
+                context.ParseResult.GetValueForOption(apiKeyOption),
+                context.ParseResult.GetValueForOption(outputOption)!,
+                context.ParseResult.GetValueForOption(formatOption)!,
+                context.ParseResult.GetValueForOption(limitOption),
+                context.ParseResult.GetValueForOption(filterTypeOption),
+                context.ParseResult.GetValueForOption(minYearOption),
+                context.ParseResult.GetValueForOption(maxYearOption),
+                context.ParseResult.GetValueForOption(artistsOption),
+                context.ParseResult.GetValueForOption(optimizeOrderOption),
+                context.ParseResult.GetValueForOption(includeMetadataOption),
+                context.ParseResult.GetValueForOption(verboseOption)
+            );
             
-            await HandleExportAsync(url, apiKey, output, format, limit, filterType, minYear, maxYear, 
-                artists, optimizeOrder, includeMetadata, verbose).ConfigureAwait(false);
+            await HandleExportAsync(options).ConfigureAwait(false);
         });
 
         return command;
@@ -208,39 +263,34 @@ public class LidarrCommand
 
         command.SetHandler(async (context) =>
         {
-            var yearFrom = context.ParseResult.GetValueForOption(yearFromOption);
-            var yearTo = context.ParseResult.GetValueForOption(yearToOption);
-            var lastDays = context.ParseResult.GetValueForOption(lastDaysOption);
-            var artists = context.ParseResult.GetValueForOption(artistsOption);
-            var artistsExclude = context.ParseResult.GetValueForOption(artistsExcludeOption);
-            var albumTypes = context.ParseResult.GetValueForOption(albumTypesOption);
-            var minTracks = context.ParseResult.GetValueForOption(minTracksOption);
-            var maxTracks = context.ParseResult.GetValueForOption(maxTracksOption);
-            var immediate = context.ParseResult.GetValueForOption(immediateOption);
-            var quality = context.ParseResult.GetValueForOption(qualityOption);
-            var qualityProfile = context.ParseResult.GetValueForOption(qualityProfileOption);
-            var ignoreProfiles = context.ParseResult.GetValueForOption(ignoreProfilesOption);
-            var showProfiles = context.ParseResult.GetValueForOption(showProfilesOption);
-            var limit = context.ParseResult.GetValueForOption(limitOption);
-            var dryRun = context.ParseResult.GetValueForOption(dryRunOption);
-            var concurrency = context.ParseResult.GetValueForOption(concurrencyOption);
-            var outputPath = context.ParseResult.GetValueForOption(outputPathOption);
-            var verbose = context.ParseResult.GetValueForOption(verboseOption);
+            var options = new DownloadWantedOptions(
+                context.ParseResult.GetValueForOption(yearFromOption),
+                context.ParseResult.GetValueForOption(yearToOption),
+                context.ParseResult.GetValueForOption(lastDaysOption),
+                context.ParseResult.GetValueForOption(artistsOption),
+                context.ParseResult.GetValueForOption(artistsExcludeOption),
+                context.ParseResult.GetValueForOption(albumTypesOption),
+                context.ParseResult.GetValueForOption(minTracksOption),
+                context.ParseResult.GetValueForOption(maxTracksOption),
+                context.ParseResult.GetValueForOption(immediateOption),
+                context.ParseResult.GetValueForOption(qualityOption),
+                context.ParseResult.GetValueForOption(qualityProfileOption),
+                context.ParseResult.GetValueForOption(ignoreProfilesOption),
+                context.ParseResult.GetValueForOption(showProfilesOption),
+                context.ParseResult.GetValueForOption(limitOption),
+                context.ParseResult.GetValueForOption(dryRunOption),
+                context.ParseResult.GetValueForOption(concurrencyOption),
+                context.ParseResult.GetValueForOption(outputPathOption),
+                context.ParseResult.GetValueForOption(verboseOption)
+            );
             
-            await HandleDownloadWantedAsync(yearFrom, yearTo, lastDays, artists, artistsExclude, 
-                albumTypes, minTracks, maxTracks, immediate, quality, qualityProfile, ignoreProfiles,
-                showProfiles, limit, dryRun, concurrency, outputPath, verbose).ConfigureAwait(false);
+            await HandleDownloadWantedAsync(options).ConfigureAwait(false);
         });
 
         return command;
     }
 
-    private async Task HandleDownloadWantedAsync(
-        int? yearFrom, int? yearTo, int? lastDays,
-        string? artists, string? artistsExclude, string? albumTypes,
-        int? minTracks, int? maxTracks, bool immediate, string? quality, 
-        string? qualityProfile, bool ignoreProfiles, bool showProfiles,
-        int limit, bool dryRun, int concurrency, string? outputPath, bool verbose)
+    private async Task HandleDownloadWantedAsync(DownloadWantedOptions options)
     {
         try
         {
@@ -262,37 +312,37 @@ public class LidarrCommand
             }
 
             // Validate output path for immediate downloads
-            if (immediate && string.IsNullOrWhiteSpace(outputPath))
+            if (options.Immediate && string.IsNullOrWhiteSpace(options.OutputPath))
             {
                 AnsiConsole.MarkupLine("[red]❌ Output path required for immediate downloads[/]");
                 AnsiConsole.MarkupLine("[dim]Use --output /path/to/downloads or remove --immediate to queue downloads[/]");
                 return;
             }
 
-            if (immediate && !string.IsNullOrWhiteSpace(outputPath) && !Directory.Exists(outputPath))
+            if (options.Immediate && !string.IsNullOrWhiteSpace(options.OutputPath) && !Directory.Exists(options.OutputPath))
             {
-                AnsiConsole.MarkupLine($"[yellow]⚠️ Creating output directory: {outputPath}[/]");
-                Directory.CreateDirectory(outputPath);
+                AnsiConsole.MarkupLine($"[yellow]⚠️ Creating output directory: {options.OutputPath}[/]");
+                Directory.CreateDirectory(options.OutputPath);
             }
 
             AnsiConsole.MarkupLine("[blue]🔍 Starting Lidarr wanted albums download operation...[/]");
             AnsiConsole.WriteLine();
 
             // Build filter options
-            var filterOptions = BuildFilterOptions(yearFrom, yearTo, lastDays, albumTypes);
+            var filterOptions = BuildFilterOptions(options.YearFrom, options.YearTo, options.LastDays, options.AlbumTypes);
             
             // Parse quality setting
-            var preferredQuality = GetQualityId(quality ?? "flac-max");
+            var preferredQuality = GetQualityId(options.Quality ?? "flac-max");
 
             // Handle show-profiles option first
-            if (showProfiles)
+            if (options.ShowProfiles)
             {
                 AnsiConsole.MarkupLine("[yellow]Quality profile display functionality is not yet implemented in CLI.[/]");
                 AnsiConsole.MarkupLine("[dim]Quality profiles are automatically used by the integration service when processing albums.[/]");
                 return;
             }
 
-            _dashboard.Start("Fetching wanted albums from Lidarr...", limit);
+            _dashboard.Start("Fetching wanted albums from Lidarr...", options.Limit);
 
             try
             {
@@ -300,7 +350,7 @@ public class LidarrCommand
                 AnsiConsole.MarkupLine("[cyan]📋 Fetching wanted albums from Lidarr...[/]");
                 
                 var wantedAlbums = await _lidarrIntegrationService.GetFilteredWantedAlbumsAsync(
-                    filterOptions, limit, null, CancellationToken.None).ConfigureAwait(false);
+                    filterOptions, options.Limit, null, CancellationToken.None).ConfigureAwait(false);
 
                 if (!wantedAlbums.Any())
                 {
@@ -311,8 +361,8 @@ public class LidarrCommand
                 AnsiConsole.MarkupLine($"[green]✅ Found {wantedAlbums.Count()} wanted albums[/]");
 
                 // Step 2: Apply CLI-specific filters
-                var filteredAlbums = ApplyCliFilters(wantedAlbums, artists, artistsExclude, 
-                    minTracks, maxTracks, verbose);
+                var filteredAlbums = ApplyCliFilters(wantedAlbums, options.Artists, options.ArtistsExclude, 
+                    options.MinTracks, options.MaxTracks, options.Verbose);
 
                 if (!filteredAlbums.Any())
                 {
@@ -323,7 +373,7 @@ public class LidarrCommand
                 AnsiConsole.MarkupLine($"[green]✅ {filteredAlbums.Count()} albums passed filtering[/]");
                 AnsiConsole.WriteLine();
 
-                if (verbose)
+                if (options.Verbose)
                 {
                     DisplayAlbumSummary(filteredAlbums);
                 }
@@ -337,7 +387,7 @@ public class LidarrCommand
                 });
 
                 var albumMatches = await _lidarrIntegrationService.SearchQobuzParallelAsync(
-                    filteredAlbums, concurrency, progress, CancellationToken.None).ConfigureAwait(false);
+                    filteredAlbums, options.Concurrency, progress, CancellationToken.None).ConfigureAwait(false);
 
                 AnsiConsole.MarkupLine($"[green]✅ Found {albumMatches.Count} Qobuz matches out of {filteredAlbums.Count()} albums[/]");
 
@@ -362,30 +412,30 @@ public class LidarrCommand
                     return;
                 }
 
-                if (verbose)
+                if (options.Verbose)
                 {
                     DisplayValidationSummary(validatedList);
                     DisplayQualityProfileSummary(validatedList);
                 }
 
                 // Step 5: Show dry-run results or proceed with download/queue
-                if (dryRun)
+                if (options.DryRun)
                 {
-                    DisplayDryRunResults(validatedList, immediate, quality);
+                    DisplayDryRunResults(validatedList, options.Immediate, options.Quality);
                     return;
                 }
 
                 AnsiConsole.WriteLine();
 
-                if (immediate)
+                if (options.Immediate)
                 {
                     // Step 6a: Download immediately
-                    await PerformImmediateDownloads(validatedList, outputPath!, concurrency, verbose);
+                    await PerformImmediateDownloads(validatedList, options.OutputPath!, options.Concurrency, options.Verbose);
                 }
                 else
                 {
                     // Step 6b: Add to queue
-                    await AddToDownloadQueue(validatedList, quality, verbose);
+                    await AddToDownloadQueue(validatedList, options.Quality, options.Verbose);
                 }
             }
             finally
@@ -398,7 +448,7 @@ public class LidarrCommand
             AnsiConsole.MarkupLine($"[red]❌ Download-wanted operation failed: {ex.Message}[/]");
             _logger.LogError(ex, "Download-wanted operation failed");
             
-            if (verbose)
+            if (options.Verbose)
             {
                 AnsiConsole.WriteLine();
                 AnsiConsole.WriteException(ex);
@@ -406,7 +456,7 @@ public class LidarrCommand
         }
     }
 
-    private async Task HandleTestConnectionAsync(string? urlOverride, string? apiKeyOverride, int timeout, bool verbose)
+    private async Task HandleTestConnectionAsync(TestConnectionOptions options)
     {
         try
         {
@@ -417,24 +467,24 @@ public class LidarrCommand
             var config = await _configService.LoadConfigAsync().ConfigureAwait(false);
             
             // Use values from unified config or overrides
-            var url = urlOverride ?? config.LidarrUrl;
-            var apiKey = apiKeyOverride ?? config.LidarrApiKey;
-            var timeoutSeconds = timeout;
+            var url = options.Url ?? config.LidarrUrl;
+            var apiKey = options.ApiKey ?? config.LidarrApiKey;
+            var timeoutSeconds = options.Timeout;
 
-            if (!string.IsNullOrWhiteSpace(urlOverride) && verbose)
+            if (!string.IsNullOrWhiteSpace(options.Url) && options.Verbose)
             {
-                AnsiConsole.MarkupLine($"[dim]Using URL override: {urlOverride}[/]");
+                AnsiConsole.MarkupLine($"[dim]Using URL override: {options.Url}[/]");
             }
-            else if (!string.IsNullOrWhiteSpace(config.LidarrUrl) && verbose)
+            else if (!string.IsNullOrWhiteSpace(config.LidarrUrl) && options.Verbose)
             {
                 AnsiConsole.MarkupLine($"[dim]Using configured URL: {config.LidarrUrl}[/]");
             }
 
-            if (!string.IsNullOrWhiteSpace(apiKeyOverride) && verbose)
+            if (!string.IsNullOrWhiteSpace(options.ApiKey) && options.Verbose)
             {
                 AnsiConsole.MarkupLine("[dim]Using API key override[/]");
             }
-            else if (!string.IsNullOrWhiteSpace(config.LidarrApiKey) && verbose)
+            else if (!string.IsNullOrWhiteSpace(config.LidarrApiKey) && options.Verbose)
             {
                 AnsiConsole.MarkupLine("[dim]Using configured API key[/]");
             }
@@ -456,7 +506,7 @@ public class LidarrCommand
                 return;
             }
 
-            if (verbose)
+            if (options.Verbose)
             {
                 AnsiConsole.MarkupLine($"[green]✓[/] URL: {url.TrimEnd('/')}");
                 AnsiConsole.MarkupLine($"[green]✓[/] API Key: ***{apiKey.Substring(Math.Max(0, apiKey.Length - 4))}");
@@ -486,7 +536,7 @@ public class LidarrCommand
                         var testResponse = await _lidarrIntegrationService.GetFilteredWantedAlbumsAsync(filterOptions, 1);
                         connectionSuccess = testResponse != null;
                         
-                        if (connectionSuccess && verbose)
+                        if (connectionSuccess && options.Verbose)
                         {
                             ctx.Status = "Connection validated";
                             await Task.Delay(500).ConfigureAwait(false);
@@ -503,7 +553,7 @@ public class LidarrCommand
             {
                 AnsiConsole.MarkupLine("[green]✅ Successfully connected to Lidarr[/]");
                 
-                if (verbose)
+                if (options.Verbose)
                 {
                     AnsiConsole.WriteLine();
                     AnsiConsole.MarkupLine("[cyan]📊 Lidarr Connection Information:[/]");
@@ -589,7 +639,7 @@ public class LidarrCommand
             AnsiConsole.MarkupLine($"[red]❌ Test connection failed: {ex.Message}[/]");
             _logger.LogError(ex, "Test connection failed");
             
-            if (verbose)
+            if (options.Verbose)
             {
                 AnsiConsole.WriteLine();
                 AnsiConsole.WriteException(ex);
@@ -597,9 +647,7 @@ public class LidarrCommand
         }
     }
 
-    private async Task HandleExportAsync(string? urlOverride, string? apiKeyOverride, string outputFile, 
-        string format, int? limit, string? filterType, int? minYear, int? maxYear, string? artists, 
-        bool optimizeOrder, bool includeMetadata, bool verbose)
+    private async Task HandleExportAsync(ExportOptions options)
     {
         try
         {
@@ -610,8 +658,8 @@ public class LidarrCommand
             var config = await _configService.LoadConfigAsync().ConfigureAwait(false);
             
             // Use overrides or config values
-            var url = urlOverride ?? config.LidarrUrl;
-            var apiKey = apiKeyOverride ?? config.LidarrApiKey;
+            var url = options.Url ?? config.LidarrUrl;
+            var apiKey = options.ApiKey ?? config.LidarrApiKey;
 
             if (string.IsNullOrWhiteSpace(url))
             {
@@ -630,21 +678,21 @@ public class LidarrCommand
             }
 
             // Validate format
-            if (!new[] { "json", "txt", "csv" }.Contains(format.ToLower()))
+            if (!new[] { "json", "txt", "csv" }.Contains(options.Format.ToLower()))
             {
-                AnsiConsole.MarkupLine($"[red]❌ Invalid format '{format}'. Supported formats: json, txt, csv[/]");
+                AnsiConsole.MarkupLine($"[red]❌ Invalid format '{options.Format}'. Supported formats: json, txt, csv[/]");
                 return;
             }
 
-            if (verbose)
+            if (options.Verbose)
             {
                 AnsiConsole.MarkupLine($"[dim]Lidarr URL: {url}[/]");
-                AnsiConsole.MarkupLine($"[dim]Output file: {outputFile}[/]");
-                AnsiConsole.MarkupLine($"[dim]Format: {format.ToUpper()}[/]");
+                AnsiConsole.MarkupLine($"[dim]Output file: {options.Output}[/]");
+                AnsiConsole.MarkupLine($"[dim]Format: {options.Format.ToUpper()}[/]");
                 AnsiConsole.WriteLine();
             }
 
-            _dashboard.Start("Fetching wanted albums from Lidarr...", limit ?? 1000);
+            _dashboard.Start("Fetching wanted albums from Lidarr...", options.Limit ?? 1000);
 
             try
             {
@@ -652,7 +700,7 @@ public class LidarrCommand
                 AnsiConsole.MarkupLine("[cyan]📋 Fetching wanted albums from Lidarr...[/]");
                 
                 // Build filter options
-                var filterOptions = BuildExportFilterOptions(filterType, minYear, maxYear);
+                var filterOptions = BuildExportFilterOptions(options.FilterType, options.MinYear, options.MaxYear);
                 
                 // Create progress reporter to update dashboard
                 var progressReporter = new Progress<ProgressReport>(progress =>
@@ -667,7 +715,7 @@ public class LidarrCommand
                 });
                 
                 var wantedAlbums = await _lidarrIntegrationService.GetFilteredWantedAlbumsAsync(
-                    filterOptions, limit ?? int.MaxValue, progressReporter, CancellationToken.None).ConfigureAwait(false);
+                    filterOptions, options.Limit ?? int.MaxValue, progressReporter, CancellationToken.None).ConfigureAwait(false);
 
                 if (!wantedAlbums.Any())
                 {
@@ -678,7 +726,7 @@ public class LidarrCommand
                 AnsiConsole.MarkupLine($"[green]✅ Found {wantedAlbums.Count()} wanted albums[/]");
 
                 // Step 2: Apply CLI-specific filters
-                var filteredAlbums = ApplyExportFilters(wantedAlbums, artists, verbose);
+                var filteredAlbums = ApplyExportFilters(wantedAlbums, options.Artists, options.Verbose);
 
                 if (!filteredAlbums.Any())
                 {
@@ -689,32 +737,32 @@ public class LidarrCommand
                 AnsiConsole.MarkupLine($"[green]✅ {filteredAlbums.Count()} albums passed filtering[/]");
 
                 // Step 3: Optimize order if requested
-                var finalAlbums = optimizeOrder 
-                    ? OptimizeExportOrder(filteredAlbums, verbose)
+                var finalAlbums = options.OptimizeOrder 
+                    ? OptimizeExportOrder(filteredAlbums, options.Verbose)
                     : filteredAlbums.ToList();
 
                 // Step 4: Apply limit after optimization
-                if (limit.HasValue && finalAlbums.Count > limit.Value)
+                if (options.Limit.HasValue && finalAlbums.Count > options.Limit.Value)
                 {
-                    finalAlbums = finalAlbums.Take(limit.Value).ToList();
-                    AnsiConsole.MarkupLine($"[yellow]⚠️ Limited to first {limit.Value} albums after optimization[/]");
+                    finalAlbums = finalAlbums.Take(options.Limit.Value).ToList();
+                    AnsiConsole.MarkupLine($"[yellow]⚠️ Limited to first {options.Limit.Value} albums after optimization[/]");
                 }
 
                 // Step 5: Create export data
                 AnsiConsole.MarkupLine("[cyan]📄 Creating export data...[/]");
                 
-                var exportData = CreateExportData(finalAlbums, includeMetadata);
+                var exportData = CreateExportData(finalAlbums, options.IncludeMetadata);
 
                 // Step 6: Write to file
-                AnsiConsole.MarkupLine($"[cyan]💾 Writing to {format.ToUpper()} file...[/]");
+                AnsiConsole.MarkupLine($"[cyan]💾 Writing to {options.Format.ToUpper()} file...[/]");
                 
-                await WriteExportFile(exportData, outputFile, format.ToLower()).ConfigureAwait(false);
+                await WriteExportFile(exportData, options.Output, options.Format.ToLower()).ConfigureAwait(false);
 
                 AnsiConsole.WriteLine();
-                AnsiConsole.MarkupLine($"[green]✅ Successfully exported {finalAlbums.Count} wanted albums to {outputFile}[/]");
+                AnsiConsole.MarkupLine($"[green]✅ Successfully exported {finalAlbums.Count} wanted albums to {options.Output}[/]");
 
                 // Display summary
-                DisplayExportSummary(finalAlbums, format, verbose);
+                DisplayExportSummary(finalAlbums, options.Format, options.Verbose);
             }
             finally
             {
@@ -726,7 +774,7 @@ public class LidarrCommand
             AnsiConsole.MarkupLine($"[red]❌ Export operation failed: {ex.Message}[/]");
             _logger.LogError(ex, "Export operation failed");
             
-            if (verbose)
+            if (options.Verbose)
             {
                 AnsiConsole.WriteLine();
                 AnsiConsole.WriteException(ex);

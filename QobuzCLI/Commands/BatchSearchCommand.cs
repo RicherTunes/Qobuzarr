@@ -3,6 +3,7 @@ using Microsoft.Extensions.Logging;
 using QobuzCLI.Models;
 using QobuzCLI.Services;
 using Spectre.Console;
+using Lidarr.Plugin.Qobuzarr.Utilities;
 
 namespace QobuzCLI.Commands;
 
@@ -189,11 +190,16 @@ public class BatchSearchCommand
         {
             if (File.Exists(file))
             {
-                var fileQueries = await File.ReadAllLinesAsync(file);
-                var validQueries = fileQueries
-                    .Select(line => line.Trim())
-                    .Where(line => !string.IsNullOrEmpty(line) && !line.StartsWith('#'));
-                allQueries.AddRange(validQueries);
+                using var reader = new StreamReader(file);
+                string? line;
+                while ((line = await reader.ReadLineAsync()) != null)
+                {
+                    var trimmedLine = line.Trim();
+                    if (!string.IsNullOrEmpty(trimmedLine) && !trimmedLine.StartsWith('#'))
+                    {
+                        allQueries.Add(trimmedLine);
+                    }
+                }
             }
             else
             {
@@ -317,11 +323,3 @@ public class BatchSearchCommand
     }
 }
 
-public static class StringExtensions
-{
-    public static string Truncate(this string value, int maxLength)
-    {
-        if (string.IsNullOrEmpty(value)) return value;
-        return value.Length <= maxLength ? value : value.Substring(0, maxLength - 3) + "...";
-    }
-}
