@@ -47,7 +47,7 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Clients
         private readonly IQobuzTrackDownloaderFactory _trackDownloaderFactory;
         private readonly ConcurrentDictionary<string, QobuzDownloadItem> _activeDownloads;
 
-        public override string Name => "Qobuzarr";
+        public override string Name => QobuzarrDownloadProtocol.DisplayName;
         
         // Protocol property - must match the IDownloadProtocol class name (TrevTV's approach)
         public override string Protocol => nameof(QobuzarrDownloadProtocol);

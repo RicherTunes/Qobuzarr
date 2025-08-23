@@ -229,7 +229,7 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
                 DownloadUrl = GenerateDownloadUrl(album, quality),
                 InfoUrl = GenerateInfoUrl(album),
                 PublishDate = album.ReleaseDate,
-                Indexer = "Qobuzarr", // Must match QobuzIndexer.Name
+                Indexer = QobuzarrDownloadProtocol.DisplayName, // Avoids hardcoding
                 
                 // Note: Codec and Container properties are ignored by Lidarr's quality detection
                 // Quality is determined solely from the Title using regex patterns
