@@ -1,5 +1,8 @@
 <Project>
   <PropertyGroup>
+    <!-- Disable central package management for external Lidarr source -->
+    <ManagePackageVersionsCentrally>false</ManagePackageVersionsCentrally>
+    
     <!-- Completely disable all analyzers and StyleCop for external Lidarr source -->
     <RunAnalyzersDuringBuild>false</RunAnalyzersDuringBuild>
     <RunCodeAnalysis>false</RunCodeAnalysis>
