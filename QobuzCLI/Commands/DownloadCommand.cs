@@ -31,6 +31,7 @@ public class DownloadCommand
     private readonly IDashboardLogger _logger;
     private readonly IBatchDownloadService _batchDownloadService;
     private readonly QueueMonitoringService _queueMonitoring;
+    private readonly IInteractiveSelectionService _selectionService;
 
     public Command Command { get; }
 
@@ -42,12 +43,14 @@ public class DownloadCommand
         ILogger<DownloadCommand> logger,
         IDashboard dashboard,
         IBatchDownloadService batchDownloadService,
-        QueueMonitoringService queueMonitoring)
+        QueueMonitoringService queueMonitoring,
+        IInteractiveSelectionService selectionService)
     {
         _configService = configService;
         _pluginHost = pluginHost;
         _searchService = searchService;
         _queueService = queueService;
+        _selectionService = selectionService;
         
         // Handle both real dashboard and mock instances for testing
         try

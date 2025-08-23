@@ -27,6 +27,8 @@ dotnet build tests/Qobuzarr.Tests/Qobuzarr.Tests.csproj               # Unit tes
 dotnet build tests/QobuzCLI.Tests/QobuzCLI.Tests.csproj               # CLI tests
 ```
 
+- **NEVER** run git clean ... NEVER!!
+
 **Quick Setup (Recommended)**:
 ```bash
 # Windows PowerShell
