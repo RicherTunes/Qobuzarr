@@ -187,7 +187,7 @@
   <Target Name="ILRepack" AfterTargets="Build" Condition="'$(ILRepackEnabled)' == 'true'">
     <ItemGroup>
       <InputAssemblies Include="$(OutputPath)$(AssemblyName).dll" />
-      <!-- Bundle all plugin dependencies including NLog 6.0.0 (TrevTV's self-contained approach) -->
+      <!-- Bundle all plugin dependencies including NLog 6.0.0 -->
       <InputAssemblies Include="$(OutputPath)NLog.dll" Condition="Exists('$(OutputPath)NLog.dll')" />
       <InputAssemblies Include="$(OutputPath)TagLibSharp.dll" Condition="Exists('$(OutputPath)TagLibSharp.dll')" />
       <InputAssemblies Include="$(OutputPath)FluentValidation.dll" Condition="Exists('$(OutputPath)FluentValidation.dll')" />

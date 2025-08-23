@@ -59,8 +59,8 @@ else
     git -C ext/Lidarr-source checkout origin/plugins
     echo "✅ Lidarr source downloaded successfully (plugin branch)"
     
-    # Apply TrevTV's assembly version override for hotio compatibility
-    echo "🔧 Applying TrevTV assembly version override..."
+    # Apply assembly version override for hotio compatibility
+    echo "🔧 Applying assembly version override..."
     LIDARR_VERSION_OVERRIDE="2.13.2.4686"
     sed -i "s/<AssemblyVersion>[0-9.*]\+<\/AssemblyVersion>/<AssemblyVersion>$LIDARR_VERSION_OVERRIDE<\/AssemblyVersion>/g" ext/Lidarr-source/src/Directory.Build.props
     echo "✅ Assembly version override applied: $LIDARR_VERSION_OVERRIDE"
