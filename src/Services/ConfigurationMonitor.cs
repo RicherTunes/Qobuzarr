@@ -16,7 +16,7 @@ namespace Lidarr.Plugin.Qobuzarr.Services
         private readonly FileSystemWatcher _watcher;
         private readonly object _lockObject = new();
         
-        private volatile QobuzConfiguration _currentConfig;
+        private volatile QobuzPluginConfiguration _currentConfig;
         private DateTime _lastConfigChange = DateTime.MinValue;
 
         public event EventHandler<ConfigurationChangedEventArgs> ConfigurationChanged;
@@ -50,11 +50,11 @@ namespace Lidarr.Plugin.Qobuzarr.Services
         /// <summary>
         /// Gets current configuration with thread safety
         /// </summary>
-        public QobuzConfiguration GetCurrentConfiguration()
+        public QobuzPluginConfiguration GetCurrentConfiguration()
         {
             lock (_lockObject)
             {
-                return _currentConfig?.Clone() ?? new QobuzConfiguration();
+                return _currentConfig?.Clone() ?? new QobuzPluginConfiguration();
             }
         }
 
@@ -119,7 +119,7 @@ namespace Lidarr.Plugin.Qobuzarr.Services
             }
         }
 
-        private QobuzConfiguration LoadConfigFromFile(string configPath)
+        private QobuzPluginConfiguration LoadConfigFromFile(string configPath)
         {
             try
             {
@@ -127,7 +127,7 @@ namespace Lidarr.Plugin.Qobuzarr.Services
                 using var fileStream = new FileStream(configPath, FileMode.Open, FileAccess.Read, FileShare.Read);
                 
                 // Simplified config loading - real implementation would parse JSON/XML
-                return new QobuzConfiguration
+                return new QobuzPluginConfiguration
                 {
                     QualityPreference = "FLAC",
                     MaxConcurrentDownloads = 3,
@@ -139,11 +139,11 @@ namespace Lidarr.Plugin.Qobuzarr.Services
             catch (Exception ex)
             {
                 _logger.Error(ex, "🛡️ DEFENSIVE: Failed to load config file, using defaults");
-                return new QobuzConfiguration(); // Return defaults
+                return new QobuzPluginConfiguration(); // Return defaults
             }
         }
 
-        private bool HasSignificantChanges(QobuzConfiguration old, QobuzConfiguration current)
+        private bool HasSignificantChanges(QobuzPluginConfiguration old, QobuzPluginConfiguration current)
         {
             if (old == null) return false;
 
@@ -168,7 +168,7 @@ namespace Lidarr.Plugin.Qobuzarr.Services
 
     #region Configuration Classes
 
-    public class QobuzConfiguration
+    public class QobuzPluginConfiguration
     {
         public string QualityPreference { get; set; } = "FLAC";
         public int MaxConcurrentDownloads { get; set; } = 3;
@@ -176,9 +176,9 @@ namespace Lidarr.Plugin.Qobuzarr.Services
         public bool OptimizationEnabled { get; set; } = true;
         public DateTime LastModified { get; set; }
 
-        public QobuzConfiguration Clone()
+        public QobuzPluginConfiguration Clone()
         {
-            return new QobuzConfiguration
+            return new QobuzPluginConfiguration
             {
                 QualityPreference = QualityPreference,
                 MaxConcurrentDownloads = MaxConcurrentDownloads,
@@ -191,8 +191,8 @@ namespace Lidarr.Plugin.Qobuzarr.Services
 
     public class ConfigurationChangedEventArgs : EventArgs
     {
-        public QobuzConfiguration OldConfiguration { get; set; }
-        public QobuzConfiguration NewConfiguration { get; set; }
+        public QobuzPluginConfiguration OldConfiguration { get; set; }
+        public QobuzPluginConfiguration NewConfiguration { get; set; }
         public bool RequiresCacheInvalidation { get; set; }
     }
 

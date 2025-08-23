@@ -29,19 +29,21 @@ public class TestPerformanceCommand
 
         var countOption = new Option<int>("--count", () => 20, "Number of searches to perform");
         var concurrentOption = new Option<bool>("--concurrent", () => false, "Run searches concurrently");
+        var concurrencyOption = new Option<int>("--concurrency", () => Environment.ProcessorCount, "Maximum concurrent operations (default: processor count)");
         var typeOption = new Option<string>("--type", () => "album", "Search type: album, artist, track");
 
         testCommand.AddOption(countOption);
         testCommand.AddOption(concurrentOption);
+        testCommand.AddOption(concurrencyOption);
         testCommand.AddOption(typeOption);
 
-        testCommand.SetHandler(async (int count, bool concurrent, string type) => 
-            await HandleTestPerformanceAsync(count, concurrent, type), countOption, concurrentOption, typeOption);
+        testCommand.SetHandler(async (int count, bool concurrent, int concurrency, string type) => 
+            await HandleTestPerformanceAsync(count, concurrent, concurrency, type), countOption, concurrentOption, concurrencyOption, typeOption);
 
         return testCommand;
     }
 
-    private async Task HandleTestPerformanceAsync(int count, bool concurrent, string type)
+    private async Task HandleTestPerformanceAsync(int count, bool concurrent, int concurrency, string type)
     {
         try
         {
@@ -85,7 +87,7 @@ public class TestPerformanceCommand
                     {
                         var searchTask = ctx.AddTask("Concurrent searches", maxValue: count);
                         
-                        using var semaphore = new SemaphoreSlim(10); // Max 10 concurrent
+                        using var semaphore = new SemaphoreSlim(concurrency); // Configurable concurrent limit
                         var tasks = queries.Select(async (query, index) =>
                         {
                             await semaphore.WaitAsync();
