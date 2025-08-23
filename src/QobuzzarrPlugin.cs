@@ -1,3 +1,31 @@
+/*
+ * Qobuzarr - Lidarr Plugin for Qobuz
+ * Copyright (C) 2025 RicherTunes
+ * 
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ * 
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU General Public License for more details.
+ * 
+ * IMPORTANT LEGAL NOTICE:
+ * This software is provided for educational and personal use only.
+ * Users are solely responsible for ensuring compliance with all
+ * applicable laws and service terms in their jurisdiction.
+ * The authors assume no liability for misuse of this software.
+ * 
+ * By using this software, you acknowledge that you must:
+ * - Comply with Qobuz's Terms of Service
+ * - Have valid subscription/rights to access content
+ * - Verify the legality of your use in your jurisdiction
+ * 
+ * See LEGAL_DISCLAIMER.md for complete terms and conditions.
+ */
+
 // NOTE: This file is no longer needed for plugin discovery.
 // 
 // Lidarr automatically discovers plugins by scanning for classes that implement 

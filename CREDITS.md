@@ -13,6 +13,13 @@ Qobuzarr is built upon the excellent foundational work of TrevTV's original Lida
 - Basic metadata handling and file organization
 - Plugin lifecycle management and Lidarr integration patterns
 - Community establishment and early user adoption
+- Proven CI/CD methodology and GitHub Actions workflows
+- Plugin packaging and deployment strategies
+
+**TrevTV's Complete Plugin Ecosystem:**
+- **[Lidarr.Plugin.Qobuz](https://github.com/TrevTV/Lidarr.Plugin.Qobuz)** - Original Qobuz integration
+- **[Lidarr.Plugin.Tidal](https://github.com/TrevTV/Lidarr.Plugin.Tidal)** - Tidal streaming service integration  
+- **[Lidarr.Plugin.Deezer](https://github.com/TrevTV/Lidarr.Plugin.Deezer)** - Deezer integration without Deemix dependency
 
 **Repository**: https://github.com/TrevTV/Lidarr.Plugin.Qobuz  
 **License**: GPL-3.0 (maintained in this project)
@@ -35,9 +42,23 @@ Building upon TrevTV's foundation, this project adds:
 ## Additional Acknowledgments
 
 ### Core Dependencies and Inspiration
+
+#### QobuzApiSharp - API Pattern Foundation
+**[QobuzApiSharp by DJDoubleD](https://github.com/DJDoubleD/QobuzApiSharp)**
+
+This C# library provided essential patterns and architectural inspiration for our Qobuz API integration:
+- **Authentication Methods**: Multiple authentication approaches including official credentials and web player credential extraction
+- **API Response Handling**: Sophisticated handling of variable Qobuz API response formats (track_ids as arrays vs objects)
+- **Dynamic Credential Fetching**: Regular expressions and techniques for extracting authentication tokens from Qobuz's web player
+- **Error Handling Patterns**: Robust exception handling for API failures and authentication issues
+- **REST API Structure**: Clean abstraction of Qobuz v0.2 REST API endpoints and parameters
+
+**License**: GPL-3.0 - Compatible with our project licensing
+
+#### Other Key Dependencies
 - **[Lidarr Team](https://lidarr.audio/)** - Outstanding media management platform that provides the plugin architecture
 - **[Qobuz](https://www.qobuz.com/)** - High-quality music streaming service with excellent API capabilities
-- **[QobuzDownloaderX-MOD](https://github.com/DJDoubleD/QobuzDownloaderX-MOD)** - Additional inspiration for download optimization patterns
+- **[QobuzDownloaderX-MOD](https://github.com/DJDoubleD/QobuzDownloaderX-MOD)** - Additional inspiration for download optimization patterns and API integration approaches
 
 ### Development Tools and Libraries
 - **[Microsoft ML.NET](https://dotnet.microsoft.com/apps/machinelearning-ai/ml-dotnet)** - Machine learning framework powering Query Intelligence

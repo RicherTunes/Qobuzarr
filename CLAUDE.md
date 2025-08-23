@@ -446,33 +446,21 @@ The project uses [Central Package Management](https://learn.microsoft.com/en-us/
 
 ## Troubleshooting
 
-### ReflectionTypeLoadException - Version Mismatch
+For comprehensive troubleshooting guidance, see **[TROUBLESHOOTING.md](TROUBLESHOOTING.md)**.
 
-**Symptoms**: Lidarr fails to start with "Could not load file or assembly 'Lidarr.Core, Version=10.0.0.xxxxx'"
+Common issues covered:
+- Build and compilation errors
+- Plugin loading problems
+- Assembly version mismatches
+- Authentication failures
+- Download issues
+- Performance optimization
+- CI/CD pipeline problems
 
-**Root Cause**: Plugin compiled against development Lidarr versions but runtime expects release versions
-
-**Solution**: 
-1. Ensure using correct Lidarr source commit: `aa7b63f2e13351f54a31d780d6a7b93a2411eaec`
-2. Build scripts automatically override assembly version to `2.13.2.4686` 
-3. Verify `ext/Lidarr-source/src/Directory.Build.props` shows `<AssemblyVersion>2.13.2.4686</AssemblyVersion>`
-
-**Prevention**: Always use `./build.sh --deploy` or `.\build.ps1 -Deploy` which include automatic version override
-
-### Plugin Not Loading
-
-**Check**: Verify plugin files in Lidarr plugins directory:
-- `Lidarr.Plugin.Qobuzarr.dll` - Main assembly
-- `plugin.json` - Plugin manifest  
-- Both should have recent timestamps matching your last build
-
-**Restart**: Always restart Lidarr after plugin deployment
-
-### Assembly Version Debugging
-
-**Check Runtime Version**: Your Lidarr logs should show `Version 2.13.2.4686`
-**Check Plugin Version**: Build output should compile against matching `AssemblyVersion>2.13.2.4686`
-**Verify Match**: Runtime version and plugin assembly version must exactly match
+Quick tip: Most issues are resolved by:
+1. Using the build scripts (`./build.sh` or `.\build.ps1`)
+2. Restarting Lidarr after plugin deployment
+3. Verifying assembly versions match
 
 ## CRITICAL CI/CD LESSONS LEARNED (2025-08-18)
 
