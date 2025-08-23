@@ -3,12 +3,14 @@ using NzbDrone.Core.Indexers;
 namespace Lidarr.Plugin.Qobuzarr.Indexers
 {
     /// <summary>
-    /// Download protocol marker for Qobuzarr plugin
-    /// This registers "Qobuzarr" as a valid download protocol in Lidarr's UI
+    /// Download protocol constants for Qobuzarr plugin
+    /// Provides the protocol name used by both indexer and download client
     /// </summary>
-    public class QobuzarrDownloadProtocol : IDownloadProtocol
+    public static class QobuzarrDownloadProtocol
     {
-        // This is a marker class that identifies our protocol type
-        // Lidarr will automatically discover this and add "Qobuzarr" to the Download Protocols list
+        /// <summary>
+        /// The protocol name used to identify Qobuzarr downloads
+        /// </summary>
+        public const string Name = "Qobuzarr";
     }
 }
