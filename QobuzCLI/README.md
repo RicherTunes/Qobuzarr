@@ -42,16 +42,13 @@ Test and manage Qobuz authentication:
 
 ```bash
 # Email/password authentication
-qobuzcli auth --email user@example.com --password yourpassword
+qobuzcli auth login --email user@example.com --password yourpassword
 
-# Token authentication  
-qobuzcli auth --user-id 12345678 --token your-auth-token
+# Check authentication status
+qobuzcli auth status
 
-# Show token after authentication
-qobuzcli auth --email user@example.com --password yourpassword --show-token
-
-# Test existing credentials
-qobuzcli auth test
+# Clear stored credentials
+qobuzcli auth logout
 ```
 
 ### Configuration
@@ -60,14 +57,20 @@ Manage QobuzCLI settings:
 
 ```bash
 # Show current configuration
-qobuzcli config show
+qobuzcli config list
+
+# Get specific configuration value
+qobuzcli config get --key app-id
 
 # Set configuration values
-qobuzcli config set --email user@example.com
-qobuzcli config set --app-id 123456789
+qobuzcli config set --key email --value user@example.com
+qobuzcli config set --key app-id --value 123456789
 
 # Reset configuration
-qobuzcli config reset
+qobuzcli config reset --key email
+
+# Show config file location
+qobuzcli config path
 ```
 
 ### Search
@@ -242,10 +245,10 @@ qobuzcli queue priority --id 1 --priority high
 
 ```bash
 # Test email/password auth
-qobuzcli auth --email test@example.com --password testpass --debug
+qobuzcli auth login --email test@example.com --password testpass --debug
 
-# Verify token authentication
-qobuzcli auth --user-id 12345 --token abc123 test
+# Verify authentication status
+qobuzcli auth status --debug
 ```
 
 ### Debugging Search Issues
@@ -284,7 +287,7 @@ qobuzcli batch-search --input wanted-albums.json \
 # test-qobuz-integration.sh
 
 # Test authentication
-if ! qobuzcli auth test; then
+if ! qobuzcli auth status; then
   echo "Authentication failed"
   exit 1
 fi
@@ -300,7 +303,7 @@ echo "All tests passed"
 
 ## Configuration File
 
-QobuzCLI stores configuration in `~/.qobuzcli/config.json`:
+QobuzCLI stores configuration in `~/.qobuz/qobuz-configuration.json`:
 
 ```json
 {
@@ -342,10 +345,10 @@ QobuzCLI stores configuration in `~/.qobuzcli/config.json`:
 **Authentication Fails**
 ```bash
 # Check credentials
-qobuzcli config show
+qobuzcli config list
 
 # Test with debug output
-qobuzcli auth test --debug
+qobuzcli auth status --debug
 
 # Clear cached session
 rm ~/.qobuzcli/session.cache

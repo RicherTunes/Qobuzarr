@@ -202,11 +202,11 @@ namespace Lidarr.Plugin.Qobuzarr.Services
         /// <summary>
         /// Gets current configuration safely
         /// </summary>
-        public QobuzConfiguration GetCurrentConfiguration()
+        public QobuzPluginConfiguration GetCurrentConfiguration()
         {
             if (_configMonitor == null)
             {
-                return new QobuzConfiguration(); // Return defaults
+                return new QobuzPluginConfiguration(); // Return defaults
             }
 
             return _configMonitor.GetCurrentConfiguration();
