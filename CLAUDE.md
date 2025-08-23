@@ -563,3 +563,55 @@ public class Brainarr : ImportListBase<BrainarrSettings>  // Standard base class
 - `IndexerBase<Settings>` for search (if this exists)
 
 **The CI automation is perfect** - the problem was **never the CI**, it was **plugin API compatibility**.
+
+## CRITICAL: Download Protocol Compatibility Issue
+
+### 🚨 **RECURRING PROBLEM - REMEMBER THIS SOLUTION** 🚨
+
+**Issue**: CI builds frequently fail with Protocol property type mismatch errors:
+```
+'QobuzIndexer.Protocol': type must be 'DownloadProtocol' to match overridden member
+'QobuzDownloadClient.Protocol': type must be 'DownloadProtocol' to match overridden member
+The type or namespace name 'IDownloadProtocol' could not be found
+```
+
+**Root Cause**: We use Qobuzarr streaming protocol, NOT Usenet/Torrent protocols
+- Lidarr expects specific protocol handling for Usenet (retention) and Torrent (seeding)
+- Qobuzarr is a streaming service requiring different protocol identification
+
+### ✅ **PROVEN SOLUTION** (from terragon/fix-main-branch-build-errors):
+
+**1. Static Protocol Class** (`src/Indexers/QobuzarrDownloadProtocol.cs`):
+```csharp
+namespace Lidarr.Plugin.Qobuzarr.Indexers
+{
+    public static class QobuzarrDownloadProtocol
+    {
+        public const string Name = "Qobuzarr";
+    }
+}
+```
+
+**2. Protocol Property References**:
+```csharp
+// QobuzIndexer.cs
+public override string Protocol => QobuzarrDownloadProtocol.Name;
+
+// QobuzDownloadClient.cs  
+public override string Protocol => QobuzarrDownloadProtocol.Name;
+
+// QobuzParser.cs
+DownloadProtocol = QobuzarrDownloadProtocol.Name,
+
+// QobuzDownloadItem.cs
+Protocol = QobuzarrDownloadProtocol.Name,
+```
+
+### 🎯 **Key Points**:
+- **Static class** (not interface implementation) - avoids IDownloadProtocol compatibility issues
+- **Const string "Qobuzarr"** - identifies our streaming protocol type
+- **Consistent references** - all Protocol properties use `QobuzarrDownloadProtocol.Name`
+- **No interface dependencies** - bypasses CI/local assembly version differences
+
+### ⚠️ **Remember**: 
+This fixes the **most common build failure** in Qobuzarr development. Always use this pattern when working with Protocol properties!
