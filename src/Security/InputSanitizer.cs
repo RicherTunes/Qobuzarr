@@ -1,0 +1,317 @@
+using System;
+using System.Linq;
+using System.Text;
+using System.Text.RegularExpressions;
+using System.Web;
+
+namespace Lidarr.Plugin.Qobuzarr.Security
+{
+    /// <summary>
+    /// Comprehensive input sanitization for all user inputs in the Qobuzarr plugin.
+    /// Provides methods to sanitize different types of inputs to prevent injection attacks.
+    /// </summary>
+    public static class InputSanitizer
+    {
+        // Regex patterns for validation
+        private static readonly Regex EmailRegex = new(@"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$", RegexOptions.Compiled);
+        private static readonly Regex AlphanumericRegex = new(@"^[a-zA-Z0-9]+$", RegexOptions.Compiled);
+        private static readonly Regex SafeQueryRegex = new Regex(@"^[a-zA-Z0-9\s\-_\.\,\'()\[\]&!]+$", RegexOptions.Compiled);
+        private static readonly Regex CountryCodeRegex = new(@"^[A-Z]{2}$", RegexOptions.Compiled);
+        private static readonly Regex AppIdRegex = new(@"^[a-zA-Z0-9_-]{1,50}$", RegexOptions.Compiled);
+        
+        // Maximum lengths for various input types
+        private const int MaxEmailLength = 254;
+        private const int MaxPasswordLength = 128;
+        private const int MaxQueryLength = 200;
+        private const int MaxPathLength = 260;
+        private const int MaxUrlLength = 2048;
+        private const int MaxTokenLength = 500;
+
+        /// <summary>
+        /// Sanitizes email input for authentication
+        /// </summary>
+        public static string SanitizeEmail(string email)
+        {
+            if (string.IsNullOrWhiteSpace(email))
+                throw new ArgumentException("Email cannot be empty");
+
+            email = email.Trim().ToLowerInvariant();
+            
+            if (email.Length > MaxEmailLength)
+                throw new ArgumentException($"Email exceeds maximum length of {MaxEmailLength} characters");
+
+            if (!EmailRegex.IsMatch(email))
+                throw new ArgumentException("Invalid email format");
+
+            // Additional protection against special characters that could be used in injection
+            if (email.Contains("'") || email.Contains("\"") || email.Contains(";") || 
+                email.Contains("--") || email.Contains("/*") || email.Contains("*/"))
+            {
+                throw new ArgumentException("Email contains invalid characters");
+            }
+
+            return email;
+        }
+
+        /// <summary>
+        /// Sanitizes password input (validates but returns original for hashing)
+        /// </summary>
+        public static string ValidatePassword(string password)
+        {
+            if (string.IsNullOrEmpty(password))
+                throw new ArgumentException("Password cannot be empty");
+
+            if (password.Length > MaxPasswordLength)
+                throw new ArgumentException($"Password exceeds maximum length of {MaxPasswordLength} characters");
+
+            // Check for null bytes or control characters
+            if (password.Any(c => char.IsControl(c) && c != '\t' && c != '\r' && c != '\n'))
+                throw new ArgumentException("Password contains invalid control characters");
+
+            return password;
+        }
+
+        /// <summary>
+        /// Sanitizes search query parameters
+        /// </summary>
+        public static string SanitizeSearchQuery(string query)
+        {
+            if (string.IsNullOrWhiteSpace(query))
+                return string.Empty;
+
+            // Trim and limit length
+            query = query.Trim();
+            if (query.Length > MaxQueryLength)
+                query = query.Substring(0, MaxQueryLength);
+
+            // Remove potential SQL injection patterns
+            query = Regex.Replace(query, @"(\b(SELECT|INSERT|UPDATE|DELETE|DROP|CREATE|ALTER|EXEC|EXECUTE|UNION|FROM|WHERE|ORDER BY|GROUP BY|HAVING)\b)", "", RegexOptions.IgnoreCase);
+            
+            // Remove script injection attempts
+            query = Regex.Replace(query, @"<[^>]*>", ""); // Remove HTML tags
+            query = Regex.Replace(query, @"javascript:", "", RegexOptions.IgnoreCase);
+            query = Regex.Replace(query, @"on\w+\s*=", "", RegexOptions.IgnoreCase); // Remove event handlers
+            
+            // Escape special characters for API usage
+            query = HttpUtility.HtmlEncode(query);
+            
+            return query;
+        }
+
+        /// <summary>
+        /// Sanitizes file paths to prevent path traversal attacks
+        /// </summary>
+        public static string SanitizeFilePath(string path)
+        {
+            if (string.IsNullOrWhiteSpace(path))
+                throw new ArgumentException("Path cannot be empty");
+
+            // Check for path traversal attempts before sanitizing
+            if (path.Contains("..") || path.Contains("~"))
+                throw new ArgumentException("Path contains potential traversal patterns");
+            
+            // Remove any path traversal attempts that might have been missed
+            path = path.Replace("..", "");
+            path = path.Replace("~", "");
+            
+            // Remove multiple slashes
+            path = Regex.Replace(path, @"[/\\]+", System.IO.Path.DirectorySeparatorChar.ToString());
+            
+            // Remove any null bytes
+            path = path.Replace("\0", "");
+            
+            if (path.Length > MaxPathLength)
+                throw new ArgumentException($"Path exceeds maximum length of {MaxPathLength} characters");
+
+            // Ensure the path doesn't contain any executable extensions
+            var dangerousExtensions = new[] { ".exe", ".bat", ".cmd", ".ps1", ".sh", ".vbs", ".com" };
+            foreach (var ext in dangerousExtensions)
+            {
+                if (path.EndsWith(ext, StringComparison.OrdinalIgnoreCase))
+                    throw new ArgumentException($"Path contains dangerous extension: {ext}");
+            }
+
+            return path;
+        }
+
+        /// <summary>
+        /// Sanitizes URL parameters
+        /// </summary>
+        public static string SanitizeUrlParameter(string parameter)
+        {
+            if (string.IsNullOrWhiteSpace(parameter))
+                return string.Empty;
+
+            // URL encode the parameter
+            parameter = Uri.EscapeDataString(parameter);
+            
+            if (parameter.Length > MaxUrlLength)
+                throw new ArgumentException($"URL parameter exceeds maximum length of {MaxUrlLength} characters");
+
+            return parameter;
+        }
+
+        /// <summary>
+        /// Sanitizes App ID for API calls
+        /// </summary>
+        public static string SanitizeAppId(string appId)
+        {
+            if (string.IsNullOrWhiteSpace(appId))
+                throw new ArgumentException("App ID cannot be empty");
+
+            appId = appId.Trim();
+            
+            if (!AppIdRegex.IsMatch(appId))
+                throw new ArgumentException("App ID contains invalid characters");
+
+            return appId;
+        }
+
+        /// <summary>
+        /// Sanitizes App Secret (validates format only)
+        /// </summary>
+        public static string ValidateAppSecret(string appSecret)
+        {
+            if (string.IsNullOrWhiteSpace(appSecret))
+                throw new ArgumentException("App Secret cannot be empty");
+
+            appSecret = appSecret.Trim();
+            
+            // App secrets are typically hex strings or base64
+            if (appSecret.Length > 100)
+                throw new ArgumentException("App Secret exceeds maximum length");
+
+            // Check for obviously malicious patterns
+            if (appSecret.Contains("'") || appSecret.Contains("\"") || appSecret.Contains(";"))
+                throw new ArgumentException("App Secret contains invalid characters");
+
+            return appSecret;
+        }
+
+        /// <summary>
+        /// Sanitizes authentication tokens
+        /// </summary>
+        public static string SanitizeAuthToken(string token)
+        {
+            if (string.IsNullOrWhiteSpace(token))
+                throw new ArgumentException("Auth token cannot be empty");
+
+            token = token.Trim();
+            
+            if (token.Length > MaxTokenLength)
+                throw new ArgumentException($"Auth token exceeds maximum length of {MaxTokenLength} characters");
+
+            // Tokens should typically be alphanumeric with some special chars
+            if (!Regex.IsMatch(token, @"^[a-zA-Z0-9_\-\.]+$"))
+                throw new ArgumentException("Auth token contains invalid characters");
+
+            return token;
+        }
+
+        /// <summary>
+        /// Sanitizes user ID
+        /// </summary>
+        public static string SanitizeUserId(string userId)
+        {
+            if (string.IsNullOrWhiteSpace(userId))
+                throw new ArgumentException("User ID cannot be empty");
+
+            userId = userId.Trim();
+            
+            // User IDs are typically numeric or alphanumeric
+            if (!Regex.IsMatch(userId, @"^[a-zA-Z0-9_-]+$"))
+                throw new ArgumentException("User ID contains invalid characters");
+
+            if (userId.Length > 50)
+                throw new ArgumentException("User ID exceeds maximum length");
+
+            return userId;
+        }
+
+        /// <summary>
+        /// Sanitizes country code
+        /// </summary>
+        public static string SanitizeCountryCode(string countryCode)
+        {
+            if (string.IsNullOrWhiteSpace(countryCode))
+                return "US"; // Default to US
+
+            countryCode = countryCode.Trim().ToUpperInvariant();
+            
+            if (!CountryCodeRegex.IsMatch(countryCode))
+                throw new ArgumentException("Invalid country code format. Must be 2-letter ISO code.");
+
+            return countryCode;
+        }
+
+        /// <summary>
+        /// Sanitizes query parameters for API requests
+        /// </summary>
+        public static string SanitizeQueryParam(string key, string value)
+        {
+            if (string.IsNullOrWhiteSpace(key))
+                throw new ArgumentException("Query parameter key cannot be empty");
+
+            // Sanitize based on the parameter type
+            switch (key.ToLowerInvariant())
+            {
+                case "email":
+                    return SanitizeEmail(value);
+                case "password":
+                    return value; // Don't modify password, just validate
+                case "app_id":
+                    return SanitizeAppId(value);
+                case "app_secret":
+                    return value; // Don't modify secret, just validate
+                case "user_auth_token":
+                case "auth_token":
+                    return SanitizeAuthToken(value);
+                case "user_id":
+                    return SanitizeUserId(value);
+                case "query":
+                case "q":
+                    return SanitizeSearchQuery(value);
+                case "country_code":
+                case "country":
+                    return SanitizeCountryCode(value);
+                default:
+                    // Generic sanitization for unknown parameters
+                    return SanitizeUrlParameter(value);
+            }
+        }
+
+        /// <summary>
+        /// Validates if a string contains any potentially dangerous content
+        /// </summary>
+        public static bool ContainsDangerousContent(string input)
+        {
+            if (string.IsNullOrEmpty(input))
+                return false;
+
+            var lowerInput = input.ToLowerInvariant();
+
+            // Check for SQL injection patterns
+            var sqlPatterns = new[] { 
+                "select ", "insert ", "update ", "delete ", "drop ", 
+                "create ", "alter ", "exec ", "execute ", "union ",
+                "' or ", "\" or ", "1=1", "1 = 1", "'; --", "\"; --"
+            };
+
+            // Check for script injection patterns
+            var scriptPatterns = new[] {
+                "<script", "javascript:", "vbscript:", "onload=", "onerror=",
+                "onclick=", "onmouseover=", "<iframe", "<object", "<embed"
+            };
+
+            // Check for command injection patterns
+            var cmdPatterns = new[] {
+                "&&", "||", "|", ";", "`", "$(", "${", "\n", "\r\n",
+                "cmd.exe", "powershell", "/bin/sh", "/bin/bash"
+            };
+
+            return sqlPatterns.Any(pattern => lowerInput.Contains(pattern)) ||
+                   scriptPatterns.Any(pattern => lowerInput.Contains(pattern)) ||
+                   cmdPatterns.Any(pattern => lowerInput.Contains(pattern));
+        }
+    }
+}
