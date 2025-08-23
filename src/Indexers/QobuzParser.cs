@@ -662,24 +662,35 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
         {
             // Use quality-specific bitrate for accurate size estimation
             var bitrate = quality.GetEstimatedBitrate();
-            var durationSeconds = album.Duration.TotalSeconds;
-            
-            // If album duration is missing, estimate from track count
-            if (durationSeconds <= 0)
-            {
-                var trackCount = album.TracksCount > 0 ? album.TracksCount : 10; // Default assumption
-                var avgTrackDuration = 3.5 * 60; // 3.5 minutes average per track
-                durationSeconds = trackCount * avgTrackDuration;
-                
-                _logger.Debug("Album duration missing, estimated {0} seconds from {1} tracks", 
-                    durationSeconds, trackCount);
-            }
+            var durationSeconds = CalculateReliableDuration(album);
             
             // Convert bits per second to bytes per second, then multiply by duration
             var estimatedSize = (long)(durationSeconds * (bitrate / 8.0));
             
             // Ensure we don't return 0 size (causes issues in Lidarr)
             return Math.Max(estimatedSize, 1024 * 1024); // Minimum 1MB
+        }
+
+        private double CalculateReliableDuration(QobuzAlbum album)
+        {
+            // Tier 1: Use album duration if available
+            if (album.Duration.TotalSeconds > 0)
+                return album.Duration.TotalSeconds;
+
+            // Tier 2: Sum track durations if available
+            var tracks = album.GetTracks();
+            if (tracks.Any())
+            {
+                var trackSum = tracks.Sum(t => t.Duration.TotalSeconds);
+                if (trackSum > 0) return trackSum;
+            }
+
+            // Tier 3: Smart estimation based on singles vs albums
+            var trackCount = Math.Max(album.TracksCount > 0 ? album.TracksCount : tracks.Count, 1);
+            var isSingle = IsLikelySingle(album);
+            var avgDuration = isSingle ? 3.25 * 60 : 3.5 * 60; // Singles: 3.25min, Albums: 3.5min
+            
+            return Math.Max(trackCount * avgDuration, 30); // 30 second minimum
         }
 
         private bool ShouldIncludeAlbum(QobuzAlbum album)
