@@ -90,30 +90,30 @@
   <!-- Package dependencies -->
   <ItemGroup>
     <!-- Shared dependencies - provided by Lidarr host, don't bundle -->
-    <PackageReference Include="Newtonsoft.Json" Version="13.0.3">
+    <PackageReference Include="Newtonsoft.Json">
       <Private>false</Private>
       <ExcludeAssets>runtime</ExcludeAssets>
     </PackageReference>
-    <PackageReference Include="NLog" Version="5.0.0">
+    <PackageReference Include="NLog">
       <Private>false</Private>
       <ExcludeAssets>runtime</ExcludeAssets>
     </PackageReference>
-    <PackageReference Include="FluentValidation" Version="9.5.4">
+    <PackageReference Include="FluentValidation">
       <Private>false</Private>
       <ExcludeAssets>runtime</ExcludeAssets>
     </PackageReference>
     
     <!-- Plugin-specific dependencies - must be bundled -->
-    <PackageReference Include="TagLibSharp-Lidarr" Version="2.2.0.19" />
-    <PackageReference Include="Microsoft.ML" Version="2.0.1" />
-    <PackageReference Include="System.Resources.Extensions" Version="8.0.0" />
+    <PackageReference Include="TagLibSharp-Lidarr" />
+    <PackageReference Include="Microsoft.ML" />
+    <PackageReference Include="System.Resources.Extensions" />
     
     <!-- Security patches for transitive vulnerabilities -->
     <PackageReference Include="System.Text.Json" />
     <PackageReference Include="System.Net.Http" />
     <PackageReference Include="System.Text.RegularExpressions" />
     <!-- ILRepack for assembly merging -->
-    <PackageReference Include="ILRepack.Lib.MSBuild.Task" Version="2.0.34.2" Condition="'$(Configuration)' == 'PluginRelease' Or '$(Configuration)' == 'Release'">
+    <PackageReference Include="ILRepack.Lib.MSBuild.Task" Condition="'$(Configuration)' == 'PluginRelease' Or '$(Configuration)' == 'Release'">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
@@ -122,31 +122,31 @@
   <!-- Lidarr assemblies from pre-built release (safer than ProjectReference) -->
   <ItemGroup>
     <Reference Include="Lidarr">
-      <HintPath>ext\Lidarr\_output\net6.0\Lidarr.dll</HintPath>
+      <HintPath>$(MSBuildProjectDirectory)\ext\Lidarr\_output\net6.0\Lidarr.dll</HintPath>
       <Private>false</Private>
     </Reference>
     <Reference Include="Lidarr.Common">
-      <HintPath>ext\Lidarr\_output\net6.0\Lidarr.Common.dll</HintPath>
+      <HintPath>$(MSBuildProjectDirectory)\ext\Lidarr\_output\net6.0\Lidarr.Common.dll</HintPath>
       <Private>false</Private>
     </Reference>
     <Reference Include="Lidarr.Core">
-      <HintPath>ext\Lidarr\_output\net6.0\Lidarr.Core.dll</HintPath>
+      <HintPath>$(MSBuildProjectDirectory)\ext\Lidarr\_output\net6.0\Lidarr.Core.dll</HintPath>
       <Private>false</Private>
     </Reference>
     <Reference Include="Lidarr.Api.V1">
-      <HintPath>ext\Lidarr\_output\net6.0\Lidarr.Api.V1.dll</HintPath>
+      <HintPath>$(MSBuildProjectDirectory)\ext\Lidarr\_output\net6.0\Lidarr.Api.V1.dll</HintPath>
       <Private>false</Private>
     </Reference>
     <Reference Include="Lidarr.Http">
-      <HintPath>ext\Lidarr\_output\net6.0\Lidarr.Http.dll</HintPath>
+      <HintPath>$(MSBuildProjectDirectory)\ext\Lidarr\_output\net6.0\Lidarr.Http.dll</HintPath>
       <Private>false</Private>
     </Reference>
     <Reference Include="Lidarr.Host">
-      <HintPath>ext\Lidarr\_output\net6.0\Lidarr.Host.dll</HintPath>
+      <HintPath>$(MSBuildProjectDirectory)\ext\Lidarr\_output\net6.0\Lidarr.Host.dll</HintPath>
       <Private>false</Private>
     </Reference>
     <Reference Include="Lidarr.SignalR">
-      <HintPath>ext\Lidarr\_output\net6.0\Lidarr.SignalR.dll</HintPath>
+      <HintPath>$(MSBuildProjectDirectory)\ext\Lidarr\_output\net6.0\Lidarr.SignalR.dll</HintPath>
       <Private>false</Private>
     </Reference>
   </ItemGroup>
@@ -193,7 +193,7 @@
     
     <!-- Include both output path and Lidarr assemblies path in LibraryPath for resolution -->
     <PropertyGroup>
-      <ILRepackLibraryPaths>$(OutputPath);$(MSBuildProjectDirectory)\ext\Lidarr\_output\net6.0</ILRepackLibraryPaths>
+      <ILRepackLibraryPaths>$(OutputPath);$(MSBuildProjectDirectory)\ext\Lidarr\_output\net6.0;$(MSBuildProjectDirectory)\ext\Lidarr-source\Lidarr\_output\net6.0</ILRepackLibraryPaths>
     </PropertyGroup>
     
     <Message Text="Merging plugin-specific assemblies with ILRepack..." Importance="high" />
