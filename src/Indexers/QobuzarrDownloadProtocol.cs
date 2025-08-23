@@ -1,13 +1,15 @@
-namespace Lidarr.Plugin.Qobuzarr.Indexers
+using NzbDrone.Core.Indexers;
+
+namespace NzbDrone.Core.Indexers
 {
     /// <summary>
     /// Download protocol marker for Qobuzarr plugin
     /// This registers "Qobuzarr" as a valid download protocol in Lidarr's UI
+    /// Following TrevTV's proven approach for Qobuz plugin compatibility
     /// </summary>
-    public static class QobuzarrDownloadProtocol
+    public class QobuzarrDownloadProtocol : IDownloadProtocol
     {
-        // This is a constant that identifies our protocol type
-        // Lidarr will use this string value to identify our protocol
-        public const string Name = "Qobuzarr";
+        // This is a marker class that identifies our protocol type
+        // Lidarr will automatically discover this and add "Qobuzarr" to the Download Protocols list
     }
 }
