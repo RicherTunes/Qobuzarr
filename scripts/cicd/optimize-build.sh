@@ -172,7 +172,7 @@ echo -e "${GRAY}⏱️ Restore time: ${RESTORE_DURATION}s${NC}"
 echo -e "\n${BLUE}🔨 Step 3: Building Qobuzarr${NC}"
 BUILD_START=$(date +%s)
 
-# Apply TrevTV's assembly version override
+# Apply assembly version override
 LIDARR_VERSION_OVERRIDE="2.13.2.4686"
 if [[ -f "ext/Lidarr-source/src/Directory.Build.props" ]]; then
     echo -e "${CYAN}🔧 Applying assembly version override: $LIDARR_VERSION_OVERRIDE${NC}"
