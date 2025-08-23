@@ -37,88 +37,95 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
         // Required by IIndexerSettings interface but not shown in UI
         public string BaseUrl { get; set; } = QobuzConstants.Api.BaseUrl;
 
-        [FieldDefinition(1, Label = "Authentication Method", Type = FieldType.Select, SelectOptions = typeof(AuthenticationMethod), HelpText = "Choose authentication method")]
+        // ===== AUTHENTICATION SECTION =====
+        [FieldDefinition(1, Label = "Authentication Method", Type = FieldType.Select, SelectOptions = typeof(AuthenticationMethod), HelpText = "How do you want to login to Qobuz?", Section = "Authentication")]
         public int AuthMethod { get; set; }
 
-        [FieldDefinition(2, Label = "Email", Type = FieldType.Textbox, HelpText = "Your Qobuz email address (for email authentication)")]
+        [FieldDefinition(2, Label = "Email", Type = FieldType.Textbox, HelpText = "Your Qobuz account email address (for Email & Password auth)", Section = "Authentication")]
         public string Email { get; set; }
 
-        [FieldDefinition(3, Label = "Password", Type = FieldType.Password, Privacy = PrivacyLevel.Password, HelpText = "Your Qobuz password (will be MD5 hashed)")]
+        [FieldDefinition(3, Label = "Password", Type = FieldType.Password, Privacy = PrivacyLevel.Password, HelpText = "Your Qobuz account password (for Email & Password auth)", Section = "Authentication")]
         public string Password { get; set; }
 
-        [FieldDefinition(4, Label = "User ID", Type = FieldType.Textbox, HelpText = "Your Qobuz user ID (for token authentication)")]
+        [FieldDefinition(4, Label = "User ID", Type = FieldType.Textbox, HelpText = "Your Qobuz user ID - found in account settings (for Token auth)", Section = "Authentication")]
         public string UserId { get; set; }
 
-        [FieldDefinition(5, Label = "Auth Token", Type = FieldType.Password, Privacy = PrivacyLevel.Password, HelpText = "Your Qobuz authentication token")]
+        [FieldDefinition(5, Label = "Auth Token", Type = FieldType.Password, Privacy = PrivacyLevel.Password, HelpText = "Your Qobuz authentication token (for Token auth)", Section = "Authentication")]
         public string AuthToken { get; set; }
 
-        [FieldDefinition(6, Label = "App ID", Type = FieldType.Textbox, HelpText = "Qobuz App ID (optional). Leave empty to automatically fetch current credentials from Qobuz web player. Only provide if you have specific credentials to use.")]
+        // API Credentials - Advanced section with better explanation
+        [FieldDefinition(6, Label = "Custom App ID", Type = FieldType.Textbox, Advanced = true, Section = "Advanced", HelpText = "⚡ Auto-detected from Qobuz. Only override if experiencing issues (leave empty for automatic)")]
         public string AppId { get; set; }
 
-        [FieldDefinition(7, Label = "App Secret", Type = FieldType.Textbox, HelpText = "Qobuz App Secret (optional). Must match the App ID when provided. Leave empty to automatically fetch current credentials from Qobuz web player.")]
+        [FieldDefinition(7, Label = "Custom App Secret", Type = FieldType.Textbox, Advanced = true, Section = "Advanced", HelpText = "⚡ Auto-detected from Qobuz. Must be provided with App ID (leave empty for automatic)")]
         public string AppSecret { get; set; }
 
-        [FieldDefinition(8, Label = "Country Code", Type = FieldType.Textbox, HelpText = "Two-letter country code for regional content and pricing (e.g., US, CA, GB, FR, DE). Default: US")]
+        // ===== BASIC SETTINGS SECTION =====
+        [FieldDefinition(8, Label = "Region", Type = FieldType.Textbox, Section = "Basic Settings", HelpText = "Your country code (US, CA, GB, FR, DE, etc.) - affects available content and pricing")]
         public string CountryCode { get; set; }
 
-        [FieldDefinition(10, Label = "Search Result Limit", Type = FieldType.Number, HelpText = "Maximum number of search results to return (10-500)")]
+        [FieldDefinition(9, Label = "Subscription", Type = FieldType.Select, SelectOptions = typeof(QobuzSubscriptionTier), Section = "Basic Settings", HelpText = "Your Qobuz subscription level - helps optimize quality selection")]
+        public int SubscriptionTier { get; set; } = (int)QobuzSubscriptionTier.Unknown;
+
+        // ===== SEARCH & CONTENT SECTION =====
+        [FieldDefinition(10, Label = "Results Per Search", Type = FieldType.Number, Section = "Search & Content", HelpText = "How many results to show per search (10-500, default: 100)")]
         public int SearchLimit { get; set; }
 
-        [FieldDefinition(11, Label = "Include Singles", Type = FieldType.Checkbox, HelpText = "Include single releases in search results")]
+        [FieldDefinition(11, Label = "Include Singles", Type = FieldType.Checkbox, Section = "Search & Content", HelpText = "Show single releases in search results")]
         public bool IncludeSingles { get; set; }
 
-        [FieldDefinition(12, Label = "Include Compilations", Type = FieldType.Checkbox, HelpText = "Include compilation albums in search results")]
+        [FieldDefinition(12, Label = "Include Compilations", Type = FieldType.Checkbox, Section = "Search & Content", HelpText = "Show compilation albums in search results")]
         public bool IncludeCompilations { get; set; }
 
-        [FieldDefinition(15, Label = "Enable Query Intelligence", Type = FieldType.Checkbox, HelpText = "🧠 Smart search optimization that analyzes artist/album complexity to reduce unnecessary API calls. Simple searches (like 'Taylor Swift - 1989') use 1 query instead of 3, while complex searches (compilations, special characters) preserve all queries for accuracy. Typically saves ~50% of API calls with minimal quality impact.")]
-        public bool EnableQueryIntelligence { get; set; }
-
-        [FieldDefinition(16, Label = "Enable ML Predictions", Type = FieldType.Checkbox, Advanced = true, HelpText = "🤖 Uses machine learning to intelligently predict the best search strategy for each artist/album combination. Ships with a pre-trained model for immediate benefits. Requires 'Query Intelligence' to be enabled.")]
-        public bool EnableMLPredictions { get; set; }
-
-        [FieldDefinition(17, Label = "ML Model Type", Type = FieldType.Select, SelectOptions = typeof(MLModelType), Advanced = true, HelpText = "Choose ML model: Baseline (ships with plugin, works for everyone), Personal (train on your library), or Hybrid (combines both for best results).")]
-        public int MLModelType { get; set; } = (int)Qobuzarr.Indexers.MLModelType.Baseline;
-
-        [FieldDefinition(20, Label = "API Rate Limit", Type = FieldType.Number, Advanced = true, HelpText = "API requests per minute (default: 60)")]
-        public int ApiRateLimit { get; set; }
-
-        [FieldDefinition(21, Label = "Search Cache Duration", Type = FieldType.Number, Advanced = true, HelpText = "Cache search results for this many minutes (default: 5)")]
-        public int SearchCacheDuration { get; set; }
-
-        [FieldDefinition(22, Label = "Connection Timeout", Type = FieldType.Number, Advanced = true, HelpText = "Connection timeout in seconds (default: 30)")]
-        public int ConnectionTimeout { get; set; }
-
-        [FieldDefinition(23, Label = "Early Release Limit", Type = FieldType.Number, Advanced = true, HelpText = "Number of days before official release date to include early releases (default: 0)")]
+        [FieldDefinition(13, Label = "Early Releases", Type = FieldType.Number, Section = "Search & Content", HelpText = "Show albums this many days before official release (0 = disabled)")]
         public int EarlyReleaseDayLimit { get; set; }
 
-        [FieldDefinition(24, Label = "Concurrency Mode", Type = FieldType.Select, SelectOptions = typeof(ConcurrencyMode), Advanced = true, HelpText = "🎯 How to manage concurrent operations: 'Adaptive' automatically optimizes based on API performance (recommended), 'Fixed' uses constant concurrency, 'Manual' for advanced custom control")]
+        // ===== PERFORMANCE SECTION =====
+        [FieldDefinition(15, Label = "Smart Search", Type = FieldType.Checkbox, Section = "Performance", HelpText = "🧠 Reduces API calls by ~50% by intelligently optimizing searches. Highly recommended!")]
+        public bool EnableQueryIntelligence { get; set; }
+
+        [FieldDefinition(16, Label = "ML Optimization", Type = FieldType.Checkbox, Section = "Performance", Advanced = true, HelpText = "🤖 Use AI to further optimize searches (requires Smart Search enabled)")]
+        public bool EnableMLPredictions { get; set; }
+
+        [FieldDefinition(17, Label = "ML Model", Type = FieldType.Select, SelectOptions = typeof(MLModelType), Section = "Performance", Advanced = true, HelpText = "AI model type to use for optimization")]
+        public int MLModelType { get; set; } = (int)Qobuzarr.Indexers.MLModelType.Baseline;
+
+        [FieldDefinition(20, Label = "Cache Duration", Type = FieldType.Number, Section = "Performance", HelpText = "Keep search results cached for this many minutes (0-60, default: 5)")]
+        public int SearchCacheDuration { get; set; }
+
+        // ===== ADVANCED SECTION =====
+        [FieldDefinition(21, Label = "API Rate Limit", Type = FieldType.Number, Section = "Advanced", Advanced = true, HelpText = "Maximum API requests per minute (1-300, default: 60)")]
+        public int ApiRateLimit { get; set; }
+
+        [FieldDefinition(22, Label = "Connection Timeout", Type = FieldType.Number, Section = "Advanced", Advanced = true, HelpText = "Seconds to wait for API response (5-300, default: 30)")]
+        public int ConnectionTimeout { get; set; }
+
+        [FieldDefinition(24, Label = "Download Speed", Type = FieldType.Select, SelectOptions = typeof(ConcurrencyMode), Section = "Performance", HelpText = "How many searches to run simultaneously")]
         public int ConcurrencyMode { get; set; }
 
-        [FieldDefinition(25, Label = "[Fixed/Manual] Concurrency Level", Type = FieldType.Number, Advanced = true, HelpText = "Number of concurrent operations when using Fixed or Manual mode (1-16, default: 4). Ignored in Adaptive mode.")]
+        [FieldDefinition(25, Label = "Fixed Speed Level", Type = FieldType.Number, Section = "Performance", Advanced = true, HelpText = "Simultaneous operations when using Fixed mode (1-16, default: 4)")]
         public int FixedConcurrencyLevel { get; set; } = 4;
 
-        [FieldDefinition(26, Label = "[Adaptive] Min Concurrency", Type = FieldType.Number, Advanced = true, HelpText = "🤖 Adaptive Mode: Minimum concurrent operations (1-8, default: 1). The system will never go below this limit.")]
+        [FieldDefinition(26, Label = "Min Simultaneous", Type = FieldType.Number, Section = "Performance", Advanced = true, HelpText = "Minimum simultaneous operations for Automatic mode (1-8, default: 1)")]
         public int AdaptiveMinConcurrency { get; set; } = 1;
 
-        [FieldDefinition(27, Label = "[Adaptive] Max Concurrency", Type = FieldType.Number, Advanced = true, HelpText = "🤖 Adaptive Mode: Maximum concurrent operations (2-16, default: 8). The system will never exceed this limit.")]
+        [FieldDefinition(27, Label = "Max Simultaneous", Type = FieldType.Number, Section = "Performance", Advanced = true, HelpText = "Maximum simultaneous operations for Automatic mode (2-16, default: 8)")]
         public int AdaptiveMaxConcurrency { get; set; } = 8;
 
-        [FieldDefinition(28, Label = "[Adaptive] Target Latency (ms)", Type = FieldType.Number, Advanced = true, HelpText = "🤖 Adaptive Mode: Target API response time (500-5000ms, default: 1000ms). System increases concurrency when latency is below this.")]
+        [FieldDefinition(28, Label = "Target Speed (ms)", Type = FieldType.Number, Section = "Performance", Advanced = true, HelpText = "Target response time for Automatic mode (500-5000ms, default: 1000)")]
         public int AdaptiveTargetLatency { get; set; } = 1000;
 
-        [FieldDefinition(29, Label = "[Adaptive] Max Latency (ms)", Type = FieldType.Number, Advanced = true, HelpText = "🤖 Adaptive Mode: Maximum acceptable latency (1000-10000ms, default: 5000ms). System reduces concurrency when exceeded.")]
+        [FieldDefinition(29, Label = "Max Latency (ms)", Type = FieldType.Number, Section = "Performance", Advanced = true, HelpText = "Reduce speed if slower than this in Automatic mode (1000-10000ms, default: 5000)")]
         public int AdaptiveMaxLatency { get; set; } = 5000;
         
-        public int? EarlyReleaseLimit { get; set; }
+        // Property for backward compatibility
+        public int? EarlyReleaseLimit { get => EarlyReleaseDayLimit; set => EarlyReleaseDayLimit = value ?? 0; }
 
-        [FieldDefinition(30, Label = "Metadata Match Confidence Threshold", Type = FieldType.Number, Advanced = true, HelpText = "Minimum confidence score for metadata matching (0.0-1.0, default: 0.8)")]
+        [FieldDefinition(30, Label = "Match Confidence", Type = FieldType.Number, Section = "Advanced", Advanced = true, HelpText = "How strict to be when matching albums (0.0-1.0, default: 0.8)")]
         public double MetadataMatchConfidenceThreshold { get; set; } = 0.8;
 
-        [FieldDefinition(31, Label = "Hybrid Mode Threshold", Type = FieldType.Number, Advanced = true, HelpText = "Threshold for hybrid metadata mode activation (0.0-1.0, default: 0.6)")]
+        [FieldDefinition(31, Label = "Hybrid Threshold", Type = FieldType.Number, Section = "Advanced", Advanced = true, HelpText = "When to use hybrid matching mode (0.0-1.0, default: 0.6)")]
         public double HybridModeThreshold { get; set; } = 0.6;
-
-        [FieldDefinition(32, Label = "Subscription Tier", Type = FieldType.Select, SelectOptions = typeof(QobuzSubscriptionTier), HelpText = "🎵 Your Qobuz subscription tier. This optimizes quality fallback behavior - e.g., Sublime users won't waste API calls trying Hi-Res qualities.")]
-        public int SubscriptionTier { get; set; } = (int)QobuzSubscriptionTier.Unknown;
 
         public NzbDroneValidationResult Validate()
         {
@@ -219,37 +226,37 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
 
     public enum AuthenticationMethod
     {
-        [Description("Email & Password")]
+        [Description("📧 Email & Password - Use your Qobuz login credentials")]
         Email = 0,
         
-        [Description("User ID & Token")]
+        [Description("🔑 User ID & Token - Use API tokens from account settings")]
         Token = 1
     }
 
     public enum ConcurrencyMode
     {
-        [Description("🤖 Adaptive (Recommended) - Automatically optimizes based on API performance")]
+        [Description("🤖 Automatic - Adjusts speed based on server response")]
         Adaptive = 0,
         
-        [Description("🔧 Fixed - Uses constant concurrency level")]
+        [Description("🔧 Fixed - Constant speed regardless of conditions")]
         Fixed = 1,
         
-        [Description("👨‍💻 Manual (Advanced) - For custom implementations")]
+        [Description("👨‍💻 Manual - Custom control (advanced users)")]
         Manual = 2
     }
 
     public enum QobuzSubscriptionTier
     {
-        [Description("❓ Unknown - Detect automatically")]
+        [Description("Let Qobuzarr detect automatically")]
         Unknown = 0,
         
-        [Description("🆓 Free - 30-second samples only")]
+        [Description("Free - 30-second previews only")]
         Free = 1,
         
-        [Description("💿 Studio Sublime - CD Quality (16-bit/44.1kHz)")]
+        [Description("Studio/Sublime - CD Quality")]
         Sublime = 2,
         
-        [Description("🏆 Studio Premier - Hi-Res (up to 24-bit/192kHz)")]
+        [Description("Studio Premier - Hi-Res Audio")]
         Premier = 3
     }
 

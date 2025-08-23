@@ -25,38 +25,41 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Clients
             AdaptiveTargetLatency = 1000;
         }
 
-        [FieldDefinition(1, Label = "Download Path", Type = FieldType.Path, HelpText = "Path where completed downloads will be stored")]
+        // ===== BASIC SETTINGS SECTION =====
+        [FieldDefinition(1, Label = "Download Folder", Type = FieldType.Path, Section = "Basic Settings", HelpText = "Where to save your music files")]
         public string DownloadPath { get; set; }
 
-        [FieldDefinition(2, Label = "Audio Quality", Type = FieldType.Select, SelectOptions = typeof(QobuzAudioQuality), HelpText = "Preferred audio quality for downloads")]
+        [FieldDefinition(2, Label = "Audio Quality", Type = FieldType.Select, SelectOptions = typeof(QobuzAudioQuality), Section = "Basic Settings", HelpText = "Choose your preferred audio quality (higher = larger files)")]
         public int PreferredQuality { get; set; }
 
-        [FieldDefinition(3, Label = "Create Album Folders", Type = FieldType.Checkbox, HelpText = "Create individual folders for each album")]
+        [FieldDefinition(3, Label = "Organize by Album", Type = FieldType.Checkbox, Section = "Basic Settings", HelpText = "Create a separate folder for each album")]
         public bool CreateAlbumFolders { get; set; }
 
-        [FieldDefinition(4, Label = "Concurrency Mode", Type = FieldType.Select, SelectOptions = typeof(DownloadConcurrencyMode), HelpText = "🎯 Download concurrency management: 'Adaptive' optimizes automatically for best performance (recommended), 'Fixed' uses constant concurrent downloads, 'Manual' for custom control")]
+        // ===== PERFORMANCE SECTION =====
+        [FieldDefinition(4, Label = "Download Speed", Type = FieldType.Select, SelectOptions = typeof(DownloadConcurrencyMode), Section = "Performance", HelpText = "How to manage simultaneous track downloads")]
         public int ConcurrencyMode { get; set; } = (int)DownloadConcurrencyMode.Adaptive;
 
-        [FieldDefinition(5, Label = "[Fixed/Manual] Concurrent Downloads", Type = FieldType.Number, HelpText = "Number of tracks to download simultaneously in Fixed or Manual mode (1-10, default: 3). Ignored in Adaptive mode.")]
+        [FieldDefinition(5, Label = "Simultaneous Downloads", Type = FieldType.Number, Section = "Performance", HelpText = "How many tracks to download at once when using Fixed mode (1-10, default: 3)")]
         public int FixedConcurrencyLevel { get; set; } = 3;
 
-        [FieldDefinition(6, Label = "[Adaptive] Min Downloads", Type = FieldType.Number, Advanced = true, HelpText = "🤖 Adaptive Mode: Minimum concurrent downloads (1-5, default: 1). System never goes below this.")]
+        [FieldDefinition(6, Label = "Min Downloads", Type = FieldType.Number, Section = "Performance", Advanced = true, HelpText = "Minimum simultaneous downloads for Automatic mode (1-5, default: 1)")]
         public int AdaptiveMinConcurrency { get; set; } = 1;
 
-        [FieldDefinition(7, Label = "[Adaptive] Max Downloads", Type = FieldType.Number, Advanced = true, HelpText = "🤖 Adaptive Mode: Maximum concurrent downloads (2-10, default: 6). System never exceeds this.")]
+        [FieldDefinition(7, Label = "Max Downloads", Type = FieldType.Number, Section = "Performance", Advanced = true, HelpText = "Maximum simultaneous downloads for Automatic mode (2-10, default: 6)")]
         public int AdaptiveMaxConcurrency { get; set; } = 6;
 
-        [FieldDefinition(8, Label = "[Adaptive] Target Speed (ms)", Type = FieldType.Number, Advanced = true, HelpText = "🤖 Adaptive Mode: Target download response time (500-3000ms, default: 1000ms). System increases concurrency when faster.")]
+        [FieldDefinition(8, Label = "Target Speed (ms)", Type = FieldType.Number, Section = "Performance", Advanced = true, HelpText = "Target server response time for Automatic mode (500-3000ms, default: 1000)")]
         public int AdaptiveTargetLatency { get; set; } = 1000;
 
-        [FieldDefinition(9, Label = "Minimum Success Rate", Type = FieldType.Number, HelpText = "Minimum percentage of tracks that must download successfully (0-100%, default: 80%)")]
+        // ===== DOWNLOAD BEHAVIOR SECTION =====  
+        [FieldDefinition(9, Label = "Success Threshold", Type = FieldType.Number, Section = "Download Behavior", HelpText = "Consider album complete if this % of tracks download (0-100, default: 80)")]
         public int MinimumSuccessRatePercent { get; set; } = 80;
 
-        [FieldDefinition(10, Label = "Treat Preview as Failure", Type = FieldType.Checkbox, HelpText = "Count preview-only tracks as failures when calculating success rate")]
-        public bool TreatPreviewAsFailure { get; set; } = false;
-
-        [FieldDefinition(11, Label = "Skip Preview Tracks", Type = FieldType.Checkbox, HelpText = "Skip downloading tracks that are only available as previews/samples")]
+        [FieldDefinition(10, Label = "Skip Preview Tracks", Type = FieldType.Checkbox, Section = "Download Behavior", HelpText = "Don't download 30-second preview tracks")]
         public bool SkipPreviewTracks { get; set; } = true;
+        
+        [FieldDefinition(11, Label = "Preview Handling", Type = FieldType.Checkbox, Section = "Download Behavior", Advanced = true, HelpText = "Count preview-only tracks as download failures")]
+        public bool TreatPreviewAsFailure { get; set; } = false;
 
         public NzbDroneValidationResult Validate()
         {
@@ -132,28 +135,28 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Clients
 
     public enum DownloadConcurrencyMode
     {
-        [Description("🤖 Adaptive (Recommended) - Optimizes download performance automatically")]
+        [Description("🤖 Automatic - Adjusts based on server speed")]
         Adaptive = 0,
         
-        [Description("🔧 Fixed - Uses constant number of concurrent downloads")]
+        [Description("🔧 Fixed - Always download same number of tracks")]
         Fixed = 1,
         
-        [Description("👨‍💻 Manual (Advanced) - For custom download management")]
+        [Description("👨‍💻 Manual - Custom control (advanced)")]
         Manual = 2
     }
 
     public enum QobuzAudioQuality
     {
-        [Description("MP3 320kbps")]
+        [Description("🎧 MP3 320kbps - Smallest files, good quality")]
         MP3_320 = 5,
 
-        [Description("FLAC CD Quality (16-bit/44.1kHz)")]
+        [Description("💿 CD Quality - Lossless 16-bit/44.1kHz (recommended)")]
         FLAC_CD = 6,
 
-        [Description("FLAC Hi-Res (24-bit/96kHz)")]
+        [Description("🎆 Hi-Res 96kHz - Studio quality 24-bit/96kHz")]
         FLAC_96 = 7,
 
-        [Description("FLAC Hi-Res (24-bit/192kHz) - Limited availability")]
+        [Description("📎 Hi-Res 192kHz - Maximum quality (limited catalog)")]
         FLAC_192 = 27
     }
 
