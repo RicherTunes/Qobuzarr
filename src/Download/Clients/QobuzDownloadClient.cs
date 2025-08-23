@@ -49,12 +49,8 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Clients
 
         public override string Name => "Qobuzarr";
         
-        // Protocol property - compatibility between CI (DownloadProtocol enum) and local (string)
-#if USE_DOWNLOAD_PROTOCOL_ENUM
+        // Protocol property - use Unknown for streaming services (proper Lidarr pattern)
         public override DownloadProtocol Protocol => DownloadProtocol.Unknown;
-#else
-        public override string Protocol => "Qobuzarr";
-#endif
 
         public QobuzDownloadClient(IQobuzAuthenticationService authService,
                                   IQobuzApiClient apiClient,
