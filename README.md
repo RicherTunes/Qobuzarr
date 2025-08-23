@@ -1,3 +1,18 @@
+# ⚠️ LEGAL DISCLAIMER - MUST READ
+
+**IMPORTANT**: This software is provided for **educational and personal use only**. Users are **solely responsible** for ensuring their use complies with all applicable laws and service terms in their jurisdiction. The authors and contributors assume **no liability** for misuse. **[Read full legal disclaimer](LEGAL_DISCLAIMER.md)** before using this software.
+
+**By using this software, you acknowledge that:**
+- ✅ You must comply with Qobuz's Terms of Service
+- ✅ You must have valid subscription/rights to access content
+- ⚠️ Laws regarding streaming content vary by country - **verify your local laws**
+- ❌ The developers are not responsible for how you use this software
+- 📚 This tool is for personal archival and educational purposes only
+
+**See [LEGAL_DISCLAIMER.md](LEGAL_DISCLAIMER.md) for complete terms and conditions.**
+
+---
+
 # Qobuzarr - High-Performance Lidarr Plugin for Qobuz
 
 [![Production Ready](https://img.shields.io/badge/Status-Production%20Ready-brightgreen)](https://github.com/RicherTunes/qobuzarr)
@@ -11,18 +26,6 @@
 
 *Built upon [TrevTV's pioneering Lidarr.Plugin.Qobuz](https://github.com/TrevTV/Lidarr.Plugin.Qobuz) with significant enhancements.*
 
-## ⚠️ LEGAL DISCLAIMER
-
-**IMPORTANT**: This software is provided for educational and personal use only. Users are solely responsible for ensuring their use complies with all applicable laws and service terms in their jurisdiction. The authors and contributors assume no liability for misuse. **[Read full legal disclaimer](LEGAL_DISCLAIMER.md)** before using this software.
-
-**By using this software, you acknowledge that:**
-- You must comply with Qobuz's Terms of Service
-- You must have valid subscription/rights to access content
-- Laws regarding streaming content vary by country - verify your local laws
-- The developers are not responsible for how you use this software
-
-See [LEGAL_DISCLAIMER.md](LEGAL_DISCLAIMER.md) for complete terms and conditions.
-
 ## 🚀 Key Features
 
 ### Core Functionality
@@ -33,17 +36,20 @@ See [LEGAL_DISCLAIMER.md](LEGAL_DISCLAIMER.md) for complete terms and conditions
 - **Comprehensive Metadata**: Full tagging with TagLib-Sharp
 
 ### Advanced Optimization
-- **ML-Powered Query Intelligence**: 65.8% API call reduction using ML.NET
-- **Pattern Learning Engine**: Adapts to your music library patterns
-- **Multi-Layer Caching**: 94.7% cache hit rate with intelligent prefetching
+- **ML-Powered Query Intelligence**: Up to 65.8% API call reduction using ML.NET (measured in testing)*
+- **Pattern Learning Engine**: Adapts to your music library patterns over time
+- **Multi-Layer Caching**: 94.7% cache hit rate with intelligent prefetching (in optimal conditions)
 - **Progressive Search**: Multiple fallback strategies for hard-to-find content
+
+*Note: ML optimization benefits are based on testing with 100,000+ albums. Real-world results may vary based on usage patterns and library composition.
 
 ### Enterprise Features
 - **Plugin-First Architecture**: Clean separation between plugin and CLI
 - **Multiple Auth Methods**: Email/password, token-based, or dynamic extraction
 - **Thread-Safe Operations**: Concurrent downloads with proper synchronization
 - **Defensive Patterns**: Circuit breakers, retry logic, and graceful degradation
-- **Rate Limiting**: Adaptive backoff to respect API limits
+- **⚠️ Advanced Rate Limiting**: Adaptive exponential backoff with jitter to prevent API bans
+- **🔒 Secure Credential Storage**: Never stores plain-text credentials, uses encrypted token management
 
 ## 🔄 Evolution from TrevTV's Foundation
 
@@ -324,195 +330,36 @@ dotnet test --filter Category=Integration
 
 ## 🔧 Troubleshooting
 
-### Installation Issues
+For comprehensive troubleshooting guidance, see **[TROUBLESHOOTING.md](TROUBLESHOOTING.md)**.
 
-#### Plugin Not Loading in Lidarr
-**Symptoms**: Qobuzarr doesn't appear in Indexers or Download Clients list
-- **Check Branch**: Ensure you're using Lidarr's `plugins` branch, not `stable` or `develop`
-- **Verify Files**: Confirm `Lidarr.Plugin.Qobuzarr.dll` and `plugin.json` exist in plugins directory
-- **Check Logs**: Look for plugin loading errors in Lidarr logs (`/logs/lidarr.txt`)
-- **Restart Required**: Always restart Lidarr after plugin installation
-- **Permissions**: Ensure Lidarr has read permissions on plugin files
+### Quick Solutions to Common Issues:
 
-#### Version Compatibility Issues  
-**Symptoms**: "Could not load file or assembly" errors
-- **Lidarr Version**: Plugin requires Lidarr 2.13+ with plugins branch
-- **Docker Users**: Use `ghcr.io/hotio/lidarr:pr-plugins` image specifically
-- **Manual Installation**: Download latest plugin release matching your Lidarr version
-- **Check Dependencies**: Ensure .NET 6.0+ runtime is installed
+**Plugin Not Loading?**
+- Ensure you're using Lidarr's `plugins` branch (`ghcr.io/hotio/lidarr:pr-plugins` for Docker)
+- Restart Lidarr after installation
+- Check logs at `/logs/lidarr.txt` for errors
 
-#### GitHub URL Installation Fails
-**Symptoms**: Installation times out or fails to download
-- **Try Manual Installation**: Download ZIP file directly and extract to plugins folder
-- **Check Internet**: Verify GitHub access from your Lidarr server
-- **Plugin Directory**: Ensure `/plugins/Qobuzarr/` directory structure is correct
-- **Space Issues**: Check available disk space in Lidarr directory
+**Authentication Failed?**
+- Verify Qobuz credentials and active subscription
+- Ensure correct App ID/Secret configuration
+- Try re-authenticating if tokens expired
 
-### Authentication Problems
+**No Search Results?**
+- Test with simpler queries (artist name only)
+- Check regional content availability
+- Verify API connectivity with CLI tool
 
-#### Invalid Credentials Error
-**Symptoms**: "Authentication failed" or "Invalid login" messages
-- **Verify Credentials**: Double-check email/password in Qobuz account settings
-- **App ID/Secret**: Ensure correct Qobuz application credentials
-- **Subscription Status**: Verify active Qobuz subscription (Studio Premier recommended)
-- **Two-Factor Auth**: Disable 2FA temporarily if enabled on Qobuz account
+**Downloads Failing?**
+- Check available disk space
+- Verify quality exists for content
+- Enable quality fallback in settings
 
-#### Subscription Tier Detection Issues
-**Symptoms**: Quality limitations or "content not available" errors
-- **Studio Premier**: Hi-Res content requires Studio Premier subscription
-- **Regional Restrictions**: Some content may not be available in your region
-- **Account Status**: Verify subscription is active and not expired
-- **Quality Settings**: Start with lower quality (FLAC CD) and test
+**Performance Issues?**
+- Allow 1-2 weeks for ML optimization to learn patterns
+- Monitor cache hit rate (should be >90%)
+- Restart Lidarr if memory usage grows continuously
 
-#### Token Expiration Problems
-**Symptoms**: Plugin works initially but fails after time
-- **Re-authenticate**: Clear credentials and re-enter in plugin settings
-- **Session Management**: Plugin handles token refresh automatically
-- **Check Logs**: Look for authentication renewal messages
-- **Multiple Devices**: Qobuz may limit concurrent sessions
-
-### Search and Indexing Issues
-
-#### No Search Results Found
-**Symptoms**: Lidarr searches return empty results from Qobuzarr
-- **Test Manually**: Use CLI tool to verify API connectivity: `qobuz search "test query"`
-- **Query Complexity**: Try simpler search terms (artist name only)
-- **Regional Content**: Some albums may not be available in your region
-- **Catalog Limitations**: Not all content on Qobuz may be downloadable
-
-#### API Rate Limiting
-**Symptoms**: "Too many requests" or temporary search failures
-- **Automatic Handling**: Plugin includes adaptive rate limiting
-- **Reduce Concurrent**: Lower number of simultaneous searches in Lidarr
-- **Wait Period**: Rate limits typically reset after 1-5 minutes
-- **Check Activity**: Reduce other Qobuz API usage (other tools/apps)
-
-#### Search Quality Issues
-**Symptoms**: Poor search results or missing albums
-- **ML Optimization**: Plugin learns from patterns to improve results over time
-- **Progressive Search**: Uses multiple fallback strategies automatically
-- **Manual Retry**: Use "Manual Search" in Lidarr for problematic albums
-- **Query Normalization**: Plugin handles special characters and accents
-
-### Download Problems
-
-#### Download Failures
-**Symptoms**: Downloads start but fail to complete
-- **Quality Availability**: Requested quality may not exist for this content
-- **Storage Space**: Check available disk space in download directory
-- **Network Issues**: Verify stable internet connection
-- **File Permissions**: Ensure write permissions to download path
-
-#### Quality Fallback Not Working
-**Symptoms**: Downloads fail instead of using lower quality
-- **Enable Fallback**: Verify quality fallback is enabled in plugin settings
-- **Check Logs**: Look for fallback attempts in Lidarr logs
-- **Quality Order**: Plugin tries: Hi-Res → CD → MP3-320
-- **Manual Selection**: Use specific quality selection for problematic content
-
-#### File Organization Issues
-**Symptoms**: Downloaded files not organized correctly
-- **Media Management**: Enable "Rename Tracks" in Lidarr settings
-- **Naming Format**: Configure custom track naming format if needed
-- **Metadata Issues**: Some tracks may have incomplete metadata
-- **Post-Processing**: Check Lidarr's file organization settings
-
-#### Incomplete Album Downloads
-**Symptoms**: Only some tracks from album download
-- **Track Availability**: Individual tracks may not be available
-- **Preview Detection**: Plugin automatically skips 30-second previews
-- **Retry Logic**: Failed tracks are automatically retried
-- **Manual Intervention**: Check specific track availability on Qobuz web
-
-### Performance Issues
-
-#### Slow Search Performance
-**Symptoms**: Long delays when searching for music
-- **ML Optimization**: Allow 1-2 weeks for ML engine to learn patterns
-- **Cache Warming**: Initial searches are slower while cache builds
-- **API Complexity**: Complex albums (remasters, compilations) take longer
-- **Network Latency**: Check connection speed to Qobuz servers
-
-#### High Memory Usage
-**Symptoms**: Lidarr uses excessive RAM with plugin active
-- **Expected Usage**: ~200MB baseline, ~500MB during batch operations
-- **Batch Operations**: Large downloads temporarily increase memory use
-- **Memory Leaks**: Restart Lidarr if memory continuously grows
-- **Concurrent Limits**: Reduce simultaneous download/search operations
-
-#### Cache Issues
-**Symptoms**: Repeated API calls or poor cache performance
-- **Cache Statistics**: Check plugin logs for cache hit rates (should be >90%)
-- **Cache Size**: Plugin automatically manages cache size and eviction
-- **Clear Cache**: Restart Lidarr to reset cache if needed
-- **Disk Space**: Ensure adequate space for cache files
-
-### Lidarr Integration Problems
-
-#### Indexer Not Working
-**Symptoms**: Manual searches work but automatic ones fail
-- **Enable Indexer**: Verify Qobuzarr indexer is enabled and configured
-- **RSS Sync**: Check if RSS sync is enabled (may not apply to streaming services)
-- **Priority**: Set appropriate indexer priority in Lidarr settings
-- **Test Configuration**: Use "Test" button in indexer settings
-
-#### Download Client Issues  
-**Symptoms**: Downloads don't start or fail immediately
-- **Enable Client**: Verify Qobuzarr download client is enabled
-- **Delay Profiles**: Enable Qobuzarr protocol in Delay Profiles settings
-- **Priority**: Set download client priority (1 = highest)
-- **Path Configuration**: Verify download path is accessible and writable
-
-#### Quality Profile Conflicts
-**Symptoms**: Wrong quality downloaded or downloads rejected
-- **Quality Mapping**: Check how Qobuz qualities map to Lidarr quality profiles
-- **Cutoff Settings**: Verify quality cutoff settings in profiles
-- **Upgrade Behavior**: Configure whether automatic quality upgrades are desired
-- **Custom Formats**: Review custom format rules that might affect selection
-
-### Advanced Debugging
-
-#### Enable Debug Logging
-1. Navigate to Lidarr → System → Logs
-2. Change log level to "Debug" or "Trace"
-3. Restart Lidarr
-4. Reproduce the issue
-5. Check logs for detailed error information
-
-#### Plugin-Specific Logs
-```bash
-# Search for Qobuzarr-specific log entries
-grep -i "qobuz" /path/to/lidarr/logs/lidarr.txt
-
-# Monitor logs in real-time
-tail -f /path/to/lidarr/logs/lidarr.txt | grep -i qobuz
-```
-
-#### CLI Testing
-Use the included CLI tool for direct API testing:
-```bash
-cd QobuzCLI
-dotnet run -- auth login
-dotnet run -- search "problematic album name"
-dotnet run -- download album <album_id> --output ./test
-```
-
-#### Performance Monitoring
-Check plugin performance statistics:
-- **ML Optimization**: 65.8% API call reduction expected
-- **Cache Hit Rate**: Should maintain >90% for optimal performance
-- **Memory Usage**: Monitor for gradual increases indicating leaks
-- **API Response Times**: Should average <500ms for typical queries
-
-### Getting Help
-
-If problems persist after trying these solutions:
-
-1. **Check Logs**: Always include relevant log excerpts with issue reports
-2. **GitHub Issues**: Report bugs at [GitHub Issues](https://github.com/RicherTunes/qobuzarr/issues)
-3. **Discussions**: Ask questions at [GitHub Discussions](https://github.com/RicherTunes/qobuzarr/discussions)
-4. **System Info**: Include Lidarr version, OS, Docker setup details
-5. **Reproducible Steps**: Provide clear steps to reproduce the issue
+For detailed solutions, see **[TROUBLESHOOTING.md](TROUBLESHOOTING.md)**.
 
 ## 📝 Documentation
 

@@ -24,6 +24,10 @@
  * - Verify the legality of your use in your jurisdiction
  * 
  * See LEGAL_DISCLAIMER.md for complete terms and conditions.
+ * 
+ * API implementation patterns inspired by:
+ * - QobuzApiSharp (https://github.com/DJDoubleD/QobuzApiSharp)
+ *   Provided essential patterns for Qobuz API integration
  */
 
 // NOTE: This file is no longer needed for plugin discovery.

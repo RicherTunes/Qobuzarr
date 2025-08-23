@@ -2,7 +2,7 @@
   "name": "Qobuzarr",
   "version": "{VERSION}",
   "author": "RicherTunes",
-  "description": "High-quality music indexer and download client for Qobuz streaming service with ML optimization - built upon TrevTV's Lidarr.Plugin.Qobuz foundation. IMPORTANT: Users must comply with local laws and Qobuz Terms of Service. See LEGAL_DISCLAIMER.md",
+  "description": "Educational/personal use only. High-quality music indexer and download client for Qobuz streaming service with ML optimization - built upon TrevTV's Lidarr.Plugin.Qobuz foundation. Users must comply with local laws and Qobuz Terms of Service.",
   "homepage": "https://github.com/richertunes/qobuzarr",
   "license": "GPL-3.0",
   "disclaimer": "This plugin is provided AS-IS for educational purposes. Users are solely responsible for legal compliance in their jurisdiction. The authors assume no liability for misuse.",

@@ -3,13 +3,51 @@
 This document contains solutions to common issues encountered when building, deploying, and using Qobuzarr.
 
 ## Table of Contents
+
+### 🔨 Build & Deployment
 - [Build Issues](#build-issues)
+  - [Missing Lidarr Assemblies](#missing-lidarr-assemblies)
+  - [StyleCop Analyzer Errors](#stylecop-analyzer-errors)
+  - [ILRepack Failures](#ilrepack-failures)
 - [Plugin Loading Issues](#plugin-loading-issues)
+  - [Plugin Not Appearing in Lidarr](#plugin-not-appearing-in-lidarr)
+  - [Multiple Plugin Instances](#multiple-plugin-instances)
 - [Assembly Version Issues](#assembly-version-issues)
+  - [ReflectionTypeLoadException](#reflectiontypeloadexception)
+  - [Version Mismatch Debugging](#version-mismatch-debugging)
+
+### 🔐 Authentication & API
 - [Authentication Problems](#authentication-problems)
+  - [Invalid Credentials](#invalid-credentials)
+  - [Token Expiration](#token-expiration)
+  - [Subscription Tier Issues](#subscription-tier-issues)
+- [API Rate Limiting](#api-rate-limiting)
+  - [Too Many Requests Errors](#too-many-requests-errors)
+  - [Adaptive Rate Limiting](#adaptive-rate-limiting)
+
+### 📥 Downloads & Search
 - [Download Issues](#download-issues)
+  - [Failed Downloads](#failed-downloads)
+  - [Quality Fallback](#quality-fallback)
+  - [Incomplete Albums](#incomplete-albums)
+- [Search Problems](#search-problems)
+  - [No Results Found](#no-results-found)
+  - [Poor Search Quality](#poor-search-quality)
+
+### ⚡ Performance & Optimization
 - [Performance Problems](#performance-problems)
+  - [High Memory Usage](#high-memory-usage)
+  - [Slow Search Performance](#slow-search-performance)
+  - [Cache Issues](#cache-issues)
+- [ML Optimization](#ml-optimization)
+  - [Model Loading Issues](#model-loading-issues)
+  - [Prediction Accuracy](#prediction-accuracy)
+
+### 🚀 CI/CD & Development
 - [CI/CD Issues](#cicd-issues)
+  - [GitHub Actions Failures](#github-actions-failures)
+  - [Docker Build Problems](#docker-build-problems)
+  - [Test Failures](#test-failures)
 
 ## Build Issues
 
