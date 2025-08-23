@@ -20,6 +20,7 @@ using Lidarr.Plugin.Qobuzarr.Models;
 using Lidarr.Plugin.Qobuzarr.Models.Authentication;
 using Lidarr.Plugin.Qobuzarr.Security;
 using Lidarr.Plugin.Qobuzarr.Abstractions;
+using Lidarr.Plugin.Qobuzarr.Constants;
 
 namespace Lidarr.Plugin.Qobuzarr.Indexers
 {
@@ -27,8 +28,8 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
     {
         public override string Name => "Qobuzarr";
         
-        // Protocol property - use Unknown for streaming services (proper Lidarr pattern)
-        public override DownloadProtocol Protocol => DownloadProtocol.Unknown;
+        // Protocol property - returns string identifier for plugins branch
+        public override string Protocol => QobuzarrConstants.ProtocolName;
         public override bool SupportsRss => false;
         public override bool SupportsSearch => true;
         public override int PageSize => 100;

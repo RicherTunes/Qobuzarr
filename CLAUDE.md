@@ -169,32 +169,49 @@ ext/Lidarr/_output/            # Pre-built Lidarr assemblies (ONLY supported met
 
 ### Dependency Setup
 
-**🚨 CRITICAL: Use ONLY Pre-built Assemblies 🚨**
+**🚨 CRITICAL: Lidarr Plugins Branch Requirements 🚨**
 
-The project ONLY supports pre-built Lidarr assemblies. Source builds cause assembly conflicts.
+This plugin is designed for the **Lidarr "plugins" branch**, NOT regular Lidarr releases!
 
-#### ✅ **Pre-built Assemblies (ONLY SUPPORTED METHOD)**:
+**MANDATORY: Use Lidarr plugins branch assemblies**:
+- The Lidarr "plugins" branch has **different base class signatures** than regular releases
+- **IndexerBase.Protocol**: `public abstract string Protocol { get; }` (NOT DownloadProtocol enum)
+- **DownloadClientBase.Protocol**: `public abstract string Protocol { get; }` (NOT DownloadProtocol enum)
+- **ReleaseInfo.DownloadProtocol**: Uses `string` values (NOT DownloadProtocol enum)
+
+**NEVER use regular Lidarr release assemblies** - they expect DownloadProtocol enum and will cause ReflectionTypeLoadException!
+
+#### ✅ **Lidarr Plugins Branch Source Build (REQUIRED)**:
 ```bash
-# Download pre-built Lidarr assemblies - reliable and fast
-./download-lidarr-assemblies.sh --version 2.13.2.4685
-.\download-lidarr-assemblies.ps1 -LidarrVersion "2.13.2.4685"
+# CRITICAL: Use plugins branch, NOT develop/main branch
+git clone --depth 1 --branch plugins https://github.com/Lidarr/Lidarr.git ext/Lidarr-source
 
-# Build with pre-built assemblies  
+# Build with plugins branch source assemblies
 ./build.sh --deploy
 .\build.ps1 -Deploy
 ```
 
-#### ❌ **Source Builds (NEVER USE - CAUSES CONFLICTS)**:
+**NEVER use these (wrong branch)**:
 ```bash
-# DON'T: Creates assembly reference conflicts
-git clone https://github.com/Lidarr/Lidarr.git ext/Lidarr-source  # ❌ CAUSES DUAL REFERENCES
-dotnet build ext/Lidarr-source/...  # ❌ PACKAGE MANAGEMENT ERRORS
+# ❌ WRONG - These are regular release branches with DownloadProtocol enum
+git clone --branch develop https://github.com/Lidarr/Lidarr.git  # ❌ Wrong branch
+./download-lidarr-assemblies.sh --version 2.13.2.4685            # ❌ Release assemblies
 ```
 
-**Why Source Builds Fail**:
-- Creates dual assembly references (`ext/Lidarr-source` + `ext/Lidarr/_output`)
-- MSBuild can't resolve conflicting type definitions
-- Results in CS0246 and CS1715 compilation errors
+#### ❌ **Source Builds (USE ONLY WHEN RUNTIME VERSION UNAVAILABLE)**:
+```bash
+# ONLY WHEN: Runtime version (e.g., 2.13.3.4692) not available as pre-built
+# This approach works but requires careful management
+./setup.sh  # Uses source build with version override
+# OR manually:
+git clone https://github.com/Lidarr/Lidarr.git ext/Lidarr-source
+git -C ext/Lidarr-source checkout origin/plugins
+```
+
+**When Source Builds Are Required**:
+- Runtime Lidarr version (e.g., 2.13.3.4692) not available as pre-built releases
+- Solves version mismatch ReflectionTypeLoadException
+- Requires version override to match target runtime
 
 ### Build Issues and Solutions
 
