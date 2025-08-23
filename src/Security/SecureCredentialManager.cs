@@ -1,8 +1,10 @@
 using System;
+using System.Collections.Concurrent;
 using System.Security;
 using System.Text;
 using System.Security.Cryptography;
 using System.Runtime.InteropServices;
+using System.Threading.Tasks;
 using Lidarr.Plugin.Qobuzarr.Abstractions;
 
 namespace Lidarr.Plugin.Qobuzarr.Security
@@ -14,11 +16,13 @@ namespace Lidarr.Plugin.Qobuzarr.Security
     public class SecureCredentialManager : IDisposable
     {
         private readonly IQobuzLogger _logger;
+        private readonly ConcurrentDictionary<string, SecureCredentialWrapper> _secureCredentials;
         private bool _disposed = false;
 
         public SecureCredentialManager(IQobuzLogger logger)
         {
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+            _secureCredentials = new ConcurrentDictionary<string, SecureCredentialWrapper>();
         }
 
         /// <summary>
@@ -251,6 +255,122 @@ namespace Lidarr.Plugin.Qobuzarr.Security
             }
         }
 
+        #region Enhanced Concurrent Credential Storage
+
+        /// <summary>
+        /// Stores a credential securely in memory using SecureString
+        /// </summary>
+        /// <param name="key">Credential identifier</param>
+        /// <param name="credential">Credential value</param>
+        public void StoreSecureCredential(string key, string credential)
+        {
+            if (_disposed)
+                throw new ObjectDisposedException(nameof(SecureCredentialManager));
+
+            if (string.IsNullOrEmpty(key))
+                throw new ArgumentException("Credential key cannot be null or empty", nameof(key));
+
+            // Remove existing credential if present
+            if (_secureCredentials.TryRemove(key, out var existing))
+            {
+                existing.Dispose();
+            }
+
+            // Store new secure credential
+            var secureWrapper = new SecureCredentialWrapper(credential);
+            _secureCredentials.TryAdd(key, secureWrapper);
+            
+            _logger.Debug("Secure credential stored for key: {0}", key);
+        }
+
+        /// <summary>
+        /// Uses a stored secure credential with automatic cleanup
+        /// </summary>
+        /// <typeparam name="T">Return type</typeparam>
+        /// <param name="key">Credential identifier</param>
+        /// <param name="func">Function to execute with credential</param>
+        /// <returns>Result of the function</returns>
+        public T UseSecureCredential<T>(string key, Func<string, T> func)
+        {
+            if (_disposed)
+                throw new ObjectDisposedException(nameof(SecureCredentialManager));
+
+            if (!_secureCredentials.TryGetValue(key, out var wrapper))
+                throw new InvalidOperationException($"No secure credential found for key: {key}");
+
+            return wrapper.UseCredential(func);
+        }
+
+        /// <summary>
+        /// Uses a stored secure credential with automatic cleanup (async version)
+        /// </summary>
+        /// <typeparam name="T">Return type</typeparam>
+        /// <param name="key">Credential identifier</param>
+        /// <param name="func">Async function to execute with credential</param>
+        /// <returns>Result of the function</returns>
+        public async Task<T> UseSecureCredentialAsync<T>(string key, Func<string, Task<T>> func)
+        {
+            if (_disposed)
+                throw new ObjectDisposedException(nameof(SecureCredentialManager));
+
+            if (!_secureCredentials.TryGetValue(key, out var wrapper))
+                throw new InvalidOperationException($"No secure credential found for key: {key}");
+
+            return await wrapper.UseCredentialAsync(func).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Checks if a secure credential is stored for the given key
+        /// </summary>
+        /// <param name="key">Credential identifier</param>
+        /// <returns>True if credential exists</returns>
+        public bool HasSecureCredential(string key)
+        {
+            if (_disposed)
+                return false;
+
+            return _secureCredentials.ContainsKey(key);
+        }
+
+        /// <summary>
+        /// Removes a stored secure credential
+        /// </summary>
+        /// <param name="key">Credential identifier</param>
+        /// <returns>True if credential was removed</returns>
+        public bool RemoveSecureCredential(string key)
+        {
+            if (_disposed)
+                return false;
+
+            if (_secureCredentials.TryRemove(key, out var wrapper))
+            {
+                wrapper.Dispose();
+                _logger.Debug("Secure credential removed for key: {0}", key);
+                return true;
+            }
+
+            return false;
+        }
+
+        /// <summary>
+        /// Clears all stored secure credentials
+        /// </summary>
+        public void ClearAllSecureCredentials()
+        {
+            if (_disposed)
+                return;
+
+            foreach (var wrapper in _secureCredentials.Values)
+            {
+                wrapper.Dispose();
+            }
+            
+            _secureCredentials.Clear();
+            _logger.Debug("All secure credentials cleared");
+        }
+
+        #endregion
+
         public void Dispose()
         {
             Dispose(true);
@@ -261,7 +381,8 @@ namespace Lidarr.Plugin.Qobuzarr.Security
         {
             if (!_disposed && disposing)
             {
-                // Clear any remaining sensitive data
+                // Clear all secure credentials
+                ClearAllSecureCredentials();
                 _disposed = true;
             }
         }
