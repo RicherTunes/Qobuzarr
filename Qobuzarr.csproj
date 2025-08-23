@@ -8,6 +8,9 @@
     <AssemblyName>Lidarr.Plugin.Qobuzarr</AssemblyName>
     <RootNamespace>Lidarr.Plugin.Qobuzarr</RootNamespace>
     <OutputPath>bin\</OutputPath>
+    <!-- Assembly version tolerance for dev builds -->
+    <AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>
+    <GenerateBindingRedirectsOutputType>true</GenerateBindingRedirectsOutputType>
     
     <!-- Assembly and build configuration -->
     <GenerateAssemblyInfo>true</GenerateAssemblyInfo>
