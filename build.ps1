@@ -100,7 +100,7 @@ if (-not $NoBuild) {
     Write-Host ""
     Write-Host "🔨 Building..." -ForegroundColor Blue
     
-    # Override Lidarr assembly version to match target hotio version (like TrevTV does)
+    # Override Lidarr assembly version to match target hotio version
     # Only apply if Lidarr source exists (not needed for pre-built assemblies)
     if (Test-Path "ext\Lidarr-source\src\Directory.Build.props") {
         $lidarrVersionOverride = "2.13.2.4685"
