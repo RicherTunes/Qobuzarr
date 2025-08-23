@@ -52,10 +52,7 @@ public class QobuzConfig
     public bool AutoQualityFallback { get; set; } = true;
     
     [JsonProperty("qualityFallbackOrder")]
-    public List<string> QualityFallbackOrder { get; set; } = new()
-    {
-        "flac-max", "flac-hires", "flac-cd", "mp3-320"
-    };
+    public List<string>? QualityFallbackOrder { get; set; } = QobuzCLI.Models.Configuration.QualityConfig.DefaultQualityFallbackOrder;
     
     // Download Settings
     [JsonProperty("outputDirectory")]
@@ -161,10 +158,7 @@ public class QobuzConfig
     public double PartialSizeTolerancePercent { get; set; } = 5.0;
     
     [JsonProperty("preferredFormats")]
-    public List<string> PreferredFormats { get; set; } = new()
-    {
-        "FLAC", "ALAC", "WAV", "MP3"
-    };
+    public List<string>? PreferredFormats { get; set; } = QobuzCLI.Models.Configuration.QualityConfig.DefaultPreferredFormats;
 
     // Lidarr Integration Settings
     [JsonProperty("lidarrUrl")]
