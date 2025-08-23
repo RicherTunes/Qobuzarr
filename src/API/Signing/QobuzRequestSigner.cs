@@ -67,7 +67,7 @@ namespace Lidarr.Plugin.Qobuzarr.API.Signing
         /// <inheritdoc/>
         public string GenerateTrackUrlSignature(string trackId, string formatId, string timestamp, string appSecret)
         {
-            // TrevTV's exact concatenation order from QobuzApiSharp:
+            // Exact concatenation order from QobuzApiSharp:
             // "trackgetFileUrlformat_id" + format_id + "intentstreamtrack_id" + track_id + timestamp + app_secret
             var signatureString = $"trackgetFileUrlformat_id{formatId}intentstreamtrack_id{trackId}{timestamp}{appSecret}";
             
