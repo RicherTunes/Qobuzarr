@@ -9,14 +9,14 @@ param(
     [switch]$Force
 )
 
-Write-Host "📥 Downloading Pre-built Lidarr Assemblies" -ForegroundColor Green
+Write-Host "Downloading Pre-built Lidarr Assemblies" -ForegroundColor Green
 Write-Host "Version: $LidarrVersion" -ForegroundColor Cyan
 Write-Host "Output: $OutputPath" -ForegroundColor Cyan
 
 # Create output directory
 if (-not (Test-Path $OutputPath)) {
     New-Item -ItemType Directory -Path $OutputPath -Force | Out-Null
-    Write-Host "📁 Created directory: $OutputPath" -ForegroundColor Blue
+    Write-Host "Created directory: $OutputPath" -ForegroundColor Blue
 }
 
 # Check if assemblies already exist
@@ -34,7 +34,7 @@ foreach ($file in $existingFiles) {
 }
 
 if ($allExist -and -not $Force) {
-    Write-Host "✅ Lidarr assemblies already exist. Use -Force to re-download." -ForegroundColor Yellow
+    Write-Host "Lidarr assemblies already exist. Use -Force to re-download." -ForegroundColor Yellow
     exit 0
 }
 
@@ -43,11 +43,11 @@ try {
     $downloadUrl = "https://github.com/Lidarr/Lidarr/releases/download/v$LidarrVersion/Lidarr.develop.$LidarrVersion.linux-core-x64.tar.gz"
     $archivePath = "lidarr-release.tar.gz"
     
-    Write-Host "📥 Downloading from: $downloadUrl" -ForegroundColor Blue
+    Write-Host "Downloading from: $downloadUrl" -ForegroundColor Blue
     Invoke-WebRequest -Uri $downloadUrl -OutFile $archivePath -UseBasicParsing
     
     # Extract using tar (requires Windows 10 build 17063+ or WSL)
-    Write-Host "📦 Extracting Lidarr assemblies..." -ForegroundColor Blue
+    Write-Host "Extracting Lidarr assemblies..." -ForegroundColor Blue
     tar -xzf $archivePath
     
     # Copy required assemblies
@@ -56,7 +56,10 @@ try {
         "Lidarr.Core.dll",
         "Lidarr.Common.dll",
         "Lidarr.Http.dll",
-        "Lidarr.Api.V1.dll"
+        "Lidarr.Api.V1.dll",
+        "Lidarr.dll",
+        "Lidarr.Host.dll",
+        "Lidarr.SignalR.dll"
     )
     
     foreach ($assembly in $requiredAssemblies) {
@@ -65,9 +68,9 @@ try {
         
         if (Test-Path $sourcePath) {
             Copy-Item $sourcePath $destPath -Force
-            Write-Host "✅ Copied: $assembly" -ForegroundColor Green
+            Write-Host "Copied: $assembly" -ForegroundColor Green
         } else {
-            Write-Host "⚠️ Optional assembly not found: $assembly" -ForegroundColor Yellow
+            Write-Host "Optional assembly not found: $assembly" -ForegroundColor Yellow
         }
     }
     
@@ -76,24 +79,25 @@ try {
     Remove-Item $sourceDir -Recurse -Force -ErrorAction SilentlyContinue
     
     Write-Host ""
-    Write-Host "🎉 Lidarr assemblies downloaded successfully!" -ForegroundColor Green
-    Write-Host "📍 Location: $OutputPath" -ForegroundColor Gray
+    Write-Host "Lidarr assemblies downloaded successfully!" -ForegroundColor Green
+    Write-Host "Location: $OutputPath" -ForegroundColor Gray
     
     # Show what was downloaded
     Write-Host ""
     Write-Host "Downloaded assemblies:" -ForegroundColor Cyan
     Get-ChildItem $OutputPath -Filter "*.dll" | ForEach-Object {
         $size = [math]::Round($_.Length / 1MB, 2)
-        Write-Host "• $($_.Name) ($size MB)" -ForegroundColor White
+        $sizeStr = "{0:N2}" -f $size
+        Write-Host "  - $($_.Name) ($sizeStr MB)" -ForegroundColor White
     }
     
 } catch {
-    Write-Host "❌ Failed to download Lidarr assemblies: $_" -ForegroundColor Red
-    Write-Host "💡 Try manually downloading from: https://github.com/Lidarr/Lidarr/releases" -ForegroundColor Yellow
+    Write-Host "Failed to download Lidarr assemblies: $_" -ForegroundColor Red
+    Write-Host "Try manually downloading from: https://github.com/Lidarr/Lidarr/releases" -ForegroundColor Yellow
     exit 1
 }
 
 Write-Host ""
-Write-Host "💡 Next steps:" -ForegroundColor Cyan
-Write-Host "• Update project references to use these assemblies" -ForegroundColor White
-Write-Host "• Run: .\build.ps1 -Deploy" -ForegroundColor White
+Write-Host "Next steps:" -ForegroundColor Cyan
+Write-Host "  - Update project references to use these assemblies" -ForegroundColor White
+Write-Host "  - Run: .\build.ps1 -Deploy" -ForegroundColor White
