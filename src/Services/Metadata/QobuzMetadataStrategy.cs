@@ -18,7 +18,7 @@ namespace Lidarr.Plugin.Qobuzarr.Services.Metadata
         private readonly Logger _logger;
         private readonly QobuzApiClient _qobuzApiClient;
 
-        public string StrategyName => "Qobuz";
+        public string StrategyName => Constants.QobuzarrConstants.ServiceName;
 
         public QobuzMetadataStrategy(
             Logger logger,
@@ -57,7 +57,7 @@ namespace Lidarr.Plugin.Qobuzarr.Services.Metadata
             return new MetadataDownloadResult 
             { 
                 TrackDownloads = downloads,
-                MetadataStrategy = "Qobuz",
+                MetadataStrategy = Constants.QobuzarrConstants.ServiceName,
                 ApiCallsSaved = 0,
                 AdditionalApiCalls = qobuzAlbum.TracksCount + 2 // Track metadata + album details + tracklist
             };
@@ -98,7 +98,7 @@ namespace Lidarr.Plugin.Qobuzarr.Services.Metadata
                 // Label information
                 Label = metadata.Album?.Label?.Name,
                 
-                MetadataSource = "Qobuz"
+                MetadataSource = Constants.QobuzarrConstants.ServiceName
             };
         }
 

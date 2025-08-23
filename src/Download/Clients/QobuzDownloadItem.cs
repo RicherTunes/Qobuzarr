@@ -125,7 +125,7 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Clients
         /// <summary>
         /// Convert to Lidarr's DownloadClientItem format
         /// </summary>
-        public DownloadClientItem ToDownloadClientItem(int downloadClientId = 0, string downloadClientName = "Qobuzarr")
+        public DownloadClientItem ToDownloadClientItem(int downloadClientId = 0, string downloadClientName = null)
         {
             return new DownloadClientItem
             {
@@ -146,9 +146,9 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Clients
                 DownloadClientInfo = new DownloadClientItemClientInfo
                 {
                     Protocol = nameof(QobuzarrDownloadProtocol),
-                    Type = "Qobuzarr",
+                    Type = QobuzarrDownloadProtocol.DisplayName,
                     Id = downloadClientId, // Use actual download client ID
-                    Name = downloadClientName,
+                    Name = downloadClientName ?? QobuzarrDownloadProtocol.DisplayName,
                     RemoveCompletedDownloads = false,
                     HasPostImportCategory = false
                 }
