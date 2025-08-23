@@ -11,5 +11,10 @@ namespace NzbDrone.Core.Indexers
     {
         // This is a marker class that identifies our protocol type
         // Lidarr will automatically discover this and add "Qobuzarr" to the Download Protocols list
+        
+        /// <summary>
+        /// The display name for this protocol (to avoid hardcoding)
+        /// </summary>
+        public const string DisplayName = "Qobuzarr";
     }
 }
