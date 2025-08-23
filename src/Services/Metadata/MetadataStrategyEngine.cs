@@ -55,7 +55,7 @@ namespace Lidarr.Plugin.Qobuzarr.Services.Metadata
                 _logger.Info("No Lidarr data: Using Qobuz metadata for '{0}'", qobuzAlbum.Title);
                 _stats.QobuzMetadataUsed++;
                 
-                var qobuzStrategy = _strategies.FirstOrDefault(s => s.StrategyName == "Qobuz");
+                var qobuzStrategy = _strategies.FirstOrDefault(s => s.StrategyName == Constants.QobuzarrConstants.ServiceName);
                 if (qobuzStrategy?.CanHandle(qobuzAlbum, null) == true)
                 {
                     return await qobuzStrategy.DownloadAlbumAsync(qobuzAlbum, null);
@@ -71,7 +71,7 @@ namespace Lidarr.Plugin.Qobuzarr.Services.Metadata
                 _stats.QobuzMetadataUsed++;
                 _stats.MatchingFailures++;
                 
-                var qobuzStrategy = _strategies.FirstOrDefault(s => s.StrategyName == "Qobuz");
+                var qobuzStrategy = _strategies.FirstOrDefault(s => s.StrategyName == Constants.QobuzarrConstants.ServiceName);
                 if (qobuzStrategy?.CanHandle(qobuzAlbum, lidarrAlbum) == true)
                 {
                     return await qobuzStrategy.DownloadAlbumAsync(qobuzAlbum, lidarrAlbum);
