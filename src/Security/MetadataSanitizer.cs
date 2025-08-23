@@ -42,8 +42,8 @@ namespace Lidarr.Plugin.Qobuzarr.Security
             // LDAP injection
             ")(", "(&", "(|",
             
-            // XML injection
-            "<!ENTITY", "<!DOCTYPE", "SYSTEM"
+            // XML injection - use more specific patterns
+            "<!ENTITY", "<!DOCTYPE", "SYSTEM\"", "SYSTEM '"
         };
         
         // Maximum allowed length for version strings
