@@ -20,10 +20,6 @@
     <!-- Machine Learning -->
     <PackageVersion Include="Microsoft.ML" Version="2.0.1" />
     
-    <!-- Resilience and Reliability -->
-    <PackageVersion Include="Polly" Version="8.2.0" />
-    <PackageVersion Include="Polly.Extensions.Http" Version="3.0.0" />
-    
     <!-- Build Tools -->
     <PackageVersion Include="ILRepack.Lib.MSBuild.Task" Version="2.0.34.2" />
   </ItemGroup>
@@ -46,14 +42,6 @@
     <PackageVersion Include="Microsoft.Extensions.Logging.Console" Version="8.0.0" />
     <PackageVersion Include="Microsoft.Extensions.Http" Version="8.0.0" />
     <!-- NLog.Extensions.Logging removed - use Lidarr's built-in logging (following TrevTV's pattern) -->
-  </ItemGroup>
-
-  <!-- Security Updates for Transitive Dependencies -->
-  <ItemGroup>
-    <!-- Security patches for known vulnerabilities -->
-    <PackageVersion Include="System.Text.Json" Version="8.0.5" />
-    <PackageVersion Include="System.Net.Http" Version="4.3.4" />
-    <PackageVersion Include="System.Text.RegularExpressions" Version="4.3.1" />
   </ItemGroup>
 
   <!-- Test Dependencies -->

@@ -9,10 +9,6 @@ using System.Security.Permissions;
 using System.Security.Policy;
 using System.Text;
 using NLog;
-<<<<<<< HEAD
-using Lidarr.Plugin.Qobuzarr.Abstractions;
-=======
->>>>>>> remotes/main/fix/test-infrastructure
 using Lidarr.Plugin.Qobuzarr.Indexers;
 
 namespace Lidarr.Plugin.Qobuzarr.Security
@@ -20,15 +16,13 @@ namespace Lidarr.Plugin.Qobuzarr.Security
     /// <summary>
     /// Secure loader for external ML model assemblies with comprehensive security validation.
     /// Implements defense-in-depth with signature verification, sandboxing, and audit logging.
-    /// This service is registered as a singleton in Lidarr's DI container to avoid multiple instances.
     /// </summary>
-    public class SecureMLModelLoader : ISecureMLModelLoader
+    public class SecureMLModelLoader : IDisposable
     {
         private readonly Logger _logger;
         private readonly Dictionary<string, string> _trustedAssemblyHashes;
         private readonly List<string> _allowedAssemblyNames;
         private readonly List<ModelLoadAuditEntry> _auditLog;
-        private readonly Dictionary<string, IPatternLearningEngine> _loadedModels;
         private readonly object _loadLock = new object();
         private bool _disposed = false;
 
@@ -61,10 +55,6 @@ namespace Lidarr.Plugin.Qobuzarr.Security
             };
 
             _logger.Info("SecureMLModelLoader initialized with {0} trusted hashes", _trustedAssemblyHashes.Count);
-        }
-
-        public SecureMLModelLoader(Logger logger) : this(new NLogAdapter(logger))
-        {
         }
 
         /// <summary>
@@ -147,10 +137,6 @@ namespace Lidarr.Plugin.Qobuzarr.Security
                     {
                         auditEntry.Result = LoadResult.Success;
                         auditEntry.LoadedTypeName = loadedEngine.GetType().FullName;
-                        
-                        // Cache the loaded model to avoid reloading
-                        _loadedModels[sanitizedPath] = loadedEngine;
-                        
                         LogSecurityEvent($"Successfully loaded ML model: {assemblyName}", SecurityEventType.ModelLoaded);
                     }
 
@@ -233,94 +219,9 @@ namespace Lidarr.Plugin.Qobuzarr.Security
         }
 
         /// <summary>
-        /// Checks if a model has been loaded from a specific path previously.
-        /// </summary>
-        public bool IsModelLoaded(string modelPath)
-        {
-            if (string.IsNullOrWhiteSpace(modelPath))
-                return false;
-                
-            lock (_loadLock)
-            {
-                var sanitizedPath = SanitizeAndValidatePath(modelPath);
-                return sanitizedPath != null && _loadedModels.ContainsKey(sanitizedPath);
-            }
-        }
-
-        /// <summary>
-        /// Validates that a loaded model engine behaves correctly.
-        /// Thread-safe implementation for shared service.
-        /// </summary>
-        public bool ValidateModelBehavior(IPatternLearningEngine engine)
-        {
-            if (engine == null)
-                return false;
-                
-            try
-            {
-                // Test basic functionality with safe inputs
-                var testComplexity = QueryComplexity.Medium;
-                var confidence = engine.GetConfidenceScore("Test Artist", "Test Album", testComplexity);
-                var stats = engine.GetStatistics();
-
-                // Basic sanity checks
-                if (confidence < 0 || confidence > 1)
-                {
-                    _logger.Warn("Model returned invalid confidence score: {0}", confidence);
-                    return false;
-                }
-
-                if (stats == null)
-                {
-                    _logger.Warn("Model returned null statistics");
-                    return false;
-                }
-
-                return true;
-            }
-            catch (Exception ex)
-            {
-                _logger.Warn(ex, "Model instance validation failed");
-                return false;
-            }
-        }
-
-        /// <summary>
-        /// Validates that a type name meets security requirements.
-        /// </summary>
-        public bool IsTypeNameSecure(string typeName)
-        {
-            if (string.IsNullOrWhiteSpace(typeName))
-                return false;
-                
-            // Ensure type name doesn't contain injection patterns
-            var suspiciousPatterns = new[] { "..", "\\", "/", "<", ">", "|", ":", "*", "?", "\"", "\0" };
-            return !suspiciousPatterns.Any(pattern => typeName.Contains(pattern));
-        }
-
-        /// <summary>
         /// Gets security statistics for monitoring.
-        /// Returns the new SecurityStats type for interface compatibility.
         /// </summary>
-        public SecurityStats GetSecurityStats()
-        {
-            lock (_loadLock)
-            {
-                return new SecurityStats
-                {
-                    TotalLoadAttempts = _auditLog.Count,
-                    SuccessfulLoads = _auditLog.Count(e => e.Result == LoadResult.Success),
-                    FailedValidations = _auditLog.Count(e => e.Result != LoadResult.Success && e.Result != LoadResult.NotAttempted),
-                    LastLoadAttempt = _auditLog.LastOrDefault()?.Timestamp ?? DateTime.MinValue,
-                    LoadedModels = _loadedModels?.Keys.ToList() ?? new List<string>()
-                };
-            }
-        }
-
-        /// <summary>
-        /// Gets security statistics for monitoring (legacy version).
-        /// </summary>
-        public ModelLoadSecurityStats GetSecurityStats_Legacy()
+        public ModelLoadSecurityStats GetSecurityStats()
         {
             lock (_loadLock)
             {

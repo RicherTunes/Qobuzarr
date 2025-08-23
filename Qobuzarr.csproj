@@ -99,11 +99,6 @@
     </PackageReference>
     <PackageReference Include="FluentValidation" Version="9.5.4" />
     <PackageReference Include="System.Resources.Extensions" Version="8.0.0" />
-    
-    <!-- Security patches for transitive vulnerabilities -->
-    <PackageReference Include="System.Text.Json" />
-    <PackageReference Include="System.Net.Http" />
-    <PackageReference Include="System.Text.RegularExpressions" />
     <!-- ILRepack for assembly merging -->
     <PackageReference Include="ILRepack.Lib.MSBuild.Task" Version="2.0.34.2" Condition="'$(Configuration)' == 'PluginRelease' Or '$(Configuration)' == 'Release'">
       <PrivateAssets>all</PrivateAssets>
@@ -255,9 +250,6 @@
       <PluginFiles Remove="$(OutputPath)NLog.dll" />
       <PluginFiles Remove="$(OutputPath)NLog.*.dll" />
       <PluginFiles Remove="$(OutputPath)Lidarr.*.xml" />
-      <PluginFiles Remove="$(OutputPath)NLog.dll" />
-      <PluginFiles Remove="$(OutputPath)Newtonsoft.Json.dll" />
-      <PluginFiles Remove="$(OutputPath)FluentValidation.dll" />
     </ItemGroup>
     
     <Copy SourceFiles="@(PluginFiles)" DestinationFolder="$(PluginTargetDir)" SkipUnchangedFiles="false" ContinueOnError="false" />
