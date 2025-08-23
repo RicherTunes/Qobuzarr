@@ -145,11 +145,7 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Clients
                 Removed = false,
                 DownloadClientInfo = new DownloadClientItemClientInfo
                 {
-#if USE_DOWNLOAD_PROTOCOL_ENUM
                     Protocol = DownloadProtocol.Unknown,
-#else
-                    Protocol = "Qobuzarr",
-#endif
                     Type = "Qobuzarr",
                     Id = downloadClientId, // Use actual download client ID
                     Name = downloadClientName ?? "Qobuzarr",
