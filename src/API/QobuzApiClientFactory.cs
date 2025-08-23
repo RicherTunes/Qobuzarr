@@ -4,6 +4,7 @@ using NzbDrone.Common.Http;
 using Lidarr.Plugin.Qobuzarr.API.Auth;
 using Lidarr.Plugin.Qobuzarr.API.Caching;
 using Lidarr.Plugin.Qobuzarr.API.Http;
+using Lidarr.Plugin.Qobuzarr.API.Parsing;
 using Lidarr.Plugin.Qobuzarr.API.Signing;
 using Lidarr.Plugin.Qobuzarr.Authentication;
 
@@ -38,6 +39,7 @@ namespace Lidarr.Plugin.Qobuzarr.API
             var authManager = new QobuzAuthenticationManager(_logger, authService);
             var requestSigner = new QobuzRequestSigner(_logger);
             var responseCache = new QobuzResponseCache(_cacheManager, _logger);
+            var responseParser = new QobuzResponseParser(_logger);
 
             // Create the orchestrator with all components
             var apiClient = new QobuzApiClient(
@@ -45,6 +47,7 @@ namespace Lidarr.Plugin.Qobuzarr.API
                 authManager,
                 requestSigner,
                 responseCache,
+                responseParser,
                 _logger);
 
             // Set the authentication service if provided

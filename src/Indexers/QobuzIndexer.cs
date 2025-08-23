@@ -26,8 +26,8 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
     {
         public override string Name => "Qobuzarr";
         
-        // Protocol property - must match the IDownloadProtocol class name
-        public override string Protocol => nameof(QobuzarrDownloadProtocol);
+        // Protocol property - identifies our download protocol type  
+        public override string Protocol => QobuzarrDownloadProtocol.Name;
         public override bool SupportsRss => false;
         public override bool SupportsSearch => true;
         public override int PageSize => 100;

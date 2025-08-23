@@ -49,8 +49,8 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Clients
 
         public override string Name => "Qobuzarr";
         
-        // Protocol property - must match the IDownloadProtocol class name
-        public override string Protocol => nameof(QobuzarrDownloadProtocol);
+        // Protocol property - identifies our download protocol type
+        public override string Protocol => QobuzarrDownloadProtocol.Name;
 
         public QobuzDownloadClient(IQobuzAuthenticationService authService,
                                   IQobuzApiClient apiClient,

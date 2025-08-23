@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using Newtonsoft.Json;
 using NzbDrone.Common.Http;
 using NzbDrone.Common.Cache;
 using NLog;
@@ -15,19 +14,24 @@ using Lidarr.Plugin.Qobuzarr.API.Http;
 using Lidarr.Plugin.Qobuzarr.API.Auth;
 using Lidarr.Plugin.Qobuzarr.API.Signing;
 using Lidarr.Plugin.Qobuzarr.API.Caching;
+using Lidarr.Plugin.Qobuzarr.API.Parsing;
 
 namespace Lidarr.Plugin.Qobuzarr.API
 {
     /// <summary>
     /// Orchestrator for Qobuz API operations, coordinating HTTP communication, authentication,
-    /// request signing, and response caching through specialized components.
+    /// request signing, response parsing, and caching through specialized components.
     /// </summary>
     /// <remarks>
     /// This refactored implementation delegates specific responsibilities to focused components:
-    /// - HTTP communication: IQobuzHttpClient
-    /// - Authentication: IQobuzAuthenticationManager
-    /// - Request signing: IQobuzRequestSigner
-    /// - Response caching: IQobuzResponseCache
+    /// - HTTP communication: IQobuzHttpClient (handles pure HTTP requests and rate limiting)
+    /// - Authentication: IQobuzAuthenticationManager (manages sessions and expiration)
+    /// - Request signing: IQobuzRequestSigner (generates MD5 signatures for protected endpoints)
+    /// - Response caching: IQobuzResponseCache (manages cache key generation and TTL)
+    /// - Response parsing: IQobuzResponseParser (handles JSON deserialization and validation)
+    /// 
+    /// This decomposition follows SOLID principles, ensuring each component has a single
+    /// responsibility and can be tested in isolation.
     /// </remarks>
     public class QobuzApiClient : IQobuzApiClient
     {
@@ -35,6 +39,7 @@ namespace Lidarr.Plugin.Qobuzarr.API
         private readonly IQobuzAuthenticationManager _authManager;
         private readonly IQobuzRequestSigner _requestSigner;
         private readonly IQobuzResponseCache _responseCache;
+        private readonly IQobuzResponseParser _responseParser;
         private readonly Logger _logger;
         private IQobuzAuthenticationService? _authService;
 
@@ -45,18 +50,21 @@ namespace Lidarr.Plugin.Qobuzarr.API
         /// <param name="authManager">The authentication manager for session handling.</param>
         /// <param name="requestSigner">The request signer for API signature generation.</param>
         /// <param name="responseCache">The response cache for caching API responses.</param>
+        /// <param name="responseParser">The response parser for deserializing API responses.</param>
         /// <param name="logger">The logger for recording API interactions.</param>
         public QobuzApiClient(
             IQobuzHttpClient httpClient,
             IQobuzAuthenticationManager authManager,
             IQobuzRequestSigner requestSigner,
             IQobuzResponseCache responseCache,
+            IQobuzResponseParser responseParser,
             Logger logger)
         {
             _httpClient = httpClient ?? throw new ArgumentNullException(nameof(httpClient));
             _authManager = authManager ?? throw new ArgumentNullException(nameof(authManager));
             _requestSigner = requestSigner ?? throw new ArgumentNullException(nameof(requestSigner));
             _responseCache = responseCache ?? throw new ArgumentNullException(nameof(responseCache));
+            _responseParser = responseParser ?? throw new ArgumentNullException(nameof(responseParser));
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         }
 
@@ -73,6 +81,7 @@ namespace Lidarr.Plugin.Qobuzarr.API
                 new QobuzAuthenticationManager(logger),
                 new QobuzRequestSigner(logger),
                 new QobuzResponseCache(cacheManager, logger),
+                new QobuzResponseParser(logger),
                 logger)
         {
             // This constructor maintains backward compatibility with existing code
@@ -234,17 +243,10 @@ namespace Lidarr.Plugin.Qobuzarr.API
                     HandleErrorResponse(response);
                 }
 
-                // Deserialize response
-                var result = JsonConvert.DeserializeObject<T>(response.Content);
+                // Parse response using the dedicated parser
+                var result = _responseParser.ParseResponse<T>(response.Content);
                 
-                _logger.Debug("✅ Response deserialized to: {0}", typeof(T).Name);
-                
-                // Log first 500 chars of response for debugging (sanitized)
-                if (response.Content?.Length > 0)
-                {
-                    var sanitized = response.Content.Length > 500 ? response.Content.Substring(0, 500) + "..." : response.Content;
-                    _logger.Trace("📄 Response content: {0}", sanitized);
-                }
+                _logger.Debug("✅ Response successfully parsed to: {0}", typeof(T).Name);
 
                 // Cache successful GET responses
                 if (method == "GET" && result != null)
@@ -266,25 +268,19 @@ namespace Lidarr.Plugin.Qobuzarr.API
         {
             var statusCode = (int)response.StatusCode;
             
-            try
+            // Try to parse error response using the dedicated parser
+            var errorResponse = _responseParser.TryParseErrorResponse(response.Content);
+            var message = errorResponse?.Message ?? $"HTTP {statusCode}";
+            
+            throw statusCode switch
             {
-                var errorResponse = JsonConvert.DeserializeObject<QobuzErrorResponse>(response.Content);
-                var message = errorResponse?.Message ?? $"HTTP {statusCode}";
-                
-                throw statusCode switch
-                {
-                    401 => new QobuzApiException("Authentication failed", statusCode, "AuthenticationFailed"),
-                    403 => new QobuzApiException("Access forbidden - check app credentials", statusCode, "AccessForbidden"),
-                    404 => new QobuzApiException("Resource not found", statusCode, "NotFound"),
-                    429 => new QobuzApiException("Rate limit exceeded", statusCode, "RateLimited"),
-                    >= 500 => new QobuzApiException("Server error", statusCode, "ServerError"),
-                    _ => new QobuzApiException(message, statusCode, "ApiError")
-                };
-            }
-            catch (JsonException)
-            {
-                throw new QobuzApiException($"HTTP {statusCode}: {response.Content}", statusCode, "UnknownError");
-            }
+                401 => new QobuzApiException("Authentication failed", statusCode, "AuthenticationFailed"),
+                403 => new QobuzApiException("Access forbidden - check app credentials", statusCode, "AccessForbidden"),
+                404 => new QobuzApiException("Resource not found", statusCode, "NotFound"),
+                429 => new QobuzApiException("Rate limit exceeded", statusCode, "RateLimited"),
+                >= 500 => new QobuzApiException("Server error", statusCode, "ServerError"),
+                _ => new QobuzApiException(message, statusCode, "ApiError")
+            };
         }
 
 
@@ -509,14 +505,6 @@ namespace Lidarr.Plugin.Qobuzarr.API
             return await GetAsync<QobuzLabelSearchResponse>("label/search", parameters);
         }
 
-        private class QobuzErrorResponse
-        {
-            [JsonProperty("message")]
-            public string Message { get; set; }
-
-            [JsonProperty("code")]
-            public int? Code { get; set; }
-        }
     }
 
     /// <summary>

@@ -49,6 +49,15 @@ The main API client now acts as an orchestrator, delegating specific responsibil
 - Cache storage and retrieval
 - Cache invalidation strategies
 
+### 6. **QobuzResponseParser** (Response Parsing)
+**Location**: `src/API/Parsing/QobuzResponseParser.cs`  
+**Interface**: `IQobuzResponseParser`  
+**Responsibilities**:
+- JSON deserialization with custom settings
+- Response validation for data completeness
+- Error response parsing and handling
+- Type-specific validation logic
+
 ## Benefits of Decomposition
 
 ### 1. **Single Responsibility Principle**
@@ -86,6 +95,7 @@ services.AddSingleton<IQobuzHttpClient, QobuzHttpClient>();
 services.AddSingleton<IQobuzAuthenticationManager, QobuzAuthenticationManager>();
 services.AddSingleton<IQobuzRequestSigner, QobuzRequestSigner>();
 services.AddSingleton<IQobuzResponseCache, QobuzResponseCache>();
+services.AddSingleton<IQobuzResponseParser, QobuzResponseParser>();
 services.AddSingleton<IQobuzApiClient, QobuzApiClient>();
 ```
 
@@ -99,6 +109,7 @@ public QobuzApiClient(
     IQobuzAuthenticationManager authManager,
     IQobuzRequestSigner requestSigner,
     IQobuzResponseCache responseCache,
+    IQobuzResponseParser responseParser,
     Logger logger)
 ```
 
@@ -141,6 +152,14 @@ if (cached == null)
 {
     var response = await FetchFromApi();
     cache.Set(endpoint, parameters, response);
+}
+
+// Response parsing
+var parser = new QobuzResponseParser(logger);
+var album = parser.ParseResponse<QobuzAlbum>(jsonContent);
+if (!parser.ValidateResponse(album))
+{
+    logger.Warn("Album validation failed");
 }
 ```
 
