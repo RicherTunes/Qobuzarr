@@ -36,8 +36,8 @@ if (-not $SkipLidarr) {
             git -C ext/Lidarr-source checkout origin/plugins
             Write-Host "✅ Lidarr source downloaded successfully (plugin branch)" -ForegroundColor Green
             
-            # Apply TrevTV's assembly version override for hotio compatibility
-            Write-Host "🔧 Applying TrevTV assembly version override..." -ForegroundColor Blue
+            # Apply assembly version override for hotio compatibility
+            Write-Host "🔧 Applying assembly version override..." -ForegroundColor Blue
             $lidarrVersionOverride = "2.13.2.4686"
             (Get-Content "ext\Lidarr-source\src\Directory.Build.props") -replace '<AssemblyVersion>[\d\.\*]+</AssemblyVersion>', "<AssemblyVersion>$lidarrVersionOverride</AssemblyVersion>" | Set-Content "ext\Lidarr-source\src\Directory.Build.props"
             Write-Host "✅ Assembly version override applied: $lidarrVersionOverride" -ForegroundColor Green

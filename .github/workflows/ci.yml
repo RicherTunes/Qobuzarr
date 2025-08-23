@@ -43,7 +43,7 @@ jobs:
       run: |
         echo "📦 Setting up Lidarr dependencies using pre-built assemblies..."
         
-        # Use the proven pre-built assembly approach (like TrevTV's plugins)
+        # Use the proven pre-built assembly approach
         chmod +x ./download-lidarr-assemblies.sh
         ./download-lidarr-assemblies.sh --version 2.13.2.4685
         
