@@ -221,7 +221,11 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
                 Guid = $"qobuz-{album.Id}-{(int)quality}",
                 
                 // CRITICAL: Set the download protocol to fix frontend display
-                DownloadProtocol = nameof(QobuzarrDownloadProtocol),
+#if USE_DOWNLOAD_PROTOCOL_ENUM
+                DownloadProtocol = DownloadProtocol.Unknown,
+#else
+                DownloadProtocol = "Qobuzarr",
+#endif
                 
                 // Basic metadata - ENSURE NON-EMPTY NAMES
                 Artist = artistName,
@@ -229,7 +233,7 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
                 DownloadUrl = GenerateDownloadUrl(album, quality),
                 InfoUrl = GenerateInfoUrl(album),
                 PublishDate = album.ReleaseDate,
-                Indexer = QobuzarrDownloadProtocol.DisplayName, // Avoids hardcoding
+                Indexer = "Qobuzarr",
                 
                 // Note: Codec and Container properties are ignored by Lidarr's quality detection
                 // Quality is determined solely from the Title using regex patterns
