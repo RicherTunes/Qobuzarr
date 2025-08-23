@@ -501,9 +501,17 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
                 return string.Empty;
 
             _logger.Debug("🧹 Cleaning query: '{0}'", query);
+            
+            // SECURITY: Sanitize input to prevent injection attacks
+            var sanitized = Utilities.LidarrInputValidator.SanitizeAlbumTitle(query);
+            if (!Utilities.LidarrInputValidator.IsInputSafe(sanitized))
+            {
+                _logger.Warn("Potentially unsafe input detected in query: {0}", query);
+                return string.Empty;
+            }
 
             // Remove common prefixes/suffixes that might interfere with search
-            var cleaned = query;
+            var cleaned = sanitized;
 
             // CONSERVATIVE CLEANING - Only remove clearly problematic patterns
             
