@@ -157,29 +157,35 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Clients
         /// <summary>
         /// Convert to Lidarr's DownloadClientItem format
         /// </summary>
-        public DownloadClientItem ToDownloadClientItem(int downloadClientId, string downloadClientName)
+        public DownloadClientItem ToDownloadClientItem(int downloadClientId = 0, string downloadClientName = "Qobuzarr")
         {
             var artistName = ArtistName ?? Artist ?? "Unknown Artist";
             var albumTitle = AlbumTitle ?? Title ?? "Unknown Album";
             
             return new DownloadClientItem
             {
-                DownloadId = DownloadId,
+                DownloadId = DownloadId ?? "",
                 Title = $"{artistName} - {albumTitle}",
                 TotalSize = TotalSize,
                 RemainingSize = Math.Max(0, TotalSize - DownloadedSize),
                 RemainingTime = GetEstimatedTimeRemaining(),
                 Status = Status,
-                Message = GetStatusMessage(),
+                Message = GetStatusMessage() ?? "",
                 CanMoveFiles = Status == DownloadItemStatus.Completed,
                 CanBeRemoved = Status == DownloadItemStatus.Completed || Status == DownloadItemStatus.Failed,
                 OutputPath = new NzbDrone.Common.Disk.OsPath(OutputPath ?? ""),
+                IsEncrypted = false,
+                Category = "",
+                SeedRatio = null, // Not applicable for direct downloads
+                Removed = false,
                 DownloadClientInfo = new DownloadClientItemClientInfo
                 {
-                    Id = downloadClientId,
+                    Protocol = "QobuzarrDownloadProtocol",
+                    Type = "Qobuzarr",
+                    Id = downloadClientId, // Use actual download client ID
                     Name = downloadClientName,
-                    Protocol = "Qobuzarr",
-                    Type = "Qobuzarr"
+                    RemoveCompletedDownloads = false,
+                    HasPostImportCategory = false
                 }
             };
         }

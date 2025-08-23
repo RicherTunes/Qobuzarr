@@ -10,6 +10,7 @@ using Qobuzarr.Tests.Builders;
 using NzbDrone.Core.Parser.Model;
 using NzbDrone.Core.Download;
 using NzbDrone.Core.Indexers;
+using NzbDrone.Core.IndexerSearch.Definitions;
 using NzbDrone.Common.Http;
 
 namespace Qobuzarr.Tests.Unit.Indexers
@@ -226,7 +227,11 @@ namespace Qobuzarr.Tests.Unit.Indexers
             result.Album.Should().Be("Release Test Album");
             result.PublishDate.Date.Should().Be(new DateTime(2023, 6, 15).Date, "Date should match regardless of timezone");
             result.Indexer.Should().Be("Qobuzarr");
+<<<<<<< HEAD
             // Download protocol is set internally by Lidarr based on indexer type
+=======
+            result.DownloadProtocol.Should().Be(nameof(UsenetDownloadProtocol));
+>>>>>>> remotes/main/fix/test-infrastructure
             result.Size.Should().BeGreaterThan(0, "Size should be calculated based on quality");
             
             // Critical: Title should contain quality markers for Lidarr detection
@@ -404,6 +409,158 @@ namespace Qobuzarr.Tests.Unit.Indexers
             var titles = releaseList.Select(r => r.Title).ToList();
             titles.Should().Contain(t => t.Contains("MP3"), "Should include MP3 variant");
             titles.Should().Contain(t => t.Contains("FLAC"), "Should include FLAC variant");
+        }
+
+        #endregion
+
+        #region Context-Aware Title Generation Tests (Regression Prevention)
+
+        /// <summary>
+        /// CRITICAL REGRESSION TEST: Ensures context-aware logic doesn't apply same title to all albums
+        /// This test would have caught the duplicate title bug where all search results showed identical titles
+        /// </summary>
+        [Fact]
+        public void ContextAware_WithMultipleAlbums_ShouldGenerateUniqueTitle()
+        {
+            // Arrange: Create multiple DIFFERENT Qobuz albums
+            var album1 = new QobuzAlbumBuilder()
+                .WithId("album1")
+                .WithTitle("First Album Title")
+                .WithArtist("Test Artist", "test-artist")
+                .WithReleaseDate(new DateTime(2023, 1, 1))
+                .Build();
+
+            var album2 = new QobuzAlbumBuilder()
+                .WithId("album2")
+                .WithTitle("Second Album Title") // DIFFERENT title
+                .WithArtist("Test Artist", "test-artist")
+                .WithReleaseDate(new DateTime(2023, 2, 1))
+                .Build();
+
+            var album3 = new QobuzAlbumBuilder()
+                .WithId("album3")
+                .WithTitle("Third Album Title") // DIFFERENT title
+                .WithArtist("Test Artist", "test-artist")
+                .WithReleaseDate(new DateTime(2023, 3, 1))
+                .Build();
+
+            // Mock search criteria with ONE specific album (simulates typical Lidarr search)
+            var mockAlbum = new NzbDrone.Core.Music.Album
+            {
+                Id = 1,
+                Title = "I Had the Blues but I Shook Them Loose (live at Brixton)",
+                ReleaseDate = new DateTime(2020, 1, 1)
+            };
+            
+            // Set search criteria context (this triggers the bug scenario)
+            _parser.SetSearchContext(new AlbumSearchCriteria
+            {
+                Albums = new List<NzbDrone.Core.Music.Album> { mockAlbum }
+            });
+
+            // Act: Process each album individually
+            var method = typeof(QobuzParser).GetMethod("GenerateQualitySpecificTitle", 
+                System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+
+            var title1 = (string)method.Invoke(_parser, new object[] { album1, QobuzAudioQuality.FLACLossless, 2023 });
+            var title2 = (string)method.Invoke(_parser, new object[] { album2, QobuzAudioQuality.FLACLossless, 2023 });
+            var title3 = (string)method.Invoke(_parser, new object[] { album3, QobuzAudioQuality.FLACLossless, 2023 });
+
+            // Assert: Each album should get ITS OWN title, not the context title
+            title1.Should().Contain("First Album Title", "Album 1 should keep its own title");
+            title2.Should().Contain("Second Album Title", "Album 2 should keep its own title");
+            title3.Should().Contain("Third Album Title", "Album 3 should keep its own title");
+
+            // Critical: Titles should NOT all be the same (this is the bug)
+            title1.Should().NotBe(title2, "Different albums should have different titles");
+            title2.Should().NotBe(title3, "Different albums should have different titles");
+            title1.Should().NotBe(title3, "Different albums should have different titles");
+
+            // Should NOT all contain the context album title
+            var contextTitle = "I Had the Blues but I Shook Them Loose (live at Brixton)";
+            var allTitlesHaveContextTitle = new[] { title1, title2, title3 }.All(t => t.Contains(contextTitle));
+            allTitlesHaveContextTitle.Should().BeFalse("Context title should not be applied to every album");
+        }
+
+        /// <summary>
+        /// Test that context-aware logic only applies when there's an actual match
+        /// </summary>
+        [Fact]
+        public void ContextAware_WithNoMatchingAlbum_ShouldUseOriginalTitle()
+        {
+            // Arrange: Create album that won't match context
+            var unmatchedAlbum = new QobuzAlbumBuilder()
+                .WithId("unmatched")
+                .WithTitle("Completely Different Album")
+                .WithArtist("Different Artist", "different")
+                .WithReleaseDate(new DateTime(2019, 1, 1))
+                .Build();
+
+            // Set context for a completely different album
+            var mockAlbum = new NzbDrone.Core.Music.Album
+            {
+                Id = 1,
+                Title = "Specific Context Album",
+                ReleaseDate = new DateTime(2020, 1, 1)
+            };
+            
+            _parser.SetSearchContext(new AlbumSearchCriteria
+            {
+                Albums = new List<NzbDrone.Core.Music.Album> { mockAlbum }
+            });
+
+            // Act
+            var method = typeof(QobuzParser).GetMethod("GenerateQualitySpecificTitle", 
+                System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+            var result = (string)method.Invoke(_parser, new object[] { unmatchedAlbum, QobuzAudioQuality.FLACLossless, 2019 });
+
+            // Assert: Should use original album title, not context title
+            result.Should().Contain("Completely Different Album", "Should use original album title");
+            result.Should().NotContain("Specific Context Album", "Should not use context title for unmatched album");
+        }
+
+        /// <summary>
+        /// Test album ID uniqueness preservation in context-aware mode
+        /// </summary>
+        [Fact]
+        public void ContextAware_WithMultipleAlbums_ShouldPreserveAlbumIdUniqueness()
+        {
+            // Arrange: Multiple albums with different IDs
+            var albums = new[]
+            {
+                new QobuzAlbumBuilder().WithId("unique1").WithTitle("Album One").WithArtist("Artist", "artist").Build(),
+                new QobuzAlbumBuilder().WithId("unique2").WithTitle("Album Two").WithArtist("Artist", "artist").Build(),
+                new QobuzAlbumBuilder().WithId("unique3").WithTitle("Album Three").WithArtist("Artist", "artist").Build()
+            };
+
+            // Set context
+            _parser.SetSearchContext(new AlbumSearchCriteria
+            {
+                Albums = new List<NzbDrone.Core.Music.Album> 
+                { 
+                    new NzbDrone.Core.Music.Album { Id = 1, Title = "Context Album", ReleaseDate = new DateTime(2020, 1, 1) }
+                }
+            });
+
+            // Act: Create releases for each album
+            var releases = new List<ReleaseInfo>();
+            var method = typeof(QobuzParser).GetMethod("ConvertAlbumToReleases", 
+                System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+
+            foreach (var album in albums)
+            {
+                var albumReleases = (IEnumerable<ReleaseInfo>)method.Invoke(_parser, new object[] { album, "test" });
+                releases.AddRange(albumReleases);
+            }
+
+            // Assert: Each album should have unique releases based on its own ID
+            var guids = releases.Select(r => r.Guid).ToList();
+            guids.Should().OnlyHaveUniqueItems("Each album should generate unique release GUIDs");
+            
+            // Verify GUIDs contain original album IDs
+            releases.Should().Contain(r => r.Guid.Contains("unique1"), "Should have releases for album unique1");
+            releases.Should().Contain(r => r.Guid.Contains("unique2"), "Should have releases for album unique2");
+            releases.Should().Contain(r => r.Guid.Contains("unique3"), "Should have releases for album unique3");
         }
 
         #endregion

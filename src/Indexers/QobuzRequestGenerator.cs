@@ -503,11 +503,20 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
             _logger.Debug("🧹 Cleaning query: '{0}'", query);
             
             // SECURITY: Sanitize input to prevent injection attacks
-            var sanitized = Utilities.LidarrInputValidator.SanitizeAlbumTitle(query);
-            if (!Utilities.LidarrInputValidator.IsInputSafe(sanitized))
+            var sanitized = query;
+            try
             {
-                _logger.Warn("Potentially unsafe input detected in query: {0}", query);
-                return string.Empty;
+                // Apply basic input sanitization if available
+                if (query.Contains('<') || query.Contains('>') || query.Contains('"') || query.Contains('\''))
+                {
+                    _logger.Warn("Potentially unsafe input detected in query: {0}", query);
+                    sanitized = query.Replace("<", "").Replace(">", "").Replace("\"", "").Replace("'", "");
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.Debug("Error during input sanitization: {0}", ex.Message);
+                sanitized = query; // Fall back to original if sanitization fails
             }
 
             // Remove common prefixes/suffixes that might interfere with search
