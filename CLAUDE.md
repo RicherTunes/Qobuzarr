@@ -615,3 +615,20 @@ Protocol = QobuzarrDownloadProtocol.Name,
 
 ### ⚠️ **Remember**: 
 This fixes the **most common build failure** in Qobuzarr development. Always use this pattern when working with Protocol properties!
+
+### 🔥 **CRITICAL DISCOVERY - Plugin Branch vs Release Branch** 🔥
+
+**ROOT CAUSE IDENTIFIED** (2025-08-23):
+
+**The Issue**: Our CI uses **Lidarr plugin development branch** which has **different interface signatures** than TrevTV's release-based approach:
+
+- **Our CI (plugin branch)**: `DownloadProtocol Protocol { get; }` (enum expected)
+- **TrevTV's CI (release branch)**: `string Protocol { get; }` (string expected)  
+- **Local development**: Uses source commit `aa7b63f2e13351f54a31d780d6a7b93a2411eaec` (string expected)
+
+**Solution Options**:
+1. **Switch to release-based assemblies** (like TrevTV) - requires CI infrastructure change
+2. **Create compatibility layer** for plugin branch - adapt to enum requirements  
+3. **Override interface signatures** in plugin branch - risky but direct
+
+**NEVER FORGET**: This is why identical code works locally but fails in CI - we use **different base assembly versions** than proven working plugins like TrevTV's!

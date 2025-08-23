@@ -163,9 +163,9 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
                 {
                     System.IO.Path.Combine(baseDir, "PersonalizedMLQueryOptimizer.dll"),
                     System.IO.Path.Combine(baseDir, "PersonalMLQueryOptimizer.dll"),
-                    System.IO.Path.Combine(baseDir, "plugins", "Qobuzarr", "PersonalizedMLQueryOptimizer.dll"),
+                    System.IO.Path.Combine(baseDir, "plugins", Constants.QobuzarrConstants.PluginFolderName, "PersonalizedMLQueryOptimizer.dll"),
                     System.IO.Path.Combine(baseDir, "ML", "PersonalizedMLQueryOptimizer.dll"),
-                    System.IO.Path.Combine(baseDir, "plugins", "Qobuzarr", "ML", "PersonalMLQueryOptimizer.dll")
+                    System.IO.Path.Combine(baseDir, "plugins", Constants.QobuzarrConstants.PluginFolderName, "ML", "PersonalMLQueryOptimizer.dll")
                 };
 
                 // Log security audit event for model loading attempt
