@@ -2,8 +2,8 @@ using System;
 using System.Threading;
 using System.Threading.Tasks;
 using NzbDrone.Core.Download;
-using NzbDrone.Core.Indexers;
 using Lidarr.Plugin.Qobuzarr.Models;
+using Lidarr.Plugin.Qobuzarr.Indexers;
 
 namespace Lidarr.Plugin.Qobuzarr.Download.Clients
 {
