@@ -21,7 +21,8 @@
     <PackageVersion Include="Microsoft.ML" Version="2.0.1" />
     
     <!-- Build Tools -->
-    <PackageVersion Include="ILRepack.Lib.MSBuild.Task" Version="2.0.34.2" />
+    <!-- ILRepack disabled - causes assembly resolution issues in plugin builds -->
+    <!-- <PackageVersion Include="ILRepack.Lib.MSBuild.Task" Version="2.0.34.2" /> -->
   </ItemGroup>
 
   <!-- Security Updates for Transitive Dependencies -->

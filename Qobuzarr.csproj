@@ -51,9 +51,8 @@
     <FileVersion>$(VersionPrefix).0</FileVersion>
     <AssemblyInformationalVersion>$(Version)</AssemblyInformationalVersion>
     
-    <!-- Enable ILRepack for plugin compatibility like working plugins -->
-    <ILRepackEnabled Condition="'$(ILRepackEnabled)' == '' And ('$(Configuration)' == 'PluginRelease' Or '$(Configuration)' == 'Release')">false</ILRepackEnabled>
-    <ILRepackEnabled Condition="'$(ILRepackEnabled)' == ''">false</ILRepackEnabled>
+    <!-- Disable ILRepack until assembly resolution issues are fixed -->
+    <ILRepackEnabled>false</ILRepackEnabled>
   </PropertyGroup>
 
   <!-- Source files inclusion -->
@@ -112,11 +111,11 @@
     <PackageReference Include="System.Text.Json" />
     <PackageReference Include="System.Net.Http" />
     <PackageReference Include="System.Text.RegularExpressions" />
-    <!-- ILRepack for assembly merging -->
-    <PackageReference Include="ILRepack.Lib.MSBuild.Task" Condition="'$(Configuration)' == 'PluginRelease' Or '$(Configuration)' == 'Release'">
+    <!-- ILRepack disabled - causes assembly resolution issues -->
+    <!-- <PackageReference Include="ILRepack.Lib.MSBuild.Task" Condition="'$(Configuration)' == 'PluginRelease' Or '$(Configuration)' == 'Release'">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
-    </PackageReference>
+    </PackageReference> -->
   </ItemGroup>
 
   <!-- Lidarr assemblies from pre-built release (safer than ProjectReference) -->
