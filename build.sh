@@ -147,7 +147,7 @@ if [ "$NO_BUILD" = false ]; then
     # Override Lidarr assembly version to match target hotio version (like TrevTV does)
     # Only apply if Lidarr source exists (not needed for pre-built assemblies)
     if [ -f "ext/Lidarr-source/src/Directory.Build.props" ]; then
-        LIDARR_VERSION_OVERRIDE="2.13.2.4686"
+        LIDARR_VERSION_OVERRIDE="2.13.2.4685"
         echo -e "${BLUE}🔧 Setting Lidarr assembly version to $LIDARR_VERSION_OVERRIDE${NC}"
         sed -i "s/<AssemblyVersion>[0-9.*]\+<\/AssemblyVersion>/<AssemblyVersion>$LIDARR_VERSION_OVERRIDE<\/AssemblyVersion>/g" ext/Lidarr-source/src/Directory.Build.props
     else
