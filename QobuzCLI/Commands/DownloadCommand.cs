@@ -11,6 +11,21 @@ using Spectre.Console;
 
 namespace QobuzCLI.Commands;
 
+public record DownloadOptions(
+    string? Query,
+    string? FromFile,
+    bool Immediate,
+    string? Output,
+    string? Quality,
+    bool Select,
+    bool All,
+    string? Type,
+    int Priority,
+    string? QueueId,
+    string? ReportFormat,
+    string? ReportOutput,
+    int? Concurrency);
+
 /// <summary>
 /// Implements the 'download' command for the QobuzCLI application.
 /// This is a lightweight CLI wrapper around the plugin's core download functionality.
@@ -103,65 +118,49 @@ public class DownloadCommand
 
         downloadCommand.SetHandler(async (context) =>
         {
-            var query = context.ParseResult.GetValueForArgument(queryArg);
-            var fromFile = context.ParseResult.GetValueForOption(fromFileOption);
-            var immediate = context.ParseResult.GetValueForOption(immediateOption);
-            var output = context.ParseResult.GetValueForOption(outputOption);
-            var quality = context.ParseResult.GetValueForOption(qualityOption);
-            var select = context.ParseResult.GetValueForOption(selectOption);
-            var all = context.ParseResult.GetValueForOption(allOption);
-            var type = context.ParseResult.GetValueForOption(typeOption);
-            var priority = context.ParseResult.GetValueForOption(priorityOption);
-            var queueId = context.ParseResult.GetValueForOption(queueOption);
-            var reportFormat = context.ParseResult.GetValueForOption(reportFormatOption);
-            var reportOutput = context.ParseResult.GetValueForOption(reportOutputOption);
-            var concurrency = context.ParseResult.GetValueForOption(concurrencyOption);
+            var options = new DownloadOptions(
+                context.ParseResult.GetValueForArgument(queryArg),
+                context.ParseResult.GetValueForOption(fromFileOption),
+                context.ParseResult.GetValueForOption(immediateOption),
+                context.ParseResult.GetValueForOption(outputOption),
+                context.ParseResult.GetValueForOption(qualityOption),
+                context.ParseResult.GetValueForOption(selectOption),
+                context.ParseResult.GetValueForOption(allOption),
+                context.ParseResult.GetValueForOption(typeOption),
+                context.ParseResult.GetValueForOption(priorityOption),
+                context.ParseResult.GetValueForOption(queueOption),
+                context.ParseResult.GetValueForOption(reportFormatOption),
+                context.ParseResult.GetValueForOption(reportOutputOption),
+                context.ParseResult.GetValueForOption(concurrencyOption)
+            );
             
-            await HandleDownloadAsync(query, fromFile, immediate, output, quality, select, all, type, priority, queueId, reportFormat, reportOutput, concurrency).ConfigureAwait(false);
+            await HandleDownloadAsync(options).ConfigureAwait(false);
         });
 
         return downloadCommand;
     }
 
-    private async Task HandleDownloadAsync(string? query, string? fromFile, bool immediate, string? output, string? quality, bool select, bool all, string? type, int priority, string? queueId, string? reportFormat, string? reportOutput, int? concurrency)
+    private async Task HandleDownloadAsync(DownloadOptions options)
     {
         try
         {
-            // Initialize plugin host
-            var config = await _configService.LoadConfigAsync().ConfigureAwait(false);
-            if (!_pluginHost.IsInitialized)
-            {
-                await _pluginHost.InitializeAsync(config).ConfigureAwait(false);
-            }
-
-            // Set concurrency override if provided
-            if (concurrency.HasValue)
-            {
-                _logger.LogInformation("Concurrency override requested: {Concurrency} (plugin uses internal concurrency management)", concurrency.Value);
-            }
-
-            // Check authentication
-            var authValid = await _pluginHost.TestAuthenticationAsync().ConfigureAwait(false);
-            if (!authValid)
-            {
-                AnsiConsole.MarkupLine("[red]❌ Authentication failed. Please run 'qobuz auth login' first.[/]");
-                return;
-            }
+            var config = await InitializeAndValidateAsync(options).ConfigureAwait(false);
+            if (config == null) return;
 
             // Handle file input
-            if (!string.IsNullOrEmpty(fromFile))
+            if (!string.IsNullOrEmpty(options.FromFile))
             {
                 var batchOptions = new BatchDownloadOptions
                 {
-                    FilePath = fromFile,
-                    Immediate = immediate,
-                    OutputDirectory = output,
-                    Quality = quality,
-                    Priority = priority,
-                    QueueId = queueId,
-                    ReportFormat = reportFormat,
-                    ReportOutput = reportOutput,
-                    Concurrency = concurrency
+                    FilePath = options.FromFile,
+                    Immediate = options.Immediate,
+                    OutputDirectory = options.Output,
+                    Quality = options.Quality,
+                    Priority = options.Priority,
+                    QueueId = options.QueueId,
+                    ReportFormat = options.ReportFormat,
+                    ReportOutput = options.ReportOutput,
+                    Concurrency = options.Concurrency
                 };
                 
                 await _batchDownloadService.ProcessBatchDownloadAsync(batchOptions).ConfigureAwait(false);
@@ -169,19 +168,19 @@ public class DownloadCommand
             }
 
             // Validate query parameter
-            if (string.IsNullOrEmpty(query))
+            if (string.IsNullOrEmpty(options.Query))
             {
                 AnsiConsole.MarkupLine("[red]❌ Either 'query' or '--from-file' is required.[/]");
                 return;
             }
 
-            AnsiConsole.MarkupLine($"[blue]🔍 Searching for: '{query}'[/]");
+            AnsiConsole.MarkupLine($"[blue]🔍 Searching for: '{options.Query}'[/]");
 
             // Parse search type and perform search
-            var searchType = ParseSearchType(type);
+            var searchType = ParseSearchType(options.Type);
             if (searchType == Models.SearchType.Auto)
             {
-                searchType = _searchService.DetectSearchType(query);
+                searchType = _searchService.DetectSearchType(options.Query);
                 AnsiConsole.MarkupLine($"[dim]Auto-detected search type: {searchType.ToString().ToLower()}[/]");
             }
 
@@ -190,19 +189,19 @@ public class DownloadCommand
                 .Spinner(Spinner.Known.Dots)
                 .StartAsync($"Searching Qobuz...", async ctx =>
                 {
-                    var rawResults = await _pluginHost.SearchAsync(query, searchType).ConfigureAwait(false);
-                    results = _searchService.ScoreResults(rawResults, query);
+                    var rawResults = await _pluginHost.SearchAsync(options.Query, searchType).ConfigureAwait(false);
+                    results = _searchService.ScoreResults(rawResults, options.Query);
                 });
 
             if (!results.Any())
             {
-                AnsiConsole.MarkupLine($"[yellow]No results found for '{query}'[/]");
+                AnsiConsole.MarkupLine($"[yellow]No results found for '{options.Query}'[/]");
                 AnsiConsole.MarkupLine("[dim]Try a different search term or check your spelling.[/]");
                 return;
             }
 
             // Determine what to download
-            var selectedResults = await SelectDownloadTargetsAsync(results, query, select, all).ConfigureAwait(false);
+            var selectedResults = await SelectDownloadTargetsAsync(results, options.Query, options.Select, options.All).ConfigureAwait(false);
             if (!selectedResults.Any())
             {
                 AnsiConsole.MarkupLine("[yellow]No items selected for download.[/]");
@@ -210,10 +209,10 @@ public class DownloadCommand
             }
 
             // Apply output and quality overrides
-            var downloadConfig = ApplyDownloadOverrides(config, output, quality);
+            var downloadConfig = ApplyDownloadOverrides(config, options.Output, options.Quality);
 
             // Execute downloads
-            if (immediate)
+            if (options.Immediate)
             {
                 // Direct download mode
                 await ExecuteDownloadsAsync(selectedResults, downloadConfig).ConfigureAwait(false);
@@ -221,13 +220,13 @@ public class DownloadCommand
             else
             {
                 // Queue mode (default)
-                await AddToQueueAsync(selectedResults, downloadConfig, priority, queueId).ConfigureAwait(false);
+                await AddToQueueAsync(selectedResults, downloadConfig, options.Priority, options.QueueId).ConfigureAwait(false);
             }
         }
         catch (Exception ex)
         {
             AnsiConsole.MarkupLine($"[red]Download failed: {ex.Message}[/]");
-            _logger.LogError(ex, "Download failed for query: {Query}", query);
+            _logger.LogError(ex, "Download failed for query: {Query}", options.Query);
         }
     }
 
@@ -936,5 +935,31 @@ public class DownloadCommand
                 AdditionalApiCalls = 0
             };
         }
+    }
+
+    private async Task<QobuzConfig?> InitializeAndValidateAsync(DownloadOptions options)
+    {
+        // Initialize plugin host
+        var config = await _configService.LoadConfigAsync().ConfigureAwait(false);
+        if (!_pluginHost.IsInitialized)
+        {
+            await _pluginHost.InitializeAsync(config).ConfigureAwait(false);
+        }
+
+        // Set concurrency override if provided
+        if (options.Concurrency.HasValue)
+        {
+            _logger.LogInformation("Concurrency override requested: {Concurrency} (plugin uses internal concurrency management)", options.Concurrency.Value);
+        }
+
+        // Check authentication
+        var authValid = await _pluginHost.TestAuthenticationAsync().ConfigureAwait(false);
+        if (!authValid)
+        {
+            AnsiConsole.MarkupLine("[red]❌ Authentication failed. Please run 'qobuz auth login' first.[/]");
+            return null;
+        }
+
+        return config;
     }
 }
