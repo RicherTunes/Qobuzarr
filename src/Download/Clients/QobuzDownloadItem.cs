@@ -144,7 +144,7 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Clients
                 Removed = false,
                 DownloadClientInfo = new DownloadClientItemClientInfo
                 {
-                    Protocol = "QobuzarrDownloadProtocol",
+                    Protocol = "Qobuzarr",
                     Type = "Qobuzarr",
                     Id = downloadClientId, // Use actual download client ID
                     Name = downloadClientName,
