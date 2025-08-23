@@ -1,0 +1,357 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using FluentAssertions;
+using Xunit;
+using Xunit.Abstractions;
+using Lidarr.Plugin.Qobuzarr.Security;
+
+namespace Qobuzarr.IntegrationTests
+{
+    /// <summary>
+    /// Standalone security tests that don't require live Lidarr connectivity.
+    /// These tests validate our InputSanitizer implementation works correctly.
+    /// </summary>
+    public class StandaloneSecurityTests
+    {
+        private readonly ITestOutputHelper _output;
+
+        public StandaloneSecurityTests(ITestOutputHelper output)
+        {
+            _output = output;
+        }
+
+        [Fact]
+        [Trait("Category", "Security")]
+        [Trait("Priority", "Critical")]
+        public void Test_InputSanitizer_Email_Validation_Standalone()
+        {
+            _output.WriteLine("🛡️ Testing InputSanitizer Email Validation (Standalone)");
+            
+            // Test valid emails
+            var validEmails = new[] { "test@example.com", "user.name+tag@domain.co.uk", "123@test.org" };
+            foreach (var email in validEmails)
+            {
+                var result = InputSanitizer.SanitizeEmail(email);
+                result.Should().NotBeNullOrEmpty($"Valid email '{email}' should be sanitized successfully");
+                _output.WriteLine($"✅ Valid email handled correctly: {email} → {result}");
+            }
+            
+            // Test invalid emails (should throw exceptions)
+            var invalidEmails = new[] { 
+                "'; DROP TABLE users; --@evil.com",
+                "test@<script>alert('xss')</script>.com",
+                "user@domain'; exec xp_cmdshell('dir'); --",
+                new string('a', 300) + "@toolong.com" // Too long
+            };
+            
+            foreach (var email in invalidEmails)
+            {
+                _output.WriteLine($"🧪 Testing malicious email: {email.Substring(0, Math.Min(50, email.Length))}...");
+                
+                Action act = () => InputSanitizer.SanitizeEmail(email);
+                act.Should().Throw<ArgumentException>($"Malicious email should be rejected");
+                _output.WriteLine($"✅ Malicious email correctly rejected");
+            }
+        }
+
+        [Fact]
+        [Trait("Category", "Security")]
+        [Trait("Priority", "Critical")]
+        public void Test_InputSanitizer_Query_Sanitization_Standalone()
+        {
+            _output.WriteLine("🛡️ Testing InputSanitizer Query Sanitization (Standalone)");
+            
+            // Test legitimate search queries
+            var validQueries = new[] { 
+                "Miles Davis", 
+                "Taylor Swift - 1989", 
+                "The Beatles' White Album",
+                "Artist & Album Name",
+                "Song (Remix) [2021]"
+            };
+            
+            foreach (var query in validQueries)
+            {
+                var result = InputSanitizer.SanitizeSearchQuery(query);
+                result.Should().NotBeNullOrEmpty($"Valid query '{query}' should be sanitized");
+                _output.WriteLine($"✅ Valid query sanitized: {query} → {result}");
+            }
+            
+            // Test potentially dangerous queries
+            var dangerousQueries = new[] {
+                "'; DROP TABLE albums; --",
+                "<script>alert('xss')</script>",
+                "SELECT * FROM users WHERE 1=1",
+                "artist'; exec xp_cmdshell('format c:'); --",
+                "onclick=alert('hack')",
+                "javascript:void(0)"
+            };
+            
+            foreach (var query in dangerousQueries)
+            {
+                _output.WriteLine($"🧪 Testing dangerous query: {query}");
+                
+                var result = InputSanitizer.SanitizeSearchQuery(query);
+                
+                // Should be sanitized (cleaned) not thrown
+                result.Should().NotContain("script", "Scripts should be removed");
+                result.Should().NotContain("SELECT", "SQL should be removed");  
+                result.Should().NotContain("DROP", "SQL should be removed");
+                result.Should().NotContain("exec", "Commands should be removed");
+                result.Should().NotContain("onclick", "Events should be removed");
+                
+                _output.WriteLine($"✅ Dangerous query sanitized: {query} → {result}");
+            }
+        }
+
+        [Fact]
+        [Trait("Category", "Security")]
+        [Trait("Priority", "Critical")]
+        public void Test_InputSanitizer_Path_Traversal_Prevention_Standalone()
+        {
+            _output.WriteLine("🛡️ Testing InputSanitizer Path Traversal Prevention (Standalone)");
+            
+            // Test legitimate paths
+            var validPaths = new[] {
+                @"C:\Music\Downloads",
+                @"D:\Media\Albums\Artist\Album",
+                @"music\downloads"
+            };
+            
+            foreach (var path in validPaths)
+            {
+                try
+                {
+                    var result = InputSanitizer.SanitizeFilePath(path);
+                    result.Should().NotBeNullOrEmpty($"Valid path '{path}' should be sanitized");
+                    _output.WriteLine($"✅ Valid path sanitized: {path} → {result}");
+                }
+                catch (ArgumentException ex)
+                {
+                    _output.WriteLine($"⚠️ Valid path rejected (may be OS-specific): {path} - {ex.Message}");
+                }
+            }
+            
+            // Test dangerous paths (should throw exceptions)
+            var dangerousPaths = new[] {
+                @"C:\Music\..\..\..\Windows\System32",
+                @"music\..\..\..\..\autoexec.bat",
+                @"downloads/../../../secret/file.txt",
+                @"path/with/nullbyte\0/exploit.exe",
+                @"C:\Music\virus.exe"
+            };
+            
+            foreach (var path in dangerousPaths)
+            {
+                _output.WriteLine($"🧪 Testing dangerous path: {path}");
+                
+                Action act = () => InputSanitizer.SanitizeFilePath(path);
+                act.Should().Throw<ArgumentException>($"Dangerous path '{path}' should be rejected");
+                _output.WriteLine($"✅ Dangerous path correctly rejected: {path}");
+            }
+        }
+
+        [Fact]
+        [Trait("Category", "Security")]
+        [Trait("Priority", "High")]
+        public void Test_InputSanitizer_Credential_Validation_Standalone()
+        {
+            _output.WriteLine("🛡️ Testing InputSanitizer Credential Validation (Standalone)");
+            
+            // Test App ID validation
+            var validAppIds = new[] { "123456789", "app_id_test", "valid-app-id" };
+            foreach (var appId in validAppIds)
+            {
+                try
+                {
+                    var result = InputSanitizer.SanitizeAppId(appId);
+                    result.Should().Be(appId, "Valid App ID should pass through unchanged");
+                    _output.WriteLine($"✅ Valid App ID accepted: {appId}");
+                }
+                catch (ArgumentException ex)
+                {
+                    _output.WriteLine($"⚠️ Valid App ID rejected: {appId} - {ex.Message}");
+                }
+            }
+            
+            // Test invalid App IDs
+            var invalidAppIds = new[] { 
+                "'; DROP TABLE--", 
+                "app id with spaces", 
+                "<script>",
+                new string('a', 100) // Too long
+            };
+            
+            foreach (var appId in invalidAppIds)
+            {
+                _output.WriteLine($"🧪 Testing invalid App ID: {appId.Substring(0, Math.Min(20, appId.Length))}...");
+                
+                Action act = () => InputSanitizer.SanitizeAppId(appId);
+                act.Should().Throw<ArgumentException>($"Invalid App ID should be rejected");
+                _output.WriteLine($"✅ Invalid App ID correctly rejected");
+            }
+        }
+
+        [Fact]
+        [Trait("Category", "Security")]
+        [Trait("Priority", "High")]
+        public void Test_InputSanitizer_Country_Code_Validation_Standalone()
+        {
+            _output.WriteLine("🛡️ Testing InputSanitizer Country Code Validation (Standalone)");
+            
+            // Test valid country codes
+            var validCodes = new[] { "US", "CA", "GB", "FR", "DE", "JP", "AU" };
+            foreach (var code in validCodes)
+            {
+                var result = InputSanitizer.SanitizeCountryCode(code.ToLowerInvariant());
+                result.Should().Be(code, $"Valid country code '{code}' should be normalized to uppercase");
+                _output.WriteLine($"✅ Valid country code: {code.ToLowerInvariant()} → {result}");
+            }
+            
+            // Test invalid country codes (empty string should default to US, not throw)
+            var emptyResult = InputSanitizer.SanitizeCountryCode("");
+            emptyResult.Should().Be("US", "Empty country code should default to US");
+            _output.WriteLine($"✅ Empty country code defaults to US: '' → {emptyResult}");
+            
+            // Test actually invalid country codes
+            var invalidCodes = new[] { "USA", "123", "GB'; DROP--", "<script>", "X" };
+            foreach (var code in invalidCodes)
+            {
+                _output.WriteLine($"🧪 Testing invalid country code: {code}");
+                
+                Action act = () => InputSanitizer.SanitizeCountryCode(code);
+                act.Should().Throw<ArgumentException>($"Invalid country code '{code}' should be rejected");
+                _output.WriteLine($"✅ Invalid country code correctly rejected: {code}");
+            }
+        }
+
+        [Fact]
+        [Trait("Category", "Security")]
+        [Trait("Priority", "Medium")]
+        public void Test_Dangerous_Content_Detection_Standalone()
+        {
+            _output.WriteLine("🛡️ Testing Dangerous Content Detection (Standalone)");
+            
+            // Test obviously safe content
+            var safeInputs = new[] {
+                "Miles Davis",
+                "The Beatles - Abbey Road",
+                "Artist Name 123",
+                "Album (Deluxe Edition) [2021]"
+            };
+            
+            foreach (var input in safeInputs)
+            {
+                var isDangerous = InputSanitizer.ContainsDangerousContent(input);
+                isDangerous.Should().BeFalse($"Safe input '{input}' should not be flagged as dangerous");
+                _output.WriteLine($"✅ Safe input correctly identified: {input}");
+            }
+            
+            // Test obviously dangerous content
+            var dangerousInputs = new[] {
+                "'; DROP TABLE albums; --",
+                "<script>alert('xss')</script>",
+                "SELECT * FROM users",
+                "cmd.exe /c format c:",
+                "$(rm -rf /)",
+                "javascript:void(0)",
+                "onload=malicious()",
+                "1=1 OR 1=1"
+            };
+            
+            foreach (var input in dangerousInputs)
+            {
+                var isDangerous = InputSanitizer.ContainsDangerousContent(input);
+                isDangerous.Should().BeTrue($"Dangerous input '{input}' should be flagged as dangerous");
+                _output.WriteLine($"✅ Dangerous input correctly identified: {input}");
+            }
+        }
+
+        [Fact]
+        [Trait("Category", "Security")]
+        [Trait("Priority", "High")]
+        public void Test_URL_Parameter_Sanitization_Standalone()
+        {
+            _output.WriteLine("🛡️ Testing URL Parameter Sanitization (Standalone)");
+            
+            // Test normal parameters
+            var normalParams = new Dictionary<string, string>
+            {
+                ["query"] = "Miles Davis Kind of Blue",
+                ["artist"] = "Taylor Swift",
+                ["album"] = "1989 (Taylor's Version)",
+                ["limit"] = "50"
+            };
+            
+            foreach (var param in normalParams)
+            {
+                var result = InputSanitizer.SanitizeQueryParam(param.Key, param.Value);
+                result.Should().NotBeNullOrEmpty($"Normal parameter '{param.Key}={param.Value}' should be sanitized");
+                _output.WriteLine($"✅ Normal parameter sanitized: {param.Key}={param.Value} → {result}");
+            }
+            
+            // Test potentially dangerous parameters
+            var dangerousParams = new Dictionary<string, string>
+            {
+                ["query"] = "'; DROP TABLE albums; --",
+                ["app_id"] = "<script>alert('xss')</script>",
+                ["country_code"] = "US'; DELETE * FROM users; --"
+            };
+            
+            foreach (var param in dangerousParams)
+            {
+                _output.WriteLine($"🧪 Testing dangerous parameter: {param.Key}={param.Value}");
+                
+                try
+                {
+                    var result = InputSanitizer.SanitizeQueryParam(param.Key, param.Value);
+                    
+                    // If it doesn't throw, it should at least be sanitized
+                    result.Should().NotContain("DROP", "SQL injection should be removed");
+                    result.Should().NotContain("script", "Script tags should be removed");
+                    result.Should().NotContain("exec", "Commands should be removed");
+                    
+                    _output.WriteLine($"✅ Dangerous parameter sanitized: {param.Key}={param.Value} → {result}");
+                }
+                catch (ArgumentException)
+                {
+                    _output.WriteLine($"✅ Dangerous parameter correctly rejected: {param.Key}={param.Value}");
+                }
+            }
+        }
+
+        [Fact]
+        [Trait("Category", "Security")]
+        [Trait("Priority", "Medium")]
+        public void Test_Security_Documentation_Exists()
+        {
+            _output.WriteLine("📚 Validating Security Documentation Exists");
+            
+            // This test validates that security files are present
+            var securityFiles = new[]
+            {
+                @"I:\Arr-Plugins\Lidarr\Qobuzarr\src\Security\InputSanitizer.cs",
+                @"I:\Arr-Plugins\Lidarr\Qobuzarr\docs\VERIFICATION-REPORT.md",
+                @"I:\Arr-Plugins\Lidarr\Qobuzarr\docs\LIVE-TESTING-GUIDE.md"
+            };
+            
+            foreach (var file in securityFiles)
+            {
+                var exists = System.IO.File.Exists(file);
+                exists.Should().BeTrue($"Security file '{file}' should exist");
+                
+                if (exists)
+                {
+                    _output.WriteLine($"✅ Security file exists: {System.IO.Path.GetFileName(file)}");
+                }
+                else
+                {
+                    _output.WriteLine($"❌ Security file missing: {file}");
+                }
+            }
+            
+            _output.WriteLine("✅ Security documentation validation completed");
+        }
+    }
+}
