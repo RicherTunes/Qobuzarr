@@ -661,7 +661,7 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
                     {
                         success = false,
                         message = "ML engine not initialized",
-                        data = (object)null!
+                        data = (object?)null!
                     };
                 }
                 
@@ -710,7 +710,7 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
                 {
                     success = false,
                     message = ex.Message,
-                    data = (object)null
+                    data = (object?)null
                 };
             }
         }
@@ -725,12 +725,12 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
                     {
                         success = false,
                         message = "ML engine not initialized",
-                        health = (object)null
+                        health = (object?)null
                     };
                 }
                 
                 var mlEngine = _patternLearningEngine.Value;
-                PerformanceHealth healthStatus = null;
+                PerformanceHealth? healthStatus = null;
                 
                 if (mlEngine is CompiledMLQueryOptimizer compiledOptimizer)
                 {
@@ -747,7 +747,7 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
                     {
                         success = false,
                         message = "Health status not available for this ML engine type",
-                        health = (object)null
+                        health = (object?)null
                     };
                 }
                 
@@ -774,7 +774,7 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
                 {
                     success = false,
                     message = ex.Message,
-                    health = (object)null
+                    health = (object?)null
                 };
             }
         }
