@@ -27,12 +27,8 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
     {
         public override string Name => "Qobuzarr";
         
-        // Protocol property - compatibility between CI (DownloadProtocol enum) and local (string)
-#if USE_DOWNLOAD_PROTOCOL_ENUM
+        // Protocol property - use Unknown for streaming services (proper Lidarr pattern)
         public override DownloadProtocol Protocol => DownloadProtocol.Unknown;
-#else
-        public override string Protocol => "Qobuzarr";
-#endif
         public override bool SupportsRss => false;
         public override bool SupportsSearch => true;
         public override int PageSize => 100;

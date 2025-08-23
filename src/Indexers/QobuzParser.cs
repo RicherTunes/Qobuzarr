@@ -221,11 +221,7 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
                 Guid = $"qobuz-{album.Id}-{(int)quality}",
                 
                 // CRITICAL: Set the download protocol to fix frontend display
-#if USE_DOWNLOAD_PROTOCOL_ENUM
                 DownloadProtocol = DownloadProtocol.Unknown,
-#else
-                DownloadProtocol = "Qobuzarr",
-#endif
                 
                 // Basic metadata - ENSURE NON-EMPTY NAMES
                 Artist = artistName,
