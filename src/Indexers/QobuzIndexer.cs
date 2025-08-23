@@ -25,7 +25,7 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
 {
     public class QobuzIndexer : HttpIndexerBase<QobuzIndexerSettings>, IDisposable
     {
-        public override string Name => "Qobuzarr";
+        public override string Name => QobuzarrDownloadProtocol.DisplayName;
         
         // Protocol property - must match the IDownloadProtocol class name (TrevTV's approach)
         public override string Protocol => nameof(QobuzarrDownloadProtocol);
