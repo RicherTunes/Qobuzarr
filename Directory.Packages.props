@@ -24,6 +24,14 @@
     <PackageVersion Include="ILRepack.Lib.MSBuild.Task" Version="2.0.34.2" />
   </ItemGroup>
 
+  <!-- Security Updates for Transitive Dependencies -->
+  <ItemGroup>
+    <!-- Security patches for known vulnerabilities -->
+    <PackageVersion Include="System.Text.Json" Version="8.0.5" />
+    <PackageVersion Include="System.Net.Http" Version="4.3.4" />
+    <PackageVersion Include="System.Text.RegularExpressions" Version="4.3.1" />
+  </ItemGroup>
+
   <!-- CLI Application Dependencies -->
   <ItemGroup>
     <!-- CLI Framework -->
