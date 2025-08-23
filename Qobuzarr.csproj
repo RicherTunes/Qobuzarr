@@ -4,6 +4,7 @@
     <TargetFramework>net6.0</TargetFramework>
     <LangVersion>latest</LangVersion>
     <Nullable>enable</Nullable>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <AssemblyName>Lidarr.Plugin.Qobuzarr</AssemblyName>
     <RootNamespace>Lidarr.Plugin.Qobuzarr</RootNamespace>
     <OutputPath>bin\</OutputPath>

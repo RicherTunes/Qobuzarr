@@ -2,6 +2,7 @@ using System.Reflection;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
 using QobuzCLI.Models;
+using QobuzCLI.Models.Configuration;
 using Spectre.Console;
 
 namespace QobuzCLI.Services;
@@ -9,16 +10,33 @@ namespace QobuzCLI.Services;
 public class ConfigService : IConfigService
 {
     private const string ConfigFileName = "qobuz-config.json";
+    private const string NewConfigFileName = "qobuz-configuration.json";
     private readonly ILogger<ConfigService> _logger;
     private readonly string _configPath;
+    private readonly string _newConfigPath;
     private QobuzConfig? _config;
+    private QobuzConfiguration? _configuration;
     private readonly Dictionary<string, Models.ConfigParameter> _parameters;
 
     public ConfigService(ILogger<ConfigService> logger)
     {
         _logger = logger;
         _configPath = GetConfigPath();
+        _newConfigPath = GetNewConfigPath();
         _parameters = BuildParameterDefinitions();
+    }
+
+    private string GetNewConfigPath()
+    {
+        var homeDirectory = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+        var qobuzDirectory = Path.Combine(homeDirectory, ".qobuz");
+        
+        if (!Directory.Exists(qobuzDirectory))
+        {
+            Directory.CreateDirectory(qobuzDirectory);
+        }
+        
+        return Path.Combine(qobuzDirectory, NewConfigFileName);
     }
 
     public string GetConfigPath()
@@ -39,38 +57,76 @@ public class ConfigService : IConfigService
         if (_config != null)
             return _config;
 
-        try
-        {
-            if (File.Exists(_configPath))
-            {
-                var json = await File.ReadAllTextAsync(_configPath).ConfigureAwait(false);
-                _config = JsonConvert.DeserializeObject<QobuzConfig>(json) ?? new QobuzConfig();
-                _logger.LogDebug("Configuration loaded from {ConfigPath}", _configPath);
-            }
-            else
-            {
-                _config = new QobuzConfig();
-                await SaveConfigAsync(_config).ConfigureAwait(false);
-                _logger.LogInformation("Created default configuration at {ConfigPath}", _configPath);
-            }
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Failed to load configuration, using defaults");
-            _config = new QobuzConfig();
-        }
-
+        // Load the new configuration and convert to legacy format for backward compatibility
+        var newConfig = await LoadConfigurationAsync().ConfigureAwait(false);
+        _config = newConfig.ToLegacyConfig();
+        
         return _config;
     }
 
     public async Task SaveConfigAsync(QobuzConfig config)
     {
+        // Convert legacy config to new format and save
+        var newConfig = QobuzConfiguration.FromLegacyConfig(config);
+        await SaveConfigurationAsync(newConfig).ConfigureAwait(false);
+        _config = config;
+        
+        _logger.LogDebug("Legacy configuration converted and saved to new format");
+    }
+
+    public async Task<QobuzConfiguration> LoadConfigurationAsync()
+    {
+        if (_configuration != null)
+            return _configuration;
+
         try
         {
-            var json = JsonConvert.SerializeObject(config, Formatting.Indented);
-            await File.WriteAllTextAsync(_configPath, json).ConfigureAwait(false);
-            _config = config;
-            _logger.LogDebug("Configuration saved to {ConfigPath}", _configPath);
+            // Try to load the new configuration format first
+            if (File.Exists(_newConfigPath))
+            {
+                var json = await File.ReadAllTextAsync(_newConfigPath).ConfigureAwait(false);
+                _configuration = JsonConvert.DeserializeObject<QobuzConfiguration>(json) ?? new QobuzConfiguration();
+                _logger.LogDebug("New configuration loaded from {ConfigPath}", _newConfigPath);
+            }
+            // If new config doesn't exist, try to migrate from legacy config
+            else if (File.Exists(_configPath))
+            {
+                _logger.LogInformation("Migrating legacy configuration to new format");
+                var legacyJson = await File.ReadAllTextAsync(_configPath).ConfigureAwait(false);
+                var legacyConfig = JsonConvert.DeserializeObject<QobuzConfig>(legacyJson) ?? new QobuzConfig();
+                _configuration = QobuzConfiguration.FromLegacyConfig(legacyConfig);
+                
+                // Save the migrated configuration
+                await SaveConfigurationAsync(_configuration).ConfigureAwait(false);
+                _logger.LogInformation("Configuration migrated successfully to {NewConfigPath}", _newConfigPath);
+            }
+            else
+            {
+                // Create new default configuration
+                _configuration = new QobuzConfiguration();
+                await SaveConfigurationAsync(_configuration).ConfigureAwait(false);
+                _logger.LogInformation("Created default configuration at {ConfigPath}", _newConfigPath);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to load configuration, using defaults");
+            _configuration = new QobuzConfiguration();
+        }
+
+        // Validate the loaded configuration
+        _configuration.ValidateConfiguration();
+        return _configuration;
+    }
+
+    public async Task SaveConfigurationAsync(QobuzConfiguration configuration)
+    {
+        try
+        {
+            var json = JsonConvert.SerializeObject(configuration, Formatting.Indented);
+            await File.WriteAllTextAsync(_newConfigPath, json).ConfigureAwait(false);
+            _configuration = configuration;
+            _logger.LogDebug("Configuration saved to {ConfigPath}", _newConfigPath);
         }
         catch (Exception ex)
         {

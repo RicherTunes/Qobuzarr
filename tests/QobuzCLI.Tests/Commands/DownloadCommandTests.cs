@@ -27,6 +27,7 @@ public class DownloadCommandTests
     private readonly Mock<ILogger<Dashboard>> _mockDashboardLogger;
     private readonly Mock<IServiceProvider> _mockServiceProvider;
     private readonly Mock<IBatchDownloadService> _mockBatchDownloadService;
+    private readonly Mock<IInteractiveSelectionService> _mockSelectionService;
     private readonly QueueMonitoringService _queueMonitoring;
     private readonly DownloadCommand _downloadCommand;
 
@@ -40,6 +41,7 @@ public class DownloadCommandTests
         _mockDashboardLogger = new Mock<ILogger<Dashboard>>();
         _mockServiceProvider = new Mock<IServiceProvider>();
         _mockBatchDownloadService = new Mock<IBatchDownloadService>();
+        _mockSelectionService = new Mock<IInteractiveSelectionService>();
         _queueMonitoring = new QueueMonitoringService(_mockQueueService.Object);
 
         _downloadCommand = new DownloadCommand(
@@ -50,7 +52,8 @@ public class DownloadCommandTests
             _mockLogger.Object,
             new Mock<IDashboard>().Object,
             _mockBatchDownloadService.Object,
-            _queueMonitoring
+            _queueMonitoring,
+            _mockSelectionService.Object
         );
     }
 
@@ -166,7 +169,8 @@ public class QualityMappingTests
             mockLogger.Object,
             mockDashboard.Object,
             mockBatchDownloadService.Object,
-            queueMonitoring
+            queueMonitoring,
+            new Mock<IInteractiveSelectionService>().Object
         );
     }
 

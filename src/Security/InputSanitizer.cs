@@ -1,4 +1,6 @@
 using System;
+using System.Globalization;
+using System.IO;
 using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
@@ -313,5 +315,244 @@ namespace Lidarr.Plugin.Qobuzarr.Security
                    scriptPatterns.Any(pattern => lowerInput.Contains(pattern)) ||
                    cmdPatterns.Any(pattern => lowerInput.Contains(pattern));
         }
+
+        #region Consolidated Sanitization Methods
+
+        /// <summary>
+        /// Sanitizes file names to be safe for file system operations
+        /// Consolidated from FileNameSanitizer
+        /// </summary>
+        public static string SanitizeFileName(string fileName)
+        {
+            if (string.IsNullOrWhiteSpace(fileName))
+                return "unknown_file";
+
+            // Remove or replace illegal file system characters
+            var illegal = new char[] { '<', '>', ':', '"', '|', '?', '*', '/', '\\' };
+            var sanitized = fileName;
+            
+            foreach (var c in illegal)
+            {
+                sanitized = sanitized.Replace(c, '_');
+            }
+
+            // Remove control characters
+            sanitized = Regex.Replace(sanitized, @"[\x00-\x1F\x7F]", "");
+            
+            // Handle Unicode normalization
+            sanitized = sanitized.Normalize(NormalizationForm.FormC);
+            
+            // Trim and ensure reasonable length
+            sanitized = sanitized.Trim().Trim('.');
+            if (sanitized.Length > 255)
+                sanitized = sanitized.Substring(0, 255);
+                
+            // Handle empty result
+            if (string.IsNullOrWhiteSpace(sanitized))
+                return "unknown_file";
+                
+            // Handle Windows reserved names
+            var reservedNames = new[] { "CON", "PRN", "AUX", "NUL", "COM1", "COM2", "COM3", "COM4", "COM5", "COM6", "COM7", "COM8", "COM9", "LPT1", "LPT2", "LPT3", "LPT4", "LPT5", "LPT6", "LPT7", "LPT8", "LPT9" };
+            var nameWithoutExt = Path.GetFileNameWithoutExtension(sanitized);
+            if (reservedNames.Contains(nameWithoutExt.ToUpperInvariant()))
+                sanitized = "safe_" + sanitized;
+
+            return sanitized;
+        }
+
+        /// <summary>
+        /// Sanitizes artist names for metadata
+        /// Consolidated from MetadataSanitizer
+        /// </summary>
+        public static string SanitizeArtistName(string artistName)
+        {
+            if (string.IsNullOrWhiteSpace(artistName))
+                return "Unknown Artist";
+
+            var sanitized = artistName.Trim();
+            
+            // Check for dangerous content first
+            if (IsPotentiallyDangerous(sanitized))
+                return "Unknown Artist";
+            
+            // Remove HTML tags
+            sanitized = Regex.Replace(sanitized, @"<[^>]*>", "");
+            
+            // Remove dangerous characters
+            sanitized = sanitized.Replace("'", "'").Replace("\"", "'");
+            sanitized = Regex.Replace(sanitized, @"[\x00-\x1F\x7F]", "");
+            
+            // Unicode normalization
+            sanitized = sanitized.Normalize(NormalizationForm.FormC);
+            
+            // Collapse multiple spaces
+            sanitized = Regex.Replace(sanitized, @"\s+", " ").Trim();
+            
+            // Length limit
+            if (sanitized.Length > 100)
+                sanitized = sanitized.Substring(0, 100).Trim();
+                
+            return string.IsNullOrWhiteSpace(sanitized) ? "Unknown Artist" : sanitized;
+        }
+
+        /// <summary>
+        /// Sanitizes album titles for metadata
+        /// Consolidated from MetadataSanitizer
+        /// </summary>
+        public static string SanitizeAlbumTitle(string albumTitle)
+        {
+            if (string.IsNullOrWhiteSpace(albumTitle))
+                return "Unknown Album";
+
+            var sanitized = albumTitle.Trim();
+            
+            // Remove path traversal attempts
+            sanitized = sanitized.Replace("../", "___").Replace("..\\", "___");
+            
+            // Remove HTML tags and dangerous content
+            sanitized = Regex.Replace(sanitized, @"<[^>]*>", "");
+            
+            // Replace dangerous file system characters
+            var dangerous = new char[] { '<', '>', ':', '"', '|', '?', '*', '/', '\\' };
+            foreach (var c in dangerous)
+            {
+                sanitized = sanitized.Replace(c, '_');
+            }
+            
+            // Remove control characters
+            sanitized = Regex.Replace(sanitized, @"[\x00-\x1F\x7F]", "");
+            
+            // Unicode normalization
+            sanitized = sanitized.Normalize(NormalizationForm.FormC);
+            
+            // Collapse spaces and trim
+            sanitized = Regex.Replace(sanitized, @"\s+", " ").Trim();
+            
+            // Length limit
+            if (sanitized.Length > 100)
+                sanitized = sanitized.Substring(0, 100).Trim();
+                
+            return string.IsNullOrWhiteSpace(sanitized) ? "Unknown Album" : sanitized;
+        }
+
+        /// <summary>
+        /// Sanitizes version strings for metadata
+        /// Consolidated from MetadataSanitizer
+        /// </summary>
+        public static string SanitizeVersion(string version)
+        {
+            if (string.IsNullOrWhiteSpace(version))
+                return "";
+
+            var sanitized = version.Trim();
+            
+            // Check for dangerous content first
+            if (IsPotentiallyDangerous(sanitized))
+                return "Version"; // Safe default for dangerous input
+            
+            // Remove script tags
+            sanitized = Regex.Replace(sanitized, @"<script[^>]*>.*?</script>", "", RegexOptions.IgnoreCase | RegexOptions.Singleline);
+            
+            // Remove other HTML tags
+            sanitized = Regex.Replace(sanitized, @"<[^>]*>", "");
+            
+            // Replace dangerous file system characters
+            sanitized = sanitized.Replace(":", "-").Replace("/", "_").Replace("\\", "_")
+                                .Replace("*", "_").Replace("?", "_").Replace("\"", "'")
+                                .Replace("<", "(").Replace(">", ")").Replace("|", "_");
+            
+            // Remove control characters and zero-width characters
+            sanitized = Regex.Replace(sanitized, @"[\x00-\x1F\x7F\u200B\u200C\u200D\uFEFF]", "");
+            
+            // Normalize whitespace
+            sanitized = Regex.Replace(sanitized, @"[\r\n\t]+", " ");
+            sanitized = Regex.Replace(sanitized, @"\s+", " ").Trim();
+            
+            // Length limit
+            if (sanitized.Length > 100)
+                sanitized = sanitized.Substring(0, 100).Trim();
+                
+            return sanitized;
+        }
+
+        /// <summary>
+        /// HTML encodes text to prevent XSS
+        /// Consolidated from MetadataSanitizer
+        /// </summary>
+        public static string HtmlEncode(string text)
+        {
+            if (string.IsNullOrEmpty(text))
+                return "";
+                
+            return HttpUtility.HtmlEncode(text);
+        }
+
+        /// <summary>
+        /// Checks if a URL is safe for use
+        /// Consolidated from LidarrInputValidator
+        /// </summary>
+        public static bool IsUrlSafe(string url)
+        {
+            if (string.IsNullOrWhiteSpace(url))
+                return false;
+
+            // Check for dangerous protocols
+            var dangerousProtocols = new[] { "javascript:", "data:", "file:", "ftp:" };
+            var lowerUrl = url.ToLowerInvariant();
+            
+            if (dangerousProtocols.Any(proto => lowerUrl.StartsWith(proto)))
+                return false;
+                
+            // Must be HTTP or HTTPS
+            return lowerUrl.StartsWith("http://") || lowerUrl.StartsWith("https://");
+        }
+
+        /// <summary>
+        /// Checks if input is potentially dangerous (enhanced version)
+        /// Consolidated and enhanced from MetadataSanitizer
+        /// </summary>
+        public static bool IsPotentiallyDangerous(string input)
+        {
+            if (string.IsNullOrEmpty(input))
+                return false;
+
+            var lowerInput = input.ToLowerInvariant();
+
+            // SQL injection patterns
+            var sqlPatterns = new[] { 
+                "';", "\";", "drop table", "insert into", "delete from", "update ", "union select",
+                "exec ", "execute ", "xp_", "sp_", "-- ", "/*", "*/"
+            };
+
+            // Script injection patterns  
+            var scriptPatterns = new[] {
+                "<script", "javascript:", "vbscript:", "onload=", "onerror=", "onclick=",
+                "onmouseover=", "</script>", "alert(", "eval(", "document."
+            };
+
+            // Command injection patterns
+            var cmdPatterns = new[] {
+                "&&", "||", ";", "`", "$(", "${", "rm -rf", "del /", "format ",
+                "shutdown", "reboot", "/bin/", "cmd.exe", "powershell"
+            };
+
+            // Path traversal patterns
+            var pathPatterns = new[] {
+                "../", "..\\", "%2e%2e%2f", "%2e%2e%5c", "....//", "....//"
+            };
+
+            // LDAP injection patterns
+            var ldapPatterns = new[] {
+                ")(", ")(&", ")(|", "*)(", "admin)", "(cn=", "(uid="
+            };
+
+            return sqlPatterns.Any(pattern => lowerInput.Contains(pattern)) ||
+                   scriptPatterns.Any(pattern => lowerInput.Contains(pattern)) ||
+                   cmdPatterns.Any(pattern => lowerInput.Contains(pattern)) ||
+                   pathPatterns.Any(pattern => lowerInput.Contains(pattern)) ||
+                   ldapPatterns.Any(pattern => lowerInput.Contains(pattern));
+        }
+
+        #endregion
     }
 }
