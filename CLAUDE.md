@@ -157,7 +157,7 @@ QobuzCLI/                      # Test CLI wrapper
 ├── Services/Adapters/         # Adapters between CLI and plugin interfaces
 └── Program.cs                 # Entry point
 
-ext/Lidarr-source/             # External Lidarr dependencies (git-ignored)
+ext/Lidarr/_output/            # Pre-built Lidarr assemblies (ONLY supported method)
 ```
 
 ### Key Components
@@ -169,26 +169,32 @@ ext/Lidarr-source/             # External Lidarr dependencies (git-ignored)
 
 ### Dependency Setup
 
-The project supports two approaches for Lidarr dependencies:
+**🚨 CRITICAL: Use ONLY Pre-built Assemblies 🚨**
 
-#### Option 1: Pre-built Assemblies (Recommended for CI/GitHub)
+The project ONLY supports pre-built Lidarr assemblies. Source builds cause assembly conflicts.
+
+#### ✅ **Pre-built Assemblies (ONLY SUPPORTED METHOD)**:
 ```bash
-# Download pre-built Lidarr assemblies - much faster and more reliable
+# Download pre-built Lidarr assemblies - reliable and fast
 ./download-lidarr-assemblies.sh --version 2.13.2.4685
 .\download-lidarr-assemblies.ps1 -LidarrVersion "2.13.2.4685"
 
 # Build with pre-built assemblies  
-./build.sh --deploy --use-prebuilt
-.\build.ps1 -Deploy -UsePrebuiltAssemblies
+./build.sh --deploy
+.\build.ps1 -Deploy
 ```
 
-#### Option 2: Build from Source (Legacy method)
+#### ❌ **Source Builds (NEVER USE - CAUSES CONFLICTS)**:
 ```bash
-# Required for compilation (done automatically by setup scripts)
-# IMPORTANT: Must use exact commit that working plugins use, not branch head
-git clone https://github.com/Lidarr/Lidarr.git ext/Lidarr-source
-git -C ext/Lidarr-source checkout aa7b63f2e13351f54a31d780d6a7b93a2411eaec
+# DON'T: Creates assembly reference conflicts
+git clone https://github.com/Lidarr/Lidarr.git ext/Lidarr-source  # ❌ CAUSES DUAL REFERENCES
+dotnet build ext/Lidarr-source/...  # ❌ PACKAGE MANAGEMENT ERRORS
 ```
+
+**Why Source Builds Fail**:
+- Creates dual assembly references (`ext/Lidarr-source` + `ext/Lidarr/_output`)
+- MSBuild can't resolve conflicting type definitions
+- Results in CS0246 and CS1715 compilation errors
 
 ### Build Issues and Solutions
 
@@ -282,16 +288,17 @@ steps:
 - ✅ **Reliable**: Consistent results across all environments
 - ✅ **Fast**: No time wasted building entire Lidarr codebase
 
-### **NEVER DO SOURCE BUILDS AGAIN**:
+### **🚨 CRITICAL: NEVER MIX ASSEMBLY SOURCES 🚨**:
 
-**❌ What DOESN'T Work (Avoid These Approaches)**:
+**❌ What CAUSES FAILURES (NEVER DO THIS)**:
 ```bash
-# DON'T: Complex source builds (NuGet conflicts, hours of debugging)
+# DON'T: Mix assembly sources - causes type conflicts  
 git clone https://github.com/Lidarr/Lidarr.git ext/Lidarr-source
-dotnet build ext/Lidarr-source/src/Lidarr.sln  # ❌ FAILS with package management errors
+./download-lidarr-assemblies.sh  # ❌ CREATES DUAL REFERENCES
+# Result: MSB3277 conflicts, CS0246/CS1715 errors
 
-# DON'T: Pre-built assembly downloads (missing plugin interfaces)  
-curl -L "https://github.com/Lidarr/Lidarr/releases/..." # ❌ MISSING NzbDrone.Core.Plugins
+# DON'T: Source builds in CI (NuGet conflicts, hours of debugging)
+dotnet build ext/Lidarr-source/src/Lidarr.sln  # ❌ PACKAGE MANAGEMENT ERRORS
 ```
 
 **✅ What WORKS (TrevTV's Method)**:
@@ -358,8 +365,25 @@ The project includes pre-compiled ML optimization:
 ## Common Issues
 
 ### Build Issues
-- If "Skipping project... because it was not found" appears: Run setup script to clone Lidarr dependencies
-- Missing Lidarr assemblies: Ensure `ext/Lidarr-source/` exists and contains Lidarr source code
+
+#### 🚨 **Assembly Reference Conflicts** (MOST COMMON ISSUE)
+**Symptoms**: 
+```
+error CS0246: The type or namespace name 'DownloadProtocol' could not be found
+error CS1715: type must be 'DownloadProtocol' to match overridden member
+warning MSB3277: Found conflicts between different versions of "TagLibSharp"
+```
+
+**Root Cause**: Multiple assembly sources causing type definition conflicts
+
+**Solution**: 
+1. **Delete conflicting source**: `rm -rf ext/Lidarr-source`
+2. **Use single source**: Only `ext/Lidarr/_output` (pre-built assemblies)
+3. **Protocol = DownloadProtocol.Unknown**: Use enum consistently
+
+#### **Other Build Issues**
+- If "Skipping project... because it was not found": Run `./download-lidarr-assemblies.sh`
+- Missing Lidarr assemblies: Ensure `ext/Lidarr/_output/` exists with pre-built DLLs
 - Analyzer warnings: Use `Directory.Build.props` settings to suppress non-critical warnings
 
 ### Plugin Development
@@ -579,56 +603,90 @@ The type or namespace name 'IDownloadProtocol' could not be found
 - Lidarr expects specific protocol handling for Usenet (retention) and Torrent (seeding)
 - Qobuzarr is a streaming service requiring different protocol identification
 
-### ✅ **PROVEN SOLUTION** (from terragon/fix-main-branch-build-errors):
+### ✅ **FINAL WORKING SOLUTION** (TESTED 2025-08-23):
 
-**1. Static Protocol Class** (`src/Indexers/QobuzarrDownloadProtocol.cs`):
-```csharp
-namespace Lidarr.Plugin.Qobuzarr.Indexers
-{
-    public static class QobuzarrDownloadProtocol
-    {
-        public const string Name = "Qobuzarr";
-    }
-}
-```
-
-**2. Protocol Property References**:
+**Protocol Implementation** (ALL files):
 ```csharp
 // QobuzIndexer.cs
-public override string Protocol => QobuzarrDownloadProtocol.Name;
+public override DownloadProtocol Protocol => DownloadProtocol.Unknown;
 
 // QobuzDownloadClient.cs  
-public override string Protocol => QobuzarrDownloadProtocol.Name;
+public override DownloadProtocol Protocol => DownloadProtocol.Unknown;
 
 // QobuzParser.cs
-DownloadProtocol = QobuzarrDownloadProtocol.Name,
+DownloadProtocol = DownloadProtocol.Unknown,
 
 // QobuzDownloadItem.cs
-Protocol = QobuzarrDownloadProtocol.Name,
+Protocol = DownloadProtocol.Unknown,
 ```
 
 ### 🎯 **Key Points**:
-- **Static class** (not interface implementation) - avoids IDownloadProtocol compatibility issues
-- **Const string "Qobuzarr"** - identifies our streaming protocol type
-- **Consistent references** - all Protocol properties use `QobuzarrDownloadProtocol.Name`
-- **No interface dependencies** - bypasses CI/local assembly version differences
+- **Use DownloadProtocol.Unknown enum** - standard Lidarr pattern for streaming services
+- **No custom protocol classes** - avoid interface compatibility issues
+- **Consistent across all files** - same enum value everywhere
+- **Single assembly source** - prevents type definition conflicts
 
-### ⚠️ **Remember**: 
-This fixes the **most common build failure** in Qobuzarr development. Always use this pattern when working with Protocol properties!
+### ⚠️ **Critical Requirements**: 
+1. **ONLY** use pre-built assemblies from `ext/Lidarr/_output`
+2. **NEVER** mix with source-built assemblies from `ext/Lidarr-source`
+3. **Protocol = DownloadProtocol.Unknown** for all streaming services
 
-### 🔥 **CRITICAL DISCOVERY - Plugin Branch vs Release Branch** 🔥
+### 🎯 **DEFINITIVE SOLUTION - Assembly Reference Conflicts** 🎯
 
 **ROOT CAUSE IDENTIFIED** (2025-08-23):
 
-**The Issue**: Our CI uses **Lidarr plugin development branch** which has **different interface signatures** than TrevTV's release-based approach:
+**The Real Issue**: **Conflicting assembly references** caused type definition conflicts:
 
-- **Our CI (plugin branch)**: `DownloadProtocol Protocol { get; }` (enum expected)
-- **TrevTV's CI (release branch)**: `string Protocol { get; }` (string expected)  
-- **Local development**: Uses source commit `aa7b63f2e13351f54a31d780d6a7b93a2411eaec` (string expected)
+- **Problem**: Project referenced BOTH `ext/Lidarr-source/_output` AND `ext/Lidarr/_output` assemblies
+- **Conflict**: Same types (DownloadProtocol) defined differently in each assembly source
+- **MSBuild confusion**: Couldn't resolve which type definition to use
 
-**Solution Options**:
-1. **Switch to release-based assemblies** (like TrevTV) - requires CI infrastructure change
-2. **Create compatibility layer** for plugin branch - adapt to enum requirements  
-3. **Override interface signatures** in plugin branch - risky but direct
+**DEFINITIVE SOLUTION** (TESTED AND WORKING):
+1. **Single Assembly Source**: Use ONLY `ext/Lidarr/_output` (pre-built assemblies)
+2. **Remove Conflicting Source**: Delete `ext/Lidarr-source` entirely
+3. **Consistent Protocol Type**: `DownloadProtocol.Unknown` enum is correct for both CI and local
+4. **No Conditional Compilation**: Clean, single code path
 
-**NEVER FORGET**: This is why identical code works locally but fails in CI - we use **different base assembly versions** than proven working plugins like TrevTV's!
+**Why This Works**:
+- ✅ **Eliminates conflicts**: Single assembly reference source
+- ✅ **Consistent types**: Same DownloadProtocol enum definition everywhere
+- ✅ **No hacks**: No conditional compilation or build flags needed
+- ✅ **Standard pattern**: `DownloadProtocol.Unknown` is proper for streaming services
+
+### 🚨 **CRITICAL LESSON: AVOID DUAL ASSEMBLY REFERENCES** 🚨
+
+**NEVER have both**:
+- `ext/Lidarr-source/_output/net6.0/Lidarr.Core.dll` (source-built)
+- `ext/Lidarr/_output/net6.0/Lidarr.Core.dll` (pre-built)
+
+**MSBuild Error Pattern**:
+```
+warning MSB3277: Found conflicts between different versions of "TagLibSharp"
+references which depend on "ext/Lidarr-source/_output" vs "ext/Lidarr/_output"
+```
+
+**ALWAYS**: Use single assembly source consistently across all environments.
+
+## 🎯 **DEFINITIVE BUILD SUCCESS FORMULA** 🎯
+
+**LEARNED 2025-08-23 - NEVER FORGET THIS**:
+
+### ✅ **What ALWAYS Works**:
+1. **Single Assembly Source**: `./download-lidarr-assemblies.sh --version 2.13.2.4685`
+2. **Delete Conflicts**: `rm -rf ext/Lidarr-source` (prevents dual references)
+3. **Protocol = DownloadProtocol.Unknown**: Use enum consistently for streaming services
+4. **Build Command**: Standard flags with analyzer suppression
+
+### 🚨 **What ALWAYS Fails**:
+1. **Mixed Assembly Sources**: Having both `ext/Lidarr-source` and `ext/Lidarr/_output`
+2. **Custom Protocol Classes**: Implementing `IDownloadProtocol` (interface doesn't exist)
+3. **Conditional Compilation Hacks**: Environment-specific code paths
+4. **Source Builds in CI**: Package management conflicts
+
+### 📋 **Standard Troubleshooting Checklist**:
+- [ ] Protocol errors → Check for dual assembly references
+- [ ] CS0246/CS1715 errors → Delete `ext/Lidarr-source`, use only `ext/Lidarr/_output`  
+- [ ] MSB3277 TagLibSharp conflicts → Expected, harmless warnings
+- [ ] Build failures → Use `DownloadProtocol.Unknown` enum consistently
+
+**THE GOLDEN RULE**: **One assembly source, standard enums, no hacks**.
