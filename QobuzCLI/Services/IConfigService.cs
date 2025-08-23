@@ -1,10 +1,15 @@
 using QobuzCLI.Models;
+using QobuzCLI.Models.Configuration;
 
 namespace QobuzCLI.Services;
 
 public interface IConfigService
 {
-    // Primary ConfigService API
+    // Modern Configuration API (QobuzConfiguration)
+    Task<QobuzConfiguration> LoadConfigurationAsync();
+    Task SaveConfigurationAsync(QobuzConfiguration configuration);
+    
+    // Legacy ConfigService API (QobuzConfig) - for backward compatibility
     Task<QobuzConfig> LoadConfigAsync();
     Task SaveConfigAsync(QobuzConfig config);
     Task<T> GetValueAsync<T>(string key, T defaultValue = default!);

@@ -2,10 +2,9 @@ using System.CommandLine;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Console;
-using NLog;
-using NLog.Extensions.Logging;
 using QobuzCLI.Commands;
 using QobuzCLI.Services;
+using QobuzCLI.Services.UI;
 using QobuzCLI.Services.Adapters;
 using QobuzCLI.Services.Logging;
 using Spectre.Console;
@@ -51,8 +50,7 @@ class Program
         
         try
         {
-            // Configure NLog before anything else
-            LogManager.Setup().LoadConfigurationFromFile("nlog.config");
+            // Configuration logging simplified for CLI
             
             // Setup dependency injection
             var services = new ServiceCollection();
@@ -90,8 +88,7 @@ class Program
         {
             builder.ClearProviders();
             
-            // Add NLog for file logging with full detail
-            builder.AddNLog();
+            // Use console logging instead of NLog for CLI
             
             // Add dashboard-aware console logging
             builder.Services.AddSingleton<ILoggerProvider>(serviceProvider =>
@@ -157,6 +154,8 @@ class Program
         services.AddSingleton<ISmartDuplicateChecker, SimpleDuplicateChecker>();
         services.AddSingleton<IBatchDownloadService, BatchDownloadService>();
         services.AddSingleton<QueueMonitoringService>();
+        services.AddSingleton<IConsoleUI, SpectreConsoleUI>();
+        services.AddSingleton<IInteractiveSelectionService, InteractiveSelectionService>();
         
         // Use improved queue service if enabled
         var useImprovedQueue = Environment.GetEnvironmentVariable("QOBUZ_USE_IMPROVED_QUEUE") == "true";
