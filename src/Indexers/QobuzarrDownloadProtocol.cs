@@ -15,6 +15,6 @@ namespace NzbDrone.Core.Indexers
         /// <summary>
         /// The display name for this protocol (to avoid hardcoding)
         /// </summary>
-        public const string DisplayName = "Qobuzarr";
+        public const string DisplayName = "Qobuzarr"; // Keep local for now to avoid circular dependency
     }
 }

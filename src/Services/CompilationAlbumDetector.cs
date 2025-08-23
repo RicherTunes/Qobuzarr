@@ -95,7 +95,7 @@ namespace Lidarr.Plugin.Qobuzarr.Services
 
             // Analyze both albums for compilation indicators
             var lidarrCompilation = AnalyzeSingleAlbumForCompilation(lidarrAlbum, "Lidarr");
-            var qobuzCompilation = AnalyzeSingleAlbumForCompilation(qobuzAlbum, "Qobuz");
+            var qobuzCompilation = AnalyzeSingleAlbumForCompilation(qobuzAlbum, Lidarr.Plugin.Qobuzarr.Constants.QobuzarrConstants.ServiceName);
 
             // Determine overall compilation status
             DetermineCompilationStatus(result, lidarrCompilation, qobuzCompilation);
