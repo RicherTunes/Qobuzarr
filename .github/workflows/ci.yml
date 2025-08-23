@@ -97,7 +97,8 @@ jobs:
           -p:Version="$PLUGIN_VERSION" \
           -p:RunAnalyzersDuringBuild=false \
           -p:EnableNETAnalyzers=false \
-          -p:TreatWarningsAsErrors=false
+          -p:TreatWarningsAsErrors=false \
+          -p:DefineConstants="USE_DOWNLOAD_PROTOCOL_ENUM"
         
         echo "✅ Main plugin built successfully - CLI build skipped for CI"
         

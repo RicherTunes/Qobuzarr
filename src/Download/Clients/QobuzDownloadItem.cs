@@ -2,8 +2,8 @@ using System;
 using System.Threading;
 using System.Threading.Tasks;
 using NzbDrone.Core.Download;
+using NzbDrone.Core.Indexers;
 using Lidarr.Plugin.Qobuzarr.Models;
-using Lidarr.Plugin.Qobuzarr.Indexers;
 
 namespace Lidarr.Plugin.Qobuzarr.Download.Clients
 {
@@ -145,10 +145,14 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Clients
                 Removed = false,
                 DownloadClientInfo = new DownloadClientItemClientInfo
                 {
-                    Protocol = nameof(QobuzarrDownloadProtocol),
-                    Type = QobuzarrDownloadProtocol.DisplayName,
+#if USE_DOWNLOAD_PROTOCOL_ENUM
+                    Protocol = DownloadProtocol.Unknown,
+#else
+                    Protocol = "Qobuzarr",
+#endif
+                    Type = "Qobuzarr",
                     Id = downloadClientId, // Use actual download client ID
-                    Name = downloadClientName ?? QobuzarrDownloadProtocol.DisplayName,
+                    Name = downloadClientName ?? "Qobuzarr",
                     RemoveCompletedDownloads = false,
                     HasPostImportCategory = false
                 }
