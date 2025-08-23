@@ -7,6 +7,7 @@ using System.Threading.Tasks;
 using Lidarr.Plugin.Qobuzarr.Abstractions;
 using Lidarr.Plugin.Qobuzarr.Core;
 using Lidarr.Plugin.Qobuzarr.Models;
+using Lidarr.Plugin.Qobuzarr.Security;
 
 namespace Lidarr.Plugin.Qobuzarr.Services
 {
@@ -35,6 +36,9 @@ namespace Lidarr.Plugin.Qobuzarr.Services
         /// </summary>
         public async Task<List<QobuzPlaylist>> SearchPlaylistsAsync(string query, int limit = 20)
         {
+            // Sanitize the search query
+            query = InputSanitizer.SanitizeSearchQuery(query);
+            
             var session = _authService.GetCurrentSession();
             if (session == null)
             {
@@ -162,6 +166,9 @@ namespace Lidarr.Plugin.Qobuzarr.Services
         /// </summary>
         public async Task<List<QobuzLabel>> SearchLabelsAsync(string query, int limit = 20)
         {
+            // Sanitize the search query
+            query = InputSanitizer.SanitizeSearchQuery(query);
+            
             var session = _authService.GetCurrentSession();
             if (session == null)
             {
@@ -338,6 +345,9 @@ namespace Lidarr.Plugin.Qobuzarr.Services
         /// </summary>
         public async Task<List<QobuzAlbum>> SearchAlbumsAsync(string query, int limit = 20)
         {
+            // Sanitize the search query
+            query = InputSanitizer.SanitizeSearchQuery(query);
+            
             var session = _authService.GetCurrentSession();
             if (session == null)
             {
@@ -364,6 +374,9 @@ namespace Lidarr.Plugin.Qobuzarr.Services
         /// </summary>
         public async Task<List<QobuzTrack>> SearchTracksAsync(string query, int limit = 20)
         {
+            // Sanitize the search query
+            query = InputSanitizer.SanitizeSearchQuery(query);
+            
             var session = _authService.GetCurrentSession();
             if (session == null)
             {
@@ -390,6 +403,9 @@ namespace Lidarr.Plugin.Qobuzarr.Services
         /// </summary>
         public async Task<List<QobuzArtist>> SearchArtistsAsync(string query, int limit = 20)
         {
+            // Sanitize the search query
+            query = InputSanitizer.SanitizeSearchQuery(query);
+            
             var session = _authService.GetCurrentSession();
             if (session == null)
             {
