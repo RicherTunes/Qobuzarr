@@ -7,6 +7,7 @@ using NzbDrone.Core.Indexers;
 using NzbDrone.Core.Validation;
 using NzbDrone.Common.Extensions;
 using Lidarr.Plugin.Qobuzarr.Configuration;
+using Lidarr.Plugin.Qobuzarr.Security;
 
 namespace Lidarr.Plugin.Qobuzarr.Indexers
 {
@@ -153,12 +154,30 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
         {
             // Use user-provided App ID if available
             if (!string.IsNullOrWhiteSpace(AppId))
-                return AppId;
+            {
+                try
+                {
+                    return InputSanitizer.SanitizeAppId(AppId);
+                }
+                catch
+                {
+                    // Invalid App ID, fall through to try environment variable
+                }
+            }
                 
             // Try environment variable as fallback
             var envAppId = System.Environment.GetEnvironmentVariable(QobuzConstants.Authentication.AppIdEnvironmentVariable);
             if (!string.IsNullOrWhiteSpace(envAppId))
-                return envAppId;
+            {
+                try
+                {
+                    return InputSanitizer.SanitizeAppId(envAppId);
+                }
+                catch
+                {
+                    // Invalid environment App ID
+                }
+            }
                 
             // No valid credentials available
             return string.Empty;
@@ -188,8 +207,17 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
         /// </summary>
         public string GetCountryCode()
         {
-            if (!string.IsNullOrWhiteSpace(CountryCode) && CountryCode.Length == 2)
-                return CountryCode.ToUpperInvariant();
+            try
+            {
+                if (!string.IsNullOrWhiteSpace(CountryCode))
+                {
+                    return InputSanitizer.SanitizeCountryCode(CountryCode);
+                }
+            }
+            catch
+            {
+                // Invalid country code, use default
+            }
                 
             return "US"; // Default fallback
         }
