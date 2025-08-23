@@ -27,9 +27,8 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
     {
         public override string Name => "Qobuzarr";
         
-        // Protocol property - using static string for CI compatibility
-        // TODO: Investigate CI vs local Lidarr assembly version differences  
-        public override string Protocol => "QobuzarrDownloadProtocol";
+        // Protocol property - identifies our download protocol type  
+        public override string Protocol => QobuzarrDownloadProtocol.Name;
         public override bool SupportsRss => false;
         public override bool SupportsSearch => true;
         public override int PageSize => 100;
