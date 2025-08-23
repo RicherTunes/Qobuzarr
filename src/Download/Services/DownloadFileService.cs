@@ -151,13 +151,6 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Services
                     return false;
                 }
 
-                // SECURITY: Validate path doesn't contain traversal attempts
-                if (path.Contains("..") || !Utilities.LidarrInputValidator.IsInputSafe(path))
-                {
-                    _logger.Warn("Download path contains potentially unsafe characters: {0}", path);
-                    return false;
-                }
-
                 var parentDirectory = Path.GetDirectoryName(path);
                 if (string.IsNullOrWhiteSpace(parentDirectory))
                 {
@@ -243,17 +236,17 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Services
             if (string.IsNullOrWhiteSpace(fileName))
                 return "Unknown";
 
-            // SECURITY: Use centralized sanitizer with comprehensive safety checks
-            var sanitized = Utilities.FileNameSanitizer.SanitizeFileName(fileName);
-            
-            // Additional validation to prevent any path traversal attempts
-            if (!Utilities.LidarrInputValidator.IsInputSafe(sanitized))
+            // Remove invalid characters
+            var invalidChars = Path.GetInvalidFileNameChars().Concat(Path.GetInvalidPathChars()).ToArray();
+            var sanitized = string.Join("_", fileName.Split(invalidChars, StringSplitOptions.RemoveEmptyEntries));
+
+            // Remove multiple consecutive underscores and trim
+            while (sanitized.Contains("__"))
             {
-                _logger.Warn("Potentially unsafe filename detected after sanitization: {0}", fileName);
-                return "Sanitized_Name";
+                sanitized = sanitized.Replace("__", "_");
             }
 
-            return sanitized;
+            return sanitized.Trim('_', ' ');
         }
 
         private string TruncateToLength(string input, int maxLength)

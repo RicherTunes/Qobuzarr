@@ -34,7 +34,7 @@ namespace Lidarr.Plugin.Qobuzarr.Core
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         }
 
-        public async Task<Services.QobuzStreamInfo?> GetStreamUrlAsync(string trackId, int formatId)
+        public async Task<QobuzStreamInfo?> GetStreamUrlAsync(string trackId, int formatId)
         {
             return await _streamUrlService.GetStreamInfoAsync(trackId, formatId);
         }
@@ -141,7 +141,7 @@ namespace Lidarr.Plugin.Qobuzarr.Core
         /// <summary>
         /// Get the best available stream URL with automatic quality fallback
         /// </summary>
-        public async Task<(int selectedQuality, Services.QobuzStreamInfo streamInfo)> GetBestAvailableStreamAsync(string trackId, int preferredQuality)
+        public async Task<(int selectedQuality, QobuzStreamInfo streamInfo)> GetBestAvailableStreamAsync(string trackId, int preferredQuality)
         {
             return await _qualityService.GetBestAvailableStreamAsync(trackId, preferredQuality);
         }

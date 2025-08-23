@@ -2,7 +2,6 @@ using System;
 using System.Threading;
 using System.Threading.Tasks;
 using Lidarr.Plugin.Qobuzarr.Authentication;
-using Lidarr.Plugin.Qobuzarr.Exceptions;
 using Lidarr.Plugin.Qobuzarr.Models.Authentication;
 using NLog;
 

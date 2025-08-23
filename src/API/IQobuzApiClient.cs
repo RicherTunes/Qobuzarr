@@ -52,13 +52,5 @@ namespace Lidarr.Plugin.Qobuzarr.API
         /// </summary>
         /// <returns>True if a valid session is set; false otherwise.</returns>
         bool HasValidSession();
-
-        /// <summary>
-        /// Gets album information from Qobuz API by album ID.
-        /// </summary>
-        /// <param name="albumId">The Qobuz album ID.</param>
-        /// <returns>The album information.</returns>
-        /// <exception cref="QobuzApiException">Thrown when the API returns an error response.</exception>
-        Task<Models.QobuzAlbum> GetAlbumAsync(string albumId);
     }
 }

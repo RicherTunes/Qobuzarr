@@ -105,39 +105,6 @@ namespace Lidarr.Plugin.Qobuzarr.API
             return _innerClient.HasValidSession();
         }
 
-        public async Task<Models.QobuzAlbum> GetAlbumAsync(string albumId)
-        {
-            // Apply adaptive rate limiting before making the request
-            await _adaptiveRateLimiter.WaitIfNeededAsync("album/get").ConfigureAwait(false);
-            
-            try
-            {
-                var result = await _innerClient.GetAlbumAsync(albumId).ConfigureAwait(false);
-                
-                // Record successful response
-                var successResponse = new HttpResponseMessage(System.Net.HttpStatusCode.OK);
-                _adaptiveRateLimiter.RecordResponse("album/get", successResponse);
-                
-                return result;
-            }
-            catch (Exception ex)
-            {
-                // Record error response
-                var errorResponse = new HttpResponseMessage(System.Net.HttpStatusCode.InternalServerError);
-                if (ex.Message.Contains("429") || ex.Message.Contains("rate limit", StringComparison.OrdinalIgnoreCase))
-                {
-                    errorResponse = new HttpResponseMessage(System.Net.HttpStatusCode.TooManyRequests);
-                }
-                else if (ex.Message.Contains("401") || ex.Message.Contains("unauthorized", StringComparison.OrdinalIgnoreCase))
-                {
-                    errorResponse = new HttpResponseMessage(System.Net.HttpStatusCode.Unauthorized);
-                }
-                
-                _adaptiveRateLimiter.RecordResponse("album/get", errorResponse);
-                throw;
-            }
-        }
-
         /// <summary>
         /// Get current rate limit statistics
         /// </summary>

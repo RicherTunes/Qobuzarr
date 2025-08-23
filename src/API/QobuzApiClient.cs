@@ -168,19 +168,12 @@ namespace Lidarr.Plugin.Qobuzarr.API
                         currentSession.AppId, currentSession.AuthToken?.Substring(Math.Max(0, currentSession.AuthToken.Length - 4)) ?? "null");
                 }
 
-                // Add custom parameters with sanitization
+                // Add custom parameters
                 if (parameters != null)
                 {
                     foreach (var param in parameters)
                     {
-                        // SECURITY: Sanitize parameter values to prevent injection
-                        var sanitizedValue = param.Value;
-                        if (!string.IsNullOrEmpty(sanitizedValue) && !Utilities.LidarrInputValidator.IsInputSafe(sanitizedValue))
-                        {
-                            _logger.Warn("Potentially unsafe parameter value detected for key {0}", param.Key);
-                            continue; // Skip unsafe parameters
-                        }
-                        allParameters[param.Key] = sanitizedValue;
+                        allParameters[param.Key] = param.Value;
                     }
                     _logger.Trace("📋 Custom parameters added: {0}", 
                         string.Join(", ", parameters.Select(kv => $"{kv.Key}={kv.Value}")));
@@ -326,21 +319,6 @@ namespace Lidarr.Plugin.Qobuzarr.API
             };
             
             return await GetAsync<QobuzTrack>("track/get", parameters);
-        }
-
-        /// <summary>
-        /// Get album details by ID
-        /// </summary>
-        public async Task<QobuzAlbum> GetAlbumAsync(string albumId)
-        {
-            _logger.Debug("Getting metadata for album {0}", albumId);
-            
-            var parameters = new Dictionary<string, string>
-            {
-                ["album_id"] = albumId
-            };
-            
-            return await GetAsync<QobuzAlbum>("album/get", parameters);
         }
 
         /// <summary>
