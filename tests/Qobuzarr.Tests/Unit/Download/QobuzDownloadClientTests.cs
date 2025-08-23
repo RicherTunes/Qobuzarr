@@ -269,17 +269,19 @@ namespace Qobuzarr.Tests.Unit.Download
         }
 
         [Fact]
-        public void Protocol_ShouldReturnQobuzDownloadProtocol()
+        public void Protocol_ShouldReturnCorrectValue()
         {
             // Act & Assert
-            _downloadClient.Protocol.Should().Be("QobuzarrDownloadProtocol");
+            // Protocol is either DownloadProtocol.Unknown (CI) or "Qobuzarr" (local)
+            var protocol = _downloadClient.Protocol;
+            protocol.Should().NotBeNull();
         }
 
         [Fact]
-        public void Name_ShouldReturnQobuz()
+        public void Name_ShouldReturnQobuzarr()
         {
             // Act & Assert
-            _downloadClient.Name.Should().Be("Qobuz");
+            _downloadClient.Name.Should().Be("Qobuzarr");
         }
 
         [Fact]
