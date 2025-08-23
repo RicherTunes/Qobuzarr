@@ -89,19 +89,25 @@
 
   <!-- Package dependencies -->
   <ItemGroup>
-    <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
-    <PackageReference Include="TagLibSharp-Lidarr" Version="2.2.0.27" />
-    <PackageReference Include="Microsoft.ML" Version="2.0.1" />
-    <PackageReference Include="Polly" Version="8.2.0" />
-    <!-- NLog for compile-time only - exclude runtime to avoid conflicts -->
-    <PackageReference Include="NLog" Version="5.0.0">
+    <!-- Shared dependencies - provided by Lidarr host, don't bundle -->
+    <PackageReference Include="Newtonsoft.Json">
+      <Private>false</Private>
       <ExcludeAssets>runtime</ExcludeAssets>
-      <PrivateAssets>all</PrivateAssets>
     </PackageReference>
-    <PackageReference Include="FluentValidation" Version="9.5.4" />
-    <PackageReference Include="System.Resources.Extensions" Version="8.0.0" />
-    <!-- ILRepack for assembly merging -->
-    <PackageReference Include="ILRepack.Lib.MSBuild.Task" Version="2.0.34.2" Condition="'$(Configuration)' == 'PluginRelease' Or '$(Configuration)' == 'Release'">
+    <PackageReference Include="NLog">
+      <Private>false</Private>
+      <ExcludeAssets>runtime</ExcludeAssets>
+    </PackageReference>
+    <PackageReference Include="FluentValidation">
+      <Private>false</Private>
+      <ExcludeAssets>runtime</ExcludeAssets>
+    </PackageReference>
+    
+    <!-- Plugin-specific dependencies - must be bundled -->
+    <PackageReference Include="TagLibSharp-Lidarr" />
+    <PackageReference Include="Microsoft.ML" />
+    <PackageReference Include="System.Resources.Extensions" />
+    <PackageReference Include="ILRepack.Lib.MSBuild.Task" Condition="'$(Configuration)' == 'PluginRelease'">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
@@ -239,18 +245,12 @@
       <PluginFiles Include="$(OutputPath)$(AssemblyName).dll.config" Condition="Exists('$(OutputPath)$(AssemblyName).dll.config')" />
       <PluginFiles Include="$(OutputPath)plugin.json" />
       <PluginFiles Include="$(OutputPath)src\Indexers\ml-baseline-patterns.json" />
-      <!-- Exclude Lidarr core assemblies from deployment (but keep our plugin DLL) -->
-      <PluginFiles Remove="$(OutputPath)Lidarr.dll" />
-      <PluginFiles Remove="$(OutputPath)Lidarr.Api.V1.dll" />
-      <PluginFiles Remove="$(OutputPath)Lidarr.Common.dll" />
-      <PluginFiles Remove="$(OutputPath)Lidarr.Core.dll" />
-      <PluginFiles Remove="$(OutputPath)Lidarr.Host.dll" />
-      <PluginFiles Remove="$(OutputPath)Lidarr.Http.dll" />
-      <PluginFiles Remove="$(OutputPath)Lidarr.SignalR.dll" />
-      <!-- Exclude NLog - Lidarr runtime provides its own version -->
-      <PluginFiles Remove="$(OutputPath)NLog.dll" />
-      <PluginFiles Remove="$(OutputPath)NLog.*.dll" />
+      <!-- Exclude Lidarr assemblies and shared dependencies from deployment -->
+      <PluginFiles Remove="$(OutputPath)Lidarr.*.dll" />
       <PluginFiles Remove="$(OutputPath)Lidarr.*.xml" />
+      <PluginFiles Remove="$(OutputPath)NLog.dll" />
+      <PluginFiles Remove="$(OutputPath)Newtonsoft.Json.dll" />
+      <PluginFiles Remove="$(OutputPath)FluentValidation.dll" />
     </ItemGroup>
     
     <Copy SourceFiles="@(PluginFiles)" DestinationFolder="$(PluginTargetDir)" SkipUnchangedFiles="false" ContinueOnError="false" />
