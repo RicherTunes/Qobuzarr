@@ -27,8 +27,8 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
     {
         public override string Name => "Qobuzarr";
         
-        // Protocol property - identifies our download protocol type  
-        public override string Protocol => QobuzarrDownloadProtocol.Name;
+        // Protocol property - must match the IDownloadProtocol class name (TrevTV's approach)
+        public override string Protocol => nameof(QobuzarrDownloadProtocol);
         public override bool SupportsRss => false;
         public override bool SupportsSearch => true;
         public override int PageSize => 100;
