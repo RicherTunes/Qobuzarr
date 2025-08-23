@@ -13,6 +13,7 @@ using Lidarr.Plugin.Qobuzarr.API;
 using Lidarr.Plugin.Qobuzarr.Models;
 using Lidarr.Plugin.Qobuzarr.Models.Lidarr;
 using Lidarr.Plugin.Qobuzarr.Utilities;
+using Lidarr.Plugin.Qobuzarr.Security;
 using Lidarr.Plugin.Qobuzarr.Services;
 using Lidarr.Plugin.Qobuzarr.Download.Services;
 
@@ -110,6 +111,10 @@ namespace Lidarr.Plugin.Qobuzarr.Download
 
                 // Generate output filename
                 var fileName = _filePathGenerator.GenerateFileName(track, album, preferredQuality);
+                
+                // Sanitize the output path to prevent path traversal attacks
+                outputPath = InputSanitizer.SanitizeFilePath(outputPath);
+                
                 var fullPath = Path.Combine(outputPath, fileName);
 
                 // Check if file already exists and is valid
@@ -183,6 +188,9 @@ namespace Lidarr.Plugin.Qobuzarr.Download
 
             if (string.IsNullOrWhiteSpace(outputPath))
                 throw new ArgumentException("Output path cannot be null or empty", nameof(outputPath));
+            
+            // Sanitize the output path to prevent path traversal attacks
+            outputPath = InputSanitizer.SanitizeFilePath(outputPath);
 
             _logger.Info("Starting intelligent album download: '{0}' by '{1}' ({2} tracks)", 
                         qobuzAlbum.Title, qobuzAlbum.GetArtistName(), qobuzAlbum.TracksCount);

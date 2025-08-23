@@ -13,6 +13,7 @@ using NzbDrone.Common.Cache;
 using NLog;
 using Lidarr.Plugin.Qobuzarr.Models.Authentication;
 using Lidarr.Plugin.Qobuzarr.Configuration;
+using Lidarr.Plugin.Qobuzarr.Security;
 using Lidarr.Plugin.Qobuzarr.Utilities;
 
 namespace Lidarr.Plugin.Qobuzarr.Authentication
@@ -115,6 +116,9 @@ namespace Lidarr.Plugin.Qobuzarr.Authentication
 
         private async Task<QobuzSession> AuthenticateWithEmailAsync(string email, string md5Password, string appId, string appSecret)
         {
+            // Sanitize email input to prevent injection attacks
+            email = InputSanitizer.SanitizeEmail(email);
+            
             // Use fallback chain: provided -> environment -> dynamic fetch from web player
             var effectiveAppId = !string.IsNullOrWhiteSpace(appId) ? appId : 
                                 Environment.GetEnvironmentVariable(QobuzConstants.Authentication.AppIdEnvironmentVariable);
@@ -128,6 +132,12 @@ namespace Lidarr.Plugin.Qobuzarr.Authentication
                 effectiveAppId = effectiveAppId ?? dynamicAppId;
                 effectiveAppSecret = effectiveAppSecret ?? dynamicAppSecret;
             }
+            
+            // Sanitize app credentials
+            if (!string.IsNullOrWhiteSpace(effectiveAppId))
+                effectiveAppId = InputSanitizer.SanitizeAppId(effectiveAppId);
+            if (!string.IsNullOrWhiteSpace(effectiveAppSecret))
+                effectiveAppSecret = InputSanitizer.ValidateAppSecret(effectiveAppSecret);
             
             var requestBuilder = new HttpRequestBuilder($"{QobuzConstants.Api.BaseUrl}{LOGIN_ENDPOINT}")
                 .AddQueryParam("app_id", effectiveAppId)
@@ -169,6 +179,10 @@ namespace Lidarr.Plugin.Qobuzarr.Authentication
 
         private async Task<QobuzSession> AuthenticateWithTokenAsync(string userId, string authToken, string appId, string appSecret = null)
         {
+            // Sanitize user inputs
+            userId = InputSanitizer.SanitizeUserId(userId);
+            authToken = InputSanitizer.SanitizeAuthToken(authToken);
+            
             // Use fallback chain: provided -> environment -> dynamic fetch from web player
             var effectiveAppId = !string.IsNullOrWhiteSpace(appId) ? appId : 
                                 Environment.GetEnvironmentVariable(QobuzConstants.Authentication.AppIdEnvironmentVariable);
@@ -182,6 +196,12 @@ namespace Lidarr.Plugin.Qobuzarr.Authentication
                 effectiveAppId = effectiveAppId ?? dynamicAppId;
                 effectiveAppSecret = effectiveAppSecret ?? dynamicAppSecret;
             }
+            
+            // Sanitize app credentials
+            if (!string.IsNullOrWhiteSpace(effectiveAppId))
+                effectiveAppId = InputSanitizer.SanitizeAppId(effectiveAppId);
+            if (!string.IsNullOrWhiteSpace(effectiveAppSecret))
+                effectiveAppSecret = InputSanitizer.ValidateAppSecret(effectiveAppSecret);
             
             // For token auth, we create a session and validate it
             var session = QobuzSession.CreateSession(userId, authToken, effectiveAppId, effectiveAppSecret);

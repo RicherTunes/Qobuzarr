@@ -1,6 +1,7 @@
 using System;
 using System.Security.Cryptography;
 using System.Text;
+using Lidarr.Plugin.Qobuzarr.Security;
 
 namespace Lidarr.Plugin.Qobuzarr.Utilities
 {
@@ -32,6 +33,21 @@ namespace Lidarr.Plugin.Qobuzarr.Utilities
                 // Convert to lowercase hex string - optimized for performance
                 return Convert.ToHexString(hashBytes).ToLowerInvariant();
             }
+        }
+
+        /// <summary>
+        /// Computes the MD5 hash of a password after validation.
+        /// Validates the password for security before hashing.
+        /// </summary>
+        /// <param name="password">The password to hash</param>
+        /// <returns>The MD5 hash as a lowercase hexadecimal string</returns>
+        /// <exception cref="ArgumentException">Thrown when password is invalid</exception>
+        public static string ComputePasswordMD5Hash(string password)
+        {
+            // Validate password for security
+            password = InputSanitizer.ValidatePassword(password);
+            
+            return ComputeMD5Hash(password);
         }
 
         /// <summary>
