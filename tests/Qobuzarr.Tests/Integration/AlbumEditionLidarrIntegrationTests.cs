@@ -311,7 +311,7 @@ namespace Qobuzarr.Tests.Integration
                 InfoUrl = $"https://www.qobuz.com/album/{album.Id}",
                 Size = (long)album.GetEstimatedTotalSize(album.MaximumBitDepth >= 24 ? 6 : 5),
                 PublishDate = album.ReleaseDate,
-                IndexerFlags = IndexerFlags.PaidDownload
+                IndexerFlags = IndexerFlags.Internal
             };
         }
 
@@ -356,7 +356,7 @@ namespace Qobuzarr.Tests.Integration
             {
                 ArtistName = artistName,
                 AlbumTitle = albumTitle,
-                Year = year,
+                ReleaseDate = year > 0 ? year.ToString() : null,
                 ReleaseVersion = releaseVersion,
                 Quality = new NzbDrone.Core.Qualities.QualityModel(
                     new NzbDrone.Core.Qualities.Quality { Id = 1, Name = qualityName }
