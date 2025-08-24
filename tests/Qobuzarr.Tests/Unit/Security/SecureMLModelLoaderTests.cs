@@ -7,6 +7,7 @@ using System.Text;
 using FluentAssertions;
 using Moq;
 using Xunit;
+using NLog;
 using Lidarr.Plugin.Qobuzarr.Abstractions;
 using Lidarr.Plugin.Qobuzarr.Security;
 using Lidarr.Plugin.Qobuzarr.Indexers;
