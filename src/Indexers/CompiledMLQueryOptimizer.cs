@@ -1,7 +1,9 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using NLog;
+using Lidarr.Plugin.Qobuzarr.Services;
 
 namespace Lidarr.Plugin.Qobuzarr.Indexers
 {
@@ -27,6 +29,7 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
         private int _totalPredictions = 0;
         private int _correctPredictions = 0;
         private readonly MLPerformanceMetrics _performanceMetrics;
+        private readonly IPerformanceMonitoringService? _productionMonitor;
         private readonly object _metricsLock = new object();
         private DateTime _modelLoadTime;
 
@@ -50,9 +53,10 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
         private readonly Queue<ThresholdAdjustment> _thresholdHistory = new Queue<ThresholdAdjustment>();
         private const int ThresholdHistorySize = 100;
 
-        public CompiledMLQueryOptimizer(Logger logger)
+        public CompiledMLQueryOptimizer(Logger logger, IPerformanceMonitoringService? productionMonitor = null)
         {
             _logger = logger ?? LogManager.GetCurrentClassLogger();
+            _productionMonitor = productionMonitor;
             _statistics = new Dictionary<QueryComplexity, int>
             {
                 { QueryComplexity.Simple, 0 },
@@ -129,6 +133,11 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
             // For compiled models, we assume predictions are generally correct based on training accuracy
             // This will be updated when actual results are recorded via RecordResult
             var assumedCorrect = confidence > 0.8; // High confidence predictions assumed correct
+            
+            // Production telemetry: Track ML optimization effectiveness
+            var originalQuery = $"{artistName} {albumTitle}";
+            var optimizedQuery = $"{artistName} {albumTitle} [complexity:{result}]";
+            _productionMonitor?.RecordMLOptimization(originalQuery, optimizedQuery, assumedCorrect, confidence);
             
             // Note: Prediction timing is automatically recorded by the using statement above
             // Accuracy will be properly tracked when RecordResult is called with actual outcomes
