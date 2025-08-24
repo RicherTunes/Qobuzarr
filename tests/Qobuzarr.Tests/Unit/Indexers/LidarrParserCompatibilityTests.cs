@@ -1,10 +1,14 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using FluentAssertions;
 using Xunit;
 using NSubstitute;
 using NzbDrone.Core.IndexerSearch.Definitions;
 using NzbDrone.Core.Music;
+using NzbDrone.Core.Parser.Model;
+using NzbDrone.Common.Http;
+using NzbDrone.Core.Indexers;
 using Lidarr.Plugin.Qobuzarr.Indexers;
 using Lidarr.Plugin.Qobuzarr.Models;
 using Qobuzarr.Tests.Builders;
@@ -391,7 +395,7 @@ namespace Qobuzarr.Tests.Unit.Indexers
             // Create a mock IndexerResponse to simulate parser behavior
             var albumSearchResponse = new QobuzAlbumSearchResponse
             {
-                Albums = new QobuzAlbumsList { Items = new List<QobuzAlbum> { album } }
+                Albums = new QobuzAlbumList { Items = new List<QobuzAlbum> { album } }
             };
 
             var mockResponse = new NzbDrone.Common.Http.HttpResponse(

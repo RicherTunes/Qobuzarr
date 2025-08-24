@@ -1,21 +1,26 @@
 <Project>
   
-  <!-- Enable centralized package management -->
+  <!-- Enable centralized package management for plugin projects only -->
   <PropertyGroup>
     <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
+  </PropertyGroup>
+  
+  <!-- Disable central package management for Lidarr source projects -->
+  <PropertyGroup Condition="$(MSBuildProjectDirectory.Contains('ext\Lidarr-source'))">
+    <ManagePackageVersionsCentrally>false</ManagePackageVersionsCentrally>
   </PropertyGroup>
 
   <!-- Production Dependencies -->
   <ItemGroup>
     <!-- Core Framework -->
     <PackageVersion Include="Newtonsoft.Json" Version="13.0.3" />
-    <!-- NLog 5.0.0 - match Lidarr's version -->
-    <PackageVersion Include="NLog" Version="5.0.0" />
+    <!-- NLog 5.4.0 - match Lidarr source requirements -->
+    <PackageVersion Include="NLog" Version="5.4.0" />
     <PackageVersion Include="FluentValidation" Version="9.5.4" />
     <PackageVersion Include="System.Resources.Extensions" Version="8.0.0" />
     
     <!-- Audio Processing -->
-    <PackageVersion Include="TagLibSharp-Lidarr" Version="2.2.0.19" />
+    <PackageVersion Include="TagLibSharp-Lidarr" Version="2.2.0.27" />
     
     <!-- Machine Learning -->
     <PackageVersion Include="Microsoft.ML" Version="2.0.1" />
@@ -70,6 +75,8 @@
     <PackageVersion Include="System.IO.Abstractions" Version="17.2.3" />
     <PackageVersion Include="System.IO.Abstractions.TestingHelpers" Version="17.2.3" />
     <PackageVersion Include="Equ" Version="2.3.0" />
+    <PackageVersion Include="FsCheck" Version="2.16.5" />
+    <PackageVersion Include="FsCheck.Xunit" Version="2.16.5" />
     
     <!-- Integration Test Dependencies -->
     <PackageVersion Include="Docker.DotNet" Version="3.125.15" />
