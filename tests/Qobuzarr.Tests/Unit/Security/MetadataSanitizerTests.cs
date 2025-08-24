@@ -1,14 +1,13 @@
 using System;
 using FluentAssertions;
-using NUnit.Framework;
+using Xunit;
 using Lidarr.Plugin.Qobuzarr.Security;
 
 namespace Qobuzarr.Tests.Unit.Security
 {
-    [TestFixture]
     public class MetadataSanitizerTests
     {
-        [Test]
+        [Fact]
         public void SanitizeVersion_WithNullOrEmpty_ShouldReturnEmpty()
         {
             MetadataSanitizer.SanitizeVersion(null).Should().BeEmpty();
@@ -16,7 +15,7 @@ namespace Qobuzarr.Tests.Unit.Security
             MetadataSanitizer.SanitizeVersion("   ").Should().BeEmpty();
         }
 
-        [Test]
+        [Fact]
         public void SanitizeVersion_WithCleanInput_ShouldReturnUnchanged()
         {
             var clean = "Deluxe Edition";
@@ -26,7 +25,7 @@ namespace Qobuzarr.Tests.Unit.Security
             MetadataSanitizer.SanitizeVersion(clean).Should().Be("25th Anniversary (Remastered)");
         }
 
-        [Test]
+        [Fact]
         public void SanitizeVersion_WithScriptTag_ShouldRemoveScript()
         {
             var malicious = "<script>alert('XSS')</script>Deluxe";
@@ -38,7 +37,7 @@ namespace Qobuzarr.Tests.Unit.Security
             result.Should().Be("Deluxe");
         }
 
-        [Test]
+        [Fact]
         public void SanitizeVersion_WithJavaScriptUrl_ShouldReturnSafeDefault()
         {
             var malicious = "javascript:alert('XSS')";
@@ -47,7 +46,7 @@ namespace Qobuzarr.Tests.Unit.Security
             result.Should().Be("Version"); // Returns safe default when dangerous pattern detected
         }
 
-        [Test]
+        [Fact]
         public void SanitizeVersion_WithPathTraversal_ShouldRemoveDotDot()
         {
             var malicious = "../../etc/passwd";
@@ -57,7 +56,7 @@ namespace Qobuzarr.Tests.Unit.Security
             result.Should().Be("___etc_passwd");
         }
 
-        [Test]
+        [Fact]
         public void SanitizeVersion_WithSqlInjection_ShouldReturnSafeDefault()
         {
             var malicious = "Deluxe'; DROP TABLE albums;--";
@@ -66,7 +65,7 @@ namespace Qobuzarr.Tests.Unit.Security
             result.Should().Be("Version"); // Returns safe default when SQL injection detected
         }
 
-        [Test]
+        [Fact]
         public void SanitizeVersion_WithCommandInjection_ShouldReturnSafeDefault()
         {
             var malicious = "Deluxe && rm -rf /";
@@ -75,7 +74,7 @@ namespace Qobuzarr.Tests.Unit.Security
             result.Should().Be("Version"); // Returns safe default when command injection detected
         }
 
-        [Test]
+        [Fact]
         public void SanitizeVersion_WithNewlinesAndTabs_ShouldNormalizeWhitespace()
         {
             var input = "Deluxe\nEdition\tRemastered\r\n2024";
@@ -87,7 +86,7 @@ namespace Qobuzarr.Tests.Unit.Security
             result.Should().NotContain("\r");
         }
 
-        [Test]
+        [Fact]
         public void SanitizeVersion_WithFileSystemDangerousChars_ShouldReplace()
         {
             var input = "Deluxe: Edition / Remastered \\ 2024 * Special?";
@@ -101,7 +100,7 @@ namespace Qobuzarr.Tests.Unit.Security
             result.Should().NotContain("?");
         }
 
-        [Test]
+        [Fact]
         public void SanitizeVersion_WithControlCharacters_ShouldRemove()
         {
             var input = "Deluxe\x00Edition\x07Remastered\x1F";
@@ -110,7 +109,7 @@ namespace Qobuzarr.Tests.Unit.Security
             result.Should().Be("DeluxeEditionRemastered");
         }
 
-        [Test]
+        [Fact]
         public void SanitizeVersion_WithZeroWidthCharacters_ShouldRemove()
         {
             var input = "Deluxe\u200BEdition\u200C\u200D\uFEFF";
@@ -119,7 +118,7 @@ namespace Qobuzarr.Tests.Unit.Security
             result.Should().Be("DeluxeEdition");
         }
 
-        [Test]
+        [Fact]
         public void SanitizeVersion_WithLongInput_ShouldTruncate()
         {
             var longInput = new string('A', 150);
@@ -129,7 +128,7 @@ namespace Qobuzarr.Tests.Unit.Security
             result.Should().Be(new string('A', 100));
         }
 
-        [Test]
+        [Fact]
         public void SanitizeVersion_WithHtmlEntities_ShouldReplace()
         {
             var input = "Deluxe <Edition> & \"Special\" 'Version'";
@@ -138,7 +137,7 @@ namespace Qobuzarr.Tests.Unit.Security
             result.Should().Be("Deluxe (Edition) _ 'Special' 'Version'");
         }
 
-        [Test]
+        [Fact]
         public void SanitizeVersion_WithMultipleSpaces_ShouldCollapse()
         {
             var input = "Deluxe    Edition     Remastered";
@@ -147,7 +146,7 @@ namespace Qobuzarr.Tests.Unit.Security
             result.Should().Be("Deluxe Edition Remastered");
         }
 
-        [Test]
+        [Fact]
         public void SanitizeVersion_WithLdapInjection_ShouldReturnSafeDefault()
         {
             var malicious = "Deluxe)(uid=*)";
@@ -156,7 +155,7 @@ namespace Qobuzarr.Tests.Unit.Security
             result.Should().Be("Version"); // Returns safe default when LDAP injection detected
         }
 
-        [Test]
+        [Fact]
         public void SanitizeVersion_WithXmlInjection_ShouldReturnSafeDefault()
         {
             var malicious = "<!DOCTYPE test SYSTEM \"file:///etc/passwd\">";
@@ -165,14 +164,14 @@ namespace Qobuzarr.Tests.Unit.Security
             result.Should().Be("Version"); // Returns safe default when XML injection detected
         }
 
-        [Test]
+        [Fact]
         public void SanitizeArtistName_WithNull_ShouldReturnDefault()
         {
             MetadataSanitizer.SanitizeArtistName(null).Should().Be("Unknown Artist");
             MetadataSanitizer.SanitizeArtistName("").Should().Be("Unknown Artist");
         }
 
-        [Test]
+        [Fact]
         public void SanitizeArtistName_WithDangerousContent_ShouldSanitize()
         {
             var input = "Artist<script>alert('xss')</script>";
@@ -182,14 +181,14 @@ namespace Qobuzarr.Tests.Unit.Security
             result.Should().NotContain("<script");
         }
 
-        [Test]
+        [Fact]
         public void SanitizeAlbumTitle_WithNull_ShouldReturnDefault()
         {
             MetadataSanitizer.SanitizeAlbumTitle(null).Should().Be("Unknown Album");
             MetadataSanitizer.SanitizeAlbumTitle("").Should().Be("Unknown Album");
         }
 
-        [Test]
+        [Fact]
         public void SanitizeAlbumTitle_WithDangerousContent_ShouldSanitize()
         {
             var input = "Album../../etc/passwd";
@@ -199,7 +198,7 @@ namespace Qobuzarr.Tests.Unit.Security
             result.Should().NotContain("..");
         }
 
-        [Test]
+        [Fact]
         public void HtmlEncode_ShouldEscapeHtmlChars()
         {
             var input = "<div>Test & \"Quote\" 'Single'</div>";
@@ -208,39 +207,39 @@ namespace Qobuzarr.Tests.Unit.Security
             result.Should().Be("&lt;div&gt;Test &amp; &quot;Quote&quot; &#39;Single&#39;&lt;&#47;div&gt;");
         }
 
-        [Test]
+        [Fact]
         public void IsPotentiallyDangerous_WithScriptTag_ShouldReturnTrue()
         {
             MetadataSanitizer.IsPotentiallyDangerous("<script>alert('xss')</script>").Should().BeTrue();
         }
 
-        [Test]
+        [Fact]
         public void IsPotentiallyDangerous_WithSqlInjection_ShouldReturnTrue()
         {
             MetadataSanitizer.IsPotentiallyDangerous("'; DROP TABLE users;--").Should().BeTrue();
         }
 
-        [Test]
+        [Fact]
         public void IsPotentiallyDangerous_WithCommandInjection_ShouldReturnTrue()
         {
             MetadataSanitizer.IsPotentiallyDangerous("test && rm -rf /").Should().BeTrue();
         }
 
-        [Test]
+        [Fact]
         public void IsPotentiallyDangerous_WithCleanInput_ShouldReturnFalse()
         {
             MetadataSanitizer.IsPotentiallyDangerous("Deluxe Edition").Should().BeFalse();
             MetadataSanitizer.IsPotentiallyDangerous("25th Anniversary").Should().BeFalse();
         }
 
-        [Test]
+        [Fact]
         public void IsPotentiallyDangerous_WithNull_ShouldReturnFalse()
         {
             MetadataSanitizer.IsPotentiallyDangerous(null).Should().BeFalse();
             MetadataSanitizer.IsPotentiallyDangerous("").Should().BeFalse();
         }
 
-        [Test]
+        [Fact]
         public void SanitizeVersion_WithRealWorldExamples_ShouldHandleCorrectly()
         {
             // Real album version examples

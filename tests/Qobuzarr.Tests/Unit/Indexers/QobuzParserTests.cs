@@ -7,6 +7,7 @@ using NLog;
 using Lidarr.Plugin.Qobuzarr.Indexers;
 using Lidarr.Plugin.Qobuzarr.Models;
 using Qobuzarr.Tests.Builders;
+using Lidarr.Plugin.Qobuzarr.Constants;
 using NzbDrone.Core.Parser.Model;
 using NzbDrone.Core.Download;
 using NzbDrone.Core.Indexers;
@@ -226,7 +227,7 @@ namespace Qobuzarr.Tests.Unit.Indexers
             result.Artist.Should().Be("Release Artist");
             result.Album.Should().Be("Release Test Album");
             result.PublishDate.Date.Should().Be(new DateTime(2023, 6, 15).Date, "Date should match regardless of timezone");
-            result.Indexer.Should().Be("Qobuzarr");
+            result.Indexer.Should().Be(nameof(QobuzarrDownloadProtocol));
             result.DownloadProtocol.Should().Be(nameof(UsenetDownloadProtocol));
             result.Size.Should().BeGreaterThan(0, "Size should be calculated based on quality");
             
@@ -392,7 +393,7 @@ namespace Qobuzarr.Tests.Unit.Indexers
                 release.Album.Should().Be("Integration Test Album");
                 release.DownloadUrl.Should().StartWith("qobuz://");
                 release.Size.Should().BeGreaterThan(0, "Size must be calculated");
-                release.Indexer.Should().Be(QobuzarrConstants.ProtocolName);
+                release.Indexer.Should().Be(nameof(QobuzarrDownloadProtocol));
                 release.PublishDate.Date.Should().Be(new DateTime(2023, 12, 25).Date, "Date should match regardless of timezone");
 
                 // The most critical test: Title should contain quality markers

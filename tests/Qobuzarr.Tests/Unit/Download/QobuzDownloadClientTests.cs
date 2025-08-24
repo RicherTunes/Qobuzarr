@@ -13,6 +13,7 @@ using NzbDrone.Core.Music;
 using Xunit;
 using Lidarr.Plugin.Qobuzarr.API;
 using Lidarr.Plugin.Qobuzarr.Authentication;
+using Lidarr.Plugin.Qobuzarr.Constants;
 using Lidarr.Plugin.Qobuzarr.Download;
 using Lidarr.Plugin.Qobuzarr.Download.Clients;
 using Lidarr.Plugin.Qobuzarr.Download.Services;
@@ -269,10 +270,10 @@ namespace Qobuzarr.Tests.Unit.Download
         }
 
         [Fact]
-        public void Protocol_ShouldReturnUnknown()
+        public void Protocol_ShouldReturnQobuzarrDownloadProtocol()
         {
             // Act & Assert
-            _downloadClient.Protocol.Should().Be(DownloadProtocol.Unknown);
+            _downloadClient.Protocol.Should().Be(nameof(QobuzarrDownloadProtocol));
         }
 
         [Fact]
