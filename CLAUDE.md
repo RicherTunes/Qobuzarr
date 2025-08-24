@@ -163,7 +163,7 @@ ext/Lidarr/_output/            # Pre-built Lidarr assemblies (ONLY supported met
 ### Key Components
 - **QobuzIndexer** (`src/Indexers/QobuzIndexer.cs`): Implements `HttpIndexerBase<QobuzIndexerSettings>` for Lidarr search integration
 - **QobuzDownloadClient** (`src/Download/Clients/QobuzDownloadClient.cs`): Implements `DownloadClientBase<QobuzDownloadSettings>` for Lidarr download integration
-- **QobuzarrPlugin** (`src/QobuzzarrPlugin.cs`): Main plugin entry point that Lidarr discovers
+- **Plugin Metadata** (`src/Constants/QobuzarrConstants.cs`): Centralized plugin information and constants
 - **Authentication Services** (`src/Authentication/`): Handle Qobuz session management
 - **ML Optimization** (`src/Indexers/CompiledMLQueryOptimizer.cs`): Pre-compiled ML models for query optimization
 
