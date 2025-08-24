@@ -99,7 +99,16 @@ jobs:
           -p:EnableNETAnalyzers=false \
           -p:TreatWarningsAsErrors=false
         
-        echo "✅ Main plugin built successfully - CLI build skipped for CI"
+        echo "✅ Main plugin built successfully"
+        
+        echo "🔨 Building CLI project..."
+        dotnet restore QobuzCLI/QobuzCLI.csproj
+        dotnet build QobuzCLI/QobuzCLI.csproj --configuration Release --no-restore \
+          -p:RunAnalyzersDuringBuild=false \
+          -p:EnableNETAnalyzers=false \
+          -p:TreatWarningsAsErrors=false
+        
+        echo "✅ CLI built successfully"
         
         echo "✅ Build completed with version $PLUGIN_VERSION"
 
