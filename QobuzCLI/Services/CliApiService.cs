@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 using Lidarr.Plugin.Qobuzarr.Abstractions;
 using Lidarr.Plugin.Qobuzarr.Models;
@@ -117,10 +118,10 @@ namespace QobuzCLI.Services
         /// <summary>
         /// Search for labels
         /// </summary>
-        public async Task<List<object>> SearchLabelsAsync(string query, int limit = 25)
+        public async Task<List<QobuzLabel>> SearchLabelsAsync(string query, int limit = 25)
         {
             // Simplified for CLI - labels search not fully implemented  
-            return new List<object>();
+            return new List<QobuzLabel>();
         }
 
         /// <summary>
@@ -162,13 +163,14 @@ namespace QobuzCLI.Services
         public async Task<List<QobuzTrack>> GetPlaylistTracksAsync(string playlistId)
         {
             var playlist = await _searchService.GetPlaylistAsync(playlistId);
-            return playlist?.GetTracks() ?? new List<QobuzTrack>();
+            // Extract the actual QobuzTrack from QobuzPlaylistTrack.Track property
+            return playlist?.Tracks?.Items?.Select(pt => pt.Track).ToList() ?? new List<QobuzTrack>();
         }
 
         /// <summary>
         /// Get label details (simplified)
         /// </summary>
-        public async Task<object?> GetLabelAsync(string labelId)
+        public async Task<QobuzLabel?> GetLabelAsync(string labelId)
         {
             // Simplified implementation for CLI
             return null;
