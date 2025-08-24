@@ -395,7 +395,7 @@ namespace Qobuzarr.Tests.Unit.Indexers
             // Create a mock IndexerResponse to simulate parser behavior
             var albumSearchResponse = new QobuzAlbumSearchResponse
             {
-                Albums = new QobuzAlbumList { Items = new List<QobuzAlbum> { album } }
+                Albums = new QobuzSearchResultContainer<QobuzAlbum> { Items = new List<QobuzAlbum> { album } }
             };
 
             var mockResponse = new NzbDrone.Common.Http.HttpResponse(
