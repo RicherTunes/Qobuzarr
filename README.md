@@ -244,6 +244,7 @@ This project is licensed under the GNU General Public License v3.0 - see [LICENS
 ## 🙏 Credits
 
 - **[TrevTV](https://github.com/TrevTV)** - Original Lidarr.Plugin.Qobuz implementation
+- **[TypNull](https://github.com/TypNull)** - CI/CD methodology and Docker assembly approach ([Tubifarry](https://github.com/TypNull/Tubifarry))
 - **Lidarr Team** - For the excellent media management platform
 - **Qobuz** - For providing high-quality music streaming
 - **Contributors** - See [CREDITS.md](CREDITS.md) for full list

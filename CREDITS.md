@@ -34,6 +34,30 @@ Building upon TrevTV's foundation, this project adds:
 
 ## Additional Acknowledgments
 
+### CI/CD and Build System Innovation
+
+#### TypNull - GitHub Actions Solution Pioneer
+**[TypNull's Tubifarry Plugin](https://github.com/TypNull/Tubifarry)**
+
+TypNull deserves special recognition for solving one of the most challenging problems in the Lidarr plugin ecosystem: **achieving working GitHub Actions builds**. This breakthrough enabled automated CI/CD for complex Lidarr plugins - a challenge that had stumped developers for months.
+
+**TypNull's revolutionary contributions:**
+- **Minimal NuGet.config approach** - Elegant solution to private Azure DevOps feed authentication issues
+- **Docker assembly extraction methodology** - Brilliant workaround enabling plugins branch compatibility in CI environments
+- **Multi-workflow orchestration patterns** - Sophisticated yet reliable CI architecture that actually works in production
+- **Git submodule strategy** - Clean approach to Lidarr source dependency management
+- **Proven build system** - First documented success of complex Lidarr plugin CI/CD automation
+
+**Community Impact**: 
+TypNull's Tubifarry plugin proved that complex Lidarr plugins with multiple dependencies CAN build successfully in GitHub Actions, breaking through months of failed attempts by other developers. Their approach became the foundation for our own CI/CD breakthrough and should be the standard for all future Lidarr plugin development.
+
+**Technical Achievement**: 
+Solved the "impossible" problem of building Lidarr plugins in CI without access to private Servarr/Lidarr NuGet feeds, enabling the entire community to adopt modern DevOps practices.
+
+**Repository**: https://github.com/TypNull/Tubifarry  
+**Innovation**: First known successful automated CI/CD for complex Lidarr plugins with private dependencies
+**Documentation**: See `docs/development/AI-PROMPT-LIDARR-PLUGIN-CICD.md` for teaching this approach to other developers
+
 ### Core Dependencies and Inspiration
 - **[Lidarr Team](https://lidarr.audio/)** - Outstanding media management platform that provides the plugin architecture
 - **[Qobuz](https://www.qobuz.com/)** - High-quality music streaming service with excellent API capabilities
