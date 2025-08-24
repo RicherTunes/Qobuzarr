@@ -9,6 +9,8 @@ using NzbDrone.Core.DecisionEngine.Specifications;
 using NzbDrone.Core.IndexerSearch.Definitions;
 using NzbDrone.Core.Music;
 using NzbDrone.Core.Parser.Model;
+using NzbDrone.Common.Http;
+using NzbDrone.Core.Indexers;
 using Lidarr.Plugin.Qobuzarr.Indexers;
 using Lidarr.Plugin.Qobuzarr.Models;
 using Qobuzarr.Tests.Builders;
@@ -382,7 +384,7 @@ namespace Qobuzarr.Tests.Integration
             // Create mock response
             var albumSearchResponse = new QobuzAlbumSearchResponse
             {
-                Albums = new QobuzAlbumsList { Items = new List<QobuzAlbum> { album } }
+                Albums = new QobuzAlbumList { Items = new List<QobuzAlbum> { album } }
             };
 
             var mockResponse = new NzbDrone.Common.Http.HttpResponse(

@@ -48,10 +48,10 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Clients
         private readonly IQobuzTrackDownloaderFactory _trackDownloaderFactory;
         private readonly ConcurrentDictionary<string, QobuzDownloadItem> _activeDownloads;
 
-        public override string Name => QobuzarrConstants.ProtocolName;
+        public override string Name => "Qobuzarr";
         
-        // Protocol property - returns string identifier for plugins branch
-        public override string Protocol => QobuzarrConstants.ProtocolName;
+        // Protocol property - follows working plugin pattern for plugins branch compatibility
+        public override string Protocol => nameof(QobuzarrDownloadProtocol);
 
         public QobuzDownloadClient(IQobuzAuthenticationService authService,
                                   IQobuzApiClient apiClient,
