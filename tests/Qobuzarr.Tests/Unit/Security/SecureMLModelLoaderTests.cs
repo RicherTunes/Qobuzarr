@@ -15,13 +15,13 @@ namespace Qobuzarr.Tests.Unit.Security
 {
     public class SecureMLModelLoaderTests : IDisposable
     {
-        private readonly Mock<IQobuzLogger> _mockLogger;
+        private readonly Mock<Logger> _mockLogger;
         private readonly SecureMLModelLoader _loader;
         private readonly string _testDirectory;
 
         public SecureMLModelLoaderTests()
         {
-            _mockLogger = new Mock<IQobuzLogger>();
+            _mockLogger = new Mock<Logger>();
             _loader = new SecureMLModelLoader(_mockLogger.Object);
             _testDirectory = Path.Combine(Path.GetTempPath(), $"QobuzarrTest_{Guid.NewGuid()}");
             Directory.CreateDirectory(_testDirectory);
