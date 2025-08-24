@@ -1,4 +1,5 @@
 using System;
+using System.Diagnostics;
 using System.Linq;
 using System.Net.Http;
 using System.Threading;
@@ -6,6 +7,7 @@ using System.Threading.Tasks;
 using NLog;
 using NzbDrone.Common.Http;
 using Lidarr.Plugin.Qobuzarr.Configuration;
+using Lidarr.Plugin.Qobuzarr.Services;
 using Lidarr.Plugin.Qobuzarr.Utilities;
 
 namespace Lidarr.Plugin.Qobuzarr.API.Http
@@ -19,11 +21,13 @@ namespace Lidarr.Plugin.Qobuzarr.API.Http
         private readonly IHttpClient _httpClient;
         private readonly RateLimiter _rateLimiter;
         private readonly Logger _logger;
+        private readonly IPerformanceMonitoringService? _performanceMonitor;
 
-        public QobuzHttpClient(IHttpClient httpClient, Logger logger)
+        public QobuzHttpClient(IHttpClient httpClient, Logger logger, IPerformanceMonitoringService? performanceMonitor = null)
         {
             _httpClient = httpClient ?? throw new ArgumentNullException(nameof(httpClient));
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+            _performanceMonitor = performanceMonitor;
             _rateLimiter = new RateLimiter(QobuzConstants.Api.RateLimitPerMinute, TimeSpan.FromMinutes(1));
         }
 
@@ -35,6 +39,7 @@ namespace Lidarr.Plugin.Qobuzarr.API.Http
 
             _logger.Debug("Executing HTTP {0} request to {1}", request.Method, request.Url);
 
+            var stopwatch = Stopwatch.StartNew();
             try
             {
                 // Execute with retry logic for transient failures
@@ -45,10 +50,16 @@ namespace Lidarr.Plugin.Qobuzarr.API.Http
                     $"HTTP request to {request.Url}")
                     .ConfigureAwait(false);
 
+                stopwatch.Stop();
+                
+                // Record API call performance (not cached since this is direct HTTP)
+                _performanceMonitor?.RecordApiCall(request.Url.ToString(), stopwatch.Elapsed, false);
+
                 return response;
             }
             catch (Exception ex)
             {
+                stopwatch.Stop();
                 _logger.Error(ex, "HTTP request failed for URL {0}", request.Url);
                 throw;
             }
