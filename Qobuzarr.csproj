@@ -111,6 +111,11 @@
     <PackageReference Include="Microsoft.ML" />
     <PackageReference Include="System.Resources.Extensions" />
     
+    <!-- Performance Monitoring (Sprint 3) -->
+    <PackageReference Include="Serilog" />
+    <PackageReference Include="Serilog.Sinks.File" />
+    <PackageReference Include="Serilog.Formatting.Compact" />
+    
     <!-- Security patches for transitive vulnerabilities -->
     <PackageReference Include="System.Text.Json" />
     <PackageReference Include="System.Net.Http" />
