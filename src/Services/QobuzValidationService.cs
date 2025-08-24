@@ -5,6 +5,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Lidarr.Plugin.Qobuzarr.Abstractions;
 using Lidarr.Plugin.Qobuzarr.Models;
+using Lidarr.Plugin.Qobuzarr.Services.Consolidated;
 using Lidarr.Plugin.Qobuzarr.Utilities;
 
 namespace Lidarr.Plugin.Qobuzarr.Services
@@ -15,19 +16,19 @@ namespace Lidarr.Plugin.Qobuzarr.Services
     public class QobuzValidationService
     {
         private readonly QobuzSearchService _searchService;
-        private readonly QobuzQualityService _qualityService;
+        private readonly IQobuzQualityManager _qualityManager;
         private readonly IQobuzLogger _logger;
         private readonly IQobuzCache _cache;
         private readonly TimeSpan _cacheExpiry = TimeSpan.FromMinutes(10);
 
         public QobuzValidationService(
             QobuzSearchService searchService,
-            QobuzQualityService qualityService,
+            IQobuzQualityManager qualityManager,
             IQobuzLogger logger,
             IQobuzCache cache = null)
         {
             _searchService = searchService ?? throw new ArgumentNullException(nameof(searchService));
-            _qualityService = qualityService ?? throw new ArgumentNullException(nameof(qualityService));
+            _qualityManager = qualityManager ?? throw new ArgumentNullException(nameof(qualityManager));
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
             _cache = cache;
         }
@@ -86,13 +87,13 @@ namespace Lidarr.Plugin.Qobuzarr.Services
                     try
                     {
                         // Try to get stream URL for this track with quality fallback
-                        var (selectedQuality, streamInfo) = await _qualityService.GetBestAvailableStreamAsync(track.Id, preferredQuality);
+                        var qualityResult = await _qualityManager.SelectBestQualityAsync(track.Id, new QobuzQuality { Id = preferredQuality });
                         
-                        if (!string.IsNullOrWhiteSpace(streamInfo?.Url))
+                        if (qualityResult.Success && !string.IsNullOrWhiteSpace(qualityResult.StreamInfo?.Url))
                         {
                             downloadableCount++;
                             _logger.Debug("Track {0} from album {1} is downloadable (quality {2})", 
-                                track.Id, albumId, selectedQuality);
+                                track.Id, albumId, qualityResult.SelectedQuality?.Id);
                         }
                     }
                     catch (Exception ex)
@@ -159,8 +160,8 @@ namespace Lidarr.Plugin.Qobuzarr.Services
         {
             try
             {
-                var (_, streamInfo) = await _qualityService.GetBestAvailableStreamAsync(trackId, preferredQuality);
-                return !string.IsNullOrWhiteSpace(streamInfo?.Url);
+                var qualityResult = await _qualityManager.SelectBestQualityAsync(trackId, new QobuzQuality { Id = preferredQuality });
+                return qualityResult.Success && !string.IsNullOrWhiteSpace(qualityResult.StreamInfo?.Url);
             }
             catch (Exception ex)
             {
