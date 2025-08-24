@@ -146,10 +146,10 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Clients
                 Removed = false,
                 DownloadClientInfo = new DownloadClientItemClientInfo
                 {
-                    Protocol = QobuzarrConstants.ProtocolName,
-                    Type = QobuzarrConstants.ProtocolName,
+                    Protocol = nameof(QobuzarrDownloadProtocol),
+                    Type = "Qobuzarr",
                     Id = downloadClientId, // Use actual download client ID
-                    Name = downloadClientName ?? QobuzarrConstants.ProtocolName,
+                    Name = downloadClientName ?? "Qobuzarr",
                     RemoveCompletedDownloads = false,
                     HasPostImportCategory = false
                 }
