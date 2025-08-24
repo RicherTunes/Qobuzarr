@@ -1,0 +1,124 @@
+name: Build Plugin (Working)
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+env:
+  DOTNET_SKIP_FIRST_TIME_EXPERIENCE: true
+  DOTNET_CLI_TELEMETRY_OPTOUT: true
+  PLUGIN_NAME: Lidarr.Plugin.Qobuzarr
+  PLUGIN_VERSION: 0.1.${{ github.run_number }}
+  MINIMUM_LIDARR_VERSION: 2.13.2.4686
+  DOTNET_VERSION: 8.0.404
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+      with:
+        submodules: true
+        fetch-depth: 0
+
+    - name: Setup .NET Core
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: ${{ env.DOTNET_VERSION }}
+
+    - name: Create global.json
+      run: |
+        echo '{"sdk":{"version": "${{ env.DOTNET_VERSION }}"}}' > ./global.json
+
+    - name: Setup Lidarr source (plugins branch)
+      run: |
+        echo "Setting up Lidarr plugins branch source..."
+        if [ ! -d "ext/Lidarr-source" ]; then
+          git clone --depth 1 --branch plugins https://github.com/Lidarr/Lidarr.git ext/Lidarr-source
+        fi
+
+    - name: Update Version Info (TrevTV's Magic Formula)
+      run: |
+        # Update our plugin version
+        sed -i'' -e "s/<AssemblyVersion>[0-9.*]\+<\/AssemblyVersion>/<AssemblyVersion>$PLUGIN_VERSION<\/AssemblyVersion>/g" Directory.Build.props || echo "No plugin Directory.Build.props found"
+        
+        # Update Lidarr source version (THE CRITICAL STEP)
+        sed -i'' -e "s/<AssemblyVersion>[0-9.*]\+<\/AssemblyVersion>/<AssemblyVersion>$MINIMUM_LIDARR_VERSION<\/AssemblyVersion>/g" ext/Lidarr-source/src/Directory.Build.props || echo "No Lidarr Directory.Build.props found"
+        
+        echo "Version overrides applied successfully"
+
+    - name: Restore dependencies
+      run: |
+        echo "Restoring with minimal NuGet sources..."
+        dotnet restore Qobuzarr.csproj
+
+    - name: Build plugin
+      run: |
+        echo "Building plugin with suppressed analyzers..."
+        dotnet build Qobuzarr.csproj \
+          --configuration Release \
+          --no-restore \
+          -p:RunAnalyzersDuringBuild=false \
+          -p:EnableNETAnalyzers=false \
+          -p:TreatWarningsAsErrors=false \
+          -v:normal
+
+    - name: Verify plugin files
+      run: |
+        echo "Checking plugin output..."
+        ls -la bin/
+        
+        if [ -f "bin/Lidarr.Plugin.Qobuzarr.dll" ]; then
+          echo "✅ Plugin DLL created successfully"
+          echo "Size: $(stat -c%s bin/Lidarr.Plugin.Qobuzarr.dll) bytes"
+        else
+          echo "❌ Plugin DLL not found!"
+          exit 1
+        fi
+        
+        if [ -f "bin/plugin.json" ]; then
+          echo "✅ Plugin manifest found"
+          cat bin/plugin.json
+        else
+          echo "❌ Plugin manifest not found!"
+          exit 1
+        fi
+
+    - name: Upload plugin artifact
+      uses: actions/upload-artifact@v4
+      if: success()
+      with:
+        name: ${{ env.PLUGIN_NAME }}
+        path: |
+          bin/Lidarr.Plugin.Qobuzarr.dll
+          bin/plugin.json
+          bin/*.pdb
+        retention-days: 30
+
+    - name: Create release package
+      if: github.ref == 'refs/heads/main'
+      run: |
+        echo "Creating release package..."
+        mkdir -p release-package
+        cp bin/Lidarr.Plugin.Qobuzarr.dll release-package/
+        cp bin/plugin.json release-package/
+        
+        # Create ZIP package
+        cd release-package
+        zip -r ../Qobuzarr-${{ env.PLUGIN_VERSION }}.zip .
+        cd ..
+        
+        echo "Package created: Qobuzarr-${{ env.PLUGIN_VERSION }}.zip"
+
+    - name: Upload release package
+      uses: actions/upload-artifact@v4
+      if: github.ref == 'refs/heads/main'
+      with:
+        name: qobuzarr-release-${{ env.PLUGIN_VERSION }}
+        path: Qobuzarr-${{ env.PLUGIN_VERSION }}.zip
+        retention-days: 90
