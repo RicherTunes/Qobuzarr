@@ -72,8 +72,10 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Services
                         .SetHeader("Accept", "*/*")
                         .Build();
                     
-                    // Set a longer timeout for large files
-                    request.RequestTimeout = TimeSpan.FromMinutes(5);
+                    // Set adaptive timeout based on typical FLAC file sizes
+                    // FLAC: ~30-80MB per album, high-res can be 150MB+
+                    var timeoutMinutes = 8; // Generous timeout for high-quality downloads
+                    request.RequestTimeout = TimeSpan.FromMinutes(timeoutMinutes);
 
                     var response = await _httpClient.ExecuteAsync(request).ConfigureAwait(false);
                     
