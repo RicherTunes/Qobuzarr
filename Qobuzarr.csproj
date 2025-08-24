@@ -122,27 +122,15 @@
     </PackageReference> -->
   </ItemGroup>
 
-  <!-- Lidarr assemblies from plugins branch source (REQUIRED for string Protocol) -->
+  <!-- ✅ PLUGINS BRANCH: Project references to plugins branch source (like TrevTV) -->
   <ItemGroup>
-    <ProjectReference Include="ext\Lidarr-source\src\NzbDrone\Lidarr.csproj">
+    <ProjectReference Include="ext\Lidarr-source\src\NzbDrone.Core\Lidarr.Core.csproj">
       <Private>false</Private>
     </ProjectReference>
     <ProjectReference Include="ext\Lidarr-source\src\NzbDrone.Common\Lidarr.Common.csproj">
       <Private>false</Private>
     </ProjectReference>
-    <ProjectReference Include="ext\Lidarr-source\src\NzbDrone.Core\Lidarr.Core.csproj">
-      <Private>false</Private>
-    </ProjectReference>
-    <ProjectReference Include="ext\Lidarr-source\src\Lidarr.Api.V1\Lidarr.Api.V1.csproj">
-      <Private>false</Private>
-    </ProjectReference>
     <ProjectReference Include="ext\Lidarr-source\src\Lidarr.Http\Lidarr.Http.csproj">
-      <Private>false</Private>
-    </ProjectReference>
-    <ProjectReference Include="ext\Lidarr-source\src\NzbDrone.Host\Lidarr.Host.csproj">
-      <Private>false</Private>
-    </ProjectReference>
-    <ProjectReference Include="ext\Lidarr-source\src\NzbDrone.SignalR\Lidarr.SignalR.csproj">
       <Private>false</Private>
     </ProjectReference>
   </ItemGroup>
