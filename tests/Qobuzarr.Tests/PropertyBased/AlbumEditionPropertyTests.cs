@@ -138,7 +138,7 @@ namespace Qobuzarr.Tests.PropertyBased
             var fullTitle = album.GetFullTitle();
 
             // Assert - Should not have version duplicated in parentheses
-            return fullTitle == albumTitle;
+            return (fullTitle == albumTitle).ToProperty();
         }
 
         #endregion
@@ -185,7 +185,7 @@ namespace Qobuzarr.Tests.PropertyBased
             var fullTitle = album.GetFullTitle();
 
             // Assert
-            return fullTitle.Contains(unicodeVersion);
+            return fullTitle.Contains(unicodeVersion).ToProperty();
         }
 
         #endregion
@@ -217,7 +217,7 @@ namespace Qobuzarr.Tests.PropertyBased
                 var title2 = album2.GetFullTitle();
 
                 // Assert
-                return title1 != title2;
+                return (title1 != title2).ToProperty();
             }).When(version1.Get != version2.Get);
         }
 
@@ -242,7 +242,7 @@ namespace Qobuzarr.Tests.PropertyBased
             var title2 = album2.GetFullTitle();
 
             // Assert
-            return title1 == title2;
+            return (title1 == title2).ToProperty();
         }
 
         #endregion
@@ -272,7 +272,7 @@ namespace Qobuzarr.Tests.PropertyBased
                                     title.Contains(")") &&
                                     title.EndsWith("]");
 
-            return hasCorrectStructure;
+            return hasCorrectStructure.ToProperty();
         }
 
         [Property(Arbitrary = new[] { typeof(AlbumEditionPropertyTests) })]
@@ -294,7 +294,7 @@ namespace Qobuzarr.Tests.PropertyBased
             // Assert
             // Should have version in brackets and quality in brackets
             var versionBracketCount = title.Split('[').Length - 1;
-            return versionBracketCount >= 2; // At least version bracket and quality bracket
+            return (versionBracketCount >= 2).ToProperty(); // At least version bracket and quality bracket
         }
 
         [Property]
@@ -314,7 +314,7 @@ namespace Qobuzarr.Tests.PropertyBased
             var title = GenerateRedactedStyleTitle(qobuzAlbum);
 
             // Assert
-            return title.EndsWith("[FLAC WEB]") || title.EndsWith("[MP3 WEB]");
+            return (title.EndsWith("[FLAC WEB]") || title.EndsWith("[MP3 WEB]")).ToProperty();
         }
 
         #endregion
@@ -335,7 +335,7 @@ namespace Qobuzarr.Tests.PropertyBased
             var title2 = album.GetFullTitle();
 
             // Assert - Multiple calls should return same result
-            return title1 == title2;
+            return (title1 == title2).ToProperty();
         }
 
         [Property]
@@ -353,7 +353,7 @@ namespace Qobuzarr.Tests.PropertyBased
             var endTime = DateTime.UtcNow;
 
             var duration = endTime - startTime;
-            return duration.TotalMilliseconds < 10; // Should be very fast
+            return (duration.TotalMilliseconds < 10).ToProperty(); // Should be very fast
         }
 
         #endregion
