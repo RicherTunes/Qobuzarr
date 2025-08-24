@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using Lidarr.Plugin.Qobuzarr.Abstractions;
 using Lidarr.Plugin.Qobuzarr.Models;
 using Lidarr.Plugin.Qobuzarr.Services;
+using Lidarr.Plugin.Qobuzarr.Services.Consolidated;
 
 namespace Lidarr.Plugin.Qobuzarr.Core
 {
@@ -16,20 +17,20 @@ namespace Lidarr.Plugin.Qobuzarr.Core
     {
         private readonly QobuzStreamUrlService _streamUrlService;
         private readonly QobuzSearchService _searchService;
-        private readonly QobuzQualityService _qualityService;
+        private readonly IQobuzQualityManager _qualityManager;
         private readonly QobuzValidationService _validationService;
         private readonly IQobuzLogger _logger;
 
         public QobuzApiService(
             QobuzStreamUrlService streamUrlService,
             QobuzSearchService searchService,
-            QobuzQualityService qualityService,
+            IQobuzQualityManager qualityManager,
             QobuzValidationService validationService,
             IQobuzLogger logger)
         {
             _streamUrlService = streamUrlService ?? throw new ArgumentNullException(nameof(streamUrlService));
             _searchService = searchService ?? throw new ArgumentNullException(nameof(searchService));
-            _qualityService = qualityService ?? throw new ArgumentNullException(nameof(qualityService));
+            _qualityManager = qualityManager ?? throw new ArgumentNullException(nameof(qualityManager));
             _validationService = validationService ?? throw new ArgumentNullException(nameof(validationService));
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         }
@@ -135,7 +136,8 @@ namespace Lidarr.Plugin.Qobuzarr.Core
         /// </summary>
         public async Task<List<int>> GetAvailableQualitiesAsync(string trackId)
         {
-            return await _qualityService.GetAvailableQualitiesAsync(trackId);
+            var result = await _qualityManager.DetectAvailableQualitiesAsync(trackId);
+            return result.AvailableQualities?.Select(q => q.Id).ToList() ?? new List<int>();
         }
 
         /// <summary>
@@ -143,7 +145,27 @@ namespace Lidarr.Plugin.Qobuzarr.Core
         /// </summary>
         public async Task<(int selectedQuality, QobuzStreamInfo streamInfo)> GetBestAvailableStreamAsync(string trackId, int preferredQuality)
         {
-            return await _qualityService.GetBestAvailableStreamAsync(trackId, preferredQuality);
+            // Create QobuzQuality from int (following migration adapter pattern)
+            var quality = new Services.Consolidated.QobuzQuality { Id = preferredQuality };
+            
+            // Call new consolidated API
+            var result = await _qualityManager.SelectBestQualityAsync(trackId, quality);
+            
+            // Handle failure case
+            if (!result.Success)
+            {
+                throw new InvalidOperationException(
+                    result.Error ?? $"No available quality found for track {trackId}");
+            }
+            
+            // Convert new StreamInfo to legacy QobuzStreamInfo
+            var legacyStreamInfo = new QobuzStreamInfo
+            {
+                Url = result.StreamInfo.Url,
+                FormatId = result.StreamInfo.QualityId
+            };
+            
+            return (result.SelectedQuality.Id, legacyStreamInfo);
         }
 
         // Quality fallback implementation moved to QobuzQualityService
