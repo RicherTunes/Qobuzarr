@@ -29,7 +29,7 @@ public class PluginHost : IPluginHost, IDisposable
     private bool _isInitialized;
     private QobuzAuthService? _authService;
     private CliQobuzAuthenticationAdapter? _authAdapter;
-    private QobuzApiService? _apiClient;
+    private CliApiService? _apiClient;
     private QobuzDownloadService? _downloadService;
     private QobuzSession? _session;
     private IQobuzLogger? _pluginLogger;
@@ -1079,8 +1079,8 @@ public class PluginHost : IPluginHost, IDisposable
         var qualityService = new QobuzQualityService(streamUrlService, _pluginLogger);
         var cliValidationService = new CliQobuzValidationService(searchService, qualityService, _pluginLogger, _cache);
         
-        // Create main API and download services using legacy interfaces for CLI
-        _apiClient = new QobuzApiService(streamUrlService, searchService, qualityService, cliValidationService, _pluginLogger);
+        // Create CLI-specific API service that works with legacy interfaces
+        _apiClient = new CliApiService(streamUrlService, searchService, qualityService, cliValidationService, _pluginLogger);
         _downloadService = new QobuzDownloadService(_pluginHttpClient, _pluginLogger, _apiClient);
     }
 
