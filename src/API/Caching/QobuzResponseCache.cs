@@ -1,10 +1,12 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using NLog;
 using NzbDrone.Common.Cache;
 using NzbDrone.Common.Extensions;
 using Lidarr.Plugin.Qobuzarr.Configuration;
+using Lidarr.Plugin.Qobuzarr.Services;
 
 namespace Lidarr.Plugin.Qobuzarr.API.Caching
 {
@@ -17,11 +19,13 @@ namespace Lidarr.Plugin.Qobuzarr.API.Caching
         private readonly ICacheManager _cacheManager;
         private readonly ICached<object> _cache;
         private readonly Logger _logger;
+        private readonly IPerformanceMonitoringService? _performanceMonitor;
 
-        public QobuzResponseCache(ICacheManager cacheManager, Logger logger)
+        public QobuzResponseCache(ICacheManager cacheManager, Logger logger, IPerformanceMonitoringService? performanceMonitor = null)
         {
             _cacheManager = cacheManager ?? throw new ArgumentNullException(nameof(cacheManager));
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+            _performanceMonitor = performanceMonitor;
             _cache = _cacheManager.GetCache<object>(GetType());
         }
 
@@ -32,15 +36,19 @@ namespace Lidarr.Plugin.Qobuzarr.API.Caching
                 return null;
 
             var cacheKey = GenerateCacheKey(endpoint, parameters);
+            var stopwatch = Stopwatch.StartNew();
             var cached = _cache.Find(cacheKey);
+            stopwatch.Stop();
 
             if (cached != null)
             {
                 _logger.Debug("Cache hit for {0}", endpoint);
+                _performanceMonitor?.RecordCacheHit("QobuzResponse", cacheKey, true, stopwatch.Elapsed);
                 return cached as T;
             }
 
             _logger.Debug("Cache miss for {0}", endpoint);
+            _performanceMonitor?.RecordCacheHit("QobuzResponse", cacheKey, false, stopwatch.Elapsed);
             return null;
         }
 
