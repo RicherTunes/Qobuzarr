@@ -1,0 +1,145 @@
+name: Build Plugin (Docker Method)
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+env:
+  DOTNET_SKIP_FIRST_TIME_EXPERIENCE: true
+  DOTNET_CLI_TELEMETRY_OPTOUT: true
+  PLUGIN_NAME: Lidarr.Plugin.Qobuzarr
+  PLUGIN_VERSION: 0.1.${{ github.run_number }}
+  DOTNET_VERSION: 8.0.404
+  LIDARR_DOCKER_VERSION: pr-plugins-2.13.3.4692
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Setup .NET Core
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: ${{ env.DOTNET_VERSION }}
+
+    - name: Extract Lidarr assemblies from Docker (CLAUDE.md approach)
+      run: |
+        echo "Extracting plugins branch assemblies from Docker..."
+        
+        # Pull the exact plugins branch Docker image
+        docker pull ghcr.io/hotio/lidarr:${{ env.LIDARR_DOCKER_VERSION }}
+        
+        # Create temporary container and extract assemblies
+        docker create --name temp-lidarr ghcr.io/hotio/lidarr:${{ env.LIDARR_DOCKER_VERSION }}
+        
+        # Create output directory
+        mkdir -p ext/Lidarr-docker/_output/net6.0
+        
+        # Extract the assemblies we need
+        docker cp temp-lidarr:/app/bin/Lidarr.dll ext/Lidarr-docker/_output/net6.0/
+        docker cp temp-lidarr:/app/bin/Lidarr.Common.dll ext/Lidarr-docker/_output/net6.0/
+        docker cp temp-lidarr:/app/bin/Lidarr.Core.dll ext/Lidarr-docker/_output/net6.0/
+        docker cp temp-lidarr:/app/bin/Lidarr.Http.dll ext/Lidarr-docker/_output/net6.0/
+        docker cp temp-lidarr:/app/bin/Lidarr.Api.V1.dll ext/Lidarr-docker/_output/net6.0/ || echo "API V1 not found"
+        docker cp temp-lidarr:/app/bin/Lidarr.SignalR.dll ext/Lidarr-docker/_output/net6.0/ || echo "SignalR not found"
+        docker cp temp-lidarr:/app/bin/Lidarr.Host.dll ext/Lidarr-docker/_output/net6.0/ || echo "Host not found"
+        
+        # Cleanup
+        docker rm temp-lidarr
+        
+        echo "Extracted assemblies:"
+        ls -la ext/Lidarr-docker/_output/net6.0/
+
+    - name: Create temporary project for Docker assemblies
+      run: |
+        echo "Creating temporary .csproj for Docker assembly references..."
+        cat > Qobuzarr.Docker.csproj << 'EOF'
+        <Project Sdk="Microsoft.NET.Sdk">
+          <PropertyGroup>
+            <TargetFramework>net6.0</TargetFramework>
+            <LangVersion>latest</LangVersion>
+            <Nullable>enable</Nullable>
+            <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+            <AssemblyName>Lidarr.Plugin.Qobuzarr</AssemblyName>
+            <RootNamespace>Lidarr.Plugin.Qobuzarr</RootNamespace>
+            <OutputPath>bin\</OutputPath>
+            <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+          </PropertyGroup>
+
+          <ItemGroup>
+            <Compile Include="src\**\*.cs" />
+          </ItemGroup>
+
+          <ItemGroup>
+            <PackageReference Include="Newtonsoft.Json" />
+            <PackageReference Include="NLog" />
+            <PackageReference Include="FluentValidation" />
+            <PackageReference Include="TagLibSharp-Lidarr" />
+            <PackageReference Include="Microsoft.ML" />
+            <PackageReference Include="System.Resources.Extensions" />
+          </ItemGroup>
+
+          <!-- Reference Docker-extracted assemblies instead of source -->
+          <ItemGroup>
+            <Reference Include="Lidarr">
+              <HintPath>ext\Lidarr-docker\_output\net6.0\Lidarr.dll</HintPath>
+              <Private>false</Private>
+            </Reference>
+            <Reference Include="Lidarr.Common">
+              <HintPath>ext\Lidarr-docker\_output\net6.0\Lidarr.Common.dll</HintPath>
+              <Private>false</Private>
+            </Reference>
+            <Reference Include="Lidarr.Core">
+              <HintPath>ext\Lidarr-docker\_output\net6.0\Lidarr.Core.dll</HintPath>
+              <Private>false</Private>
+            </Reference>
+            <Reference Include="Lidarr.Http">
+              <HintPath>ext\Lidarr-docker\_output\net6.0\Lidarr.Http.dll</HintPath>
+              <Private>false</Private>
+            </Reference>
+          </ItemGroup>
+        </Project>
+        EOF
+
+    - name: Build with Docker assemblies
+      run: |
+        echo "Building with Docker-extracted assemblies..."
+        dotnet restore Qobuzarr.Docker.csproj
+        dotnet build Qobuzarr.Docker.csproj \
+          --configuration Release \
+          --no-restore \
+          -p:Version=${{ env.PLUGIN_VERSION }} \
+          -p:AssemblyVersion=${{ env.PLUGIN_VERSION }} \
+          -p:FileVersion=${{ env.PLUGIN_VERSION }} \
+          -v:normal
+
+    - name: Verify plugin files
+      run: |
+        echo "Checking plugin output..."
+        ls -la bin/
+        
+        if [ -f "bin/Lidarr.Plugin.Qobuzarr.dll" ]; then
+          echo "✅ Plugin DLL created successfully"
+          echo "Size: $(stat -c%s bin/Lidarr.Plugin.Qobuzarr.dll) bytes"
+        else
+          echo "❌ Plugin DLL not found!"
+          exit 1
+        fi
+
+    - name: Upload plugin artifact
+      uses: actions/upload-artifact@v4
+      if: success()
+      with:
+        name: qobuzarr-plugin-docker
+        path: |
+          bin/Lidarr.Plugin.Qobuzarr.dll
+          bin/plugin.json
+        retention-days: 30
