@@ -8,8 +8,10 @@ using Lidarr.Plugin.Qobuzarr.Constants;
 
 namespace Lidarr.Plugin.Qobuzarr.Download.Clients
 {
-    public class QobuzDownloadItem
+    public class QobuzDownloadItem : IDisposable
     {
+        private bool _disposed = false;
+        
         public string DownloadId { get; set; }
         public string AlbumId { get; set; }
         public string Title { get; set; }
@@ -76,11 +78,23 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Clients
         /// </summary>
         public void Cancel()
         {
+            if (_disposed)
+            {
+                Message = "Cannot cancel - download item already disposed";
+                return;
+            }
+            
             try
             {
                 CancellationTokenSource?.Cancel();
                 Status = DownloadItemStatus.Failed;
                 Message = "Download cancelled by user";
+            }
+            catch (ObjectDisposedException)
+            {
+                // Already disposed, just update status
+                Status = DownloadItemStatus.Failed;
+                Message = "Download cancelled (already disposed)";
             }
             catch (Exception ex)
             {
@@ -154,6 +168,57 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Clients
                     HasPostImportCategory = false
                 }
             };
+        }
+        
+        /// <summary>
+        /// Dispose pattern implementation to properly clean up CancellationTokenSource
+        /// </summary>
+        public void Dispose()
+        {
+            Dispose(true);
+            GC.SuppressFinalize(this);
+        }
+        
+        /// <summary>
+        /// Protected virtual dispose method for derived classes
+        /// </summary>
+        protected virtual void Dispose(bool disposing)
+        {
+            if (!_disposed)
+            {
+                if (disposing)
+                {
+                    // Dispose managed resources
+                    try
+                    {
+                        CancellationTokenSource?.Cancel();
+                        CancellationTokenSource?.Dispose();
+                    }
+                    catch (ObjectDisposedException)
+                    {
+                        // Already disposed, ignore
+                    }
+                    catch (Exception ex)
+                    {
+                        // Log but don't throw in Dispose
+                        Message = $"Error during disposal: {ex.Message}";
+                    }
+                }
+                
+                // Clean up unmanaged resources if any
+                CancellationTokenSource = null;
+                DownloadTask = null;
+                
+                _disposed = true;
+            }
+        }
+        
+        /// <summary>
+        /// Finalizer - only needed if we have unmanaged resources
+        /// </summary>
+        ~QobuzDownloadItem()
+        {
+            Dispose(false);
         }
     }
 }
