@@ -44,7 +44,7 @@ namespace Qobuzarr.Tests.Unit.Services
             var profile = new LidarrQualityProfile
             {
                 Name = "Hi-Res",
-                Items = new List<object>() // Simplified for testing
+                Items = new List<LidarrQualityProfileItem>() // Fixed type
             };
 
             // Act
@@ -61,8 +61,8 @@ namespace Qobuzarr.Tests.Unit.Services
             // Arrange
             var profile = new LidarrQualityProfile
             {
-                Name = "CD Quality",
-                Items = new List<object>() // Simplified for testing
+                Name = "CD Quality", 
+                Items = new List<LidarrQualityProfileItem>() // Fixed type
             };
 
             // Act
