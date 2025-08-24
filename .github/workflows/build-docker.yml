@@ -126,13 +126,21 @@ jobs:
         echo "Checking plugin output..."
         ls -la bin/
         
+        # Check both possible output paths
         if [ -f "bin/Lidarr.Plugin.Qobuzarr.dll" ]; then
-          echo "✅ Plugin DLL created successfully"
-          echo "Size: $(stat -c%s bin/Lidarr.Plugin.Qobuzarr.dll) bytes"
+          PLUGIN_PATH="bin/Lidarr.Plugin.Qobuzarr.dll"
+          echo "✅ Plugin DLL found at: $PLUGIN_PATH"
+        elif [ -f "bin/net6.0/Lidarr.Plugin.Qobuzarr.dll" ]; then
+          PLUGIN_PATH="bin/net6.0/Lidarr.Plugin.Qobuzarr.dll"
+          echo "✅ Plugin DLL found at: $PLUGIN_PATH"
         else
-          echo "❌ Plugin DLL not found!"
+          echo "❌ Plugin DLL not found in bin/ or bin/net6.0/!"
+          echo "Contents of bin/:"
+          find bin/ -name "*.dll" 2>/dev/null || echo "No DLLs found"
           exit 1
         fi
+        
+        echo "Size: $(stat -c%s "$PLUGIN_PATH") bytes"
 
     - name: Upload plugin artifact
       uses: actions/upload-artifact@v4
@@ -140,6 +148,6 @@ jobs:
       with:
         name: qobuzarr-plugin-docker
         path: |
-          bin/Lidarr.Plugin.Qobuzarr.dll
-          bin/plugin.json
+          bin/**/*.dll
+          bin/**/plugin.json
         retention-days: 30
