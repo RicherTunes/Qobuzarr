@@ -1,0 +1,37 @@
+name: CI (Simple)
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Setup .NET 6
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: '6.0.x'
+    
+    - name: Get Lidarr plugins branch
+      run: |
+        git clone --depth 1 --branch plugins https://github.com/Lidarr/Lidarr.git ext/Lidarr-source || true
+    
+    - name: Build
+      run: |
+        dotnet build Qobuzarr.csproj \
+          --configuration Release \
+          -p:RunAnalyzersDuringBuild=false \
+          -p:EnableNETAnalyzers=false \
+          -p:TreatWarningsAsErrors=false
+    
+    - name: Check output
+      run: |
+        ls -la bin/
+        echo "Build completed successfully!"
