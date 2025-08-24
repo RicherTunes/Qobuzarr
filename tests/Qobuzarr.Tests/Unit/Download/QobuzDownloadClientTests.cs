@@ -98,7 +98,7 @@ namespace Qobuzarr.Tests.Unit.Download
             _downloadClient = new TestableQobuzDownloadClient(
                 _mockAuthService,
                 _mockApiClient,
-                MockHttpClient,
+                MockHttpClient.Object,
                 _mockQueueService,
                 _mockFileService,
                 _mockConcurrencyManager,
@@ -106,11 +106,11 @@ namespace Qobuzarr.Tests.Unit.Download
                 _mockDownloadSummary,
                 _mockBatchProcessor,
                 _mockTrackDownloaderFactory,
-                MockConfigService,
-                MockDiskProvider,
-                MockRemotePathMappingService,
-                MockLocalizationService,
-                MockLogger
+                MockConfigService.Object,
+                MockDiskProvider.Object,
+                MockRemotePathMappingService.Object,
+                MockLocalizationService.Object,
+                MockLogger.Object
             );
 
             _testSession = new QobuzSession
@@ -127,8 +127,8 @@ namespace Qobuzarr.Tests.Unit.Download
         {
             _mockAuthService.GetCachedSession().Returns(_testSession);
             
-            MockDiskProvider.FolderExists(Arg.Any<string>()).Returns(true);
-            MockDiskProvider.When(x => x.CreateFolder(Arg.Any<string>())).DoNothing();
+            MockDiskProvider.Setup(x => x.FolderExists(It.IsAny<string>())).Returns(true);
+            MockDiskProvider.Setup(x => x.CreateFolder(It.IsAny<string>())).Verifiable();
             
             var album = JsonConvert.DeserializeObject<QobuzAlbum>(SampleQobuzResponses.SampleAlbumResponse);
             _mockApiClient.GetAsync<QobuzAlbum>("/album/get", Arg.Any<Dictionary<string, string>>())
@@ -233,14 +233,14 @@ namespace Qobuzarr.Tests.Unit.Download
             var remoteAlbum = CreateTestRemoteAlbum();
             var downloadId = await _downloadClient.Download(remoteAlbum, Substitute.For<IIndexer>());
 
-            MockDiskProvider.FolderExists(Arg.Any<string>()).Returns(true);
+            MockDiskProvider.Setup(x => x.FolderExists(It.IsAny<string>())).Returns(true);
             var downloadItem = _downloadClient.GetItems().First(x => x.DownloadId == downloadId);
 
             // Act
             _downloadClient.RemoveItem(downloadItem, true);
 
             // Assert
-            MockDiskProvider.Received(1).DeleteFolder(Arg.Any<string>(), true);
+            MockDiskProvider.Verify(x => x.DeleteFolder(It.IsAny<string>(), true), Times.Once());
         }
 
         [Fact]
@@ -273,7 +273,7 @@ namespace Qobuzarr.Tests.Unit.Download
         public void Protocol_ShouldReturnQobuzarrDownloadProtocol()
         {
             // Act & Assert
-            _downloadClient.Protocol.Should().Be(nameof(QobuzarrDownloadProtocol));
+            _downloadClient.Protocol.Should().Be("QobuzarrDownloadProtocol");
         }
 
         [Fact]
