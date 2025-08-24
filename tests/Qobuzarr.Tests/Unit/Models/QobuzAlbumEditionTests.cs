@@ -2,6 +2,7 @@ using System;
 using System.Linq;
 using FluentAssertions;
 using Xunit;
+using NzbDrone.Common.Extensions;
 using Lidarr.Plugin.Qobuzarr.Models;
 using Qobuzarr.Tests.Builders;
 using Qobuzarr.Tests.TestData;

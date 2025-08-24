@@ -66,7 +66,7 @@ namespace Qobuzarr.Tests.Integration
 
             var searchCriteria = Substitute.For<AlbumSearchCriteria>();
             searchCriteria.Albums.Returns(new List<Album> { lidarrAlbum });
-            searchCriteria.Artist.Returns(lidarrAlbum.Artist);
+            searchCriteria.Artist.Returns(lidarrAlbum.Artist.Value);
 
             var qobuzAlbum = CreateQobuzDeluxeAlbum();
             _parser.SetSearchContext(searchCriteria);
@@ -384,7 +384,7 @@ namespace Qobuzarr.Tests.Integration
             // Create mock response
             var albumSearchResponse = new QobuzAlbumSearchResponse
             {
-                Albums = new QobuzAlbumList { Items = new List<QobuzAlbum> { album } }
+                Albums = new QobuzSearchResultContainer<QobuzAlbum> { Items = new List<QobuzAlbum> { album } }
             };
 
             var mockResponse = new NzbDrone.Common.Http.HttpResponse(
