@@ -83,7 +83,7 @@ jobs:
         echo "✅ plugin.json is valid JSON"
         
         # Extract and display version
-        VERSION=$(cat plugin.json | python3 -c "import sys, json; print(json.load(sys.stdin)['Version'])")
+        VERSION=$(cat plugin.json | python3 -c "import sys, json; print(json.load(sys.stdin)['version'])")
         echo "📦 Plugin version: $VERSION"
 
     - name: Count source files
