@@ -9,6 +9,7 @@ using Lidarr.Plugin.Qobuzarr.API;
 using Lidarr.Plugin.Qobuzarr.Integration;
 using Lidarr.Plugin.Qobuzarr.Models;
 using Lidarr.Plugin.Qobuzarr.Models.Lidarr;
+using Lidarr.Plugin.Qobuzarr.Services.Consolidated;
 using Lidarr.Plugin.Qobuzarr.Utilities;
 
 namespace Lidarr.Plugin.Qobuzarr.Services
@@ -22,7 +23,7 @@ namespace Lidarr.Plugin.Qobuzarr.Services
         private readonly ILidarrApiClient _lidarrApiClient;
         private readonly IQobuzApiClient _qobuzApiClient;
         private readonly IAdaptiveRateLimiter _rateLimiter;
-        private readonly IQualityMappingService _qualityMappingService;
+        private readonly IQobuzQualityManager _qualityManager;
         private readonly ILidarrStatisticsCollector _statisticsCollector;
         private readonly Logger _logger;
 
@@ -42,21 +43,21 @@ namespace Lidarr.Plugin.Qobuzarr.Services
         /// <param name="lidarrApiClient">Client for communicating with Lidarr API.</param>
         /// <param name="qobuzApiClient">Client for communicating with Qobuz API.</param>
         /// <param name="rateLimiter">Adaptive rate limiter for API throttling.</param>
-        /// <param name="qualityMappingService">Service for mapping Lidarr quality profiles to Qobuz quality levels.</param>
+        /// <param name="qualityManager">Consolidated quality management service.</param>
         /// <param name="statisticsCollector">Service for collecting statistics.</param>
         /// <param name="logger">Logger for recording operations and debugging.</param>
         public LidarrAlbumRetriever(
             ILidarrApiClient lidarrApiClient,
             IQobuzApiClient qobuzApiClient,
             IAdaptiveRateLimiter rateLimiter,
-            IQualityMappingService qualityMappingService,
+            IQobuzQualityManager qualityManager,
             ILidarrStatisticsCollector statisticsCollector,
             Logger logger)
         {
             _lidarrApiClient = Guard.NotNull(lidarrApiClient, nameof(lidarrApiClient));
             _qobuzApiClient = Guard.NotNull(qobuzApiClient, nameof(qobuzApiClient));
             _rateLimiter = Guard.NotNull(rateLimiter, nameof(rateLimiter));
-            _qualityMappingService = Guard.NotNull(qualityMappingService, nameof(qualityMappingService));
+            _qualityManager = Guard.NotNull(qualityManager, nameof(qualityManager));
             _statisticsCollector = Guard.NotNull(statisticsCollector, nameof(statisticsCollector));
             _logger = Guard.NotNull(logger, nameof(logger));
 
@@ -263,11 +264,16 @@ namespace Lidarr.Plugin.Qobuzarr.Services
 
                     // Get quality profile for this album
                     var qualityProfile = await GetQualityProfileForAlbumAsync(match.Key, cancellationToken).ConfigureAwait(false);
-                    var qualityRecommendation = _qualityMappingService.GetQualityRecommendation(match.Key, qualityProfile);
+                    
+                    // Map Lidarr quality profile to Qobuz quality
+                    var mappedQuality = _qualityManager.MapLidarrQuality(qualityProfile);
+                    
+                    // Get quality recommendation with fallback chain
+                    var qualityRecommendation = CreateQualityRecommendation(mappedQuality, qualityProfile);
 
                     // Determine available Qobuz qualities for this album
                     var availableQualities = GetAvailableQobuzQualities(match.Value);
-                    var selectedQuality = _qualityMappingService.SelectBestAvailableQuality(qualityProfile, availableQualities);
+                    var selectedQuality = await SelectBestAvailableQualityAsync(mappedQuality, availableQualities, qualityProfile);
 
                     if (string.IsNullOrEmpty(selectedQuality))
                     {
@@ -288,7 +294,7 @@ namespace Lidarr.Plugin.Qobuzarr.Services
                         
                         // Check if the selected quality meets profile requirements
                         if (!string.IsNullOrEmpty(selectedQuality) && 
-                            !_qualityMappingService.DoesQualityMeetProfileRequirements(qualityProfile, selectedQuality))
+                            !DoesQualityMeetProfileRequirements(qualityProfile, selectedQuality))
                         {
                             validationMessages.Add($"Selected quality {selectedQuality} does not meet profile requirements");
                             // This is a warning, not a failure unless profile is very strict
@@ -305,7 +311,7 @@ namespace Lidarr.Plugin.Qobuzarr.Services
                         {
                             LidarrAlbum = match.Key,
                             QobuzAlbum = match.Value,
-                            PreferredQuality = ConvertQobuzQualityToInt(selectedQuality ?? _qualityMappingService.GetDefaultQobuzQuality()),
+                            PreferredQuality = ConvertQobuzQualityToInt(selectedQuality ?? GetDefaultQobuzQualityString()),
                             ValidatedAt = DateTime.UtcNow,
                             ValidationMessages = validationMessages,
                             QualityProfile = qualityProfile,
@@ -343,6 +349,103 @@ namespace Lidarr.Plugin.Qobuzarr.Services
         }
 
         #region Private Helper Methods
+
+        /// <summary>
+        /// Creates a quality recommendation based on the mapped quality and profile.
+        /// </summary>
+        private QualityRecommendation CreateQualityRecommendation(QobuzQuality mappedQuality, LidarrQualityProfile profile)
+        {
+            var fallbackChain = _qualityManager.GetQualityFallbackChain(mappedQuality);
+            
+            return new QualityRecommendation
+            {
+                PrimaryQuality = ConvertQobuzQualityToString(mappedQuality),
+                FallbackQualities = fallbackChain.Skip(1).Select(q => ConvertQobuzQualityToString(q)).ToList(),
+                Reason = profile != null ? $"Based on profile: {profile.Name}" : "Default quality mapping",
+                PreferLossless = profile?.Name?.Contains("lossless", StringComparison.OrdinalIgnoreCase) ?? false
+            };
+        }
+
+        /// <summary>
+        /// Selects the best available quality from the list based on the mapped quality preference.
+        /// </summary>
+        private async Task<string> SelectBestAvailableQualityAsync(
+            QobuzQuality mappedQuality, 
+            List<string> availableQualities, 
+            LidarrQualityProfile profile)
+        {
+            if (!availableQualities.Any())
+                return null;
+
+            // Get the fallback chain from the quality manager
+            var fallbackChain = _qualityManager.GetQualityFallbackChain(mappedQuality);
+            
+            // Try to find the best matching quality from the fallback chain
+            foreach (var quality in fallbackChain)
+            {
+                var qualityString = ConvertQobuzQualityToString(quality);
+                if (availableQualities.Contains(qualityString, StringComparer.OrdinalIgnoreCase))
+                {
+                    _logger.Debug("Selected quality {0} from available options", qualityString);
+                    return qualityString;
+                }
+            }
+
+            // If no match found in fallback chain, return the highest available quality
+            return availableQualities.FirstOrDefault();
+        }
+
+        /// <summary>
+        /// Checks if the selected quality meets the profile requirements.
+        /// </summary>
+        private bool DoesQualityMeetProfileRequirements(LidarrQualityProfile profile, string selectedQuality)
+        {
+            if (profile == null || string.IsNullOrEmpty(selectedQuality))
+                return true; // No requirements to check
+
+            // Check if profile requires lossless and selected quality is MP3
+            if (profile.Name?.Contains("lossless", StringComparison.OrdinalIgnoreCase) == true &&
+                selectedQuality.Contains("mp3", StringComparison.OrdinalIgnoreCase))
+            {
+                return false;
+            }
+
+            // Check if profile requires Hi-Res and selected quality is not Hi-Res
+            if (profile.Name?.Contains("hi-res", StringComparison.OrdinalIgnoreCase) == true &&
+                !selectedQuality.Contains("hires", StringComparison.OrdinalIgnoreCase))
+            {
+                return false;
+            }
+
+            return true;
+        }
+
+        /// <summary>
+        /// Gets the default Qobuz quality string.
+        /// </summary>
+        private string GetDefaultQobuzQualityString()
+        {
+            // Default to CD quality (format ID 6)
+            return "flac-cd";
+        }
+
+        /// <summary>
+        /// Converts a QobuzQuality object to a string representation.
+        /// </summary>
+        private string ConvertQobuzQualityToString(QobuzQuality quality)
+        {
+            if (quality == null)
+                return GetDefaultQobuzQualityString();
+
+            return quality.Id switch
+            {
+                27 => "flac-hires",  // Hi-Res 192kHz
+                7 => "flac-hires",   // Hi-Res 96kHz
+                6 => "flac-cd",      // CD Quality
+                5 => "mp3-320",      // MP3 320kbps
+                _ => "flac-cd"       // Default
+            };
+        }
 
         /// <summary>
         /// Retrieves the quality profile for a specific album, with caching for performance.
