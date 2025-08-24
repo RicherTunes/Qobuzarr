@@ -119,8 +119,10 @@ namespace Lidarr.Plugin.Qobuzarr.Utilities
                     var opName = operationName ?? "operation";
                     Logger.Warn(ex, $"Attempt {attempt} of {maxRetries} failed for {opName}. Retrying in {delay}ms...");
                     
-                    await Task.Delay(delay);
-                    delay *= 2; // Exponential backoff
+                    // Add jitter to prevent thundering herd
+                    var jitter = new Random().Next(0, 500);
+                    await Task.Delay(delay + jitter);
+                    delay = Math.Min(delay * 2, 30000); // Exponential backoff with max 30s cap
                 }
                 catch (Exception ex) when (attempt >= maxRetries)
                 {

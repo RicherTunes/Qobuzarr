@@ -151,11 +151,11 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Clients
                 RemainingTime = GetEstimatedTimeRemaining(),
                 Status = Status,
                 Message = GetStatusMessage() ?? "",
-                CanMoveFiles = Status == DownloadItemStatus.Completed,
+                CanMoveFiles = Status == DownloadItemStatus.Completed && !string.IsNullOrEmpty(OutputPath),
                 CanBeRemoved = Status == DownloadItemStatus.Completed || Status == DownloadItemStatus.Failed,
                 OutputPath = new NzbDrone.Common.Disk.OsPath(OutputPath ?? ""),
                 IsEncrypted = false,
-                Category = "",
+                Category = "qobuzarr", // Set category to help Lidarr identify our downloads
                 SeedRatio = null, // Not applicable for direct downloads
                 Removed = false,
                 DownloadClientInfo = new DownloadClientItemClientInfo
@@ -164,8 +164,8 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Clients
                     Type = "Qobuzarr",
                     Id = downloadClientId, // Use actual download client ID
                     Name = downloadClientName ?? "Qobuzarr",
-                    RemoveCompletedDownloads = false,
-                    HasPostImportCategory = false
+                    RemoveCompletedDownloads = true, // Allow Lidarr to clean up after import
+                    HasPostImportCategory = true // Enable post-import processing
                 }
             };
         }
