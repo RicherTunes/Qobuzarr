@@ -38,7 +38,6 @@ namespace QobuzCLI.Services
                 SearchLimit = cliConfig.SearchResultLimit,
                 IncludeSingles = cliConfig.IncludeSingles,
                 IncludeCompilations = cliConfig.IncludeCompilations,
-                EnableQueryIntelligence = cliConfig.EnableQueryIntelligence,
                 
                 // Advanced settings
                 ApiRateLimit = cliConfig.ApiRateLimit,
