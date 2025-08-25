@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+using Lidarr.Plugin.Qobuzarr.Models;
 
 namespace Lidarr.Plugin.Qobuzarr.Services.Interfaces
 {
@@ -59,6 +60,15 @@ namespace Lidarr.Plugin.Qobuzarr.Services.Interfaces
         /// <param name="cancellationToken">Token to cancel the operation</param>
         /// <returns>Refreshed URL result or null if refresh not possible</returns>
         Task<StreamUrlResult?> RefreshStreamUrlAsync(string url, string trackId, int qualityId, CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Gets a streaming URL with fallback using a provided fallback chain.
+        /// </summary>
+        /// <param name="trackId">The Qobuz track ID</param>
+        /// <param name="fallbackChain">List of quality formats to try in order</param>
+        /// <param name="cancellationToken">Token to cancel the operation</param>
+        /// <returns>Stream URL result with quality that worked</returns>
+        Task<StreamUrlResult> GetStreamUrlWithFallbackAsync(string trackId, IReadOnlyList<QualityFormat> fallbackChain, CancellationToken cancellationToken = default);
     }
 
     /// <summary>
