@@ -41,10 +41,10 @@ namespace Lidarr.Plugin.Qobuzarr.Services.Orchestrators
     /// </remarks>
     public class AuthenticationOrchestrator
     {
-        private readonly CredentialValidator _credentialValidator;
+        private readonly Interfaces.ICredentialValidator _credentialValidator;
         private readonly IQobuzAuthenticationService _authService;
-        private readonly SessionManager _sessionManager;
-        private readonly TokenRefresher _tokenRefresher;
+        private readonly Interfaces.ISessionManager _sessionManager;
+        private readonly Interfaces.ITokenRefresher _tokenRefresher;
         private readonly Logger _logger;
 
         // State management
@@ -70,10 +70,10 @@ namespace Lidarr.Plugin.Qobuzarr.Services.Orchestrators
         public event EventHandler<SessionRefreshedEventArgs>? SessionRefreshed;
 
         public AuthenticationOrchestrator(
-            CredentialValidator credentialValidator,
+            Interfaces.ICredentialValidator credentialValidator,
             IQobuzAuthenticationService authService,
-            SessionManager sessionManager,
-            TokenRefresher tokenRefresher,
+            Interfaces.ISessionManager sessionManager,
+            Interfaces.ITokenRefresher tokenRefresher,
             Logger logger)
         {
             _credentialValidator = credentialValidator ?? throw new ArgumentNullException(nameof(credentialValidator));

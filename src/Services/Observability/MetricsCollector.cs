@@ -511,21 +511,21 @@ namespace Lidarr.Plugin.Qobuzarr.Services.Observability
         /// <summary>
         /// Gets current metrics summary for monitoring dashboards
         /// </summary>
-        public MetricsSummary GetLegacyMetricsSummary()
+        public Dictionary<string, string> GetLegacyMetricsSummary()
         {
             lock (_metricsLock)
             {
-                return new MetricsSummary
+                return new Dictionary<string, string>
                 {
-                    Timestamp = DateTime.UtcNow,
-                    TotalApiRequests = GetCounterValue(API_REQUESTS_TOTAL),
-                    CacheHitRatio = GetAverageCacheHitRatio(),
-                    ActiveDownloads = GetGaugeValue(ACTIVE_DOWNLOADS_GAUGE),
-                    TotalDownloads = GetCounterValue(DOWNLOAD_OPERATIONS_TOTAL),
-                    AuthenticationFailures = GetCounterValue(AUTHENTICATION_ATTEMPTS_TOTAL, "failure"),
-                    QualityFallbacks = GetCounterValue(QUALITY_FALLBACKS_TOTAL),
-                    MLOptimizations = GetCounterValue(ML_OPTIMIZATIONS_TOTAL, "applied"),
-                    UnhealthyServices = CountUnhealthyServices()
+                    ["timestamp"] = DateTime.UtcNow.ToString("O"),
+                    ["total_api_requests"] = GetCounterValue(API_REQUESTS_TOTAL).ToString(),
+                    ["cache_hit_ratio"] = GetAverageCacheHitRatio().ToString("F2"),
+                    ["active_downloads"] = GetGaugeValue(ACTIVE_DOWNLOADS_GAUGE).ToString(),
+                    ["total_downloads"] = GetCounterValue(DOWNLOAD_OPERATIONS_TOTAL).ToString(),
+                    ["authentication_failures"] = GetCounterValue(AUTHENTICATION_ATTEMPTS_TOTAL, "failure").ToString(),
+                    ["quality_fallbacks"] = GetCounterValue(QUALITY_FALLBACKS_TOTAL).ToString(),
+                    ["ml_optimizations"] = GetCounterValue(ML_OPTIMIZATIONS_TOTAL, "applied").ToString(),
+                    ["unhealthy_services"] = CountUnhealthyServices().ToString()
                 };
             }
         }

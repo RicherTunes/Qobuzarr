@@ -371,7 +371,7 @@ namespace Lidarr.Plugin.Qobuzarr.Services.Core.Api
                 RateLimitStats = rateLimitStats,
                 CacheHitRatio = CalculateCacheHitRatio(),
                 ActiveRequests = _requestDeduplicator.GetActiveRequestCount(),
-                TotalRequests = rateLimitStats.TotalRequests
+                TotalRequests = rateLimitStats.EndpointStats.Values.Sum(es => es.TotalRequests)
             };
         }
 

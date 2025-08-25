@@ -197,9 +197,9 @@ namespace Lidarr.Plugin.Qobuzarr.Services.Core.Quality
             }
 
             // Default fallback
-            var defaultQuality = _qualityDefinitionService.GetQualityByIdLegacy(6); // CD quality default
-            _logger.Debug("Using default quality {0} for unmappable profile", defaultQuality.Name);
-            return CreateFallbackChain(defaultQuality);
+            var fallbackQuality = _qualityDefinitionService.GetQualityByIdLegacy(6); // CD quality default
+            _logger.Debug("Using default quality {0} for unmappable profile", fallbackQuality.Name);
+            return CreateFallbackChain(fallbackQuality);
         }
 
         public bool ShouldAttemptFallback(Exception exception, QualityFormat attemptedQuality)
