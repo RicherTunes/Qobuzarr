@@ -25,38 +25,42 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Clients
             AdaptiveTargetLatency = 1000;
         }
 
-        [FieldDefinition(1, Label = "Download Path", Type = FieldType.Path, HelpText = "Path where completed downloads will be stored")]
+        // === STORAGE SETTINGS ===
+        [FieldDefinition(1, Label = "Download Path", Type = FieldType.Path, Section = "Storage", HelpText = "Root folder where all downloads will be saved. Lidarr will organize files from here into your media library.")]
         public string DownloadPath { get; set; }
 
-        [FieldDefinition(2, Label = "Audio Quality", Type = FieldType.Select, SelectOptions = typeof(QobuzAudioQuality), HelpText = "Preferred audio quality for downloads")]
-        public int PreferredQuality { get; set; }
-
-        [FieldDefinition(3, Label = "Create Album Folders", Type = FieldType.Checkbox, HelpText = "Create individual folders for each album")]
+        [FieldDefinition(2, Label = "Create Album Folders", Type = FieldType.Checkbox, Section = "Storage", HelpText = "Organize downloads into Artist/Album folder structure. When enabled: Artist/Album/tracks. When disabled: All tracks in download path.")]
         public bool CreateAlbumFolders { get; set; }
 
-        [FieldDefinition(4, Label = "Concurrency Mode", Type = FieldType.Select, SelectOptions = typeof(DownloadConcurrencyMode), HelpText = "🎯 Download concurrency management: 'Adaptive' optimizes automatically for best performance (recommended), 'Fixed' uses constant concurrent downloads, 'Manual' for custom control")]
+        // === QUALITY SETTINGS ===
+        [FieldDefinition(3, Label = "Audio Quality", Type = FieldType.Select, SelectOptions = typeof(QobuzAudioQuality), Section = "Quality", HelpText = "Preferred audio quality. The plugin will automatically fall back to lower qualities if your selection is unavailable. Note: Your Qobuz subscription determines maximum available quality.")]
+        public int PreferredQuality { get; set; }
+
+        // === CONCURRENCY SETTINGS ===
+        [FieldDefinition(4, Label = "Concurrency Mode", Type = FieldType.Select, SelectOptions = typeof(DownloadConcurrencyMode), Section = "Performance", HelpText = "How to manage parallel track downloads. 'Adaptive' automatically adjusts based on server speed (recommended). 'Fixed' uses a constant number of parallel downloads.")]
         public int ConcurrencyMode { get; set; } = (int)DownloadConcurrencyMode.Adaptive;
 
-        [FieldDefinition(5, Label = "[Fixed/Manual] Concurrent Downloads", Type = FieldType.Number, HelpText = "Number of tracks to download simultaneously in Fixed or Manual mode (1-10, default: 3). Ignored in Adaptive mode.")]
+        [FieldDefinition(5, Label = "Fixed Concurrent Downloads", Type = FieldType.Number, Section = "Performance", HelpText = "Number of tracks to download simultaneously when using Fixed mode. Higher = faster but may cause server throttling. Range: 1-10, Default: 3")]
         public int FixedConcurrencyLevel { get; set; } = 3;
 
-        [FieldDefinition(6, Label = "[Adaptive] Min Downloads", Type = FieldType.Number, Advanced = true, HelpText = "🤖 Adaptive Mode: Minimum concurrent downloads (1-5, default: 1). System never goes below this.")]
+        [FieldDefinition(6, Label = "Minimum Downloads", Type = FieldType.Number, Section = "Performance", Advanced = true, HelpText = "[Adaptive Mode] Minimum parallel track downloads. System won't go below this even if server is slow. Range: 1-5, Default: 1")]
         public int AdaptiveMinConcurrency { get; set; } = 1;
 
-        [FieldDefinition(7, Label = "[Adaptive] Max Downloads", Type = FieldType.Number, Advanced = true, HelpText = "🤖 Adaptive Mode: Maximum concurrent downloads (2-10, default: 6). System never exceeds this.")]
+        [FieldDefinition(7, Label = "Maximum Downloads", Type = FieldType.Number, Section = "Performance", Advanced = true, HelpText = "[Adaptive Mode] Maximum parallel track downloads. System won't exceed this even if server is fast. Range: 2-10, Default: 6")]
         public int AdaptiveMaxConcurrency { get; set; } = 6;
 
-        [FieldDefinition(8, Label = "[Adaptive] Target Speed (ms)", Type = FieldType.Number, Advanced = true, HelpText = "🤖 Adaptive Mode: Target download response time (500-3000ms, default: 1000ms). System increases concurrency when faster.")]
+        [FieldDefinition(8, Label = "Target Response Time (ms)", Type = FieldType.Number, Section = "Performance", Advanced = true, HelpText = "[Adaptive Mode] Ideal download response time. System increases concurrency when faster than this. Range: 500-3000ms, Default: 1000ms")]
         public int AdaptiveTargetLatency { get; set; } = 1000;
 
-        [FieldDefinition(9, Label = "Minimum Success Rate", Type = FieldType.Number, HelpText = "Minimum percentage of tracks that must download successfully (0-100%, default: 80%)")]
+        // === RELIABILITY SETTINGS ===
+        [FieldDefinition(9, Label = "Minimum Success Rate (%)", Type = FieldType.Number, Section = "Reliability", HelpText = "Minimum percentage of tracks that must download successfully for the album to be considered complete. If below this threshold, the download fails. Range: 0-100%, Default: 80%")]
         public int MinimumSuccessRatePercent { get; set; } = 80;
 
-        [FieldDefinition(10, Label = "Treat Preview as Failure", Type = FieldType.Checkbox, HelpText = "Count preview-only tracks as failures when calculating success rate")]
-        public bool TreatPreviewAsFailure { get; set; } = false;
-
-        [FieldDefinition(11, Label = "Skip Preview Tracks", Type = FieldType.Checkbox, HelpText = "Skip downloading tracks that are only available as previews/samples")]
+        [FieldDefinition(10, Label = "Skip Preview Tracks", Type = FieldType.Checkbox, Section = "Reliability", HelpText = "Skip 30-second preview/sample tracks instead of downloading them. Recommended for better success rates.")]
         public bool SkipPreviewTracks { get; set; } = true;
+
+        [FieldDefinition(11, Label = "Count Previews as Failures", Type = FieldType.Checkbox, Section = "Reliability", Advanced = true, HelpText = "When calculating success rate, count skipped preview tracks as failures. Enable this for stricter quality control.")]
+        public bool TreatPreviewAsFailure { get; set; } = false;
 
         public NzbDroneValidationResult Validate()
         {
@@ -153,7 +157,7 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Clients
         [Description("FLAC Hi-Res (24-bit/96kHz)")]
         FLAC_96 = 7,
 
-        [Description("FLAC Hi-Res (24-bit/192kHz) - Limited availability")]
+        [Description("FLAC Hi-Res (24-bit/192kHz) - Purchase only, not available for streaming")]
         FLAC_192 = 27
     }
 
@@ -169,14 +173,15 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Clients
                 .Must(q => q == 5 || q == 6 || q == 7 || q == 27)
                 .WithMessage("Invalid audio quality selection");
             
-            // Warn about format_id 27 having limited availability
+            // Warn about format_id 27 not being available for streaming
             RuleFor(c => c.PreferredQuality)
                 .Must(q => true) // Always passes, just for warning
                 .When(c => c.PreferredQuality == 27)
-                .WithMessage("Note: 24-bit/192kHz (format ID 27) has limited availability. " +
-                           "Many tracks will fall back to 96kHz or CD quality. " + 
-                           "This appears to be a Qobuz catalog/API limitation.")
-                .WithSeverity(Severity.Info);
+                .WithMessage("⚠️ WARNING: 24-bit/192kHz (format ID 27) is NOT available for streaming. " +
+                           "This quality level is only available when you purchase and download albums directly from Qobuz. " + 
+                           "For streaming, the maximum available quality is 24-bit/96kHz (format ID 7). " +
+                           "Your downloads will automatically fall back to 96kHz or CD quality.")
+                .WithSeverity(Severity.Warning);
 
             // Concurrency validation
             RuleFor(c => c.FixedConcurrencyLevel)
