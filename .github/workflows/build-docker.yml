@@ -85,10 +85,7 @@ jobs:
             <PackageReference Include="TagLibSharp-Lidarr" />
             <PackageReference Include="Microsoft.ML" />
             <PackageReference Include="System.Resources.Extensions" />
-            <!-- Sprint 3 Performance Monitoring Dependencies -->
-            <PackageReference Include="Serilog" />
-            <PackageReference Include="Serilog.Sinks.File" />
-            <PackageReference Include="Serilog.Formatting.Compact" />
+            <!-- Performance Monitoring now uses NLog (Lidarr's built-in logging) -->
             <!-- Security patches for transitive vulnerabilities -->
             <PackageReference Include="System.Text.Json" />
             <PackageReference Include="System.Net.Http" />
