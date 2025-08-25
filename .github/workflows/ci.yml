@@ -89,7 +89,7 @@ jobs:
         echo "PLUGIN_VERSION=$VERSION" >> $GITHUB_ENV
         echo "Final version: $VERSION"
         
-        # TrevTV's proven technique for Lidarr compatibility
+        # Proven technique for Lidarr compatibility
         sed -i'' -e "s/<AssemblyVersion>[0-9.*]\+<\/AssemblyVersion>/<AssemblyVersion>${{ env.MINIMUM_LIDARR_VERSION }}<\/AssemblyVersion>/g" ext/Lidarr-source/src/Directory.Build.props || echo "No Directory.Build.props found (expected for pre-built approach)"
 
     - name: Restore
