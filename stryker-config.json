@@ -1,0 +1,39 @@
+{
+  "stryker-config": {
+    "project": "Qobuzarr.csproj",
+    "test-projects": [
+      "tests/Qobuzarr.Tests/Qobuzarr.Tests.csproj"
+    ],
+    "reporters": [
+      "html",
+      "json",
+      "console"
+    ],
+    "html-reporter": {
+      "output-folder": "mutation-report"
+    },
+    "thresholds": {
+      "high": 80,
+      "low": 60,
+      "break": 50
+    },
+    "mutate": [
+      "src/Services/**/*.cs",
+      "src/API/**/*.cs",
+      "src/Download/**/*.cs",
+      "src/Indexers/**/*.cs"
+    ],
+    "ignore-mutations": [
+      "Logging statements",
+      "Exception messages"
+    ],
+    "exclude-mutations": [
+      "src/Constants/**",
+      "src/Models/**",
+      "src/Integration/**"
+    ],
+    "timeout-ms": 10000,
+    "max-concurrent-test-runners": 4,
+    "mutation-level": "Standard"
+  }
+}
