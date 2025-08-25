@@ -118,7 +118,7 @@ namespace Lidarr.Plugin.Qobuzarr.Services.Core.Quality
             }
             
             // Ensure at least MP3 is in the chain as ultimate fallback
-            var mp3Quality = _qualityDefinitionService.GetQualityById(5);
+            var mp3Quality = _qualityDefinitionService.GetQualityByIdLegacy(5);
             if (!chain.Any(q => q.Id == mp3Quality.Id))
             {
                 chain.Add(mp3Quality);
@@ -176,7 +176,7 @@ namespace Lidarr.Plugin.Qobuzarr.Services.Core.Quality
             {
                 if (profile.Name.Contains(mapping.Key, StringComparison.OrdinalIgnoreCase))
                 {
-                    var mappedQuality = _qualityDefinitionService.GetQualityById(mapping.Value);
+                    var mappedQuality = _qualityDefinitionService.GetQualityByIdLegacy(mapping.Value);
                     _logger.Debug("Mapped profile '{0}' to quality {1} via pattern '{2}'", 
                         profile.Name, mappedQuality.Name, mapping.Key);
                     return CreateFallbackChain(mappedQuality);

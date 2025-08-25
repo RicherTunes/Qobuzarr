@@ -56,9 +56,10 @@ namespace Lidarr.Plugin.Qobuzarr.Services.Core.Streaming
 
                 result.Success = legacyResult.Success;
                 result.StreamUrl = legacyResult.StreamUrl;
-                result.QualityId = legacyResult.Quality?.Id ?? preferredQuality;
-                result.QualityName = legacyResult.Quality?.Name ?? $"Quality{preferredQuality}";
-                result.FileSizeBytes = legacyResult.FileSizeBytes;
+                result.QualityId = legacyResult.ActualQuality?.Id ?? preferredQuality;
+                result.QualityName = legacyResult.ActualQuality?.Name ?? $"Quality{preferredQuality}";
+                // FileSizeBytes not available in StreamAcquisitionResult
+                result.FileSizeBytes = null;
                 result.ExpiresAt = legacyResult.ExpiresAt;
                 result.Error = legacyResult.Error;
             }
@@ -193,7 +194,7 @@ namespace Lidarr.Plugin.Qobuzarr.Services.Core.Streaming
                 await semaphore.WaitAsync(cancellationToken);
                 try
                 {
-                    var acquisitionResult = await GetStreamUrlAsync(trackId, quality, cancellationToken);
+                    var acquisitionResult = await GetStreamUrlAsync(trackId, quality.Id, cancellationToken);
                     return (trackId, acquisitionResult);
                 }
                 finally
@@ -244,7 +245,7 @@ namespace Lidarr.Plugin.Qobuzarr.Services.Core.Streaming
 
                 try
                 {
-                    var result = await GetStreamUrlAsync(trackId, quality, cancellationToken);
+                    var result = await GetStreamUrlAsync(trackId, quality.Id, cancellationToken);
                     
                     if (result.Success)
                     {

@@ -497,7 +497,7 @@ namespace Lidarr.Plugin.Qobuzarr.Services.Orchestrators
             OnSessionRefreshed(null, e.NewSession);
         }
 
-        private void OnTokenRefreshFailed(object? sender, TokenRefreshFailedEventArgs e)
+        private void OnTokenRefreshFailed(object sender, TokenRefreshFailedEventArgs e)
         {
             _logger.Error(e.Exception, "❌ Token refresh failed ({0} consecutive failures)", 
                 e.ConsecutiveFailures);
