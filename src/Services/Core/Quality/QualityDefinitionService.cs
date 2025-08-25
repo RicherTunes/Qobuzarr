@@ -69,8 +69,8 @@ namespace Lidarr.Plugin.Qobuzarr.Services.Core.Quality
             return QualityFormats.Values.Select(q => new QualityFormat 
             { 
                 Id = q.Id, 
-                Name = q.Name, 
-                DisplayName = q.DisplayName ?? q.Name, 
+                Name = q.Name ?? "", 
+                DisplayName = q.DisplayName ?? q.Name ?? "", 
                 BitRate = q.BitRate, 
                 IsLossless = q.IsLossless, 
                 Priority = q.Priority 
@@ -86,8 +86,8 @@ namespace Lidarr.Plugin.Qobuzarr.Services.Core.Quality
             return new QualityFormat
             {
                 Id = quality.Id,
-                Name = quality.Name,
-                DisplayName = quality.DisplayName ?? quality.Name,
+                Name = quality.Name ?? "",
+                DisplayName = quality.DisplayName ?? quality.Name ?? "",
                 BitRate = quality.BitRate,
                 IsLossless = quality.IsLossless,
                 Priority = quality.Priority

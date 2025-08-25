@@ -84,5 +84,11 @@ namespace Lidarr.Plugin.Qobuzarr.Services.Interfaces
         /// </summary>
         /// <returns>When metrics collection started</returns>
         System.DateTime GetMetricsStartTime();
+
+        /// <summary>
+        /// Gets legacy metrics summary for backward compatibility.
+        /// </summary>
+        /// <returns>Legacy format metrics summary</returns>
+        Dictionary<string, string> GetLegacyMetricsSummary();
     }
 }

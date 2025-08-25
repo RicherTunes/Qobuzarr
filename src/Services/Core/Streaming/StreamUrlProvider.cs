@@ -354,6 +354,62 @@ namespace Lidarr.Plugin.Qobuzarr.Services.Core.Streaming
                 _ => StreamAcquisitionFailureReason.Unknown
             };
         }
+
+        public async Task<StreamUrlResult> GetStreamUrlWithFallbackAsync(string trackId, IReadOnlyList<QualityFormat> fallbackChain, CancellationToken cancellationToken = default)
+        {
+            if (string.IsNullOrWhiteSpace(trackId))
+            {
+                throw new ArgumentException("Track ID cannot be null or empty", nameof(trackId));
+            }
+
+            if (fallbackChain == null || !fallbackChain.Any())
+            {
+                return new StreamUrlResult
+                {
+                    Success = false,
+                    Error = "No fallback qualities provided",
+                    GenerationTime = TimeSpan.Zero
+                };
+            }
+
+            var startTime = DateTime.UtcNow;
+            
+            foreach (var quality in fallbackChain)
+            {
+                try
+                {
+                    var result = await GetExactQualityStreamUrlAsync(trackId, quality.Id, cancellationToken);
+                    if (result?.Success == true)
+                    {
+                        return new StreamUrlResult
+                        {
+                            Success = true,
+                            StreamUrl = result.StreamUrl,
+                            QualityId = quality.Id,
+                            QualityName = quality.Name,
+                            FileSizeBytes = result.FileSizeBytes,
+                            Duration = result.Duration,
+                            ExpiresAt = result.ExpiresAt,
+                            IsFallbackQuality = fallbackChain.First() != quality,
+                            OriginalPreferredQuality = fallbackChain.First().Id,
+                            GenerationTime = DateTime.UtcNow - startTime
+                        };
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.Debug(ex, "Quality {0} failed for track {1}, trying next fallback", quality.Name, trackId);
+                }
+            }
+
+            return new StreamUrlResult
+            {
+                Success = false,
+                Error = "All fallback qualities failed",
+                OriginalPreferredQuality = fallbackChain.First().Id,
+                GenerationTime = DateTime.UtcNow - startTime
+            };
+        }
     }
 
     /// <summary>
