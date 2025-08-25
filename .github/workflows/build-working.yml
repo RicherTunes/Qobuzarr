@@ -1,4 +1,4 @@
-name: Build Plugin (TypNull's Method)
+name: Build Plugin
 
 on:
   push:
@@ -19,7 +19,7 @@ jobs:
     runs-on: ubuntu-latest
     
     steps:
-    - name: Checkout with submodules (TypNull's approach)
+    - name: Checkout with submodules
       uses: actions/checkout@v4
       with:
         submodules: 'recursive'
@@ -30,7 +30,7 @@ jobs:
       with:
         dotnet-version: ${{ env.DOTNET_VERSION }}
 
-    # Add NuGet package caching (from TypNull)
+    # Add NuGet package caching
     - name: Cache NuGet packages
       uses: actions/cache@v3
       with:
@@ -50,7 +50,7 @@ jobs:
           git clone --depth 1 --branch plugins https://github.com/Lidarr/Lidarr.git ext/Lidarr-source
         fi
 
-    - name: Update Version Info (TrevTV's Magic Formula)
+    - name: Update Version Info
       run: |
         # Update our plugin version
         sed -i'' -e "s/<AssemblyVersion>[0-9.*]\+<\/AssemblyVersion>/<AssemblyVersion>$PLUGIN_VERSION<\/AssemblyVersion>/g" Directory.Build.props || echo "No plugin Directory.Build.props found"
@@ -65,13 +65,13 @@ jobs:
         echo "Restoring with minimal NuGet sources..."
         dotnet restore Qobuzarr.csproj
 
-    - name: Build with TypNull's method
+    - name: Build Plugin
       run: |
-        echo "Building with TypNull's proven approach..."
+        echo "Building plugin..."
         # Restore first
         dotnet restore Qobuzarr.csproj
         
-        # Then build with version metadata (like TypNull)
+        # Then build with version metadata
         dotnet build Qobuzarr.csproj \
           --configuration Release \
           --no-restore \
