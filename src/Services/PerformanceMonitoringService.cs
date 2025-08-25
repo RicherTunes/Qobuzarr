@@ -5,8 +5,8 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Threading;
-using Serilog;
-using Serilog.Events;
+using NLog;
+using Newtonsoft.Json;
 using Lidarr.Plugin.Qobuzarr.Abstractions;
 using Lidarr.Plugin.Qobuzarr.Constants;
 
@@ -18,10 +18,12 @@ namespace Lidarr.Plugin.Qobuzarr.Services
     /// </summary>
     public class PerformanceMonitoringService : IPerformanceMonitoringService
     {
-        private readonly ILogger _performanceLogger;
+        private readonly Logger _performanceLogger;
         private readonly IQobuzLogger _logger;
         private readonly Timer _metricsFlushTimer;
         private readonly object _metricsLock = new object();
+        private readonly string _logDirectory;
+        private readonly StreamWriter _logWriter;
 
         // Performance counters
         private long _totalApiCalls = 0;
@@ -40,27 +42,52 @@ namespace Lidarr.Plugin.Qobuzarr.Services
         {
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
             
-            // Initialize Serilog for structured performance logging
-            var logPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), 
-                                      "Qobuzarr", "performance", "performance-.log");
+            // Initialize NLog for performance logging (using Lidarr's existing NLog infrastructure)
+            _performanceLogger = LogManager.GetLogger("Qobuzarr.Performance");
             
-            _performanceLogger = new LoggerConfiguration()
-                .MinimumLevel.Information()
-                .Enrich.WithProperty("Component", "Qobuzarr")
-                .Enrich.WithProperty("Version", QobuzarrConstants.Plugin.Version)
-                .WriteTo.File(
-                    path: logPath,
-                    formatter: new Serilog.Formatting.Compact.CompactJsonFormatter(),
-                    rollingInterval: RollingInterval.Day,
-                    retainedFileCountLimit: 30,
-                    buffered: true,
-                    flushToDiskInterval: TimeSpan.FromSeconds(30))
-                .CreateLogger();
+            // Set up file-based performance logging
+            // Use Lidarr's AppData folder which is writable in Docker containers
+            try
+            {
+                // Try to use Lidarr's config/data directory (usually /config in Docker)
+                var appDataFolder = Environment.GetEnvironmentVariable("APP_DATA") ?? 
+                                   Environment.GetEnvironmentVariable("XDG_CONFIG_HOME") ??
+                                   Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "Lidarr");
+                
+                _logDirectory = Path.Combine(appDataFolder, "Qobuzarr", "performance");
+                
+                // Only create directory and file writer if we have write permissions
+                if (!string.IsNullOrEmpty(_logDirectory))
+                {
+                    try
+                    {
+                        Directory.CreateDirectory(_logDirectory);
+                        var logPath = Path.Combine(_logDirectory, $"performance-{DateTime.UtcNow:yyyyMMdd}.json");
+                        _logWriter = new StreamWriter(logPath, append: true) { AutoFlush = false };
+                        _logger.Debug("Performance logging initialized to: {0}", logPath);
+                    }
+                    catch (UnauthorizedAccessException)
+                    {
+                        _logger.Warn("Cannot create performance log directory at {0}, performance file logging disabled", _logDirectory);
+                        _logWriter = null;
+                    }
+                    catch (IOException)
+                    {
+                        _logger.Warn("Cannot access performance log directory at {0}, performance file logging disabled", _logDirectory);
+                        _logWriter = null;
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.Warn(ex, "Failed to initialize performance file logging, continuing without file output");
+                _logWriter = null;
+            }
 
             // Flush metrics every 5 minutes
             _metricsFlushTimer = new Timer(FlushMetrics, null, TimeSpan.FromMinutes(5), TimeSpan.FromMinutes(5));
             
-            _logger.Info("Performance monitoring initialized - metrics will be logged to {0}", logPath);
+            _logger.Info("Performance monitoring initialized - metrics will be logged to NLog");
         }
 
         #region API Call Tracking
@@ -144,12 +171,24 @@ namespace Lidarr.Plugin.Qobuzarr.Services
                 Interlocked.Increment(ref _standardQueries);
             }
 
-            _performanceLogger.Information("ML_Optimization: {Timestamp} {OriginalQuery} {OptimizedQuery} {Successful} {ConfidenceScore}",
-                DateTime.UtcNow,
-                originalQuery,
-                optimizedQuery,
-                successful,
-                confidenceScore);
+            // Write structured JSON log entry
+            var logEntry = new
+            {
+                Type = "ML_Optimization",
+                Timestamp = DateTime.UtcNow,
+                OriginalQuery = originalQuery,
+                OptimizedQuery = optimizedQuery,
+                Successful = successful,
+                ConfidenceScore = confidenceScore
+            };
+            
+            lock (_metricsLock)
+            {
+                _logWriter?.WriteLine(JsonConvert.SerializeObject(logEntry));
+            }
+            
+            _performanceLogger.Info("ML Optimization: {0} -> {1} (Success: {2}, Confidence: {3:F2})",
+                originalQuery, optimizedQuery, successful, confidenceScore);
         }
 
         /// <summary>
@@ -159,12 +198,24 @@ namespace Lidarr.Plugin.Qobuzarr.Services
         {
             var reductionPercentage = originalCalls > 0 ? (double)(originalCalls - actualCalls) / originalCalls * 100 : 0;
             
-            _performanceLogger.Information("API_Reduction: {Timestamp} {OriginalCalls} {ActualCalls} {ReductionPercentage:F1}% {Optimization}",
-                DateTime.UtcNow,
-                originalCalls,
-                actualCalls,
-                reductionPercentage,
-                optimization);
+            // Write structured JSON log entry
+            var logEntry = new
+            {
+                Type = "API_Reduction",
+                Timestamp = DateTime.UtcNow,
+                OriginalCalls = originalCalls,
+                ActualCalls = actualCalls,
+                ReductionPercentage = reductionPercentage,
+                Optimization = optimization
+            };
+            
+            lock (_metricsLock)
+            {
+                _logWriter?.WriteLine(JsonConvert.SerializeObject(logEntry));
+            }
+            
+            _performanceLogger.Info("API Reduction: {0} -> {1} calls ({2:F1}% reduction via {3})",
+                originalCalls, actualCalls, reductionPercentage, optimization);
         }
 
         #endregion
@@ -244,7 +295,23 @@ namespace Lidarr.Plugin.Qobuzarr.Services
             {
                 var metrics = GetCurrentMetrics();
                 
-                _performanceLogger.Information("Performance_Summary: {@Metrics}", metrics);
+                // Write summary to JSON log
+                lock (_metricsLock)
+                {
+                    if (_logWriter != null)
+                    {
+                        _logWriter.WriteLine(JsonConvert.SerializeObject(new
+                        {
+                            Type = "Performance_Summary",
+                            Timestamp = DateTime.UtcNow,
+                            Metrics = metrics
+                        }));
+                        _logWriter.Flush();
+                    }
+                }
+                
+                _performanceLogger.Info("Performance Summary: API Calls: {0}, Cache Hits: {1:F1}%, ML Optimized: {2:F1}%",
+                    metrics.TotalApiCalls, metrics.CacheHitRate, metrics.MLOptimizationRate);
                 
                 _logger.Info("Performance metrics flushed - API Reduction: {0:F1}%, Cache Hit Rate: {1:F1}%, ML Optimization: {2:F1}%",
                     metrics.ApiReductionPercentage,
@@ -270,23 +337,23 @@ namespace Lidarr.Plugin.Qobuzarr.Services
             {
                 if (metrics.ApiReductionPercentage >= TARGET_API_REDUCTION)
                 {
-                    _performanceLogger.Information("Performance_Target_Met: API_Reduction {ActualPercentage:F1}% >= {TargetPercentage:F1}%",
+                    _performanceLogger.Info("Performance Target Met: API Reduction {0:F1}% >= {1:F1}%",
                         metrics.ApiReductionPercentage, TARGET_API_REDUCTION);
                 }
                 else
                 {
-                    _performanceLogger.Warning("Performance_Target_Missed: API_Reduction {ActualPercentage:F1}% < {TargetPercentage:F1}%",
+                    _performanceLogger.Warn("Performance Target Missed: API Reduction {0:F1}% < {1:F1}%",
                         metrics.ApiReductionPercentage, TARGET_API_REDUCTION);
                 }
 
                 if (metrics.CacheHitRate >= TARGET_CACHE_HIT_RATE)
                 {
-                    _performanceLogger.Information("Performance_Target_Met: Cache_Hit_Rate {ActualPercentage:F1}% >= {TargetPercentage:F1}%",
+                    _performanceLogger.Info("Performance Target Met: Cache Hit Rate {0:F1}% >= {1:F1}%",
                         metrics.CacheHitRate, TARGET_CACHE_HIT_RATE);
                 }
                 else
                 {
-                    _performanceLogger.Warning("Performance_Target_Missed: Cache_Hit_Rate {ActualPercentage:F1}% < {TargetPercentage:F1}%",
+                    _performanceLogger.Warn("Performance Target Missed: Cache Hit Rate {0:F1}% < {1:F1}%",
                         metrics.CacheHitRate, TARGET_CACHE_HIT_RATE);
                 }
             }
@@ -297,6 +364,13 @@ namespace Lidarr.Plugin.Qobuzarr.Services
         public void Dispose()
         {
             _metricsFlushTimer?.Dispose();
+            
+            // Flush and close the log writer
+            lock (_metricsLock)
+            {
+                _logWriter?.Flush();
+                _logWriter?.Dispose();
+            }
             if (_performanceLogger is IDisposable disposableLogger)
             {
                 disposableLogger.Dispose();
