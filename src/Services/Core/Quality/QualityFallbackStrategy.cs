@@ -4,43 +4,13 @@ using System.Linq;
 using Lidarr.Plugin.Qobuzarr.Abstractions;
 using Lidarr.Plugin.Qobuzarr.Models;
 using Lidarr.Plugin.Qobuzarr.Models.Lidarr;
+using Lidarr.Plugin.Qobuzarr.Services.Interfaces;
 
 namespace Lidarr.Plugin.Qobuzarr.Services.Core.Quality
 {
     /// <summary>
-    /// Handles quality fallback chain logic and strategies.
-    /// Single responsibility: Generate and manage quality fallback chains based on various criteria.
-    /// </summary>
-    public interface IQualityFallbackStrategy
-    {
-        /// <summary>
-        /// Creates a fallback chain for a preferred quality.
-        /// </summary>
-        IReadOnlyList<QualityFormat> CreateFallbackChain(QualityFormat preferred);
-
-        /// <summary>
-        /// Creates a fallback chain based on subscription tier constraints.
-        /// </summary>
-        IReadOnlyList<QualityFormat> CreateFallbackChain(QualityFormat preferred, QobuzSubscriptionTier subscriptionTier);
-
-        /// <summary>
-        /// Creates a fallback chain from Lidarr quality profile.
-        /// </summary>
-        IReadOnlyList<QualityFormat> CreateFallbackChainFromProfile(LidarrQualityProfile profile);
-
-        /// <summary>
-        /// Determines if quality fallback should be attempted based on error context.
-        /// </summary>
-        bool ShouldAttemptFallback(Exception exception, QualityFormat attemptedQuality);
-
-        /// <summary>
-        /// Gets next quality in fallback sequence.
-        /// </summary>
-        QualityFormat GetNextFallbackQuality(QualityFormat current, IReadOnlyList<QualityFormat> chain);
-    }
-
-    /// <summary>
     /// Implementation of quality fallback strategy with intelligent chain generation.
+    /// Implements the centralized IQualityFallbackStrategy interface.
     /// </summary>
     public class QualityFallbackStrategy : IQualityFallbackStrategy
     {
@@ -68,6 +38,64 @@ namespace Lidarr.Plugin.Qobuzarr.Services.Core.Quality
         {
             _qualityDefinitionService = qualityDefinitionService ?? throw new ArgumentNullException(nameof(qualityDefinitionService));
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+        }
+
+        // Implement centralized interface methods
+        public List<int> GetFallbackChain(int preferredQuality)
+        {
+            var chain = new List<int> { preferredQuality };
+            
+            // Add lower qualities in descending order
+            var allQualities = new[] { 27, 7, 6, 5 }; // Hi-Res 192, Hi-Res 96, CD, MP3
+            
+            foreach (var quality in allQualities)
+            {
+                if (quality < preferredQuality && !chain.Contains(quality))
+                {
+                    chain.Add(quality);
+                }
+            }
+            
+            // Ensure MP3 is always included as ultimate fallback
+            if (!chain.Contains(5))
+                chain.Add(5);
+            
+            return chain;
+        }
+
+        public int? GetNextFallback(int currentQuality)
+        {
+            var fallbackChain = GetFallbackChain(currentQuality);
+            var currentIndex = fallbackChain.FindIndex(q => q == currentQuality);
+            
+            if (currentIndex >= 0 && currentIndex < fallbackChain.Count - 1)
+                return fallbackChain[currentIndex + 1];
+            
+            return null;
+        }
+
+        public bool IsSuitableFallback(int preferredQuality, int availableQuality)
+        {
+            var fallbackChain = GetFallbackChain(preferredQuality);
+            return fallbackChain.Contains(availableQuality);
+        }
+
+        public int? SelectBestAvailableQuality(int preferredQuality, IReadOnlyList<int> availableQualities)
+        {
+            var fallbackChain = GetFallbackChain(preferredQuality);
+            
+            foreach (var quality in fallbackChain)
+            {
+                if (availableQualities.Contains(quality))
+                    return quality;
+            }
+            
+            return null;
+        }
+
+        public string GetStrategyName()
+        {
+            return "Qobuzarr Hierarchical Fallback Strategy";
         }
 
         public IReadOnlyList<QualityFormat> CreateFallbackChain(QualityFormat preferred)
@@ -137,7 +165,7 @@ namespace Lidarr.Plugin.Qobuzarr.Services.Core.Quality
         {
             if (profile == null)
             {
-                var defaultQuality = _qualityDefinitionService.GetDefaultQuality();
+                var defaultQuality = _qualityDefinitionService.GetQualityByIdLegacy(6); // CD quality default
                 return CreateFallbackChain(defaultQuality);
             }
 
@@ -169,7 +197,7 @@ namespace Lidarr.Plugin.Qobuzarr.Services.Core.Quality
             }
 
             // Default fallback
-            var defaultQuality = _qualityDefinitionService.GetDefaultQuality();
+            var defaultQuality = _qualityDefinitionService.GetQualityByIdLegacy(6); // CD quality default
             _logger.Debug("Using default quality {0} for unmappable profile", defaultQuality.Name);
             return CreateFallbackChain(defaultQuality);
         }
@@ -249,19 +277,8 @@ namespace Lidarr.Plugin.Qobuzarr.Services.Core.Quality
             }
 
             return _qualityDefinitionService.IsQualitySupported(qualityId) 
-                ? _qualityDefinitionService.GetQualityById(qualityId) 
-                : _qualityDefinitionService.GetDefaultQuality();
+                ? _qualityDefinitionService.GetQualityByIdLegacy(qualityId) 
+                : _qualityDefinitionService.GetQualityByIdLegacy(6); // CD quality default
         }
-    }
-
-    /// <summary>
-    /// Qobuz subscription tiers for quality constraints.
-    /// </summary>
-    public enum QobuzSubscriptionTier
-    {
-        Free = 0,
-        Sublime = 1,
-        StudioPremier = 2,
-        StudioSublime = 3
     }
 }
