@@ -6,18 +6,17 @@ using System.Threading.Tasks;
 using DryIoc;
 using Lidarr.Plugin.Qobuzarr.Abstractions;
 using ApiClient = Lidarr.Plugin.Qobuzarr.API;
-using ServiceInterfaces = Lidarr.Plugin.Qobuzarr.Services.Interfaces;
-using OrchestratorInterfaces = Lidarr.Plugin.Qobuzarr.Services.Orchestrators;
 using Lidarr.Plugin.Qobuzarr.Authentication;
 using Lidarr.Plugin.Qobuzarr.Models;
 using Lidarr.Plugin.Qobuzarr.Models.Lidarr;
-using Lidarr.Plugin.Qobuzarr.Services.Core.Api;
-using Lidarr.Plugin.Qobuzarr.Services.Core.Auth;
-using Lidarr.Plugin.Qobuzarr.Services.Core.Quality;
-using Lidarr.Plugin.Qobuzarr.Services.Core.Streaming;
-using Lidarr.Plugin.Qobuzarr.Services.Observability;
-using Lidarr.Plugin.Qobuzarr.Services.Orchestrators;
-using Lidarr.Plugin.Qobuzarr.Services.Interfaces;
+using Consolidated = Lidarr.Plugin.Qobuzarr.Services.Consolidated;
+using CoreApi = Lidarr.Plugin.Qobuzarr.Services.Core.Api;
+using CoreAuth = Lidarr.Plugin.Qobuzarr.Services.Core.Auth;
+using CoreQuality = Lidarr.Plugin.Qobuzarr.Services.Core.Quality;
+using CoreStreaming = Lidarr.Plugin.Qobuzarr.Services.Core.Streaming;
+using ServiceObservability = Lidarr.Plugin.Qobuzarr.Services.Observability;
+using ServiceOrchestrators = Lidarr.Plugin.Qobuzarr.Services.Orchestrators;
+using ServiceInterfaces = Lidarr.Plugin.Qobuzarr.Services.Interfaces;
 using NLog;
 using NzbDrone.Core.Datastore;
 using NzbDrone.Common.Disk;
@@ -78,23 +77,23 @@ namespace Lidarr.Plugin.Qobuzarr.Services
             Logger.Debug("Registering Quality domain services");
 
             // Quality Definition Service - Single source of truth for quality formats
-            container.Register<ServiceInterfaces.IQualityDefinitionService, QualityDefinitionService>(
+            container.Register<ServiceInterfaces.IQualityDefinitionService, CoreQuality.QualityDefinitionService>(
                 Reuse.Singleton,
-                Made.Of(() => new QualityDefinitionService(
+                Made.Of(() => new CoreQuality.QualityDefinitionService(
                     Arg.Of<IQobuzLogger>())),
                 setup: Setup.With(condition: r => r.IsResolutionRoot));
 
             // Quality Fallback Strategy - Handles fallback chain logic
-            container.Register<ServiceInterfaces.IQualityFallbackStrategy, QualityFallbackStrategy>(
+            container.Register<ServiceInterfaces.IQualityFallbackStrategy, CoreQuality.QualityFallbackStrategy>(
                 Reuse.Singleton,
-                Made.Of(() => new QualityFallbackStrategy(
+                Made.Of(() => new CoreQuality.QualityFallbackStrategy(
                     Arg.Of<ServiceInterfaces.IQualityDefinitionService>(),
                     Arg.Of<IQobuzLogger>())));
 
             // Quality Detector - Detects available qualities
-            container.Register<ServiceInterfaces.IQualityDetector, QualityDetector>(
+            container.Register<ServiceInterfaces.IQualityDetector, CoreQuality.QualityDetector>(
                 Reuse.Singleton,
-                Made.Of(() => new QualityDetector(
+                Made.Of(() => new CoreQuality.QualityDetector(
                     Arg.Of<ServiceInterfaces.IQobuzApiClient>(),
                     Arg.Of<ServiceInterfaces.IQualityDefinitionService>(),
                     Arg.Of<IQobuzLogger>())));
@@ -107,20 +106,20 @@ namespace Lidarr.Plugin.Qobuzarr.Services
             Logger.Debug("Registering API domain services");
 
             // Standard API Client with rate limiting and caching
-            container.Register<IQobuzApiClient, QobuzApiClient>(
+            container.Register<ServiceInterfaces.IQobuzApiClient, CoreApi.QobuzApiClient>(
                 Reuse.Singleton,
-                Made.Of(() => new QobuzApiClient(
+                Made.Of(() => new CoreApi.QobuzApiClient(
                     Arg.Of<IHttpClient>(),
-                    Arg.Of<ISessionManager>(),
+                    Arg.Of<ServiceInterfaces.ISessionManager>(),
                     Arg.Of<IQobuzLogger>())),
                 setup: Setup.With(condition: r => !r.Parent.ServiceType.Name.Contains("Diagnostic")));
 
             // Diagnostic API Client without rate limiting (for testing)
-            container.Register<IQobuzDiagnosticApiClient, QobuzDiagnosticApiClient>(
+            container.Register<ServiceInterfaces.IQobuzDiagnosticApiClient, CoreApi.QobuzDiagnosticApiClient>(
                 Reuse.Singleton,
-                Made.Of(() => new QobuzDiagnosticApiClient(
+                Made.Of(() => new CoreApi.QobuzDiagnosticApiClient(
                     Arg.Of<IHttpClient>(),
-                    Arg.Of<ISessionManager>(),
+                    Arg.Of<ServiceInterfaces.ISessionManager>(),
                     Arg.Of<IQobuzLogger>())));
 
             Logger.Debug("API services registered successfully");
@@ -131,24 +130,24 @@ namespace Lidarr.Plugin.Qobuzarr.Services
             Logger.Debug("Registering Authentication domain services");
 
             // Session Manager - Manages session lifecycle
-            container.Register<ISessionManager, SessionManager>(
+            container.Register<ServiceInterfaces.ISessionManager, CoreAuth.SessionManager>(
                 Reuse.Singleton,
-                Made.Of(() => new SessionManager(
+                Made.Of(() => new CoreAuth.SessionManager(
                     Arg.Of<IDatabase>(),
                     Arg.Of<IQobuzLogger>())));
 
             // Credential Validator - Validates and sanitizes credentials
-            container.Register<ICredentialValidator, CredentialValidator>(
+            container.Register<ServiceInterfaces.ICredentialValidator, CoreAuth.CredentialValidator>(
                 Reuse.Singleton,
-                Made.Of(() => new CredentialValidator(
-                    Arg.Of<IQobuzLogger>())));
+                Made.Of(() => new CoreAuth.CredentialValidator(
+                    Arg.Of<Logger>())));
 
             // Token Refresher - Handles token refresh logic
-            container.Register<ITokenRefresher, TokenRefresher>(
+            container.Register<ServiceInterfaces.ITokenRefresher, CoreAuth.TokenRefresher>(
                 Reuse.Singleton,
-                Made.Of(() => new TokenRefresher(
-                    Arg.Of<IQobuzApiClient>(),
-                    Arg.Of<ISessionManager>(),
+                Made.Of(() => new CoreAuth.TokenRefresher(
+                    Arg.Of<ServiceInterfaces.IQobuzApiClient>(),
+                    Arg.Of<ServiceInterfaces.ISessionManager>(),
                     Arg.Of<IQobuzLogger>())));
 
             // Keep existing authentication service for now
@@ -164,18 +163,18 @@ namespace Lidarr.Plugin.Qobuzarr.Services
             Logger.Debug("Registering Streaming domain services");
 
             // Stream URL Validator - Validates stream URLs
-            container.Register<IStreamUrlValidator, StreamUrlValidator>(
+            container.Register<ServiceInterfaces.IStreamUrlValidator, CoreStreaming.StreamUrlValidator>(
                 Reuse.Singleton,
-                Made.Of(() => new StreamUrlValidator(
+                Made.Of(() => new CoreStreaming.StreamUrlValidator(
                     Arg.Of<IQobuzLogger>())));
 
             // Stream URL Provider - Provides validated stream URLs
-            container.Register<IStreamUrlProvider, StreamUrlProvider>(
+            container.Register<ServiceInterfaces.IStreamUrlProvider, CoreStreaming.StreamUrlProvider>(
                 Reuse.Singleton,
-                Made.Of(() => new StreamUrlProvider(
-                    Arg.Of<IQobuzApiClient>(),
-                    Arg.Of<IStreamUrlValidator>(),
-                    Arg.Of<IQualityFallbackStrategy>(),
+                Made.Of(() => new CoreStreaming.StreamUrlProvider(
+                    Arg.Of<ServiceInterfaces.IQobuzApiClient>(),
+                    Arg.Of<ServiceInterfaces.IStreamUrlValidator>(),
+                    Arg.Of<ServiceInterfaces.IQualityFallbackStrategy>(),
                     Arg.Of<IQobuzLogger>())));
 
             Logger.Debug("Streaming services registered successfully");
@@ -186,24 +185,25 @@ namespace Lidarr.Plugin.Qobuzarr.Services
             Logger.Debug("Registering Orchestrator services");
 
             // Quality Orchestrator - Coordinates quality-related services
-            container.Register<IQualityOrchestrator, QualityOrchestrator>(
+            container.Register<ServiceInterfaces.IQualityOrchestrator, ServiceOrchestrators.QualityOrchestrator>(
                 Reuse.Singleton,
-                Made.Of(() => new QualityOrchestrator(
-                    Arg.Of<IQualityDefinitionService>(),
-                    Arg.Of<IQualityFallbackStrategy>(),
-                    Arg.Of<IQualityDetector>(),
-                    Arg.Of<IStreamUrlProvider>(),
+                Made.Of(() => new ServiceOrchestrators.QualityOrchestrator(
+                    Arg.Of<ServiceInterfaces.IQualityDefinitionService>(),
+                    Arg.Of<ServiceInterfaces.IQualityFallbackStrategy>(),
+                    Arg.Of<ServiceInterfaces.IQualityDetector>(),
+                    Arg.Of<ServiceInterfaces.IStreamUrlProvider>(),
+                    Arg.Of<ServiceInterfaces.IStreamUrlValidator>(),
                     Arg.Of<IQobuzLogger>())));
 
             // Authentication Orchestrator - Coordinates auth services
-            container.Register<IAuthenticationOrchestrator, AuthenticationOrchestrator>(
+            container.Register<ServiceInterfaces.IAuthenticationOrchestrator, ServiceOrchestrators.AuthenticationOrchestrator>(
                 Reuse.Singleton,
-                Made.Of(() => new AuthenticationOrchestrator(
-                    Arg.Of<ISessionManager>(),
-                    Arg.Of<ICredentialValidator>(),
-                    Arg.Of<ITokenRefresher>(),
+                Made.Of(() => new ServiceOrchestrators.AuthenticationOrchestrator(
+                    Arg.Of<ServiceInterfaces.ICredentialValidator>(),
                     Arg.Of<IQobuzAuthenticationService>(),
-                    Arg.Of<IQobuzLogger>())));
+                    Arg.Of<ServiceInterfaces.ISessionManager>(),
+                    Arg.Of<ServiceInterfaces.ITokenRefresher>(),
+                    Arg.Of<Logger>())));
 
             Logger.Debug("Orchestrator services registered successfully");
         }
@@ -213,19 +213,19 @@ namespace Lidarr.Plugin.Qobuzarr.Services
             Logger.Debug("Registering Observability services");
 
             // Metrics Collector - Prometheus metrics
-            container.Register<IMetricsCollector, MetricsCollector>(
+            container.Register<ServiceInterfaces.IMetricsCollector, ServiceObservability.MetricsCollector>(
                 Reuse.Singleton,
-                Made.Of(() => new MetricsCollector(
+                Made.Of(() => new ServiceObservability.MetricsCollector(
                     Arg.Of<IQobuzLogger>())));
 
             // Health Check Service - Service health monitoring
-            container.Register<IHealthCheckService, HealthCheckService>(
+            container.Register<ServiceInterfaces.IHealthCheckService, ServiceObservability.HealthCheckService>(
                 Reuse.Singleton,
-                Made.Of(() => new HealthCheckService(
-                    Arg.Of<IQobuzApiClient>(),
-                    Arg.Of<ISessionManager>(),
-                    Arg.Of<IDiskProvider>(),
-                    Arg.Of<IQobuzLogger>())));
+                Made.Of(() => new ServiceObservability.HealthCheckService(
+                    Arg.Of<IQobuzLogger>(),
+                    Arg.Of<ServiceInterfaces.IQobuzApiClient>(),
+                    Arg.Of<IQobuzAuthenticationService>(),
+                    Arg.Of<ServiceInterfaces.IMetricsCollector>())));
 
             Logger.Debug("Observability services registered successfully");
         }
@@ -234,19 +234,13 @@ namespace Lidarr.Plugin.Qobuzarr.Services
         {
             Logger.Debug("Registering legacy compatibility layer");
 
-            // Map IQobuzQualityManager to QualityOrchestrator
+            // Map IQobuzQualityManager to the actual consolidated implementation
             // This maintains compatibility while we update all references
-            container.RegisterDelegate<Consolidated.IQobuzQualityManager>(
-                resolver => 
-                {
-                    var orchestrator = resolver.Resolve<IQualityOrchestrator>();
-                    var apiClient = resolver.Resolve<IQobuzApiClient>();
-                    var logger = resolver.Resolve<IQobuzLogger>();
-                    
-                    // Create adapter that implements old interface using new services
-                    return new QualityManagerAdapter(orchestrator, apiClient, logger);
-                },
-                Reuse.Singleton);
+            container.Register<Consolidated.IQobuzQualityManager, Consolidated.QobuzQualityManager>(
+                Reuse.Singleton,
+                Made.Of(() => new Consolidated.QobuzQualityManager(
+                    Arg.Of<API.IQobuzApiClient>(),
+                    Arg.Of<IQobuzLogger>())));
 
             Logger.Debug("Legacy compatibility registered");
         }
@@ -261,19 +255,19 @@ namespace Lidarr.Plugin.Qobuzarr.Services
 
             var requiredServices = new[]
             {
-                typeof(IQualityDefinitionService),
-                typeof(IQualityFallbackStrategy),
-                typeof(IQualityDetector),
-                typeof(IQobuzApiClient),
-                typeof(ISessionManager),
-                typeof(ICredentialValidator),
-                typeof(ITokenRefresher),
-                typeof(IStreamUrlValidator),
-                typeof(IStreamUrlProvider),
-                typeof(IQualityOrchestrator),
-                typeof(IAuthenticationOrchestrator),
-                typeof(IMetricsCollector),
-                typeof(IHealthCheckService)
+                typeof(ServiceInterfaces.IQualityDefinitionService),
+                typeof(ServiceInterfaces.IQualityFallbackStrategy),
+                typeof(ServiceInterfaces.IQualityDetector),
+                typeof(ServiceInterfaces.IQobuzApiClient),
+                typeof(ServiceInterfaces.ISessionManager),
+                typeof(ServiceInterfaces.ICredentialValidator),
+                typeof(ServiceInterfaces.ITokenRefresher),
+                typeof(ServiceInterfaces.IStreamUrlValidator),
+                typeof(ServiceInterfaces.IStreamUrlProvider),
+                typeof(ServiceInterfaces.IQualityOrchestrator),
+                typeof(ServiceInterfaces.IAuthenticationOrchestrator),
+                typeof(ServiceInterfaces.IMetricsCollector),
+                typeof(ServiceInterfaces.IHealthCheckService)
             };
 
             foreach (var serviceType in requiredServices)
@@ -300,168 +294,4 @@ namespace Lidarr.Plugin.Qobuzarr.Services
         }
     }
 
-    /// <summary>
-    /// Temporary adapter to maintain compatibility with IQobuzQualityManager
-    /// while migrating to the new decomposed architecture.
-    /// </summary>
-    internal class QualityManagerAdapter : Consolidated.IQobuzQualityManager
-    {
-        private readonly ServiceInterfaces.IQualityOrchestrator _orchestrator;
-        private readonly ApiClient.IQobuzApiClient _apiClient;
-        private readonly IQobuzLogger _logger;
-
-        public QualityManagerAdapter(
-            ServiceInterfaces.IQualityOrchestrator orchestrator,
-            ApiClient.IQobuzApiClient apiClient,
-            IQobuzLogger logger)
-        {
-            _orchestrator = orchestrator;
-            _apiClient = apiClient;
-            _logger = logger;
-        }
-
-        // Implementation of IQobuzQualityManager interface methods
-        
-        public async Task<Consolidated.QualityDetectionResult> DetectAvailableQualitiesAsync(
-            string trackId, 
-            CancellationToken cancellationToken = default)
-        {
-            _logger.Debug("Adapter: DetectAvailableQualitiesAsync for track {0}", trackId);
-            var result = await _orchestrator.DetectAvailableQualitiesAsync(trackId, cancellationToken);
-            
-            return new Consolidated.QualityDetectionResult
-            {
-                Success = result.Success,
-                AvailableQualities = result.AvailableQualities.Select(id => new Consolidated.QobuzQuality { Id = id }).ToList(),
-                Error = result.Error
-            };
-        }
-
-        public async Task<Consolidated.AlbumQualityResult> DetectAlbumQualityAsync(
-            QobuzAlbum album, 
-            int preferredQuality, 
-            CancellationToken cancellationToken = default)
-        {
-            _logger.Debug("Adapter: DetectAlbumQualityAsync for album {0}", album.Id);
-            
-            // For now, return a simple implementation - could be enhanced later
-            return new Consolidated.AlbumQualityResult
-            {
-                Success = true,
-                AlbumId = album.Id,
-                RecommendedQuality = new Consolidated.QobuzQuality { Id = preferredQuality },
-                UniformQuality = true,
-                SampledTracks = 0,
-                TotalTracks = album.Tracks?.Count ?? 0
-            };
-        }
-
-        public Consolidated.QobuzQuality MapLidarrQuality(LidarrQualityProfile profile)
-        {
-            _logger.Debug("Adapter: MapLidarrQuality");
-            var qualityId = _orchestrator.MapLidarrQualityToQobuz(profile);
-            return new Consolidated.QobuzQuality { Id = qualityId };
-        }
-
-        public List<Consolidated.QobuzQuality> GetQualityFallbackChain(Consolidated.QobuzQuality preferred)
-        {
-            _logger.Debug("Adapter: GetQualityFallbackChain for quality {0}", preferred.Id);
-            var fallbackIds = _orchestrator.GetFallbackChain(preferred.Id);
-            return fallbackIds.Select(id => new Consolidated.QobuzQuality { Id = id }).ToList();
-        }
-
-        public async Task<Consolidated.QualitySelectionResult> SelectBestQualityAsync(
-            string trackId, 
-            Consolidated.QobuzQuality preferred,
-            CancellationToken cancellationToken = default)
-        {
-            _logger.Debug("Adapter: SelectBestQualityAsync for track {0}", trackId);
-            
-            var result = await _orchestrator.SelectBestQualityAsync(trackId, preferred.Id, cancellationToken);
-            
-            return new Consolidated.QualitySelectionResult
-            {
-                Success = result.Success,
-                SelectedQuality = new Consolidated.QobuzQuality { Id = result.QualityId },
-                StreamInfo = result.StreamUrl != null ? new Consolidated.StreamInfo 
-                { 
-                    Url = result.StreamUrl,
-                    QualityId = result.QualityId
-                } : null,
-                Error = result.Error
-            };
-        }
-
-        public async Task<T> ExecuteWithQualityFallbackAsync<T>(
-            Func<Consolidated.QobuzQuality, Task<T>> operation, 
-            Consolidated.QobuzQuality preferred = null, 
-            CancellationToken cancellationToken = default)
-        {
-            _logger.Debug("Adapter: ExecuteWithQualityFallbackAsync");
-            
-            var preferredId = preferred?.Id ?? 27; // Default to highest quality
-            var fallbackChain = _orchestrator.GetFallbackChain(preferredId);
-            
-            foreach (var qualityId in fallbackChain)
-            {
-                try
-                {
-                    var quality = new Consolidated.QobuzQuality { Id = qualityId };
-                    return await operation(quality);
-                }
-                catch (Exception ex)
-                {
-                    _logger.Debug("Quality {0} failed, trying next: {1}", qualityId, ex.Message);
-                    continue;
-                }
-            }
-            
-            throw new InvalidOperationException("All quality fallback options failed");
-        }
-
-        public async Task<Consolidated.StreamInfo> GetStreamInfoAsync(
-            string trackId, 
-            Consolidated.QobuzQuality quality, 
-            CancellationToken cancellationToken = default)
-        {
-            _logger.Debug("Adapter: GetStreamInfoAsync for track {0}", trackId);
-            
-            var streamInfo = await _orchestrator.GetStreamInfoAsync(trackId, quality.Id, cancellationToken);
-            
-            return new Consolidated.StreamInfo
-            {
-                Url = streamInfo.Url,
-                QualityId = streamInfo.QualityId,
-                FileSizeBytes = streamInfo.FileSizeBytes,
-                Duration = streamInfo.Duration,
-                ExpiresAt = streamInfo.ExpiresAt
-            };
-        }
-
-        public async Task<Consolidated.BatchStreamResult> GetBatchStreamInfoAsync(
-            List<string> trackIds, 
-            Consolidated.QobuzQuality quality, 
-            CancellationToken cancellationToken = default)
-        {
-            _logger.Debug("Adapter: GetBatchStreamInfoAsync for {0} tracks", trackIds.Count);
-            
-            var results = await _orchestrator.ProcessBatchQualityAsync(trackIds, quality.Id, 5, cancellationToken);
-            
-            return new Consolidated.BatchStreamResult
-            {
-                Success = results.Values.All(r => r.Success),
-                TotalRequested = trackIds.Count,
-                SuccessCount = results.Values.Count(r => r.Success),
-                FailureCount = results.Values.Count(r => !r.Success),
-                StreamInfos = results.Where(kvp => kvp.Value.Success)
-                    .ToDictionary(
-                        kvp => kvp.Key,
-                        kvp => new Consolidated.StreamInfo
-                        {
-                            Url = kvp.Value.StreamUrl,
-                            QualityId = kvp.Value.QualityId
-                        })
-            };
-        }
-    }
 }

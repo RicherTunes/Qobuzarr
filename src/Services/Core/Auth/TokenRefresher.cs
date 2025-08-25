@@ -4,7 +4,7 @@ using System.Threading.Tasks;
 using NLog;
 using Lidarr.Plugin.Qobuzarr.Models.Authentication;
 using Lidarr.Plugin.Qobuzarr.Authentication;
-using Lidarr.Plugin.Qobuzarr.Exceptions;
+using QobuzAuthenticationException = Lidarr.Plugin.Qobuzarr.Authentication.QobuzAuthenticationException;
 
 namespace Lidarr.Plugin.Qobuzarr.Services.Core.Auth
 {
