@@ -1,0 +1,55 @@
+# GitLeaks configuration for Qobuzarr
+# Prevents secrets from being committed to the repository
+
+title = "Qobuzarr Security Configuration"
+
+[extend]
+# Use default ruleset with custom additions
+useDefault = true
+
+[[rules]]
+description = "Qobuz API Credentials"
+id = "qobuz-api-credentials"
+regex = '''(?i)(qobuz[_-]?(api[_-]?)?(?:id|secret|key|token|password))\s*[:=]\s*['\"]?([a-zA-Z0-9_\-\.]{8,})['\"]?'''
+secretGroup = 3
+
+[[rules]]
+description = "Email Credentials"
+id = "email-credentials"
+regex = '''(?i)(email|username)\s*[:=]\s*['\"]?([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})['\"]?'''
+secretGroup = 2
+
+[[rules]]
+description = "MD5 Password Hashes"
+id = "md5-password-hashes"
+regex = '''(?i)(md5[_-]?password|password[_-]?hash)\s*[:=]\s*['\"]?([a-fA-F0-9]{32})['\"]?'''
+secretGroup = 2
+
+[[rules]]
+description = "Session Tokens"
+id = "session-tokens"
+regex = '''(?i)(session[_-]?token|user[_-]?auth[_-]?token)\s*[:=]\s*['\"]?([a-zA-Z0-9_\-\.]{20,})['\"]?'''
+secretGroup = 2
+
+[allowlist]
+description = "Allowlist for test data and documentation"
+paths = [
+    '''\.claude/''',
+    '''docs/''',
+    '''wiki/''',
+    '''README\.md''',
+    '''tests/.*\.json''',
+    '''tests/.*TestData.*''',
+]
+
+[[allowlist.regexes]]
+description = "Allow test passwords and example credentials"
+regex = '''(test_password|example_password|dummy_secret|placeholder_key)'''
+
+[[allowlist.regexes]]
+description = "Allow documentation examples"
+regex = '''your_app_(id|secret)|your@email\.com|your_password'''
+
+[[allowlist.regexes]]
+description = "Allow environment variable examples"
+regex = '''QOBUZ_(APP_ID|APP_SECRET|EMAIL|PASSWORD)'''
