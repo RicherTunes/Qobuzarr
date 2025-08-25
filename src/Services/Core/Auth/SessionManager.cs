@@ -85,7 +85,7 @@ namespace Lidarr.Plugin.Qobuzarr.Services.Core.Auth
             var session = new QobuzSession
             {
                 UserId = "dummy_user",
-                UserAuthToken = "dummy_token",
+                AuthToken = "dummy_token",
                 ExpiresAt = DateTime.UtcNow.AddHours(24),
                 CreatedAt = DateTime.UtcNow
             };
@@ -118,7 +118,7 @@ namespace Lidarr.Plugin.Qobuzarr.Services.Core.Auth
             var refreshedSession = new QobuzSession
             {
                 UserId = session.UserId,
-                UserAuthToken = session.UserAuthToken + "_refreshed",
+                AuthToken = session.AuthToken + "_refreshed",
                 ExpiresAt = DateTime.UtcNow.AddHours(24),
                 CreatedAt = DateTime.UtcNow
             };

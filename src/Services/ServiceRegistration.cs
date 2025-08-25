@@ -220,7 +220,7 @@ namespace Lidarr.Plugin.Qobuzarr.Services
                     Arg.Of<IQobuzAuthenticationService>(),
                     Arg.Of<ServiceInterfaces.ISessionManager>(),
                     Arg.Of<ServiceInterfaces.ITokenRefresher>(),
-                    Arg.Of<IQobuzLogger>())));
+                    Arg.Of<Logger>())));
 
             Logger.Debug("Orchestrator services registered successfully");
         }
@@ -240,7 +240,7 @@ namespace Lidarr.Plugin.Qobuzarr.Services
                 Reuse.Singleton,
                 Made.Of(() => new ServiceObservability.HealthCheckService(
                     Arg.Of<IQobuzLogger>(),
-                    Arg.Of<ServiceInterfaces.IQobuzApiClient>(),
+                    Arg.Of<API.IQobuzApiClient>(),
                     Arg.Of<IQobuzAuthenticationService>(),
                     Arg.Of<ServiceInterfaces.IMetricsCollector>())));
 
