@@ -8,8 +8,9 @@ using NzbDrone.Common.Http;
 namespace Lidarr.Plugin.Qobuzarr.Download
 {
     /// <summary>
-    /// Factory implementation for creating QobuzTrackDownloader instances with proper dependency injection
-    /// This replaces the dual constructor anti-pattern and provides a clean way to manage dependencies
+    /// Factory implementation for creating QobuzTrackDownloader instances with proper dependency injection.
+    /// This replaces the dual constructor anti-pattern and provides a clean way to manage dependencies.
+    /// Uses property injection for optional metadata optimizer to avoid circular dependencies.
     /// </summary>
     public class QobuzTrackDownloaderFactory : IQobuzTrackDownloaderFactory
     {
@@ -20,8 +21,11 @@ namespace Lidarr.Plugin.Qobuzarr.Download
         private readonly IQualityFallbackProvider _qualityFallbackProvider;
         private readonly IQobuzLogger _logger;
         
-        // TODO: Implement metadata optimizer injection via property injection or separate factory
-        // Currently disabled to prevent circular dependency with SafeMetadataOptimizer
+        /// <summary>
+        /// Optional metadata optimizer that can be set via property injection to avoid circular dependencies.
+        /// When set, all subsequently created track downloaders will use this optimizer.
+        /// </summary>
+        public ISafeMetadataOptimizer MetadataOptimizer { get; set; }
 
         public QobuzTrackDownloaderFactory(
             IStreamUrlProvider streamUrlProvider,
@@ -41,8 +45,8 @@ namespace Lidarr.Plugin.Qobuzarr.Download
 
         public QobuzTrackDownloader CreateTrackDownloader()
         {
-            // Create track downloader without metadata optimizer to prevent circular dependencies
-            // All downloaders created by this factory will have the same configuration for consistency
+            // Create track downloader with optional metadata optimizer
+            // The optimizer is injected via property to break circular dependency chain
             return new QobuzTrackDownloader(
                 _streamUrlProvider,
                 _audioFileDownloader,
@@ -50,7 +54,7 @@ namespace Lidarr.Plugin.Qobuzarr.Download
                 _filePathGenerator,
                 _qualityFallbackProvider,
                 _logger,
-                null); // Metadata optimizer disabled to break circular dependency
+                MetadataOptimizer); // Uses property-injected optimizer if available
         }
     }
 }
