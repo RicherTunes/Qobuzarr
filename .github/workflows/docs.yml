@@ -27,7 +27,9 @@ jobs:
       uses: actions/checkout@v4
       
     - name: Setup Pages
+      id: pages-setup
       uses: actions/configure-pages@v4
+      continue-on-error: true
       
     - name: Create Documentation Site
       run: |
@@ -87,10 +89,27 @@ jobs:
         EOF
         
     - name: Upload artifact
+      if: steps.pages-setup.outcome == 'success'
       uses: actions/upload-pages-artifact@v3
       with:
         path: '_site'
         
     - name: Deploy to GitHub Pages
+      if: steps.pages-setup.outcome == 'success'
       id: deployment
       uses: actions/deploy-pages@v4
+      
+    - name: Pages Not Enabled Notice
+      if: steps.pages-setup.outcome == 'failure'
+      run: |
+        echo "📝 GitHub Pages is not enabled for this repository yet."
+        echo "✅ Documentation site prepared successfully!"
+        echo "🔧 To enable: Go to repository Settings → Pages → Source → GitHub Actions"
+        echo "🌐 Once enabled, docs will be available at: https://richertunes.github.io/Qobuzarr/"
+        
+        # Create deployment summary even when Pages isn't enabled
+        echo "## Documentation Deployment Status" >> $GITHUB_STEP_SUMMARY
+        echo "- ✅ Documentation site built successfully" >> $GITHUB_STEP_SUMMARY  
+        echo "- ⚠️ GitHub Pages not enabled (expected)" >> $GITHUB_STEP_SUMMARY
+        echo "- 🔧 Enable in: Repository Settings → Pages → Source → GitHub Actions" >> $GITHUB_STEP_SUMMARY
+        echo "- 🌐 Future URL: https://richertunes.github.io/Qobuzarr/" >> $GITHUB_STEP_SUMMARY
