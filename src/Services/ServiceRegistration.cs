@@ -127,14 +127,12 @@ namespace Lidarr.Plugin.Qobuzarr.Services
                     Arg.Of<ICacheManager>(),
                     Arg.Of<Logger>())));
 
-            // Register both interfaces to point to the same singleton instance
+            // Register the API interface to point to the same singleton instance
             container.RegisterDelegate<API.IQobuzApiClient>(
                 r => r.Resolve<API.QobuzApiClient>(),
                 Reuse.Singleton);
 
-            container.RegisterDelegate<ServiceInterfaces.IQobuzApiClient>(
-                r => r.Resolve<API.QobuzApiClient>(),
-                Reuse.Singleton);
+            // Note: ServiceInterfaces.IQobuzApiClient will be handled by other implementations
 
             // Diagnostic API Client without rate limiting (for testing)
             container.Register<ServiceInterfaces.IQobuzDiagnosticApiClient, CoreApi.QobuzDiagnosticApiClient>(

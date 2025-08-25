@@ -542,7 +542,7 @@ namespace Lidarr.Plugin.Qobuzarr.Services.Observability
                 var stopwatch = Stopwatch.StartNew();
                 
                 // Check current performance metrics
-                var metrics = _metricsCollector?.GetMetricsSummary();
+                var metrics = _metricsCollector?.GetLegacyMetricsSummary();
                 var memoryUsage = GC.GetTotalMemory(false) / (1024 * 1024); // MB
                 var gcGen2Collections = GC.CollectionCount(2);
                 
