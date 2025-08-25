@@ -5,12 +5,14 @@ using System.Threading.Tasks;
 using NLog;
 using Lidarr.Plugin.Qobuzarr.Abstractions;
 using Lidarr.Plugin.Qobuzarr.Constants;
+using Lidarr.Plugin.Qobuzarr.Services.Interfaces;
 
 namespace Lidarr.Plugin.Qobuzarr.Services.Observability
 {
     /// <summary>
     /// Prometheus metrics collection service for comprehensive observability
     /// Provides actionable metrics following Prometheus naming conventions
+    /// Implements the centralized IMetricsCollector interface.
     /// </summary>
     public class MetricsCollector : IMetricsCollector, IDisposable
     {
@@ -118,6 +120,187 @@ namespace Lidarr.Plugin.Qobuzarr.Services.Observability
                 SERVICE_HEALTH_STATUS,
                 "Service health status (1=healthy, 0=unhealthy)",
                 new[] { "service_name", "component" });
+        }
+
+        #endregion
+
+        #region Centralized Interface Implementation
+
+        // Implement centralized interface methods
+        public void IncrementCounter(string name, double value = 1, Dictionary<string, string>? labels = null)
+        {
+            lock (_metricsLock)
+            {
+                if (!_counters.TryGetValue(name, out var counter))
+                {
+                    counter = new PrometheusCounter(name, $"Custom counter {name}", Array.Empty<string>());
+                    _counters[name] = counter;
+                }
+                
+                if (labels?.Any() == true)
+                {
+                    var labelValues = labels.Select(kvp => kvp.Value).ToArray();
+                    counter.WithLabels(labelValues).Inc(value);
+                }
+                else
+                {
+                    counter.Inc(value);
+                }
+            }
+        }
+
+        public void SetGauge(string name, double value, Dictionary<string, string>? labels = null)
+        {
+            lock (_metricsLock)
+            {
+                if (!_gauges.TryGetValue(name, out var gauge))
+                {
+                    gauge = new PrometheusGauge(name, $"Custom gauge {name}", Array.Empty<string>());
+                    _gauges[name] = gauge;
+                }
+                
+                if (labels?.Any() == true)
+                {
+                    var labelValues = labels.Select(kvp => kvp.Value).ToArray();
+                    gauge.WithLabels(labelValues).Set(value);
+                }
+                else
+                {
+                    gauge.Set(value);
+                }
+            }
+        }
+
+        public void RecordHistogram(string name, double value, Dictionary<string, string>? labels = null)
+        {
+            lock (_metricsLock)
+            {
+                if (!_histograms.TryGetValue(name, out var histogram))
+                {
+                    var buckets = new[] { 0.1, 0.5, 1.0, 2.5, 5.0, 10.0 }; // Default buckets
+                    histogram = new PrometheusHistogram(name, $"Custom histogram {name}", Array.Empty<string>(), buckets);
+                    _histograms[name] = histogram;
+                }
+                
+                if (labels?.Any() == true)
+                {
+                    var labelValues = labels.Select(kvp => kvp.Value).ToArray();
+                    histogram.WithLabels(labelValues).Observe(value);
+                }
+                else
+                {
+                    histogram.Observe(value);
+                }
+            }
+        }
+
+        public void RecordDuration(string name, TimeSpan duration, Dictionary<string, string>? labels = null)
+        {
+            RecordHistogram($"{name}_duration_seconds", duration.TotalSeconds, labels);
+        }
+
+        public void RecordOperation(string operation, bool success, TimeSpan duration, Dictionary<string, string>? labels = null)
+        {
+            var operationLabels = new Dictionary<string, string>(labels ?? new Dictionary<string, string>())
+            {
+                ["operation"] = operation,
+                ["success"] = success.ToString().ToLower()
+            };
+            
+            IncrementCounter("operations_total", 1, operationLabels);
+            RecordDuration($"operation_{operation}", duration, operationLabels);
+            
+            if (!success)
+            {
+                IncrementCounter("operation_failures_total", 1, new Dictionary<string, string> { ["operation"] = operation });
+            }
+        }
+
+        public string GetPrometheusMetrics()
+        {
+            // This would normally use the real prometheus-net library
+            // For now, return a basic format
+            lock (_metricsLock)
+            {
+                var metrics = new System.Text.StringBuilder();
+                
+                // Add counter metrics
+                foreach (var counter in _counters.Values)
+                {
+                    metrics.AppendLine($"# TYPE {counter.Name} counter");
+                    metrics.AppendLine($"{counter.Name} {counter.Value}");
+                }
+                
+                // Add gauge metrics
+                foreach (var gauge in _gauges.Values)
+                {
+                    metrics.AppendLine($"# TYPE {gauge.Name} gauge");
+                    metrics.AppendLine($"{gauge.Name} {gauge.Value}");
+                }
+                
+                // Add histogram metrics (simplified)
+                foreach (var histogram in _histograms.Values)
+                {
+                    metrics.AppendLine($"# TYPE {histogram.Name} histogram");
+                    metrics.AppendLine($"{histogram.Name}_count {histogram.Count}");
+                    metrics.AppendLine($"{histogram.Name}_sum {histogram.Sum}");
+                }
+                
+                return metrics.ToString();
+            }
+        }
+
+        public Dictionary<string, object> GetMetricsSummary()
+        {
+            lock (_metricsLock)
+            {
+                var summary = new Dictionary<string, object>();
+                
+                foreach (var counter in _counters)
+                {
+                    summary[counter.Key] = counter.Value.Value;
+                }
+                
+                foreach (var gauge in _gauges)
+                {
+                    summary[gauge.Key] = gauge.Value.Value;
+                }
+                
+                foreach (var histogram in _histograms)
+                {
+                    summary[$"{histogram.Key}_count"] = histogram.Value.Count;
+                    summary[$"{histogram.Key}_sum"] = histogram.Value.Sum;
+                }
+                
+                return summary;
+            }
+        }
+
+        public void ResetMetrics()
+        {
+            lock (_metricsLock)
+            {
+                foreach (var counter in _counters.Values)
+                {
+                    counter.Reset();
+                }
+                
+                foreach (var gauge in _gauges.Values)
+                {
+                    gauge.Reset();
+                }
+                
+                foreach (var histogram in _histograms.Values)
+                {
+                    histogram.Reset();
+                }
+            }
+        }
+
+        private DateTime _metricsStartTime = DateTime.UtcNow;
+        public DateTime GetMetricsStartTime()
+        {
+            return _metricsStartTime;
         }
 
         #endregion
@@ -327,7 +510,7 @@ namespace Lidarr.Plugin.Qobuzarr.Services.Observability
         /// <summary>
         /// Gets current metrics summary for monitoring dashboards
         /// </summary>
-        public MetricsSummary GetMetricsSummary()
+        public MetricsSummary GetLegacyMetricsSummary()
         {
             lock (_metricsLock)
             {
@@ -443,23 +626,7 @@ namespace Lidarr.Plugin.Qobuzarr.Services.Observability
         #endregion
     }
 
-    #region Supporting Interfaces and Models
-
-    public interface IMetricsCollector
-    {
-        void RecordApiRequest(string endpoint, TimeSpan duration, int statusCode, string method = "GET");
-        void RecordApiCall(string endpoint, TimeSpan duration, bool wasCached, string cacheKey = null);
-        void RecordCacheOperation(string cacheType, string operation, bool success);
-        void RecordCacheHit(string cacheType, string key, bool hit, TimeSpan? lookupDuration = null);
-        void RecordQualityFallback(string originalQuality, string fallbackQuality, string reason);
-        void RecordAuthenticationAttempt(string authenticationType, bool success, string failureReason = null);
-        void RecordDownloadOperation(string downloadType, TimeSpan duration, bool success, string quality = "unknown");
-        void SetActiveDownloads(string downloadType, int count);
-        void RecordMLOptimization(string strategy, bool successful, double confidenceScore = 0.0);
-        void SetServiceHealth(string serviceName, string component, bool healthy);
-        Task<string> ExportPrometheusMetricsAsync();
-        MetricsSummary GetMetricsSummary();
-    }
+    #region Supporting Models
 
     public class MetricsSummary
     {

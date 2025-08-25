@@ -7,38 +7,20 @@ using Lidarr.Plugin.Qobuzarr.API;
 using Lidarr.Plugin.Qobuzarr.Abstractions;
 using Lidarr.Plugin.Qobuzarr.Models;
 using Lidarr.Plugin.Qobuzarr.Services.Core.Quality;
+using IStreamUrlProviderInterface = Lidarr.Plugin.Qobuzarr.Services.Interfaces.IStreamUrlProvider;
+using IStreamUrlValidatorInterface = Lidarr.Plugin.Qobuzarr.Services.Interfaces.IStreamUrlValidator;
+using Lidarr.Plugin.Qobuzarr.Services.Interfaces;
 
 namespace Lidarr.Plugin.Qobuzarr.Services.Core.Streaming
 {
     /// <summary>
-    /// Handles stream URL acquisition from Qobuz API.
-    /// Single responsibility: Acquire and provide validated stream URLs for tracks.
-    /// </summary>
-    public interface IStreamUrlProvider
-    {
-        /// <summary>
-        /// Gets stream URL for a track with specified quality.
-        /// </summary>
-        Task<StreamAcquisitionResult> GetStreamUrlAsync(string trackId, QualityFormat quality, CancellationToken cancellationToken = default);
-
-        /// <summary>
-        /// Gets stream URLs for multiple tracks in batch.
-        /// </summary>
-        Task<BatchStreamAcquisitionResult> GetBatchStreamUrlsAsync(IEnumerable<string> trackIds, QualityFormat quality, CancellationToken cancellationToken = default);
-
-        /// <summary>
-        /// Gets stream URL with automatic quality fallback.
-        /// </summary>
-        Task<StreamAcquisitionResult> GetStreamUrlWithFallbackAsync(string trackId, IReadOnlyList<QualityFormat> qualityChain, CancellationToken cancellationToken = default);
-    }
-
-    /// <summary>
     /// Implementation of stream URL provider with validation and error handling.
+    /// Implements the centralized IStreamUrlProvider interface.
     /// </summary>
-    public class StreamUrlProvider : IStreamUrlProvider
+    public class StreamUrlProvider : IStreamUrlProviderInterface
     {
-        private readonly IQobuzApiClient _apiClient;
-        private readonly IStreamUrlValidator _validator;
+        private readonly Lidarr.Plugin.Qobuzarr.API.IQobuzApiClient _apiClient;
+        private readonly IStreamUrlValidatorInterface _validator;
         private readonly IQobuzLogger _logger;
 
         // Configuration constants
@@ -47,8 +29,8 @@ namespace Lidarr.Plugin.Qobuzarr.Services.Core.Streaming
         private const int MAX_RETRY_ATTEMPTS = 2;
 
         public StreamUrlProvider(
-            IQobuzApiClient apiClient,
-            IStreamUrlValidator validator,
+            Lidarr.Plugin.Qobuzarr.API.IQobuzApiClient apiClient,
+            IStreamUrlValidatorInterface validator,
             IQobuzLogger logger)
         {
             _apiClient = apiClient ?? throw new ArgumentNullException(nameof(apiClient));
@@ -56,7 +38,63 @@ namespace Lidarr.Plugin.Qobuzarr.Services.Core.Streaming
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         }
 
-        public async Task<StreamAcquisitionResult> GetStreamUrlAsync(string trackId, QualityFormat quality, CancellationToken cancellationToken = default)
+        // Implement centralized interface methods
+        public async Task<StreamUrlResult> GetStreamUrlAsync(string trackId, int preferredQuality, CancellationToken cancellationToken = default)
+        {
+            var startTime = DateTime.UtcNow;
+            var result = new StreamUrlResult
+            {
+                OriginalPreferredQuality = preferredQuality,
+                Success = false
+            };
+
+            try
+            {
+                // Convert quality ID to QualityFormat for legacy method
+                var qualityFormat = new QualityFormat { Id = preferredQuality, Name = $"Quality{preferredQuality}" };
+                var legacyResult = await GetStreamUrlLegacyAsync(trackId, qualityFormat, cancellationToken);
+
+                result.Success = legacyResult.Success;
+                result.StreamUrl = legacyResult.StreamUrl;
+                result.QualityId = legacyResult.Quality?.Id ?? preferredQuality;
+                result.QualityName = legacyResult.Quality?.Name ?? $"Quality{preferredQuality}";
+                result.FileSizeBytes = legacyResult.FileSizeBytes;
+                result.ExpiresAt = legacyResult.ExpiresAt;
+                result.Error = legacyResult.Error;
+            }
+            catch (Exception ex)
+            {
+                result.Error = ex.Message;
+            }
+
+            result.GenerationTime = DateTime.UtcNow - startTime;
+            return result;
+        }
+
+        public async Task<Dictionary<string, StreamUrlResult>> GetBatchStreamUrlsAsync(IReadOnlyList<string> trackIds, int preferredQuality, CancellationToken cancellationToken = default)
+        {
+            var results = new Dictionary<string, StreamUrlResult>();
+            
+            foreach (var trackId in trackIds)
+            {
+                results[trackId] = await GetStreamUrlAsync(trackId, preferredQuality, cancellationToken);
+            }
+            
+            return results;
+        }
+
+        public async Task<StreamUrlResult?> GetExactQualityStreamUrlAsync(string trackId, int qualityId, CancellationToken cancellationToken = default)
+        {
+            return await GetStreamUrlAsync(trackId, qualityId, cancellationToken);
+        }
+
+        public async Task<StreamUrlResult?> RefreshStreamUrlAsync(string url, string trackId, int qualityId, CancellationToken cancellationToken = default)
+        {
+            // For now, just get a new URL - in practice this might try to refresh an existing URL
+            return await GetStreamUrlAsync(trackId, qualityId, cancellationToken);
+        }
+
+        public async Task<StreamAcquisitionResult> GetStreamUrlLegacyAsync(string trackId, QualityFormat quality, CancellationToken cancellationToken = default)
         {
             if (string.IsNullOrWhiteSpace(trackId))
             {
@@ -125,7 +163,7 @@ namespace Lidarr.Plugin.Qobuzarr.Services.Core.Streaming
             return result;
         }
 
-        public async Task<BatchStreamAcquisitionResult> GetBatchStreamUrlsAsync(IEnumerable<string> trackIds, QualityFormat quality, CancellationToken cancellationToken = default)
+        public async Task<BatchStreamAcquisitionResult> GetBatchStreamUrlsLegacyAsync(IEnumerable<string> trackIds, QualityFormat quality, CancellationToken cancellationToken = default)
         {
             var trackIdList = trackIds?.ToList() ?? throw new ArgumentNullException(nameof(trackIds));
             
@@ -182,7 +220,7 @@ namespace Lidarr.Plugin.Qobuzarr.Services.Core.Streaming
             return result;
         }
 
-        public async Task<StreamAcquisitionResult> GetStreamUrlWithFallbackAsync(string trackId, IReadOnlyList<QualityFormat> qualityChain, CancellationToken cancellationToken = default)
+        public async Task<StreamAcquisitionResult> GetStreamUrlWithFallbackLegacyAsync(string trackId, IReadOnlyList<QualityFormat> qualityChain, CancellationToken cancellationToken = default)
         {
             if (string.IsNullOrWhiteSpace(trackId))
             {
@@ -276,8 +314,7 @@ namespace Lidarr.Plugin.Qobuzarr.Services.Core.Streaming
                 {
                     var response = await _apiClient.GetAsync<QobuzStreamResponse>(
                         "track/getFileUrl", 
-                        parameters, 
-                        timeoutCts.Token);
+                        parameters);
 
                     return response;
                 }

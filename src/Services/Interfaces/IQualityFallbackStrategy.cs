@@ -1,4 +1,7 @@
+using System;
 using System.Collections.Generic;
+using Lidarr.Plugin.Qobuzarr.Models;
+using Lidarr.Plugin.Qobuzarr.Models.Lidarr;
 
 namespace Lidarr.Plugin.Qobuzarr.Services.Interfaces
 {
@@ -56,5 +59,54 @@ namespace Lidarr.Plugin.Qobuzarr.Services.Interfaces
         /// </summary>
         /// <returns>The strategy name</returns>
         string GetStrategyName();
+
+        /// <summary>
+        /// Creates a fallback chain for the given quality format.
+        /// </summary>
+        /// <param name="preferred">The preferred quality format</param>
+        /// <returns>Fallback chain in order of preference</returns>
+        IReadOnlyList<QualityFormat> CreateFallbackChain(QualityFormat preferred);
+
+        /// <summary>
+        /// Creates a fallback chain considering subscription tier constraints.
+        /// </summary>
+        /// <param name="preferred">The preferred quality format</param>
+        /// <param name="subscriptionTier">User's subscription tier</param>
+        /// <returns>Fallback chain with subscription constraints applied</returns>
+        IReadOnlyList<QualityFormat> CreateFallbackChain(QualityFormat preferred, QobuzSubscriptionTier subscriptionTier);
+
+        /// <summary>
+        /// Creates a fallback chain from a Lidarr quality profile.
+        /// </summary>
+        /// <param name="profile">The Lidarr quality profile</param>
+        /// <returns>Fallback chain based on profile settings</returns>
+        IReadOnlyList<QualityFormat> CreateFallbackChainFromProfile(LidarrQualityProfile profile);
+
+        /// <summary>
+        /// Determines if fallback should be attempted for a given exception.
+        /// </summary>
+        /// <param name="exception">The exception that occurred</param>
+        /// <param name="attemptedQuality">The quality that was attempted</param>
+        /// <returns>True if fallback should be attempted</returns>
+        bool ShouldAttemptFallback(Exception exception, QualityFormat attemptedQuality);
+
+        /// <summary>
+        /// Gets the next fallback quality in the chain.
+        /// </summary>
+        /// <param name="current">Current quality</param>
+        /// <param name="chain">Fallback chain</param>
+        /// <returns>Next quality or null if no fallback available</returns>
+        QualityFormat GetNextFallbackQuality(QualityFormat current, IReadOnlyList<QualityFormat> chain);
+    }
+
+    /// <summary>
+    /// Qobuz subscription tiers for quality constraints.
+    /// </summary>
+    public enum QobuzSubscriptionTier
+    {
+        Free = 0,
+        Sublime = 1,
+        StudioPremier = 2,
+        StudioSublime = 3
     }
 }
