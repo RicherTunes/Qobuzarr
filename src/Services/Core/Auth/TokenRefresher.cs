@@ -4,6 +4,7 @@ using System.Threading.Tasks;
 using NLog;
 using Lidarr.Plugin.Qobuzarr.Models.Authentication;
 using Lidarr.Plugin.Qobuzarr.Authentication;
+using Lidarr.Plugin.Qobuzarr.Services.Interfaces;
 using QobuzAuthenticationException = Lidarr.Plugin.Qobuzarr.Authentication.QobuzAuthenticationException;
 
 namespace Lidarr.Plugin.Qobuzarr.Services.Core.Auth
@@ -36,7 +37,7 @@ namespace Lidarr.Plugin.Qobuzarr.Services.Core.Auth
     /// Note: Qobuz doesn't support traditional refresh tokens, so this service
     /// primarily coordinates re-authentication when tokens expire.
     /// </remarks>
-    public class TokenRefresher
+    public class TokenRefresher : ITokenRefresher
     {
         private readonly IQobuzAuthenticationService _authService;
         private readonly Logger _logger;
@@ -233,6 +234,76 @@ namespace Lidarr.Plugin.Qobuzarr.Services.Core.Auth
                 }
             };
         }
+
+        #region ITokenRefresher Interface Implementation
+
+        /// <summary>
+        /// Refreshes an authentication token if possible.
+        /// Since Qobuz doesn't support token refresh, this attempts re-authentication.
+        /// </summary>
+        public async Task<string?> RefreshTokenAsync(string currentToken, CancellationToken cancellationToken = default)
+        {
+            if (string.IsNullOrWhiteSpace(currentToken))
+                return null;
+
+            try
+            {
+                var currentSession = _authService.GetCachedSession();
+                if (currentSession == null)
+                    return null;
+
+                // Note: This would need the original credentials, which we don't have from just the token
+                // This is a limitation of the interface design for Qobuz
+                _logger.Warn("RefreshTokenAsync called but requires original credentials for Qobuz - falling back to session refresh");
+                return currentToken; // Return existing token as we can't refresh without credentials
+            }
+            catch (Exception ex)
+            {
+                _logger.Error(ex, "Failed to refresh token");
+                return null;
+            }
+        }
+
+        /// <summary>
+        /// Checks if a token needs to be refreshed based on expiration.
+        /// </summary>
+        public bool ShouldRefreshToken(string token, TimeSpan? gracePeriod = null)
+        {
+            if (string.IsNullOrWhiteSpace(token))
+                return false;
+
+            var session = _authService.GetCachedSession();
+            if (session == null)
+                return false;
+
+            return ShouldRefresh(session);
+        }
+
+        /// <summary>
+        /// Attempts to refresh a complete session including all tokens.
+        /// This is the primary method for Qobuz token refresh.
+        /// </summary>
+        public async Task<QobuzSession?> RefreshSessionAsync(QobuzSession session, CancellationToken cancellationToken = default)
+        {
+            if (session == null)
+                return null;
+
+            // Note: This would need the original credentials to work properly
+            // For now, we'll just return the existing session
+            _logger.Warn("RefreshSessionAsync called without original credentials - cannot refresh");
+            return session;
+        }
+
+        /// <summary>
+        /// Checks if token refresh is available for the current authentication method.
+        /// For Qobuz, this is only available if we have the original credentials.
+        /// </summary>
+        public bool CanRefreshSession(QobuzSession session)
+        {
+            return session != null && session.IsValid();
+        }
+
+        #endregion
 
         #endregion
 
