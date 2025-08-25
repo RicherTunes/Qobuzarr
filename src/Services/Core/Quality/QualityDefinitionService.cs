@@ -4,6 +4,8 @@ using System.Linq;
 using Lidarr.Plugin.Qobuzarr.Models;
 using Lidarr.Plugin.Qobuzarr.Services.Interfaces;
 using Lidarr.Plugin.Qobuzarr.Services.Consolidated;
+using QobuzQuality = Lidarr.Plugin.Qobuzarr.Services.Consolidated.QobuzQuality;
+using QualityFormat = Lidarr.Plugin.Qobuzarr.Models.QualityFormat;
 
 namespace Lidarr.Plugin.Qobuzarr.Services.Core.Quality
 {
@@ -68,7 +70,7 @@ namespace Lidarr.Plugin.Qobuzarr.Services.Core.Quality
             { 
                 Id = q.Id, 
                 Name = q.Name, 
-                DisplayName = q.DisplayName, 
+                DisplayName = q.DisplayName ?? q.Name, 
                 BitRate = q.BitRate, 
                 IsLossless = q.IsLossless, 
                 Priority = q.Priority 
@@ -85,7 +87,7 @@ namespace Lidarr.Plugin.Qobuzarr.Services.Core.Quality
             {
                 Id = quality.Id,
                 Name = quality.Name,
-                DisplayName = quality.DisplayName,
+                DisplayName = quality.DisplayName ?? quality.Name,
                 BitRate = quality.BitRate,
                 IsLossless = quality.IsLossless,
                 Priority = quality.Priority

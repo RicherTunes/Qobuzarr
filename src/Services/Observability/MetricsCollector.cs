@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Linq;
 using System.Threading.Tasks;
 using NLog;
 using Lidarr.Plugin.Qobuzarr.Abstractions;
@@ -663,6 +664,9 @@ namespace Lidarr.Plugin.Qobuzarr.Services.Observability
 
         public PrometheusCounter WithLabels(params string[] labels) => this;
         public void Inc() { }
+        public void Inc(double value) { }
+        public double Value { get; set; } = 0.0;
+        public void Reset() { Value = 0.0; }
         public double GetValue(string labelFilter = null) => 0.0;
         public bool TryGetValue(string labelFilter, out double value) { value = 0.0; return false; }
         public string Export() => $"# HELP {Name} {Help}\n# TYPE {Name} counter\n";
@@ -685,6 +689,9 @@ namespace Lidarr.Plugin.Qobuzarr.Services.Observability
 
         public PrometheusHistogram WithLabels(params string[] labels) => this;
         public void Observe(double value) { }
+        public double Count { get; set; } = 0.0;
+        public double Sum { get; set; } = 0.0;
+        public void Reset() { Count = 0.0; Sum = 0.0; }
         public string Export() => $"# HELP {Name} {Help}\n# TYPE {Name} histogram\n";
     }
 
@@ -703,6 +710,8 @@ namespace Lidarr.Plugin.Qobuzarr.Services.Observability
 
         public PrometheusGauge WithLabels(params string[] labels) => this;
         public void Set(double value) { }
+        public double Value { get; set; } = 0.0;
+        public void Reset() { Value = 0.0; }
         public double GetValue(string labelFilter = null) => 0.0;
         public double GetAverageValue() => 0.0;
         public int CountUnhealthyServices() => 0;

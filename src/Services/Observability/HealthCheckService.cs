@@ -13,6 +13,7 @@ using Lidarr.Plugin.Qobuzarr.Configuration;
 using IHealthCheckServiceInterface = Lidarr.Plugin.Qobuzarr.Services.Interfaces.IHealthCheckService;
 using IMetricsCollectorInterface = Lidarr.Plugin.Qobuzarr.Services.Interfaces.IMetricsCollector;
 using Lidarr.Plugin.Qobuzarr.Services.Interfaces;
+using InterfaceHealthStatus = Lidarr.Plugin.Qobuzarr.Services.Interfaces.HealthStatus;
 
 namespace Lidarr.Plugin.Qobuzarr.Services.Observability
 {
@@ -124,7 +125,7 @@ namespace Lidarr.Plugin.Qobuzarr.Services.Observability
                 return new ComponentHealthResult
                 {
                     ComponentName = "Qobuz API",
-                    Status = HealthStatus.Unhealthy,
+                    Status = (Services.Interfaces.HealthStatus)HealthStatus.Unhealthy,
                     StatusMessage = "API health check failed",
                     ResponseTime = DateTime.UtcNow - startTime,
                     CheckTime = startTime,
@@ -160,7 +161,7 @@ namespace Lidarr.Plugin.Qobuzarr.Services.Observability
                 return new ComponentHealthResult
                 {
                     ComponentName = "Authentication",
-                    Status = HealthStatus.Unhealthy,
+                    Status = (Services.Interfaces.HealthStatus)HealthStatus.Unhealthy,
                     StatusMessage = "Authentication health check failed",
                     ResponseTime = DateTime.UtcNow - startTime,
                     CheckTime = startTime,
@@ -177,7 +178,7 @@ namespace Lidarr.Plugin.Qobuzarr.Services.Observability
             return new ComponentHealthResult
             {
                 ComponentName = "Storage",
-                Status = HealthStatus.Healthy, // Placeholder
+                Status = (InterfaceHealthStatus)HealthStatus.Healthy, // Placeholder
                 StatusMessage = "Storage health check not implemented",
                 ResponseTime = DateTime.UtcNow - startTime,
                 CheckTime = startTime,
@@ -192,7 +193,7 @@ namespace Lidarr.Plugin.Qobuzarr.Services.Observability
             return new ComponentHealthResult
             {
                 ComponentName = "Quality Services",
-                Status = HealthStatus.Healthy, // Placeholder
+                Status = (InterfaceHealthStatus)HealthStatus.Healthy, // Placeholder
                 StatusMessage = "Quality services are operational",
                 ResponseTime = DateTime.UtcNow - startTime,
                 CheckTime = startTime,
@@ -329,7 +330,7 @@ namespace Lidarr.Plugin.Qobuzarr.Services.Observability
                 _ => new HealthCheckResult
                 {
                     Component = component,
-                    Status = HealthStatus.Unknown,
+                    Status = (InterfaceHealthStatus)HealthStatus.Unknown,
                     Message = $"Unknown health check component: {component}",
                     Timestamp = DateTime.UtcNow
                 }
@@ -355,7 +356,7 @@ namespace Lidarr.Plugin.Qobuzarr.Services.Observability
             {
                 if (_apiClient == null)
                 {
-                    result.Status = HealthStatus.Degraded;
+                    result.Status = (InterfaceHealthStatus)HealthStatus.Degraded;
                     result.Message = "API client not available";
                     result.Details.Add("issue", "No API client instance provided");
                     return result;
@@ -379,7 +380,7 @@ namespace Lidarr.Plugin.Qobuzarr.Services.Observability
                 }
                 else
                 {
-                    result.Status = HealthStatus.Unhealthy;
+                    result.Status = (InterfaceHealthStatus)HealthStatus.Unhealthy;
                     result.Message = $"API connectivity failed: {testResponse.Error}";
                     result.Details.Add("error", testResponse.Error);
                     result.Details.Add("endpoint_reachable", "false");
@@ -387,21 +388,21 @@ namespace Lidarr.Plugin.Qobuzarr.Services.Observability
             }
             catch (HttpRequestException ex)
             {
-                result.Status = HealthStatus.Unhealthy;
+                result.Status = (InterfaceHealthStatus)HealthStatus.Unhealthy;
                 result.Message = $"Network connectivity issue: {ex.Message}";
                 result.Details.Add("error_type", "network");
                 result.Details.Add("error_details", ex.Message);
             }
             catch (TaskCanceledException ex)
             {
-                result.Status = HealthStatus.Unhealthy;
+                result.Status = (InterfaceHealthStatus)HealthStatus.Unhealthy;
                 result.Message = "API request timed out";
                 result.Details.Add("error_type", "timeout");
                 result.Details.Add("timeout_duration", ex.Message);
             }
             catch (Exception ex)
             {
-                result.Status = HealthStatus.Unhealthy;
+                result.Status = (InterfaceHealthStatus)HealthStatus.Unhealthy;
                 result.Message = $"Unexpected API health check error: {ex.Message}";
                 result.Details.Add("error_type", "unexpected");
                 result.Details.Add("exception", ex.GetType().Name);
@@ -425,7 +426,7 @@ namespace Lidarr.Plugin.Qobuzarr.Services.Observability
             {
                 if (_authService == null)
                 {
-                    result.Status = HealthStatus.Degraded;
+                    result.Status = (InterfaceHealthStatus)HealthStatus.Degraded;
                     result.Message = "Authentication service not available";
                     result.Details.Add("issue", "No authentication service instance provided");
                     return result;
@@ -441,7 +442,7 @@ namespace Lidarr.Plugin.Qobuzarr.Services.Observability
 
                 if (hasValidSession.IsValid)
                 {
-                    result.Status = HealthStatus.Healthy;
+                    result.Status = (InterfaceHealthStatus)HealthStatus.Healthy;
                     result.Message = "Authentication status OK";
                     result.Details.Add("session_valid", "true");
                     result.Details.Add("session_expires", hasValidSession.ExpiryTime?.ToString("yyyy-MM-dd HH:mm:ss") ?? "unknown");
@@ -457,7 +458,7 @@ namespace Lidarr.Plugin.Qobuzarr.Services.Observability
             }
             catch (Exception ex)
             {
-                result.Status = HealthStatus.Unhealthy;
+                result.Status = (InterfaceHealthStatus)HealthStatus.Unhealthy;
                 result.Message = $"Authentication health check failed: {ex.Message}";
                 result.Details.Add("error_type", "exception");
                 result.Details.Add("exception", ex.GetType().Name);
@@ -502,23 +503,23 @@ namespace Lidarr.Plugin.Qobuzarr.Services.Observability
 
                 if (unhealthyCount == 0)
                 {
-                    result.Status = HealthStatus.Healthy;
+                    result.Status = (InterfaceHealthStatus)HealthStatus.Healthy;
                     result.Message = "All dependencies healthy";
                 }
                 else if (unhealthyCount <= dependencies.Length / 2)
                 {
-                    result.Status = HealthStatus.Degraded;
+                    result.Status = (InterfaceHealthStatus)HealthStatus.Degraded;
                     result.Message = $"{unhealthyCount} of {dependencies.Length} dependencies unhealthy";
                 }
                 else
                 {
-                    result.Status = HealthStatus.Unhealthy;
+                    result.Status = (InterfaceHealthStatus)HealthStatus.Unhealthy;
                     result.Message = $"Multiple dependencies unhealthy ({unhealthyCount}/{dependencies.Length})";
                 }
             }
             catch (Exception ex)
             {
-                result.Status = HealthStatus.Unhealthy;
+                result.Status = (InterfaceHealthStatus)HealthStatus.Unhealthy;
                 result.Message = $"Dependency health check failed: {ex.Message}";
                 result.Details.Add("error", ex.Message);
             }
@@ -580,23 +581,23 @@ namespace Lidarr.Plugin.Qobuzarr.Services.Observability
 
                 if (issues.Count == 0)
                 {
-                    result.Status = HealthStatus.Healthy;
+                    result.Status = (InterfaceHealthStatus)HealthStatus.Healthy;
                     result.Message = "Performance indicators normal";
                 }
                 else if (issues.Count <= 1)
                 {
-                    result.Status = HealthStatus.Degraded;
+                    result.Status = (InterfaceHealthStatus)HealthStatus.Degraded;
                     result.Message = $"Performance concern: {string.Join(", ", issues)}";
                 }
                 else
                 {
-                    result.Status = HealthStatus.Unhealthy;
+                    result.Status = (InterfaceHealthStatus)HealthStatus.Unhealthy;
                     result.Message = $"Multiple performance issues: {string.Join(", ", issues)}";
                 }
             }
             catch (Exception ex)
             {
-                result.Status = HealthStatus.Unhealthy;
+                result.Status = (InterfaceHealthStatus)HealthStatus.Unhealthy;
                 result.Message = $"Performance health check failed: {ex.Message}";
                 result.Details.Add("error", ex.Message);
             }
@@ -646,23 +647,23 @@ namespace Lidarr.Plugin.Qobuzarr.Services.Observability
 
                 if (issues.Count == 0)
                 {
-                    result.Status = HealthStatus.Healthy;
+                    result.Status = (InterfaceHealthStatus)HealthStatus.Healthy;
                     result.Message = "Resource usage normal";
                 }
                 else if (issues.Count == 1)
                 {
-                    result.Status = HealthStatus.Degraded;
+                    result.Status = (InterfaceHealthStatus)HealthStatus.Degraded;
                     result.Message = issues[0];
                 }
                 else
                 {
-                    result.Status = HealthStatus.Unhealthy;
+                    result.Status = (InterfaceHealthStatus)HealthStatus.Unhealthy;
                     result.Message = $"Multiple resource issues: {string.Join(", ", issues)}";
                 }
             }
             catch (Exception ex)
             {
-                result.Status = HealthStatus.Unhealthy;
+                result.Status = (InterfaceHealthStatus)HealthStatus.Unhealthy;
                 result.Message = $"Resource health check failed: {ex.Message}";
                 result.Details.Add("error", ex.Message);
             }
@@ -833,7 +834,8 @@ namespace Lidarr.Plugin.Qobuzarr.Services.Observability
         Unknown = 0,
         Healthy = 1,
         Degraded = 2,
-        Unhealthy = 3
+        Unhealthy = 3,
+        Critical = 4
     }
 
     #endregion
