@@ -613,7 +613,7 @@ namespace Lidarr.Plugin.Qobuzarr.Services.Observability
             // Export final metrics before shutdown
             try
             {
-                var finalMetrics = GetMetricsSummary();
+                var finalMetrics = GetLegacyMetricsSummary();
                 _metricsLogger.Info("Final metrics - API: {0}, Downloads: {1}, Cache Hit: {2:F2}%",
                     finalMetrics.TotalApiRequests, finalMetrics.TotalDownloads, finalMetrics.CacheHitRatio * 100);
             }
