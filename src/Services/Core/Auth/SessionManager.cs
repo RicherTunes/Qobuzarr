@@ -5,12 +5,14 @@ using NzbDrone.Common.Cache;
 using NLog;
 using Lidarr.Plugin.Qobuzarr.Models.Authentication;
 using Lidarr.Plugin.Qobuzarr.Exceptions;
+using Lidarr.Plugin.Qobuzarr.Services.Interfaces;
 
 namespace Lidarr.Plugin.Qobuzarr.Services.Core.Auth
 {
     /// <summary>
     /// Manages the complete lifecycle of Qobuz authentication sessions including storage,
     /// validation, expiration tracking, and automatic renewal coordination.
+    /// Implements the centralized ISessionManager interface.
     /// </summary>
     /// <remarks>
     /// This service provides centralized session management with the following capabilities:
@@ -36,7 +38,7 @@ namespace Lidarr.Plugin.Qobuzarr.Services.Core.Auth
     /// This is a core domain service that focuses purely on session state management
     /// without handling authentication logic or API communication.
     /// </remarks>
-    public class SessionManager
+    public class SessionManager : ISessionManager
     {
         private readonly ICacheManager _cacheManager;
         private readonly Logger _logger;
@@ -74,6 +76,55 @@ namespace Lidarr.Plugin.Qobuzarr.Services.Core.Auth
             _sessionCache = _cacheManager.GetCache<QobuzSession>(GetType(), "sessions");
             
             _logger.Debug("SessionManager initialized with {0}min refresh buffer", _refreshBuffer.TotalMinutes);
+        }
+
+        // Implement centralized interface methods
+        public async Task<QobuzSession?> CreateSessionAsync(QobuzCredentials credentials, CancellationToken cancellationToken = default)
+        {
+            // For now, create a basic session - this would normally involve API calls
+            var session = new QobuzSession
+            {
+                UserId = "dummy_user",
+                UserAuthToken = "dummy_token",
+                ExpiresAt = DateTime.UtcNow.AddHours(24),
+                CreatedAt = DateTime.UtcNow
+            };
+            
+            StoreSession(session);
+            return await Task.FromResult(session);
+        }
+
+        public async Task<QobuzSession?> GetCurrentSessionAsync(CancellationToken cancellationToken = default)
+        {
+            return await Task.FromResult(GetCurrentSession());
+        }
+
+        public async Task<bool> IsSessionValidAsync(QobuzSession session, CancellationToken cancellationToken = default)
+        {
+            return await Task.FromResult(session?.IsValid() == true);
+        }
+
+        public async Task InvalidateSessionAsync(CancellationToken cancellationToken = default)
+        {
+            ClearSession();
+            await Task.CompletedTask;
+        }
+
+        public async Task<QobuzSession?> RefreshSessionAsync(QobuzSession session, CancellationToken cancellationToken = default)
+        {
+            // Placeholder - would normally make API calls to refresh the session
+            if (session == null) return null;
+            
+            var refreshedSession = new QobuzSession
+            {
+                UserId = session.UserId,
+                UserAuthToken = session.UserAuthToken + "_refreshed",
+                ExpiresAt = DateTime.UtcNow.AddHours(24),
+                CreatedAt = DateTime.UtcNow
+            };
+            
+            StoreSession(refreshedSession);
+            return await Task.FromResult(refreshedSession);
         }
 
         #region Session Storage and Retrieval

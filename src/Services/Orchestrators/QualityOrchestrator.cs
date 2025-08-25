@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Lidarr.Plugin.Qobuzarr.Abstractions;
@@ -7,6 +8,7 @@ using Lidarr.Plugin.Qobuzarr.Models;
 using Lidarr.Plugin.Qobuzarr.Models.Lidarr;
 using Lidarr.Plugin.Qobuzarr.Services.Core.Quality;
 using Lidarr.Plugin.Qobuzarr.Services.Core.Streaming;
+using Lidarr.Plugin.Qobuzarr.Services.Interfaces;
 
 namespace Lidarr.Plugin.Qobuzarr.Services.Orchestrators
 {
@@ -72,7 +74,7 @@ namespace Lidarr.Plugin.Qobuzarr.Services.Orchestrators
                 throw new ArgumentException("Track ID cannot be null or empty", nameof(trackId));
             }
 
-            preferredQuality ??= _qualityDefinitionService.GetDefaultQuality();
+            preferredQuality ??= _qualityDefinitionService.GetQualityByIdLegacy(6); // CD quality default
 
             _logger.Debug("Starting quality selection for track {0} with preferred quality {1}", trackId, preferredQuality.Name);
 
@@ -139,7 +141,7 @@ namespace Lidarr.Plugin.Qobuzarr.Services.Orchestrators
         {
             // Create fallback chain from Lidarr profile
             var fallbackChain = _fallbackStrategy.CreateFallbackChainFromProfile(profile);
-            var preferredQuality = fallbackChain.Count > 0 ? fallbackChain[0] : _qualityDefinitionService.GetDefaultQuality();
+            var preferredQuality = fallbackChain.Count > 0 ? fallbackChain[0] : _qualityDefinitionService.GetQualityByIdLegacy(6); // CD quality default
 
             _logger.Debug("Quality selection for track {0} using Lidarr profile '{1}' -> preferred quality {2}", 
                 trackId, profile?.Name ?? "None", preferredQuality.Name);
@@ -154,7 +156,7 @@ namespace Lidarr.Plugin.Qobuzarr.Services.Orchestrators
                 throw new ArgumentException("Album must have tracks for quality selection", nameof(album));
             }
 
-            preferredQuality ??= _qualityDefinitionService.GetDefaultQuality();
+            preferredQuality ??= _qualityDefinitionService.GetQualityByIdLegacy(6); // CD quality default
 
             _logger.Info("Starting album quality selection for '{0}' with preferred quality {1}", album.Title, preferredQuality.Name);
 
@@ -222,7 +224,7 @@ namespace Lidarr.Plugin.Qobuzarr.Services.Orchestrators
                 throw new ArgumentNullException(nameof(operation));
             }
 
-            preferredQuality ??= _qualityDefinitionService.GetDefaultQuality();
+            preferredQuality ??= _qualityDefinitionService.GetQualityByIdLegacy(6); // CD quality default
             
             var fallbackChain = _fallbackStrategy.CreateFallbackChain(preferredQuality);
             var exceptions = new List<Exception>();

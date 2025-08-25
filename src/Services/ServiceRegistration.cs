@@ -5,7 +5,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using DryIoc;
 using Lidarr.Plugin.Qobuzarr.Abstractions;
-using ApiClient = Lidarr.Plugin.Qobuzarr.API;
+using API = Lidarr.Plugin.Qobuzarr.API;
 using Lidarr.Plugin.Qobuzarr.Authentication;
 using Lidarr.Plugin.Qobuzarr.Models;
 using Lidarr.Plugin.Qobuzarr.Models.Lidarr;
@@ -21,6 +21,8 @@ using NLog;
 using NzbDrone.Core.Datastore;
 using NzbDrone.Common.Disk;
 using NzbDrone.Common.Http;
+using NzbDrone.Common.Cache;
+using Lidarr.Plugin.Qobuzarr.Integration;
 
 namespace Lidarr.Plugin.Qobuzarr.Services
 {
@@ -42,6 +44,9 @@ namespace Lidarr.Plugin.Qobuzarr.Services
 
             try
             {
+                // Register core adapters first
+                RegisterCoreAdapters(container);
+
                 // Core Quality Services
                 RegisterQualityServices(container);
 
@@ -72,16 +77,25 @@ namespace Lidarr.Plugin.Qobuzarr.Services
             }
         }
 
+        private static void RegisterCoreAdapters(IContainer container)
+        {
+            Logger.Debug("Registering core adapters");
+
+            // Register logger adapter to convert NLog.Logger to IQobuzLogger
+            container.Register<IQobuzLogger, LidarrLoggerAdapter>(
+                Reuse.Singleton,
+                Made.Of(() => new LidarrLoggerAdapter(Arg.Of<Logger>())));
+
+            Logger.Debug("Core adapters registered successfully");
+        }
+
         private static void RegisterQualityServices(IContainer container)
         {
             Logger.Debug("Registering Quality domain services");
 
-            // Quality Definition Service - Single source of truth for quality formats
+            // Quality Definition Service - Single source of truth for quality formats (no constructor parameters)
             container.Register<ServiceInterfaces.IQualityDefinitionService, CoreQuality.QualityDefinitionService>(
-                Reuse.Singleton,
-                Made.Of(() => new CoreQuality.QualityDefinitionService(
-                    Arg.Of<IQobuzLogger>())),
-                setup: Setup.With(condition: r => r.IsResolutionRoot));
+                Reuse.Singleton);
 
             // Quality Fallback Strategy - Handles fallback chain logic
             container.Register<ServiceInterfaces.IQualityFallbackStrategy, CoreQuality.QualityFallbackStrategy>(
@@ -94,7 +108,7 @@ namespace Lidarr.Plugin.Qobuzarr.Services
             container.Register<ServiceInterfaces.IQualityDetector, CoreQuality.QualityDetector>(
                 Reuse.Singleton,
                 Made.Of(() => new CoreQuality.QualityDetector(
-                    Arg.Of<ServiceInterfaces.IQobuzApiClient>(),
+                    Arg.Of<API.IQobuzApiClient>(),
                     Arg.Of<ServiceInterfaces.IQualityDefinitionService>(),
                     Arg.Of<IQobuzLogger>())));
 
@@ -105,22 +119,29 @@ namespace Lidarr.Plugin.Qobuzarr.Services
         {
             Logger.Debug("Registering API domain services");
 
-            // Standard API Client with rate limiting and caching
-            container.Register<ServiceInterfaces.IQobuzApiClient, CoreApi.QobuzApiClient>(
+            // Register the main API client implementation 
+            container.Register<API.QobuzApiClient>(
                 Reuse.Singleton,
-                Made.Of(() => new CoreApi.QobuzApiClient(
+                Made.Of(() => new API.QobuzApiClient(
                     Arg.Of<IHttpClient>(),
-                    Arg.Of<ServiceInterfaces.ISessionManager>(),
-                    Arg.Of<IQobuzLogger>())),
-                setup: Setup.With(condition: r => !r.Parent.ServiceType.Name.Contains("Diagnostic")));
+                    Arg.Of<ICacheManager>(),
+                    Arg.Of<Logger>())));
+
+            // Register both interfaces to point to the same singleton instance
+            container.RegisterDelegate<API.IQobuzApiClient>(
+                r => r.Resolve<API.QobuzApiClient>(),
+                Reuse.Singleton);
+
+            container.RegisterDelegate<ServiceInterfaces.IQobuzApiClient>(
+                r => r.Resolve<API.QobuzApiClient>(),
+                Reuse.Singleton);
 
             // Diagnostic API Client without rate limiting (for testing)
             container.Register<ServiceInterfaces.IQobuzDiagnosticApiClient, CoreApi.QobuzDiagnosticApiClient>(
                 Reuse.Singleton,
                 Made.Of(() => new CoreApi.QobuzDiagnosticApiClient(
                     Arg.Of<IHttpClient>(),
-                    Arg.Of<ServiceInterfaces.ISessionManager>(),
-                    Arg.Of<IQobuzLogger>())));
+                    Arg.Of<Logger>())));
 
             Logger.Debug("API services registered successfully");
         }
@@ -133,8 +154,8 @@ namespace Lidarr.Plugin.Qobuzarr.Services
             container.Register<ServiceInterfaces.ISessionManager, CoreAuth.SessionManager>(
                 Reuse.Singleton,
                 Made.Of(() => new CoreAuth.SessionManager(
-                    Arg.Of<IDatabase>(),
-                    Arg.Of<IQobuzLogger>())));
+                    Arg.Of<ICacheManager>(),
+                    Arg.Of<Logger>())));
 
             // Credential Validator - Validates and sanitizes credentials
             container.Register<ServiceInterfaces.ICredentialValidator, CoreAuth.CredentialValidator>(
@@ -146,9 +167,8 @@ namespace Lidarr.Plugin.Qobuzarr.Services
             container.Register<ServiceInterfaces.ITokenRefresher, CoreAuth.TokenRefresher>(
                 Reuse.Singleton,
                 Made.Of(() => new CoreAuth.TokenRefresher(
-                    Arg.Of<ServiceInterfaces.IQobuzApiClient>(),
-                    Arg.Of<ServiceInterfaces.ISessionManager>(),
-                    Arg.Of<IQobuzLogger>())));
+                    Arg.Of<IQobuzAuthenticationService>(),
+                    Arg.Of<Logger>())));
 
             // Keep existing authentication service for now
             container.RegisterDelegate<IQobuzAuthenticationService>(
@@ -172,9 +192,8 @@ namespace Lidarr.Plugin.Qobuzarr.Services
             container.Register<ServiceInterfaces.IStreamUrlProvider, CoreStreaming.StreamUrlProvider>(
                 Reuse.Singleton,
                 Made.Of(() => new CoreStreaming.StreamUrlProvider(
-                    Arg.Of<ServiceInterfaces.IQobuzApiClient>(),
+                    Arg.Of<API.IQobuzApiClient>(),
                     Arg.Of<ServiceInterfaces.IStreamUrlValidator>(),
-                    Arg.Of<ServiceInterfaces.IQualityFallbackStrategy>(),
                     Arg.Of<IQobuzLogger>())));
 
             Logger.Debug("Streaming services registered successfully");
@@ -203,7 +222,7 @@ namespace Lidarr.Plugin.Qobuzarr.Services
                     Arg.Of<IQobuzAuthenticationService>(),
                     Arg.Of<ServiceInterfaces.ISessionManager>(),
                     Arg.Of<ServiceInterfaces.ITokenRefresher>(),
-                    Arg.Of<Logger>())));
+                    Arg.Of<IQobuzLogger>())));
 
             Logger.Debug("Orchestrator services registered successfully");
         }
