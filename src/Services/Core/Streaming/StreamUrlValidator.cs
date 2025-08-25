@@ -1,42 +1,20 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
 using Lidarr.Plugin.Qobuzarr.Abstractions;
 using Lidarr.Plugin.Qobuzarr.Models;
+using IStreamUrlValidatorInterface = Lidarr.Plugin.Qobuzarr.Services.Interfaces.IStreamUrlValidator;
+using Lidarr.Plugin.Qobuzarr.Services.Interfaces;
 
 namespace Lidarr.Plugin.Qobuzarr.Services.Core.Streaming
 {
     /// <summary>
-    /// Handles stream URL validation and quality assessment.
-    /// Single responsibility: Validate stream URLs and determine their suitability for download.
-    /// </summary>
-    public interface IStreamUrlValidator
-    {
-        /// <summary>
-        /// Validates if a stream URL is suitable for full track download.
-        /// </summary>
-        StreamValidationResult ValidateStreamUrl(string url);
-
-        /// <summary>
-        /// Validates a Qobuz stream response for completeness and suitability.
-        /// </summary>
-        StreamValidationResult ValidateStreamResponse(QobuzStreamResponse response);
-
-        /// <summary>
-        /// Checks if a URL appears to be a preview/sample rather than full track.
-        /// </summary>
-        bool IsPreviewOrSampleUrl(string url);
-
-        /// <summary>
-        /// Determines the likely issue with a stream URL if validation fails.
-        /// </summary>
-        StreamValidationIssue IdentifyValidationIssue(string url, QobuzStreamResponse response = null);
-    }
-
-    /// <summary>
     /// Implementation of stream URL validator with comprehensive validation rules.
+    /// Implements the centralized IStreamUrlValidator interface.
     /// </summary>
-    public class StreamUrlValidator : IStreamUrlValidator
+    public class StreamUrlValidator : IStreamUrlValidatorInterface
     {
         private readonly IQobuzLogger _logger;
 
@@ -67,6 +45,118 @@ namespace Lidarr.Plugin.Qobuzarr.Services.Core.Streaming
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         }
 
+        // Implement centralized interface methods
+        public async Task<StreamUrlValidationResult> ValidateUrlAsync(string url, CancellationToken cancellationToken = default)
+        {
+            var result = new StreamUrlValidationResult
+            {
+                IsValid = false,
+                IsAccessible = false,
+                IsSecure = false
+            };
+
+            var startTime = DateTime.UtcNow;
+
+            try
+            {
+                result.IsValid = IsValidUrlFormat(url);
+                result.IsSecure = url?.StartsWith("https://", StringComparison.OrdinalIgnoreCase) == true;
+                result.IsAccessible = await IsUrlAccessibleAsync(url, cancellationToken);
+                result.ExpiresAt = EstimateUrlExpiration(url);
+            }
+            catch (Exception ex)
+            {
+                result.Error = ex.Message;
+            }
+
+            result.ValidationDuration = DateTime.UtcNow - startTime;
+            return result;
+        }
+
+        public bool IsValidUrlFormat(string url)
+        {
+            if (string.IsNullOrWhiteSpace(url))
+                return false;
+
+            if (!Uri.TryCreate(url, UriKind.Absolute, out var uri))
+                return false;
+
+            return uri.Scheme == "http" || uri.Scheme == "https";
+        }
+
+        public async Task<bool> IsUrlAccessibleAsync(string url, CancellationToken cancellationToken = default)
+        {
+            try
+            {
+                using var client = new System.Net.Http.HttpClient();
+                client.Timeout = TimeSpan.FromSeconds(10);
+                
+                var request = new System.Net.Http.HttpRequestMessage(System.Net.Http.HttpMethod.Head, url);
+                var response = await client.SendAsync(request, cancellationToken);
+                
+                return response.IsSuccessStatusCode;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        public async Task<bool> ValidateContentTypeAsync(string url, string expectedFormat, CancellationToken cancellationToken = default)
+        {
+            try
+            {
+                using var client = new System.Net.Http.HttpClient();
+                client.Timeout = TimeSpan.FromSeconds(10);
+                
+                var request = new System.Net.Http.HttpRequestMessage(System.Net.Http.HttpMethod.Head, url);
+                var response = await client.SendAsync(request, cancellationToken);
+                
+                var contentType = response.Content.Headers.ContentType?.MediaType?.ToLower();
+                
+                return expectedFormat.ToLower() switch
+                {
+                    "flac" => contentType == "audio/flac" || contentType == "audio/x-flac",
+                    "mp3" => contentType == "audio/mpeg" || contentType == "audio/mp3",
+                    _ => true // Allow unknown formats
+                };
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        public DateTime? EstimateUrlExpiration(string url)
+        {
+            if (string.IsNullOrEmpty(url))
+                return null;
+
+            // Try to extract expiration from URL parameters
+            var uri = Uri.TryCreate(url, UriKind.Absolute, out var parsedUri) ? parsedUri : null;
+            if (uri == null) return null;
+
+            var query = System.Web.HttpUtility.ParseQueryString(uri.Query);
+            
+            // Common parameter names for expiration
+            var expiryParams = new[] { "expires", "expire", "exp", "expiry" };
+            
+            foreach (var param in expiryParams)
+            {
+                var value = query[param];
+                if (string.IsNullOrEmpty(value)) continue;
+                
+                // Try Unix timestamp
+                if (long.TryParse(value, out var timestamp))
+                {
+                    return DateTimeOffset.FromUnixTimeSeconds(timestamp).DateTime;
+                }
+            }
+
+            // Default assumption: URLs expire in 6 hours
+            return DateTime.UtcNow.AddHours(6);
+        }
+
         public StreamValidationResult ValidateStreamUrl(string url)
         {
             var result = new StreamValidationResult
@@ -95,7 +185,7 @@ namespace Lidarr.Plugin.Qobuzarr.Services.Core.Streaming
             }
 
             // Check URL format validity
-            if (!IsValidUrlFormat(url))
+            if (!IsValidUrlFormatLegacy(url))
             {
                 result.IsValid = false;
                 result.Issue = StreamValidationIssue.InvalidFormat;
@@ -197,7 +287,7 @@ namespace Lidarr.Plugin.Qobuzarr.Services.Core.Streaming
             return StreamValidationIssue.Unknown;
         }
 
-        private bool IsValidUrlFormat(string url)
+        private bool IsValidUrlFormatLegacy(string url)
         {
             if (string.IsNullOrWhiteSpace(url))
                 return false;

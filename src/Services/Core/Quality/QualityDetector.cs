@@ -6,38 +6,20 @@ using System.Threading.Tasks;
 using Lidarr.Plugin.Qobuzarr.API;
 using Lidarr.Plugin.Qobuzarr.Abstractions;
 using Lidarr.Plugin.Qobuzarr.Models;
+using IQualityDetectorInterface = Lidarr.Plugin.Qobuzarr.Services.Interfaces.IQualityDetector;
+using IQualityDefinitionServiceInterface = Lidarr.Plugin.Qobuzarr.Services.Interfaces.IQualityDefinitionService;
+using Lidarr.Plugin.Qobuzarr.Services.Interfaces;
 
 namespace Lidarr.Plugin.Qobuzarr.Services.Core.Quality
 {
     /// <summary>
-    /// Handles quality availability detection for tracks and albums.
-    /// Single responsibility: Detect which quality formats are available for given tracks.
-    /// </summary>
-    public interface IQualityDetector
-    {
-        /// <summary>
-        /// Detects available qualities for a single track.
-        /// </summary>
-        Task<QualityDetectionResult> DetectAvailableQualitiesAsync(string trackId, CancellationToken cancellationToken = default);
-
-        /// <summary>
-        /// Detects available qualities for multiple tracks in batch.
-        /// </summary>
-        Task<BatchQualityDetectionResult> DetectBatchQualitiesAsync(IEnumerable<string> trackIds, CancellationToken cancellationToken = default);
-
-        /// <summary>
-        /// Intelligently detects album-level quality using representative sampling.
-        /// </summary>
-        Task<AlbumQualityResult> DetectAlbumQualityAsync(QobuzAlbum album, CancellationToken cancellationToken = default);
-    }
-
-    /// <summary>
     /// Implementation of quality detector with intelligent sampling and caching strategies.
+    /// Implements the centralized IQualityDetector interface.
     /// </summary>
-    public class QualityDetector : IQualityDetector
+    public class QualityDetector : IQualityDetectorInterface
     {
-        private readonly IQobuzApiClient _apiClient;
-        private readonly IQualityDefinitionService _qualityDefinitionService;
+        private readonly Lidarr.Plugin.Qobuzarr.API.IQobuzApiClient _apiClient;
+        private readonly IQualityDefinitionServiceInterface _qualityDefinitionService;
         private readonly IQobuzLogger _logger;
 
         // Detection constants
@@ -47,8 +29,8 @@ namespace Lidarr.Plugin.Qobuzarr.Services.Core.Quality
         private const int MAX_CONCURRENT_CHECKS = 5;
 
         public QualityDetector(
-            IQobuzApiClient apiClient,
-            IQualityDefinitionService qualityDefinitionService,
+            Lidarr.Plugin.Qobuzarr.API.IQobuzApiClient apiClient,
+            IQualityDefinitionServiceInterface qualityDefinitionService,
             IQobuzLogger logger)
         {
             _apiClient = apiClient ?? throw new ArgumentNullException(nameof(apiClient));
@@ -56,7 +38,69 @@ namespace Lidarr.Plugin.Qobuzarr.Services.Core.Quality
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         }
 
-        public async Task<QualityDetectionResult> DetectAvailableQualitiesAsync(string trackId, CancellationToken cancellationToken = default)
+        // Implement centralized interface methods
+        public async Task<List<int>> DetectAvailableQualitiesAsync(string trackId, CancellationToken cancellationToken = default)
+        {
+            var result = await DetectAvailableQualitiesLegacyAsync(trackId, cancellationToken);
+            return result.AvailableQualities?.Select(q => q.Id).ToList() ?? new List<int>();
+        }
+
+        public async Task<bool> IsQualityAvailableAsync(string trackId, int qualityId, CancellationToken cancellationToken = default)
+        {
+            var availableQualities = await DetectAvailableQualitiesAsync(trackId, cancellationToken);
+            return availableQualities.Contains(qualityId);
+        }
+
+        public async Task<int?> GetHighestAvailableQualityAsync(string trackId, CancellationToken cancellationToken = default)
+        {
+            var availableQualities = await DetectAvailableQualitiesAsync(trackId, cancellationToken);
+            return availableQualities.OrderByDescending(q => q).FirstOrDefault();
+        }
+
+        public async Task<Dictionary<string, List<int>>> DetectBatchQualitiesAsync(IReadOnlyList<string> trackIds, CancellationToken cancellationToken = default)
+        {
+            var result = await DetectBatchQualitiesLegacyAsync(trackIds.AsEnumerable(), cancellationToken);
+            return result.TrackResults.ToDictionary(
+                kvp => kvp.Key, 
+                kvp => kvp.Value.AvailableQualities?.Select(q => q.Id).ToList() ?? new List<int>()
+            );
+        }
+
+        public async Task<QualityDetectionSummary> GetQualityAvailabilitySummaryAsync(IReadOnlyList<string> trackIds, CancellationToken cancellationToken = default)
+        {
+            var batchResult = await DetectBatchQualitiesAsync(trackIds, cancellationToken);
+            
+            var summary = new QualityDetectionSummary
+            {
+                TotalTracks = trackIds.Count,
+                QualityAvailabilityCounts = new Dictionary<int, int>()
+            };
+
+            foreach (var qualities in batchResult.Values)
+            {
+                foreach (var quality in qualities)
+                {
+                    if (!summary.QualityAvailabilityCounts.ContainsKey(quality))
+                        summary.QualityAvailabilityCounts[quality] = 0;
+                    summary.QualityAvailabilityCounts[quality]++;
+                }
+                
+                if (qualities.Contains(27) || qualities.Contains(7))
+                    summary.TracksWithHighRes++;
+                else if (qualities.Contains(6))
+                    summary.TracksWithLossless++;
+                else if (qualities.Contains(5))
+                    summary.TracksWithLossy++;
+            }
+
+            summary.MostCommonQuality = summary.QualityAvailabilityCounts
+                .OrderByDescending(kvp => kvp.Value)
+                .FirstOrDefault().Key.ToString();
+
+            return summary;
+        }
+
+        public async Task<QualityDetectionResult> DetectAvailableQualitiesLegacyAsync(string trackId, CancellationToken cancellationToken = default)
         {
             if (string.IsNullOrWhiteSpace(trackId))
             {
@@ -107,7 +151,7 @@ namespace Lidarr.Plugin.Qobuzarr.Services.Core.Quality
             return result;
         }
 
-        public async Task<BatchQualityDetectionResult> DetectBatchQualitiesAsync(IEnumerable<string> trackIds, CancellationToken cancellationToken = default)
+        public async Task<BatchQualityDetectionResult> DetectBatchQualitiesLegacyAsync(IEnumerable<string> trackIds, CancellationToken cancellationToken = default)
         {
             var trackIdList = trackIds?.ToList() ?? throw new ArgumentNullException(nameof(trackIds));
             
@@ -131,7 +175,7 @@ namespace Lidarr.Plugin.Qobuzarr.Services.Core.Quality
                 await semaphore.WaitAsync(cancellationToken);
                 try
                 {
-                    var detectionResult = await DetectAvailableQualitiesAsync(trackId, cancellationToken);
+                    var detectionResult = await DetectAvailableQualitiesLegacyAsync(trackId, cancellationToken);
                     return (trackId, detectionResult);
                 }
                 finally
@@ -179,7 +223,7 @@ namespace Lidarr.Plugin.Qobuzarr.Services.Core.Quality
             foreach (var track in sampleTracks)
             {
                 cancellationToken.ThrowIfCancellationRequested();
-                var trackResult = await DetectAvailableQualitiesAsync(track.Id.ToString(), cancellationToken);
+                var trackResult = await DetectAvailableQualitiesLegacyAsync(track.Id.ToString(), cancellationToken);
                 sampleResults.Add(trackResult);
             }
 
@@ -231,8 +275,7 @@ namespace Lidarr.Plugin.Qobuzarr.Services.Core.Quality
 
                 var response = await _apiClient.GetAsync<Dictionary<string, object>>(
                     "track/getFileUrl", 
-                    parameters, 
-                    timeoutCts.Token);
+                    parameters);
 
                 if (response != null && response.TryGetValue("url", out var urlObj))
                 {

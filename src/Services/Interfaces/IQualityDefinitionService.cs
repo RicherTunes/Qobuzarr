@@ -81,5 +81,25 @@ namespace Lidarr.Plugin.Qobuzarr.Services.Interfaces
         /// <param name="qualityId">The quality ID</param>
         /// <returns>The format name (e.g., "FLAC", "MP3")</returns>
         string GetFormatName(int qualityId);
+
+        /// <summary>
+        /// Gets all supported qualities as QualityFormat objects.
+        /// </summary>
+        /// <returns>List of supported quality formats</returns>
+        IReadOnlyList<QualityFormat> GetSupportedQualities();
+
+        /// <summary>
+        /// Gets a quality by ID as QualityFormat (legacy method).
+        /// </summary>
+        /// <param name="qualityId">The quality ID</param>
+        /// <returns>The quality format</returns>
+        QualityFormat GetQualityByIdLegacy(int qualityId);
+
+        /// <summary>
+        /// Checks if a quality is supported.
+        /// </summary>
+        /// <param name="qualityId">The quality ID</param>
+        /// <returns>True if supported</returns>
+        bool IsQualitySupported(int qualityId);
     }
 }

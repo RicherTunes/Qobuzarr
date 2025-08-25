@@ -6,6 +6,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using NzbDrone.Common.Http;
 using NLog;
+using Lidarr.Plugin.Qobuzarr.Configuration;
 using Lidarr.Plugin.Qobuzarr.Models;
 using Lidarr.Plugin.Qobuzarr.Models.Authentication;
 using Lidarr.Plugin.Qobuzarr.Services.Core.Api;
