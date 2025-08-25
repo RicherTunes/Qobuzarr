@@ -1,5 +1,6 @@
 using System.Threading;
 using System.Threading.Tasks;
+using Lidarr.Plugin.Qobuzarr.Services.Core.Api;
 
 namespace Lidarr.Plugin.Qobuzarr.Services.Interfaces
 {
@@ -43,26 +44,4 @@ namespace Lidarr.Plugin.Qobuzarr.Services.Interfaces
         DiagnosticReport GetDiagnosticReport();
     }
 
-    // Forward declaration of diagnostic result types from implementation
-    // These are defined in the concrete implementation files
-    public class ApiConnectivityTestResult
-    {
-        public bool Success { get; set; }
-        public bool IsConnectable { get; set; }
-        public bool IsAuthenticated { get; set; }
-        public string Error { get; set; }
-    }
-
-    public class ApiHealthCheckResult 
-    {
-        public bool Success { get; set; }
-        public double AverageResponseTime { get; set; }
-    }
-
-    public class DiagnosticReport
-    {
-        public long TotalRequests { get; set; }
-        public long TotalErrors { get; set; }
-        public double ErrorRate { get; set; }
-    }
 }
