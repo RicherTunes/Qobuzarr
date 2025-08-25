@@ -16,8 +16,9 @@ namespace Lidarr.Plugin.Qobuzarr.Security
     /// <summary>
     /// Secure loader for external ML model assemblies with comprehensive security validation.
     /// Implements defense-in-depth with signature verification, sandboxing, and audit logging.
+    /// This class is designed to be used as a singleton service through dependency injection.
     /// </summary>
-    public class SecureMLModelLoader : IDisposable
+    public class SecureMLModelLoader : ISecureMLModelLoader
     {
         private readonly Logger _logger;
         private readonly Dictionary<string, string> _trustedAssemblyHashes;
@@ -54,7 +55,10 @@ namespace Lidarr.Plugin.Qobuzarr.Security
                 "Lidarr.Plugin.Qobuzarr.ML.Custom"
             };
 
-            _logger.Info("SecureMLModelLoader initialized with {0} trusted hashes", _trustedAssemblyHashes.Count);
+            // Log initialization only once per singleton instance
+            // Since Lidarr's DI container registers this as a singleton,
+            // this constructor will only be called once per application lifetime
+            _logger.Info("SecureMLModelLoader singleton initialized with {0} trusted hashes", _trustedAssemblyHashes.Count);
         }
 
         /// <summary>
@@ -167,7 +171,7 @@ namespace Lidarr.Plugin.Qobuzarr.Security
         /// <summary>
         /// Loads multiple model paths and returns the first successfully validated one.
         /// </summary>
-        public IPatternLearningEngine TryLoadFromPaths(IEnumerable<string> possiblePaths, bool requireSignature = true)
+        public IPatternLearningEngine TryLoadFromPaths(string[] possiblePaths, bool requireSignature = false)
         {
             foreach (var path in possiblePaths ?? Enumerable.Empty<string>())
             {

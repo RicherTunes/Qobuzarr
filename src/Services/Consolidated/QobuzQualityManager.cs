@@ -670,6 +670,26 @@ namespace Lidarr.Plugin.Qobuzarr.Services.Consolidated
         public int Id { get; set; }
         public string Name { get; set; }
         public string DisplayName { get; set; }
+        public string Description => DisplayName;
+        
+        // Static instances for common qualities
+        public static readonly QobuzQuality Mp3_320 = new() { Id = 5, Name = "MP3 320", DisplayName = "MP3 320kbps" };
+        public static readonly QobuzQuality Flac_CD = new() { Id = 6, Name = "FLAC CD", DisplayName = "FLAC CD 16bit/44.1kHz" };
+        public static readonly QobuzQuality Flac_HiRes_96 = new() { Id = 7, Name = "FLAC Hi-Res 96", DisplayName = "FLAC Hi-Res 24bit/96kHz" };
+        public static readonly QobuzQuality Flac_HiRes_192 = new() { Id = 27, Name = "FLAC Hi-Res 192", DisplayName = "FLAC Hi-Res 24bit/192kHz" };
+        
+        // Factory method to create from ID
+        public static QobuzQuality FromId(int id)
+        {
+            return id switch
+            {
+                5 => Mp3_320,
+                6 => Flac_CD,
+                7 => Flac_HiRes_96,
+                27 => Flac_HiRes_192,
+                _ => new QobuzQuality { Id = id, Name = $"Quality {id}", DisplayName = $"Unknown Quality {id}" }
+            };
+        }
     }
 
     public class QualityDetectionResult

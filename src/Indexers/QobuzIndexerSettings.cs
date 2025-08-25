@@ -80,12 +80,6 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
         [FieldDefinition(16, Label = "ML Model Type", Type = FieldType.Select, SelectOptions = typeof(MLModelType), Section = "Performance", Advanced = true, HelpText = "⚠️ EXPERIMENTAL: ML model selection when using ML Prediction mode. 'Baseline' uses the pre-trained model included with the plugin. 'Personal' and 'Hybrid' require manual model training (not yet implemented).")]
         public int MLModelType { get; set; } = (int)Qobuzarr.Indexers.MLModelType.Baseline;
 
-        // Legacy properties for backward compatibility
-        [Obsolete("Use QueryOptimizationMode instead")]
-        public bool EnableQueryIntelligence { get; set; }
-        [Obsolete("Use QueryOptimizationMode instead")]
-        public bool EnableMLPredictions { get; set; }
-
         // === API SETTINGS ===
         [FieldDefinition(20, Label = "API Rate Limit", Type = FieldType.Number, Section = "API", Advanced = true, HelpText = "Maximum API requests per minute. Qobuz may throttle or block if exceeded. Range: 1-300, Default: 60")]
         public int ApiRateLimit { get; set; }
@@ -161,32 +155,14 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
         /// </summary>
         public bool IsQueryIntelligenceEnabled()
         {
-            // Support legacy EnableQueryIntelligence property
-#pragma warning disable CS0618 // Type or member is obsolete
-            if (EnableQueryIntelligence && QueryOptimizationMode == 0)
-            {
-                // Migrate from old property
-                QueryOptimizationMode = (int)Qobuzarr.Indexers.QueryOptimizationMode.QueryIntelligence;
-            }
-#pragma warning restore CS0618 // Type or member is obsolete
-
             return QueryOptimizationMode >= (int)Qobuzarr.Indexers.QueryOptimizationMode.QueryIntelligence;
         }
 
         /// <summary>
-        /// Check if ML predictions are enabled (for backward compatibility)
+        /// Check if ML predictions are enabled
         /// </summary>
         public bool IsMLPredictionEnabled()
         {
-            // Support legacy EnableMLPredictions property
-#pragma warning disable CS0618 // Type or member is obsolete
-            if (EnableMLPredictions && QueryOptimizationMode < (int)Qobuzarr.Indexers.QueryOptimizationMode.MLPrediction)
-            {
-                // Migrate from old property
-                QueryOptimizationMode = (int)Qobuzarr.Indexers.QueryOptimizationMode.MLPrediction;
-            }
-#pragma warning restore CS0618 // Type or member is obsolete
-
             return QueryOptimizationMode == (int)Qobuzarr.Indexers.QueryOptimizationMode.MLPrediction;
         }
 
