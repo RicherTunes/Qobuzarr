@@ -39,7 +39,7 @@ namespace Lidarr.Plugin.Qobuzarr.Services.Core.Api
     /// - Request/response debugging capabilities
     /// - API health monitoring and connectivity testing
     /// </remarks>
-    public class QobuzDiagnosticApiClient : QobuzApiClientBase, IQobuzApiClient
+    public class QobuzDiagnosticApiClient : QobuzApiClientBase, IQobuzDiagnosticApiClient
     {
         private readonly Dictionary<string, DiagnosticMetrics> _endpointMetrics;
         private readonly object _metricsLock = new object();

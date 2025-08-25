@@ -366,12 +366,12 @@ namespace Lidarr.Plugin.Qobuzarr.Services.Core.Api
                 
                 throw statusCode switch
                 {
-                    401 => new QobuzAuthenticationException("Authentication failed", statusCode, "AuthenticationFailed"),
-                    403 => new QobuzApiException("Access forbidden - check app credentials", statusCode, "AccessForbidden"),
-                    404 => new QobuzApiException("Resource not found", statusCode, "NotFound"),
-                    429 => new QobuzApiException("Rate limit exceeded", statusCode, "RateLimited"),
-                    >= 500 => new QobuzApiException("Server error", statusCode, "ServerError"),
-                    _ => new QobuzApiException(message, statusCode, "ApiError")
+                    401 => new QobuzAuthenticationException("Authentication failed", AuthenticationFailureType.InvalidCredentials),
+                    403 => new QobuzApiException("Access forbidden - check app credentials", System.Net.HttpStatusCode.Forbidden),
+                    404 => new QobuzApiException("Resource not found", System.Net.HttpStatusCode.NotFound),
+                    429 => new QobuzApiException("Rate limit exceeded", System.Net.HttpStatusCode.TooManyRequests),
+                    >= 500 => new QobuzApiException("Server error", System.Net.HttpStatusCode.InternalServerError),
+                    _ => new QobuzApiException(message, (System.Net.HttpStatusCode)statusCode)
                 };
             }
             catch (JsonException)

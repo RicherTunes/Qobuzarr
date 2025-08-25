@@ -6,6 +6,7 @@ using Lidarr.Plugin.Qobuzarr.Models.Authentication;
 using Lidarr.Plugin.Qobuzarr.Authentication;
 using Lidarr.Plugin.Qobuzarr.Services.Core.Auth;
 using QobuzAuthenticationException = Lidarr.Plugin.Qobuzarr.Authentication.QobuzAuthenticationException;
+using TokenRefreshFailedEventArgs = Lidarr.Plugin.Qobuzarr.Services.Core.Auth.TokenRefreshFailedEventArgs;
 
 namespace Lidarr.Plugin.Qobuzarr.Services.Orchestrators
 {
