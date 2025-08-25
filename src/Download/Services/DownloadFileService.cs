@@ -54,8 +54,18 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Services
                 artist = TruncateToLength(artist, QobuzConstants.Download.MaxFolderNameLength / 2);
                 albumTitle = TruncateToLength(albumTitle, QobuzConstants.Download.MaxFolderNameLength / 2);
 
-                var albumFolder = $"{artist} - {albumTitle}";
-                var outputPath = Path.Combine(settings.DownloadPath, albumFolder);
+                // Create folder structure based on settings
+                string outputPath;
+                if (settings.CreateAlbumFolders)
+                {
+                    // Create Artist/Album folder structure
+                    outputPath = Path.Combine(settings.DownloadPath, artist, albumTitle);
+                }
+                else
+                {
+                    // All tracks go directly into download path
+                    outputPath = settings.DownloadPath;
+                }
 
                 _logger.Debug("Built output path: {0}", outputPath);
                 return outputPath;

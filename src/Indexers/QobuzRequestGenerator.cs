@@ -85,7 +85,7 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
             _getSession = getSession;
             
             // Initialize ML-enabled SmartQueryStrategy if ML engine is available and enabled
-            var useMLPredictions = patternLearningEngine != null && (_settings?.EnableMLPredictions ?? false);
+            var useMLPredictions = patternLearningEngine != null && (_settings?.IsMLPredictionEnabled() ?? false);
             _smartQueryStrategy = new SmartQueryStrategy(logger, patternLearningEngine, useMLPredictions);
             
             // Initialize Semantic Query Strategy for intelligent query handling
@@ -134,7 +134,7 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
             var pageableRequests = new IndexerPageableRequestChain();
 
             // Check intelligent cache first to avoid repeat API calls
-            if (_settings.EnableQueryIntelligence && 
+            if (_settings.IsQueryIntelligenceEnabled() && 
                 searchCriteria?.ArtistQuery.IsNotNullOrWhiteSpace() == true && 
                 searchCriteria?.AlbumQuery.IsNotNullOrWhiteSpace() == true)
             {
@@ -387,7 +387,7 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
                         originalQueries.Add(primaryQuery);
 
                         // Apply traditional Query Intelligence if enabled
-                        if (_settings.EnableQueryIntelligence)
+                        if (_settings.IsQueryIntelligenceEnabled())
                         {
                             var optimizedQueries = _smartQueryStrategy.BuildOptimizedQueries(cleanArtist, cleanAlbum, originalQueries);
                             var reduction = _smartQueryStrategy.CalculateExpectedReduction(cleanArtist, cleanAlbum, originalQueries.Count);
