@@ -37,7 +37,7 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
         private readonly IQobuzAuthenticationService _authService;
         private readonly IQobuzApiClient _apiClient;
         private readonly Lazy<IPatternLearningEngine> _patternLearningEngine;
-        private readonly SecureMLModelLoader _secureModelLoader;
+        private readonly ISecureMLModelLoader _secureModelLoader;
         private DateTime _lastRequestTime = DateTime.MinValue;
         private readonly object _rateLimitLock = new object();
         
@@ -51,14 +51,13 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
                            IParsingService parsingService,
                            IQobuzAuthenticationService authService,
                            IQobuzApiClient apiClient,
+                           ISecureMLModelLoader secureModelLoader,
                            Logger logger)
             : base(httpClient, indexerStatusService, configService, parsingService, logger)
         {
             _authService = authService;
             _apiClient = apiClient;
-            
-            // Initialize secure model loader for ML components
-            _secureModelLoader = new SecureMLModelLoader(logger);
+            _secureModelLoader = secureModelLoader;
             
             // Initialize ML query optimizer based on user configuration with security
             _patternLearningEngine = new Lazy<IPatternLearningEngine>(() => CreateMLOptimizer(logger));
