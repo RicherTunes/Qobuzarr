@@ -161,6 +161,13 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Services
                     return false;
                 }
 
+                // SECURITY: Validate path doesn't contain traversal attempts
+                if (path.Contains("..") || !Utilities.LidarrInputValidator.IsInputSafe(path))
+                {
+                    _logger.Warn("Download path contains potentially unsafe characters: {0}", path);
+                    return false;
+                }
+
                 var parentDirectory = Path.GetDirectoryName(path);
                 if (string.IsNullOrWhiteSpace(parentDirectory))
                 {
