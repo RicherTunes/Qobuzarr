@@ -9,6 +9,7 @@ using Lidarr.Plugin.Qobuzarr.Models;
 using IQualityDetectorInterface = Lidarr.Plugin.Qobuzarr.Services.Interfaces.IQualityDetector;
 using IQualityDefinitionServiceInterface = Lidarr.Plugin.Qobuzarr.Services.Interfaces.IQualityDefinitionService;
 using Lidarr.Plugin.Qobuzarr.Services.Interfaces;
+using ConsolidatedAlbumQualityResult = Lidarr.Plugin.Qobuzarr.Services.Consolidated.AlbumQualityResult;
 
 namespace Lidarr.Plugin.Qobuzarr.Services.Core.Quality
 {
@@ -202,11 +203,11 @@ namespace Lidarr.Plugin.Qobuzarr.Services.Core.Quality
             return result;
         }
 
-        public async Task<AlbumQualityResult> DetectAlbumQualityAsync(QobuzAlbum album, CancellationToken cancellationToken = default)
+        public async Task<ConsolidatedAlbumQualityResult> DetectAlbumQualityAsync(QobuzAlbum album, CancellationToken cancellationToken = default)
         {
             if (album?.GetTracks()?.Any() != true)
             {
-                return AlbumQualityResult.Failed("Album has no tracks for quality detection");
+                return ConsolidatedAlbumQualityResult.Failed("Album has no tracks for quality detection");
             }
 
             _logger.Info("Detecting album-level quality for '{0}' ({1} tracks)", album.Title, album.TracksCount);
@@ -230,14 +231,13 @@ namespace Lidarr.Plugin.Qobuzarr.Services.Core.Quality
             // Analyze consistency across samples
             var analysis = AnalyzeQualityConsistency(sampleResults);
             
-            var result = new AlbumQualityResult
+            var result = new ConsolidatedAlbumQualityResult
             {
                 AlbumId = album.Id,
                 AlbumTitle = album.Title,
                 TotalTracks = album.TracksCount,
                 SampleSize = sampleTracks.Count,
                 DetectedQuality = analysis.BestQuality,
-                AvailableQualities = analysis.AllQualities,
                 ConsistentQuality = analysis.IsConsistent,
                 ConfidenceScore = analysis.Confidence,
                 Success = analysis.IsConsistent || analysis.AllQualities.Any(),
@@ -257,6 +257,31 @@ namespace Lidarr.Plugin.Qobuzarr.Services.Core.Quality
             }
             
             return result;
+        }
+
+        public async Task<List<QualityFormat>> GetAvailableQualitiesAsync(string trackId, CancellationToken cancellationToken = default)
+        {
+            var qualityIds = await DetectAvailableQualitiesAsync(trackId, cancellationToken);
+            var qualityFormats = new List<QualityFormat>();
+
+            foreach (var qualityId in qualityIds)
+            {
+                var quality = _qualityDefinitionService.GetQualityById(qualityId);
+                if (quality != null)
+                {
+                    qualityFormats.Add(new QualityFormat
+                    {
+                        Id = quality.Id,
+                        Name = quality.Name ?? "",
+                        DisplayName = quality.DisplayName ?? quality.Name ?? "",
+                        BitRate = quality.BitRate,
+                        IsLossless = quality.IsLossless,
+                        Priority = quality.Priority
+                    });
+                }
+            }
+
+            return qualityFormats.OrderByDescending(q => q.Priority).ToList();
         }
 
         private async Task<bool> CheckQualityAvailabilityAsync(string trackId, QualityFormat quality, CancellationToken cancellationToken)

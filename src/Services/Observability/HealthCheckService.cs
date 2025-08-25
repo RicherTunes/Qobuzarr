@@ -14,6 +14,7 @@ using IHealthCheckServiceInterface = Lidarr.Plugin.Qobuzarr.Services.Interfaces.
 using IMetricsCollectorInterface = Lidarr.Plugin.Qobuzarr.Services.Interfaces.IMetricsCollector;
 using Lidarr.Plugin.Qobuzarr.Services.Interfaces;
 using InterfaceHealthStatus = Lidarr.Plugin.Qobuzarr.Services.Interfaces.HealthStatus;
+using HealthStatus = Lidarr.Plugin.Qobuzarr.Services.Interfaces.HealthStatus;
 
 namespace Lidarr.Plugin.Qobuzarr.Services.Observability
 {
@@ -252,16 +253,9 @@ namespace Lidarr.Plugin.Qobuzarr.Services.Observability
             _logger.Info("Continuous health monitoring stopped");
         }
 
-        private Services.Interfaces.HealthStatus ConvertHealthStatus(Observability.HealthStatus legacyStatus)
+        private Services.Interfaces.HealthStatus ConvertHealthStatus(Services.Interfaces.HealthStatus status)
         {
-            return legacyStatus switch
-            {
-                Observability.HealthStatus.Healthy => Services.Interfaces.HealthStatus.Healthy,
-                Observability.HealthStatus.Degraded => Services.Interfaces.HealthStatus.Degraded,
-                Observability.HealthStatus.Unhealthy => Services.Interfaces.HealthStatus.Unhealthy,
-                Observability.HealthStatus.Critical => Services.Interfaces.HealthStatus.Critical,
-                _ => Services.Interfaces.HealthStatus.Unknown
-            };
+            return status; // No conversion needed - same enum
         }
 
         #endregion
@@ -829,14 +823,6 @@ namespace Lidarr.Plugin.Qobuzarr.Services.Observability
         public int TotalComponents { get; set; }
     }
 
-    public enum HealthStatus
-    {
-        Unknown = 0,
-        Healthy = 1,
-        Degraded = 2,
-        Unhealthy = 3,
-        Critical = 4
-    }
 
     #endregion
 }
