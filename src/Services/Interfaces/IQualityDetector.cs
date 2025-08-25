@@ -1,6 +1,8 @@
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+using Lidarr.Plugin.Qobuzarr.Models;
+using Lidarr.Plugin.Qobuzarr.Services.Consolidated;
 
 namespace Lidarr.Plugin.Qobuzarr.Services.Interfaces
 {
@@ -63,6 +65,22 @@ namespace Lidarr.Plugin.Qobuzarr.Services.Interfaces
         /// <param name="cancellationToken">Token to cancel the operation</param>
         /// <returns>Quality detection summary</returns>
         Task<QualityDetectionSummary> GetQualityAvailabilitySummaryAsync(IReadOnlyList<string> trackIds, CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Detects album-level quality availability with intelligent sampling.
+        /// </summary>
+        /// <param name="album">The album to analyze</param>
+        /// <param name="cancellationToken">Token to cancel the operation</param>
+        /// <returns>Album quality detection result</returns>
+        Task<Lidarr.Plugin.Qobuzarr.Services.Consolidated.AlbumQualityResult> DetectAlbumQualityAsync(QobuzAlbum album, CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Gets available qualities for a track as QualityFormat objects.
+        /// </summary>
+        /// <param name="trackId">The Qobuz track ID</param>
+        /// <param name="cancellationToken">Token to cancel the operation</param>
+        /// <returns>List of available quality formats</returns>
+        Task<List<QualityFormat>> GetAvailableQualitiesAsync(string trackId, CancellationToken cancellationToken = default);
     }
 
     /// <summary>
