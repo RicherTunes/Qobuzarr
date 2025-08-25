@@ -13,15 +13,33 @@
       "output-folder": "mutation-report"
     },
     "thresholds": {
-      "high": 80,
-      "low": 60,
-      "break": 50
+      "high": 85,
+      "low": 70,
+      "break": 60
+    },
+    "thresholds-per-module": {
+      "src/Services/Observability/**": {
+        "high": 95,
+        "low": 85,
+        "break": 80
+      },
+      "src/Services/Consolidated/**": {
+        "high": 90,
+        "low": 80,
+        "break": 75
+      },
+      "src/API/**": {
+        "high": 85,
+        "low": 70,
+        "break": 65
+      }
     },
     "mutate": [
       "src/Services/**/*.cs",
       "src/API/**/*.cs",
       "src/Download/**/*.cs",
-      "src/Indexers/**/*.cs"
+      "src/Indexers/**/*.cs",
+      "src/Services/Observability/**/*.cs"
     ],
     "ignore-mutations": [
       "Logging statements",
