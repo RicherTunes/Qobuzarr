@@ -18,27 +18,27 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
         private readonly Timer _aggregationTimer;
         private readonly object _statsLock = new object();
         
-        // Performance timing metrics
-        private readonly ConcurrentQueue<double> _loadTimes = new();
-        private readonly ConcurrentQueue<double> _predictionTimes = new();
-        private readonly ConcurrentQueue<double> _trainingTimes = new();
-        private readonly ConcurrentQueue<MemorySnapshot> _memorySnapshots = new();
+        // Performance timing metrics with bounded collections
+        private readonly BoundedConcurrentQueue<double> _loadTimes = new(MaxHistorySize);
+        private readonly BoundedConcurrentQueue<double> _predictionTimes = new(MaxHistorySize);
+        private readonly BoundedConcurrentQueue<double> _trainingTimes = new(MaxHistorySize);
+        private readonly BoundedConcurrentQueue<MemorySnapshot> _memorySnapshots = new(MaxHistorySize);
         
         // Cache metrics
         private long _cacheHits = 0;
         private long _cacheMisses = 0;
-        private readonly ConcurrentQueue<DateTime> _cacheHitTimes = new();
+        private readonly BoundedConcurrentQueue<DateTime> _cacheHitTimes = new(MaxHistorySize);
         
-        // Accuracy metrics with time-based windows
-        private readonly ConcurrentQueue<AccuracySnapshot> _accuracyHistory = new();
+        // Accuracy metrics with time-based windows (using long for thread-safe operations)
+        private readonly BoundedConcurrentQueue<AccuracySnapshot> _accuracyHistory = new(MaxHistorySize);
         private double _currentAccuracy = 0.0;
-        private int _correctPredictions = 0;
-        private int _totalPredictions = 0;
+        private long _correctPredictions = 0;
+        private long _totalPredictions = 0;
         
         // API optimization metrics
         private long _apiCallsSaved = 0;
         private long _totalApiCallsWithoutOptimization = 0;
-        private readonly ConcurrentQueue<OptimizationSnapshot> _optimizationHistory = new();
+        private readonly BoundedConcurrentQueue<OptimizationSnapshot> _optimizationHistory = new(MaxHistorySize);
         
         // Rolling window configurations
         private const int MaxHistorySize = 10000;
@@ -101,26 +101,32 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
         {
             _predictionTimes.Enqueue(milliseconds);
             
-            lock (_statsLock)
+            // Use Interlocked operations to avoid lock contention
+            Interlocked.Increment(ref _totalPredictions);
+            if (wasCorrect)
             {
-                _totalPredictions++;
-                if (wasCorrect)
-                    _correctPredictions++;
-                    
-                _currentAccuracy = _totalPredictions > 0 ? (double)_correctPredictions / _totalPredictions : 0.0;
+                Interlocked.Increment(ref _correctPredictions);
             }
+            
+            // Calculate accuracy using thread-safe reads
+            var total = Interlocked.Read(ref _totalPredictions);
+            var correct = Interlocked.Read(ref _correctPredictions);
+            var accuracy = total > 0 ? (double)correct / total : 0.0;
+            
+            // Update current accuracy atomically
+            Interlocked.Exchange(ref _currentAccuracy, accuracy);
             
             // Record accuracy snapshot for time-series analysis
             _accuracyHistory.Enqueue(new AccuracySnapshot
             {
                 Timestamp = DateTime.UtcNow,
-                Accuracy = _currentAccuracy,
+                Accuracy = accuracy,
                 Confidence = confidence,
                 WasCorrect = wasCorrect
             });
             
             _logger.Trace("Prediction recorded: {0:F2}ms, correct: {1}, confidence: {2:F2}, current accuracy: {3:F2}%", 
-                milliseconds, wasCorrect, confidence, _currentAccuracy * 100);
+                milliseconds, wasCorrect, confidence, accuracy * 100);
         }
         
         #endregion
@@ -586,4 +592,32 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
     }
     
     #endregion
+    
+    /// <summary>
+    /// Thread-safe bounded concurrent queue that automatically removes old items when capacity is reached
+    /// </summary>
+    internal class BoundedConcurrentQueue<T> : ConcurrentQueue<T>
+    {
+        private readonly int _maxSize;
+        private readonly object _sizeLock = new object();
+        
+        public BoundedConcurrentQueue(int maxSize)
+        {
+            _maxSize = maxSize;
+        }
+        
+        public new void Enqueue(T item)
+        {
+            base.Enqueue(item);
+            
+            // Ensure size limit is maintained
+            lock (_sizeLock)
+            {
+                while (Count > _maxSize)
+                {
+                    TryDequeue(out _);
+                }
+            }
+        }
+    }
 }
