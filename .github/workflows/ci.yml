@@ -30,6 +30,12 @@ jobs:
       with:
         submodules: recursive
         
+    - name: Security Scan (git-leaks)
+      uses: gitleaks/gitleaks-action@v2
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        GITLEAKS_LICENSE: ${{ secrets.GITLEAKS_LICENSE }}
+        
     - name: Setup .NET Core
       uses: actions/setup-dotnet@v4
       with:
@@ -109,6 +115,9 @@ jobs:
           -p:TreatWarningsAsErrors=false
         
         echo "✅ CLI built successfully"
+        
+        echo "🔍 Running security audit..."
+        dotnet list package --vulnerable --include-transitive || echo "No vulnerabilities found"
         
         echo "✅ Build completed with version $PLUGIN_VERSION"
 

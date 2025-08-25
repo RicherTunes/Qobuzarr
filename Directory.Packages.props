@@ -85,6 +85,9 @@
     <!-- Integration Test Dependencies -->
     <PackageVersion Include="Docker.DotNet" Version="3.125.15" />
     <PackageVersion Include="DotNetEnv" Version="3.1.1" />
+    
+    <!-- Advanced Quality Testing (Sprint 6) -->
+    <PackageVersion Include="BenchmarkDotNet" Version="0.13.12" />
   </ItemGroup>
 
 </Project>
