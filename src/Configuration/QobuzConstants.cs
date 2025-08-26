@@ -3,21 +3,40 @@ using System;
 namespace Lidarr.Plugin.Qobuzarr.Configuration
 {
     /// <summary>
-    /// Configuration constants for the Qobuz plugin.
-    /// Centralizes magic numbers and hardcoded values to improve maintainability.
+    /// Centralized constants for the Qobuzarr plugin.
+    /// This single source of truth consolidates all constants from various files.
     /// </summary>
     public static class QobuzConstants
     {
+        /// <summary>
+        /// Plugin metadata and information constants
+        /// </summary>
+        public static class Plugin
+        {
+            public const string Name = "Qobuzarr";
+            public const string DisplayName = "Qobuzarr - Qobuz Downloader";
+            public const string Author = "RicherTunes";
+            public const string Version = "0.0.13";
+            public const string Description = "High-quality music indexer and download client for Qobuz streaming service with ML optimization";
+            public const string ProjectUrl = "https://github.com/RicherTunes/Lidarr.Plugin.Qobuzarr";
+            public const string MinimumLidarrVersion = "2.13.0.4664";
+        }
+
         /// <summary>
         /// API configuration constants
         /// </summary>
         public static class Api
         {
             public const string BaseUrl = "https://www.qobuz.com/api.json/0.2";
-            public const string UserAgent = "Qobuzarr/1.0.0";
+            public const string UserAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:120.0) Gecko/20100101 Firefox/120.0";
+            public const string DefaultAppId = "798273057";  // Will be fetched dynamically from web player
             public const int MaxRetries = 3;
             public const int RequestTimeoutSeconds = 60;
             public const int RateLimitPerMinute = 60;
+            public const int DefaultRateLimitPerSecond = 10;
+            public const int BurstSize = 20;
+            public const int DefaultPageSize = 50;
+            public const int MaxPageSize = 500;
         }
 
         /// <summary>
@@ -56,7 +75,15 @@ namespace Lidarr.Plugin.Qobuzarr.Configuration
         /// </summary>
         public static class Authentication
         {
-            // Default App ID and Secret - will be fetched dynamically from Qobuz web player
+            // Session management
+            public const int SessionLifetimeHours = 24;
+            public const int SessionRenewalThresholdHours = 2;
+            public const string SessionCacheKey = "qobuz_session";
+            public const string CredentialsCacheKey = "qobuz_credentials";
+            public const int MaxAuthenticationAttempts = 3;
+            public const int AuthenticationLockoutMinutes = 15;
+            
+            // App credentials - will be fetched dynamically from Qobuz web player
             // Users can override by providing their own App ID and Secret in settings  
             public const string DefaultAppId = "";  // Fetched dynamically
             public const string DefaultAppSecret = "";  // Fetched dynamically
@@ -67,7 +94,7 @@ namespace Lidarr.Plugin.Qobuzarr.Configuration
             /// <summary>
             /// Gets the Qobuz App ID from environment variable or default (for internal use)
             /// </summary>
-            public static string GetDefaultAppId() => Environment.GetEnvironmentVariable(AppIdEnvironmentVariable) ?? DefaultAppId;
+            public static string GetDefaultAppId() => Environment.GetEnvironmentVariable(AppIdEnvironmentVariable) ?? Api.DefaultAppId;
             
             /// <summary>
             /// Gets the Qobuz App Secret from environment variable or default (for internal use)
@@ -90,9 +117,29 @@ namespace Lidarr.Plugin.Qobuzarr.Configuration
         /// </summary>
         public static class Quality
         {
+            // Quality IDs as used by Qobuz API
+            public const int MP3_320 = 5;
+            public const int FLAC_CD = 6;
+            public const int FLAC_HI_RES_96 = 7;
+            public const int FLAC_HI_RES_192 = 27;
+            
+            // Display names
+            public const string MP3_320_NAME = "MP3 320kbps";
+            public const string FLAC_CD_NAME = "FLAC CD 16bit/44.1kHz";
+            public const string FLAC_HI_RES_96_NAME = "FLAC Hi-Res 24bit/96kHz";
+            public const string FLAC_HI_RES_192_NAME = "FLAC Hi-Res 24bit/192kHz";
+            
+            // Thresholds and bitrates
             public const int HiResThreshold = 96; // kHz
             public const int CDQualityBitrate = 1411; // kbps
             public const int MinAcceptableBitrate = 320; // kbps
+            public const int MP3_320_BITRATE = 320;
+            public const int FLAC_HI_RES_96_BITRATE = 4608;
+            public const int FLAC_HI_RES_192_BITRATE = 9216;
+            
+            // File extensions
+            public const string MP3_EXTENSION = ".mp3";
+            public const string FLAC_EXTENSION = ".flac";
         }
 
         /// <summary>
@@ -115,6 +162,33 @@ namespace Lidarr.Plugin.Qobuzarr.Configuration
                 /// </summary>
                 public const int RetryBaseDelayMs = 100;
             }
+        }
+
+        /// <summary>
+        /// Machine Learning optimization constants
+        /// </summary>
+        public static class MachineLearning
+        {
+            public const string ModelFileName = "qobuz_query_optimizer.onnx";
+            public const string PatternsFileName = "ml-baseline-patterns.json";
+            public const double MinConfidenceThreshold = 0.7;
+            public const int MaxQueryOptimizationMs = 100;
+            public const int TrainingDataMinSamples = 1000;
+            public const bool EnableAdaptiveLearning = true;
+        }
+
+        /// <summary>
+        /// Security constants
+        /// </summary>
+        public static class Security
+        {
+            public const int MaxPasswordLength = 128;
+            public const int MinPasswordLength = 8;
+            public const int MaxEmailLength = 256;
+            public const int SaltSize = 32;
+            public const int KeyDerivationIterations = 10000;
+            public const bool RequireHttps = true;
+            public const bool ValidateCertificates = true;
         }
 
         /// <summary>
