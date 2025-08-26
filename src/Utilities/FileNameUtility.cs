@@ -1,19 +1,20 @@
 using System;
 using System.IO;
 using System.Text.RegularExpressions;
+using Lidarr.Plugin.Common.Utilities;
 
 namespace Lidarr.Plugin.Qobuzarr.Utilities
 {
     /// <summary>
     /// Utility class for safe file and folder name generation
+    /// Now uses the shared library's FileNameSanitizer for consistency.
     /// </summary>
     public static class FileNameUtility
     {
-        private static readonly char[] InvalidFileNameChars = Path.GetInvalidFileNameChars();
         private static readonly char[] InvalidPathChars = Path.GetInvalidPathChars();
 
         /// <summary>
-        /// Sanitize a string for use as a file name
+        /// Sanitize a string for use as a file name using the shared library.
         /// </summary>
         public static string SanitizeFileName(string fileName)
         {
