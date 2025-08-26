@@ -67,6 +67,7 @@ namespace Lidarr.Plugin.Qobuzarr.API
         /// <param name="httpClient">The Lidarr HTTP client.</param>
         /// <param name="cacheManager">The cache manager.</param>
         /// <param name="logger">The logger.</param>
+        [Obsolete("Use the DI container to create instances with properly injected dependencies. This constructor will be removed in a future version.")]
         public QobuzApiClient(IHttpClient httpClient, ICacheManager cacheManager, Logger logger)
             : this(
                 new QobuzHttpClient(httpClient, logger),
