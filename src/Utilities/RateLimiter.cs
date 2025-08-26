@@ -6,6 +6,15 @@ using System.Threading.Tasks;
 
 namespace Lidarr.Plugin.Qobuzarr.Utilities
 {
+    /// <summary>
+    /// Thread-safe rate limiter implementing a sliding window algorithm to control API request throughput.
+    /// Ensures compliance with Qobuz API rate limits while maximizing request efficiency.
+    /// </summary>
+    /// <remarks>
+    /// This implementation uses a sliding window approach that tracks exact request timestamps,
+    /// providing more accurate rate limiting than fixed window or token bucket algorithms.
+    /// Thread-safety is guaranteed through semaphore-based coordination and lock-protected state.
+    /// </remarks>
     public class RateLimiter
     {
         private readonly int _maxRequests;
@@ -14,6 +23,18 @@ namespace Lidarr.Plugin.Qobuzarr.Utilities
         private readonly SemaphoreSlim _semaphore;
         private readonly object _lock = new object();
 
+        /// <summary>
+        /// Initializes a new instance of the RateLimiter class with specified rate limiting parameters.
+        /// </summary>
+        /// <param name="maxRequests">Maximum number of requests allowed within the time window.</param>
+        /// <param name="timeWindow">Duration of the sliding window for rate limiting.</param>
+        /// <exception cref="ArgumentOutOfRangeException">Thrown when maxRequests is less than 1 or timeWindow is negative or zero.</exception>
+        /// <example>
+        /// <code>
+        /// // Allow 600 requests per minute (Qobuz standard limit)
+        /// var rateLimiter = new RateLimiter(600, TimeSpan.FromMinutes(1));
+        /// </code>
+        /// </example>
         public RateLimiter(int maxRequests, TimeSpan timeWindow)
         {
             _maxRequests = maxRequests;
@@ -22,6 +43,16 @@ namespace Lidarr.Plugin.Qobuzarr.Utilities
             _semaphore = new SemaphoreSlim(1, 1);
         }
 
+        /// <summary>
+        /// Waits asynchronously until a request can be made without violating rate limits.
+        /// </summary>
+        /// <param name="cancellationToken">Token to cancel the wait operation.</param>
+        /// <returns>A task that completes when the request can proceed.</returns>
+        /// <exception cref="OperationCanceledException">Thrown when the cancellation token is triggered.</exception>
+        /// <remarks>
+        /// This method automatically delays execution if the rate limit has been reached,
+        /// ensuring smooth request flow without manual retry logic.
+        /// </remarks>
         public async Task WaitAsync(CancellationToken cancellationToken = default)
         {
             await _semaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
@@ -66,6 +97,13 @@ namespace Lidarr.Plugin.Qobuzarr.Utilities
             }
         }
 
+        /// <summary>
+        /// Gets the number of requests that can be made immediately without hitting rate limits.
+        /// </summary>
+        /// <returns>Number of available request slots in the current time window.</returns>
+        /// <remarks>
+        /// Useful for monitoring rate limit status and implementing adaptive request strategies.
+        /// </remarks>
         public int GetRemainingRequests()
         {
             lock (_lock)
@@ -82,6 +120,13 @@ namespace Lidarr.Plugin.Qobuzarr.Utilities
             }
         }
 
+        /// <summary>
+        /// Gets the time remaining until the oldest request in the window expires, allowing new requests.
+        /// </summary>
+        /// <returns>TimeSpan indicating when the rate limit window will reset. Returns Zero if no active limits.</returns>
+        /// <remarks>
+        /// Use this method to implement intelligent retry logic or to display rate limit status to users.
+        /// </remarks>
         public TimeSpan GetTimeUntilReset()
         {
             lock (_lock)

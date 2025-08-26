@@ -565,35 +565,237 @@ The project uses [Central Package Management](https://learn.microsoft.com/en-us/
 
 **Migration**: Existing projects automatically migrated. Scripts are idempotent (safe to run multiple times).
 
+## Developer Onboarding Guide
+
+### Quick Start for New Contributors
+
+**Prerequisites**:
+- .NET 8.0 SDK (NOT 6.0 - this causes NETSDK1045 errors)
+- Git with LFS support
+- Docker (optional, for testing with Lidarr)
+- Visual Studio 2022 / VS Code / Rider
+
+**Initial Setup (5 minutes)**:
+```bash
+# Clone repository
+git clone https://github.com/yourorg/Qobuzarr.git
+cd Qobuzarr
+
+# Run automated setup (downloads Lidarr assemblies, configures environment)
+./setup.sh              # Linux/macOS
+.\setup.ps1             # Windows PowerShell
+
+# Build and deploy to test Lidarr instance
+./build.sh --deploy     # Linux/macOS
+.\build.ps1 -Deploy     # Windows PowerShell
+```
+
+**Understanding the Architecture**:
+1. **Plugin-First Design**: All logic lives in `src/` - the CLI (`QobuzCLI/`) is just a test wrapper
+2. **Dependency Injection**: Lidarr's DryIoC container auto-registers interfaces (src/Services/)
+3. **ML Optimization**: Pre-compiled models in `src/Indexers/CompiledMLQueryOptimizer.cs`
+4. **Rate Limiting**: Automatic throttling in `src/Utilities/RateLimiter.cs` (600 req/min)
+
+**Your First Contribution**:
+1. Find an issue labeled "good first issue" on GitHub
+2. Create a feature branch: `git checkout -b feature/your-feature`
+3. Make changes following existing patterns (check neighboring files)
+4. Run tests: `dotnet test`
+5. Verify build: `dotnet build --configuration Release -p:RunAnalyzersDuringBuild=false`
+6. Submit PR with clear description
+
+**Common Development Tasks**:
+```bash
+# Run tests with coverage
+dotnet test /p:CollectCoverage=true
+
+# Test API functionality via CLI
+cd QobuzCLI && dotnet run -- search "artist name"
+
+# Check for build issues without deploying
+./build.sh --clean --restore
+
+# View Lidarr logs during testing
+docker logs lidarr-test -f
+```
+
+**Key Files to Understand**:
+- `src/Indexers/QobuzIndexer.cs:45` - Main search integration point
+- `src/Download/Clients/QobuzDownloadClient.cs:108` - Download orchestration
+- `src/Authentication/QobuzAuthenticationService.cs:52` - Session management
+- `CLAUDE.md` - Critical build instructions and lessons learned
+
 ## Troubleshooting
 
-### ReflectionTypeLoadException - Version Mismatch
+### Common Error Scenarios and Solutions
 
-**Symptoms**: Lidarr fails to start with "Could not load file or assembly 'Lidarr.Core, Version=10.0.0.xxxxx'"
+#### 1. ReflectionTypeLoadException - Version Mismatch
+
+**Symptoms**: 
+```
+Lidarr fails to start with "Could not load file or assembly 'Lidarr.Core, Version=10.0.0.xxxxx'"
+```
 
 **Root Cause**: Plugin compiled against development Lidarr versions but runtime expects release versions
 
 **Solution**: 
-1. Ensure using correct Lidarr source commit: `aa7b63f2e13351f54a31d780d6a7b93a2411eaec`
-2. Build scripts automatically override assembly version to `2.13.2.4686` 
-3. Verify `ext/Lidarr-source/src/Directory.Build.props` shows `<AssemblyVersion>2.13.2.4686</AssemblyVersion>`
+```bash
+# Verify assembly version override is applied
+grep AssemblyVersion ext/Lidarr-source/src/Directory.Build.props
+# Should show: <AssemblyVersion>2.13.2.4686</AssemblyVersion>
+
+# If not, rebuild with proper scripts
+./build.sh --clean --deploy
+```
 
 **Prevention**: Always use `./build.sh --deploy` or `.\build.ps1 -Deploy` which include automatic version override
 
-### Plugin Not Loading
+#### 2. Protocol Property Type Mismatch
 
-**Check**: Verify plugin files in Lidarr plugins directory:
-- `Lidarr.Plugin.Qobuzarr.dll` - Main assembly
-- `plugin.json` - Plugin manifest  
-- Both should have recent timestamps matching your last build
+**Symptoms**:
+```
+error CS1715: 'QobuzIndexer.Protocol': type must be 'DownloadProtocol' to match overridden member
+error CS0246: The type or namespace name 'IDownloadProtocol' could not be found
+```
 
-**Restart**: Always restart Lidarr after plugin deployment
+**Root Cause**: Wrong Lidarr branch assemblies (release vs plugins branch)
+
+**Solution**:
+```bash
+# Use plugins branch assemblies
+git clone --depth 1 --branch plugins https://github.com/Lidarr/Lidarr.git ext/Lidarr-source
+./build.sh --deploy
+```
+
+**Verification**: Check `src/Indexers/QobuzIndexer.cs:84` shows `string Protocol => nameof(QobuzarrDownloadProtocol)`
+
+#### 3. QobuzApiException: Invalid Credentials
+
+**Symptoms**:
+```
+QobuzApiException: Authentication failed - Invalid app_id or app_secret (src/API/QobuzApiClient.cs:231)
+```
+
+**Root Cause**: Missing or incorrect Qobuz API credentials
+
+**Solution**:
+1. Obtain valid credentials from Qobuz developer portal
+2. Configure in Lidarr UI: Settings → Indexers → Qobuzarr
+3. Or set environment variables for CLI testing:
+```bash
+export QOBUZ_APP_ID="your_app_id"
+export QOBUZ_APP_SECRET="your_app_secret"
+```
+
+**Verification**: Test with CLI: `cd QobuzCLI && dotnet run -- auth test`
+
+#### 4. QobuzAuthenticationException: Session Expired
+
+**Symptoms**:
+```
+QobuzAuthenticationException: Session expired or invalid (src/Authentication/QobuzSessionManager.cs:145)
+```
+
+**Root Cause**: Authentication token expired (24-hour TTL)
+
+**Solution**:
+```csharp
+// Session auto-refresh is handled by QobuzSessionManager
+// Manual refresh via CLI:
+cd QobuzCLI && dotnet run -- auth refresh
+```
+
+**Prevention**: Plugin automatically refreshes sessions via `src/Authentication/QobuzSessionManager.cs:198`
+
+#### 5. Plugin Not Loading
+
+**Symptoms**: Plugin doesn't appear in Lidarr's indexer/download client lists
+
+**Diagnosis Checklist**:
+```bash
+# 1. Verify plugin files exist
+ls -la /path/to/lidarr/plugins/Qobuzarr/
+# Should show: Lidarr.Plugin.Qobuzarr.dll, plugin.json
+
+# 2. Check plugin.json version matches Lidarr
+cat /path/to/lidarr/plugins/Qobuzarr/plugin.json
+
+# 3. Review Lidarr logs for plugin loading errors
+grep -i qobuzarr /config/logs/lidarr.txt
+
+# 4. Verify assembly signatures match
+dotnet ildasm Lidarr.Plugin.Qobuzarr.dll | grep "AssemblyVersion"
+```
+
+**Solution**:
+1. Stop Lidarr completely
+2. Clean plugin directory: `rm -rf /path/to/lidarr/plugins/Qobuzarr/`
+3. Rebuild with matching versions: `./build.sh --clean --deploy`
+4. Start Lidarr and check logs
+
+#### 6. Build Failures with MSB3277 Warnings
+
+**Symptoms**:
+```
+warning MSB3277: Found conflicts between different versions of "TagLibSharp"
+```
+
+**Root Cause**: Dual assembly references (both source and pre-built)
+
+**Solution**:
+```bash
+# Remove conflicting sources
+rm -rf ext/Lidarr-source
+# Use single assembly source
+./download-lidarr-assemblies.sh --version 2.13.2.4685
+./build.sh --deploy
+```
+
+**Prevention**: Never mix `ext/Lidarr-source` with `ext/Lidarr/_output`
+
+#### 7. CI/CD Pipeline Failures
+
+**Symptoms**: GitHub Actions builds fail but local builds work
+
+**Common Issues**:
+1. **Wrong .NET version**: Ensure using .NET 8.0 in workflow
+2. **Missing version override**: Add TrevTV's `sed` command to workflow
+3. **NuGet conflicts**: Don't build Lidarr source in CI
+
+**Working CI Configuration** (`.github/workflows/build-docker.yml`):
+```yaml
+env:
+  DOTNET_VERSION: 8.0.x
+  MINIMUM_LIDARR_VERSION: 2.13.2.4686
+  
+steps:
+  - name: Extract Lidarr assemblies from Docker
+    run: |
+      docker pull ghcr.io/hotio/lidarr:pr-plugins-2.13.3.4692
+      docker create --name temp ghcr.io/hotio/lidarr:pr-plugins-2.13.3.4692
+      docker cp temp:/app/bin/. ext/Lidarr/_output/
+      docker rm temp
+```
 
 ### Assembly Version Debugging
 
-**Check Runtime Version**: Your Lidarr logs should show `Version 2.13.2.4686`
-**Check Plugin Version**: Build output should compile against matching `AssemblyVersion>2.13.2.4686`
-**Verify Match**: Runtime version and plugin assembly version must exactly match
+**Quick Diagnostic Commands**:
+```bash
+# Check Lidarr runtime version
+docker exec lidarr-test cat /app/version.txt
+
+# Check plugin compilation version  
+strings Lidarr.Plugin.Qobuzarr.dll | grep "AssemblyFileVersion"
+
+# Verify Protocol implementation
+dotnet ildasm Lidarr.Plugin.Qobuzarr.dll | grep "Protocol"
+
+# Check for missing dependencies
+ldd Lidarr.Plugin.Qobuzarr.dll  # Linux
+dumpbin /dependents Lidarr.Plugin.Qobuzarr.dll  # Windows
+```
+
+**Golden Rule**: Runtime version and plugin assembly version must exactly match
 
 ## CRITICAL CI/CD LESSONS LEARNED (2025-08-18)
 
