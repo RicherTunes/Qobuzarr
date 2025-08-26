@@ -10,11 +10,12 @@ namespace Lidarr.Plugin.Qobuzarr.API.Auth
     /// <summary>
     /// Implementation of Qobuz authentication session management.
     /// Handles session validation, renewal notifications, and expiration tracking.
+    /// Uses Lazy<T> to elegantly resolve circular dependency with IQobuzAuthenticationService.
     /// </summary>
     public class QobuzAuthenticationManager : IQobuzAuthenticationManager
     {
         private readonly Logger _logger;
-        private readonly IQobuzAuthenticationService? _authService;
+        private readonly Lazy<IQobuzAuthenticationService>? _authService;
         private QobuzSession? _currentSession;
         private readonly object _sessionLock = new object();
 
@@ -33,7 +34,13 @@ namespace Lidarr.Plugin.Qobuzarr.API.Auth
             }
         }
 
-        public QobuzAuthenticationManager(Logger logger, IQobuzAuthenticationService? authService = null)
+        /// <summary>
+        /// Creates a new instance of QobuzAuthenticationManager.
+        /// Uses Lazy<T> to break circular dependency at construction time.
+        /// </summary>
+        /// <param name="logger">The logger instance.</param>
+        /// <param name="authService">Lazy wrapper for authentication service, resolved only when accessed.</param>
+        public QobuzAuthenticationManager(Logger logger, Lazy<IQobuzAuthenticationService>? authService = null)
         {
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
             _authService = authService;
