@@ -32,7 +32,10 @@
   
   <!-- Temporarily exclude incomplete files -->
   <ItemGroup>
-    <!-- Files restored and functional -->
+    <!-- Exclude broken services until fixed -->
+    <Compile Remove="src\Services\Core.disabled\**\*.cs" />
+    <Compile Remove="src\Services\Orchestrators.disabled\**\*.cs" />
+    <Compile Remove="src\Services\Observability.disabled\**\*.cs" />
   </ItemGroup>
   
   <PropertyGroup>
@@ -61,7 +64,7 @@
 
   <!-- Source files inclusion -->
   <ItemGroup>
-    <Compile Include="src\**\*.cs" />
+    <Compile Include="src\**\*.cs" Exclude="src\**\*.disabled\**\*.cs" />
   </ItemGroup>
 
   <!-- ML baseline patterns file - copy to output -->
