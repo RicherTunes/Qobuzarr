@@ -2,6 +2,7 @@ using System.Linq;
 using FluentAssertions;
 using Qobuzarr.Tests.TestData;
 using Lidarr.Plugin.Qobuzarr.Utilities;
+using Lidarr.Plugin.Common.Utilities;
 using Xunit;
 using Xunit.Abstractions;
 

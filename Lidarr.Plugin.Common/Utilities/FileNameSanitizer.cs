@@ -3,7 +3,7 @@ using System.IO;
 using System.Linq;
 using System.Text.RegularExpressions;
 
-namespace Lidarr.Plugin.Qobuzarr.Utilities
+namespace Lidarr.Plugin.Common.Utilities
 {
     /// <summary>
     /// Utility for sanitizing file and path names to be safe for various file systems.
