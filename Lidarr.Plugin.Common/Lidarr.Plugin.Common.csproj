@@ -1,0 +1,35 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net6.0</TargetFramework>
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <AssemblyName>Lidarr.Plugin.Common</AssemblyName>
+    <RootNamespace>Lidarr.Plugin.Common</RootNamespace>
+    
+    <!-- Versioning Strategy -->
+    <PackageVersion>1.0.0-alpha</PackageVersion>
+    <AssemblyVersion>1.0.0.0</AssemblyVersion>
+    <FileVersion>1.0.0.0</FileVersion>
+    <InformationalVersion>1.0.0-alpha</InformationalVersion>
+    
+    <!-- Library metadata -->
+    <AssemblyTitle>Lidarr.Plugin.Common - Shared Library for Streaming Service Plugins</AssemblyTitle>
+    <AssemblyDescription>Common utilities, base classes, and services for Lidarr streaming service plugins</AssemblyDescription>
+    <Company>RicherTunes</Company>
+    <Authors>RicherTunes</Authors>
+    <Copyright>Copyright © 2025 RicherTunes</Copyright>
+    
+    <!-- Build settings -->
+    <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
+    <NoWarn>SA1200;SA1633;CS1591;CS8625;CS8618;CS8604;CS8603;CS8601;CS8602;CS8629</NoWarn>
+    <RunAnalyzersDuringBuild>false</RunAnalyzersDuringBuild>
+    <EnableNETAnalyzers>false</EnableNETAnalyzers>
+  </PropertyGroup>
+
+  <!-- Package dependencies (versions managed by Directory.Packages.props) -->
+  <ItemGroup>
+    <PackageReference Include="System.Text.Json" />
+  </ItemGroup>
+
+</Project>

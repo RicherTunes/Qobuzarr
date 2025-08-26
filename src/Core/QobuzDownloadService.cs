@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using Lidarr.Plugin.Qobuzarr.Abstractions;
 using Lidarr.Plugin.Qobuzarr.Models;
 using Lidarr.Plugin.Qobuzarr.Utilities;
+using Lidarr.Plugin.Common.Utilities;
 using TagLib;
 
 namespace Lidarr.Plugin.Qobuzarr.Core
