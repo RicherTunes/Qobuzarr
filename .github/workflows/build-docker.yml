@@ -92,6 +92,13 @@ jobs:
             <PackageReference Include="System.Text.RegularExpressions" />
           </ItemGroup>
 
+          <!-- Shared library reference for ecosystem support -->
+          <ItemGroup>
+            <ProjectReference Include="Lidarr.Plugin.Common\Lidarr.Plugin.Common.csproj">
+              <Private>true</Private>
+            </ProjectReference>
+          </ItemGroup>
+
           <!-- Reference Docker-extracted assemblies instead of source -->
           <ItemGroup>
             <Reference Include="Lidarr">
