@@ -39,8 +39,8 @@ namespace QobuzCLI.Services
         public bool IsCorrupted { get; set; }
         public bool IsPartial { get; set; }
         public string ExistingFilePath { get; set; } = "";
-        public QualityComparison QualityComparison { get; set; }
-        public string Reason { get; set; } = "";
+        public QualityComparison? QualityComparison { get; set; }
+        public string Reason { get; set; } = string.Empty;
 
         // Helper properties
         public bool ShouldDownload => !IsDuplicate || ShouldReplace;
@@ -52,11 +52,11 @@ namespace QobuzCLI.Services
     /// </summary>
     public class QualityComparison
     {
-        public QualityInfo ExistingQuality { get; set; }
-        public QualityInfo NewQuality { get; set; }
+        public QualityInfo ExistingQuality { get; set; } = new();
+        public QualityInfo NewQuality { get; set; } = new();
         public int QualityDifference { get; set; }
         public double PercentImprovement { get; set; }
-        public string UpgradeReason { get; set; }
+        public string UpgradeReason { get; set; } = string.Empty;
 
         public bool IsSignificantUpgrade(double minImprovementPercent = 20)
         {
@@ -73,7 +73,7 @@ namespace QobuzCLI.Services
         public bool FileExists { get; set; }
         public bool SizeValid { get; set; }
         public bool HeaderValid { get; set; }
-        public string Reason { get; set; }
+        public string Reason { get; set; } = string.Empty;
         public long ActualSize { get; set; }
         public long? ExpectedSize { get; set; }
     }

@@ -18,13 +18,13 @@ namespace QobuzCLI.Services
         private readonly QobuzSearchService _searchService;
         private readonly QobuzQualityService _qualityService;
         private readonly IQobuzLogger _logger;
-        private readonly IQobuzCache _cache;
+        private readonly IQobuzCache? _cache;
 
         public CliQobuzValidationService(
             QobuzSearchService searchService,
             QobuzQualityService qualityService,
             IQobuzLogger logger,
-            IQobuzCache cache = null)
+            IQobuzCache? cache = null)
         {
             _searchService = searchService ?? throw new ArgumentNullException(nameof(searchService));
             _qualityService = qualityService ?? throw new ArgumentNullException(nameof(qualityService));
