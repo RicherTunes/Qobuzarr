@@ -8,6 +8,7 @@ using NSubstitute;
 using NSubstitute.ExceptionExtensions;
 using Xunit;
 using NLog;
+using Lidarr.Plugin.Qobuzarr.Constants;
 using Lidarr.Plugin.Qobuzarr.API;
 using Lidarr.Plugin.Qobuzarr.Models;
 using Lidarr.Plugin.Qobuzarr.Models.Lidarr;
@@ -335,7 +336,7 @@ namespace Qobuzarr.Tests.Unit.Services.Metadata
 
             // Assert
             strategy.Should().NotBeNull();
-            strategy.StrategyName.Should().Be(Constants.QobuzarrConstants.ServiceName);
+            strategy.StrategyName.Should().Be(QobuzarrConstants.ServiceName);
         }
 
         [Fact]
@@ -408,7 +409,7 @@ namespace Qobuzarr.Tests.Unit.Services.Metadata
 
             // Assert
             result.Should().NotBeNull();
-            result.MetadataStrategy.Should().Be(Constants.QobuzarrConstants.ServiceName);
+            result.MetadataStrategy.Should().Be(QobuzarrConstants.ServiceName);
             result.TrackDownloads.Should().NotBeEmpty();
             result.IsSuccessful.Should().BeTrue();
             result.ApiCallsSaved.Should().Be(0);
@@ -641,7 +642,7 @@ namespace Qobuzarr.Tests.Unit.Services.Metadata
 
             // Assert - Verify warning was logged (would need to check logger calls in real test)
             // This is a simplified test - in practice you'd verify the warning log call
-            stats.MatchingFailures.Should().BeGreaterThan(stats.TotalAlbums * 0.1);
+            stats.MatchingFailures.Should().BeGreaterThan((int)(stats.TotalAlbums * 0.1));
         }
 
         #endregion
@@ -692,7 +693,7 @@ namespace Qobuzarr.Tests.Unit.Services.Metadata
                 TrackNumber = 1,
                 DiscNumber = 1,
                 DurationSeconds = 240,
-                Quality = "FLAC CD",
+                // Quality = "FLAC CD", // Removed - readonly property
                 Album = new QobuzAlbum
                 {
                     Title = "Test Album",
@@ -712,10 +713,7 @@ namespace Qobuzarr.Tests.Unit.Services.Metadata
                 ForeignAlbumId = "mbz-album-id",
                 ForeignReleaseId = "mbz-release-id",
                 ArtistForeignId = "mbz-artist-id",
-                Tracks = new List<LidarrTrack>
-                {
-                    CreateSampleLidarrTrack()
-                }
+                // Tracks property is readonly - cannot be set in initializer
             };
         }
 
@@ -726,9 +724,9 @@ namespace Qobuzarr.Tests.Unit.Services.Metadata
                 Id = 1,
                 Title = "Test Track",
                 TrackNumber = 1,
-                DiscNumber = 1,
-                Duration = TimeSpan.FromMinutes(4),
-                ArtistName = "Test Artist",
+                // DiscNumber = 1, // Removed - readonly property
+                // Duration = TimeSpan.FromMinutes(4), // Removed - readonly property
+                // ArtistName = "Test Artist", // Removed - readonly property
                 ForeignTrackId = "mbz-track-id"
             };
         }
