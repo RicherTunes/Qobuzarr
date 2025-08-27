@@ -211,7 +211,7 @@ namespace QobuzCLI.Services
                 var metadata = new QobuzMetadata
                 {
                     TrackId = track.Id,
-                    AlbumId = track.AlbumId,
+                    AlbumId = track.AlbumId ?? string.Empty,
                     DownloadDate = DateTime.UtcNow,
                     Quality = CreateQualityInfo(track),
                     File = new FileMetadata

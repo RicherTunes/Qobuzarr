@@ -19,7 +19,7 @@ public class OptionsMonitorWrapper : IOptionsMonitor<ConsoleLoggerOptions>
     
     public ConsoleLoggerOptions CurrentValue => _options.Value;
     
-    public ConsoleLoggerOptions Get(string name) => _options.Value;
+    public ConsoleLoggerOptions Get(string? name) => _options.Value;
     
     public IDisposable OnChange(Action<ConsoleLoggerOptions, string> listener) => new EmptyDisposable();
     
@@ -93,7 +93,7 @@ public class DashboardAwareConsoleLogger : ILogger
 public static class DashboardState
 {
     public static bool IsActive { get; private set; }
-    public static event EventHandler<bool> StateChanged;
+    public static event EventHandler<bool>? StateChanged;
 
     public static void SetActive(bool active)
     {
