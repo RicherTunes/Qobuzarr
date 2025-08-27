@@ -54,7 +54,7 @@ public class Dashboard : IDashboard
     private DateTime _lastSuccessTime;
     
     // Refresh timer
-    private Timer _refreshTimer;
+    private Timer? _refreshTimer;
     
     // Track console height for proper clearing
     private int _lastConsoleHeight;
@@ -205,7 +205,7 @@ public class Dashboard : IDashboard
         }
     }
     
-    private void UpdateDisplay(object state)
+    private void UpdateDisplay(object? state)
     {
         if (!_isActive || _disposed) return;
         

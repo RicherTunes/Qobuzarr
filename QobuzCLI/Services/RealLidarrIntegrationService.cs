@@ -93,7 +93,7 @@ public class RealLidarrIntegrationService : ILidarrIntegrationService
         
         // Use the plugin's integration service
         return await _pluginService!.GetFilteredWantedAlbumsAsync(
-            filterOptions,
+            filterOptions ?? new LidarrFilterOptions(),
             maxAlbums,
             progress,
             cancellationToken);
@@ -167,7 +167,7 @@ public class RealLidarrIntegrationService : ILidarrIntegrationService
         return await _pluginService!.RetryFailedDownloadsAsync(
             failedItems,
             maxRetries,
-            outputPath,
+            outputPath ?? string.Empty,
             cancellationToken);
     }
 
@@ -267,8 +267,8 @@ public class RealLidarrIntegrationService : ILidarrIntegrationService
             PerformanceMetrics = GetPerformanceMetrics(),
             QualityStats = GetQualityStatistics(),
             ErrorAnalysis = GetErrorAnalysis(),
-            RawData = includeRawData ? new Dictionary<string, object>() : null,
-            SystemInfo = null
+            RawData = includeRawData ? new Dictionary<string, object>() : null!,
+            SystemInfo = null!
         };
     }
 

@@ -47,7 +47,7 @@ public class DashboardLogger<T> : ILogger<T>, IDashboardLogger
                (_categoryName.Contains("Download") && logLevel >= LogLevel.Information);
     }
     
-    private string FormatForDashboard(LogLevel logLevel, string message, Exception exception)
+    private string FormatForDashboard(LogLevel logLevel, string message, Exception? exception)
     {
         var icon = logLevel switch
         {
@@ -81,7 +81,7 @@ public class DashboardLogger<T> : ILogger<T>, IDashboardLogger
     {
         if (_dashboard != null && _dashboard.IsActive)
         {
-            var formattedMessage = FormatForDashboard(level, message, null);
+            var formattedMessage = FormatForDashboard(level, message, null!);
             _dashboard.AddLogMessage(formattedMessage);
         }
         else
@@ -171,7 +171,7 @@ public class DashboardLogger : ILogger, IDashboardLogger
                (_categoryName.Contains("Qobuz") && logLevel >= LogLevel.Information);
     }
     
-    private string FormatForDashboard(LogLevel logLevel, string message, Exception exception)
+    private string FormatForDashboard(LogLevel logLevel, string message, Exception? exception)
     {
         var icon = logLevel switch
         {
@@ -205,7 +205,7 @@ public class DashboardLogger : ILogger, IDashboardLogger
     {
         if (_dashboard != null && _dashboard.IsActive)
         {
-            var formattedMessage = FormatForDashboard(level, message, null);
+            var formattedMessage = FormatForDashboard(level, message, null!);
             _dashboard.AddLogMessage(formattedMessage);
         }
         else

@@ -83,7 +83,7 @@ namespace QobuzCLI.Services
 
                 foreach (var track in tracks)
                 {
-                    await DownloadTrackAsync(track, album, outputPath, quality, null, CancellationToken.None);
+                    await DownloadTrackAsync(track, album, outputPath, quality, null!, CancellationToken.None);
                 }
 
                 return true;
