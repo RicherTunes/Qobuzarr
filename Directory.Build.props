@@ -22,5 +22,7 @@
     <SkipAnalyzers>true</SkipAnalyzers>
     <!-- Disable design-time builds for faster compilation -->
     <DisableFastUpToDateCheck>true</DisableFastUpToDateCheck>
+    <!-- Suppress framework support build warnings for .NET 9 packages on .NET 6 -->
+    <SuppressTfmSupportBuildWarnings>true</SuppressTfmSupportBuildWarnings>
   </PropertyGroup>
 </Project>
