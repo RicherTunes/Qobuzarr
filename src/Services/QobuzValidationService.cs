@@ -87,7 +87,7 @@ namespace Lidarr.Plugin.Qobuzarr.Services
                     try
                     {
                         // Try to get stream URL for this track with quality fallback
-                        var qualityResult = await _qualityManager.SelectBestQualityAsync(track.Id, new Consolidated.QobuzQuality { Id = preferredQuality });
+                        var qualityResult = await _qualityManager.SelectBestQualityAsync(track.Id, Models.QobuzQuality.FromId(preferredQuality));
                         
                         if (qualityResult.Success && !string.IsNullOrWhiteSpace(qualityResult.StreamInfo?.Url))
                         {
@@ -160,7 +160,7 @@ namespace Lidarr.Plugin.Qobuzarr.Services
         {
             try
             {
-                var qualityResult = await _qualityManager.SelectBestQualityAsync(trackId, new Consolidated.QobuzQuality { Id = preferredQuality });
+                var qualityResult = await _qualityManager.SelectBestQualityAsync(trackId, Models.QobuzQuality.FromId(preferredQuality));
                 return qualityResult.Success && !string.IsNullOrWhiteSpace(qualityResult.StreamInfo?.Url);
             }
             catch (Exception ex)
