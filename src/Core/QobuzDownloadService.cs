@@ -111,38 +111,39 @@ namespace Lidarr.Plugin.Qobuzarr.Core
 
         private async Task ApplyMetadataAsync(string filePath, QobuzTrack track, QobuzAlbum album)
         {
-            await Task.Run(() =>
+            // TagLib operations are I/O bound, not CPU intensive - no need for Task.Run
+            // Only wrap in Task.Run if we encounter thread pool starvation issues
+            await Task.CompletedTask; // Keep method async for future I/O operations
+            
+            using var file = TagLib.File.Create(filePath);
+            
+            // Basic metadata
+            file.Tag.Title = track.Title;
+            file.Tag.Album = album.Title;
+            file.Tag.AlbumArtists = new[] { album.GetArtistName() };
+            file.Tag.Performers = new[] { track.GetPerformerName() };
+            file.Tag.Track = (uint)track.TrackNumber;
+            file.Tag.TrackCount = (uint)album.TracksCount;
+            file.Tag.Disc = (uint)track.DiscNumber;
+            file.Tag.Year = album.ReleaseDate.Year > 1900 ? (uint)album.ReleaseDate.Year : 0;
+            
+            // Additional metadata
+            if (!string.IsNullOrEmpty(album.Genre?.Name))
             {
-                using var file = TagLib.File.Create(filePath);
-                
-                // Basic metadata
-                file.Tag.Title = track.Title;
-                file.Tag.Album = album.Title;
-                file.Tag.AlbumArtists = new[] { album.GetArtistName() };
-                file.Tag.Performers = new[] { track.GetPerformerName() };
-                file.Tag.Track = (uint)track.TrackNumber;
-                file.Tag.TrackCount = (uint)album.TracksCount;
-                file.Tag.Disc = (uint)track.DiscNumber;
-                file.Tag.Year = album.ReleaseDate.Year > 1900 ? (uint)album.ReleaseDate.Year : 0;
-                
-                // Additional metadata
-                if (!string.IsNullOrEmpty(album.Genre?.Name))
-                {
-                    file.Tag.Genres = new[] { album.Genre.Name };
-                }
-                
-                var composer = track.GetComposerName();
-                if (!string.IsNullOrEmpty(composer) && composer != "Unknown")
-                {
-                    file.Tag.Composers = new[] { composer };
-                }
-                
-                // Quality info in comment
-                file.Tag.Comment = $"Downloaded from Qobuz - Album: {album.Id}, Track: {track.Id}";
-                
-                file.Save();
-                _logger.Debug("Applied metadata to: {0}", filePath);
-            });
+                file.Tag.Genres = new[] { album.Genre.Name };
+            }
+            
+            var composer = track.GetComposerName();
+            if (!string.IsNullOrEmpty(composer) && composer != "Unknown")
+            {
+                file.Tag.Composers = new[] { composer };
+            }
+            
+            // Quality info in comment
+            file.Tag.Comment = $"Downloaded from Qobuz - Album: {album.Id}, Track: {track.Id}";
+            
+            file.Save();
+            _logger.Debug("Applied metadata to: {0}", filePath);
         }
 
         /// <summary>

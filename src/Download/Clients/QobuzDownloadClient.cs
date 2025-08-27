@@ -200,16 +200,20 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Clients
             {
                 _logger.Info("Testing Qobuz download client connection...");
                 
-                // Test authentication - use async-safe pattern to avoid deadlocks
+                // Test authentication - use ConfigureAwait(false) to avoid deadlocks
                 try
                 {
-                    // Run async operation in a separate task context to avoid deadlock
-                    var authTask = Task.Run(async () => await EnsureAuthenticatedAsync().ConfigureAwait(false));
-                    authTask.Wait(TimeSpan.FromSeconds(30)); // Add timeout to prevent hanging
-                    
-                    if (!authTask.IsCompletedSuccessfully)
+                    // Create a task with timeout to prevent hanging
+                    var authTask = EnsureAuthenticatedAsync();
+                    if (!authTask.Wait(TimeSpan.FromSeconds(30)))
                     {
-                        failures.Add(new ValidationFailure("Authentication", "Authentication timed out or failed"));
+                        failures.Add(new ValidationFailure("Authentication", "Authentication timed out"));
+                        return;
+                    }
+                    
+                    if (authTask.IsFaulted)
+                    {
+                        failures.Add(new ValidationFailure("Authentication", $"Authentication failed: {authTask.Exception?.GetBaseException().Message}"));
                         return;
                     }
                 }
@@ -694,7 +698,28 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Clients
         /// </summary>
         public void Dispose()
         {
-            DisposeAsync().ConfigureAwait(false).GetAwaiter().GetResult();
+            // Synchronous cleanup only - avoid blocking async calls
+            try
+            {
+                _logger.Debug("Disposing QobuzDownloadClient synchronously");
+                
+                // Cancel active downloads without waiting
+                var activeDownloads = _queueService.GetActiveDownloads().ToList();
+                foreach (var download in activeDownloads)
+                {
+                    download.Cancel();
+                }
+                
+                // Dispose managed resources
+                _concurrencySemaphore?.Dispose();
+                _uploadLimiter?.Dispose();
+                
+                GC.SuppressFinalize(this);
+            }
+            catch (Exception ex)
+            {
+                _logger.Error(ex, "Error during QobuzDownloadClient disposal");
+            }
         }
 
         /// <summary>
