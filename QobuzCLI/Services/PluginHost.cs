@@ -93,7 +93,7 @@ public class PluginHost : IPluginHost, IDisposable
                 
                 _logger.LogInformation("Credentials validation completed");
 
-                _session = await _authService.AuthenticateAsync(credentials);
+                _session = await _authService!.AuthenticateAsync(credentials);
                 _logger.LogInformation("Plugin host initialized with REAL Qobuz API integration");
                 _isInitialized = true;
             }
@@ -469,7 +469,7 @@ public class PluginHost : IPluginHost, IDisposable
                         album,
                         outputPath,
                         qualityId,
-                        null, // progress
+                        null!, // progress
                         CancellationToken.None);
 
                     // Create TrackDownload object to track the result
@@ -503,7 +503,7 @@ public class PluginHost : IPluginHost, IDisposable
                     // Add failed track to results
                     var failedTrackDownload = new TrackDownload
                     {
-                        StreamingUrl = null, // null indicates failure
+                        StreamingUrl = null!, // null indicates failure
                         QobuzTrackId = int.TryParse(track.Id, out var trackId) ? trackId : (int?)null,
                         Title = track.Title,
                         Artist = track.Performer?.Name ?? track.Album?.Artist?.Name ?? "Unknown Artist",
@@ -603,7 +603,7 @@ public class PluginHost : IPluginHost, IDisposable
                     var albumDir = Path.Combine(artistDir, albumDirName);
 
                     // Download the album
-                    var albumResult = await DownloadAlbumAsync(album.Id, albumDir, _config.Quality);
+                    var albumResult = await DownloadAlbumAsync(album.Id, albumDir, _config!.Quality);
                     
                     // Aggregate results
                     if (albumResult.TrackDownloads != null)
@@ -642,7 +642,7 @@ public class PluginHost : IPluginHost, IDisposable
     public async Task<PlaylistDownloadResult> DownloadPlaylistAsync(
         string playlistId, 
         string outputPath, 
-        string quality = null,
+        string? quality = null,
         bool createM3u8 = true)
     {
         if (!_isInitialized || _config == null)
@@ -702,7 +702,7 @@ public class PluginHost : IPluginHost, IDisposable
                         album,
                         playlistDir,
                         qualityId,
-                        null, // progress
+                        null!, // progress
                         CancellationToken.None);
 
                     if (!string.IsNullOrEmpty(filePath) && File.Exists(filePath))
@@ -749,7 +749,7 @@ public class PluginHost : IPluginHost, IDisposable
                 SuccessfulTracks = successfulDownloads.Count,
                 FailedTracks = failedDownloads.Count,
                 M3u8FilePath = createM3u8 && successfulDownloads.Any() ? 
-                    Path.Combine(playlistDir, $"{SanitizeFileName(playlist.Name)}.m3u8") : null,
+                    Path.Combine(playlistDir, $"{SanitizeFileName(playlist.Name)}.m3u8") : null!,
                 IsSuccessful = successfulDownloads.Count > 0,
                 StartTime = startTime,
                 EndTime = DateTime.UtcNow
@@ -765,7 +765,7 @@ public class PluginHost : IPluginHost, IDisposable
     public async Task<LabelDownloadResult> DownloadLabelAsync(
         string labelId, 
         string outputPath, 
-        string quality = null,
+        string? quality = null,
         int maxAlbums = 100)
     {
         if (!_isInitialized || _config == null)
@@ -1068,11 +1068,11 @@ public class PluginHost : IPluginHost, IDisposable
     private void InitializePluginServices()
     {
         // Create authentication service
-        _authService = new QobuzAuthService(_pluginHttpClient, _pluginLogger, _cache);
+        _authService = new QobuzAuthService(_pluginHttpClient!, _pluginLogger!, _cache!);
         _authAdapter = new CliQobuzAuthenticationAdapter(_authService);
         
         // Create API services with proper dependency injection
-        var streamUrlService = new QobuzStreamUrlService(_pluginHttpClient, _pluginLogger, _authService);
+        var streamUrlService = new QobuzStreamUrlService(_pluginHttpClient!, _pluginLogger!, _authService);
         var searchService = new QobuzSearchService(_pluginHttpClient, _pluginLogger, _authService);
         
         // For CLI context, use CLI-specific services with legacy interfaces

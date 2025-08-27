@@ -94,7 +94,7 @@ public interface IPluginHost
     Task<Lidarr.Plugin.Qobuzarr.Download.Services.PlaylistDownloadResult> DownloadPlaylistAsync(
         string playlistId, 
         string outputPath, 
-        string quality = null,
+        string? quality = null,
         bool createM3u8 = true);
     
     /// <summary>
@@ -109,7 +109,7 @@ public interface IPluginHost
     Task<Lidarr.Plugin.Qobuzarr.Download.Services.LabelDownloadResult> DownloadLabelAsync(
         string labelId, 
         string outputPath, 
-        string quality = null,
+        string? quality = null,
         int maxAlbums = 100);
     
     /// <summary>

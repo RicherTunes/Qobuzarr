@@ -23,10 +23,10 @@ namespace QobuzCLI.Services
             var settings = new QobuzIndexerSettings
             {
                 // Authentication
-                Email = cliConfig.Email,
-                Password = cliConfig.Password,
-                UserId = cliConfig.UserId,
-                AuthToken = cliConfig.AuthToken,
+                Email = cliConfig.Email ?? string.Empty,
+                Password = cliConfig.Password ?? string.Empty,
+                UserId = cliConfig.UserId ?? string.Empty,
+                AuthToken = cliConfig.AuthToken ?? string.Empty,
                 AppId = cliConfig.AppId ?? string.Empty,
                 AppSecret = cliConfig.AppSecret ?? string.Empty,
                 CountryCode = cliConfig.CountryCode ?? "US",
@@ -83,7 +83,7 @@ namespace QobuzCLI.Services
         /// <summary>
         /// Creates a minimal CLI config from plugin settings for backward compatibility
         /// </summary>
-        public static QobuzConfig FromPluginSettings(QobuzIndexerSettings indexerSettings, QobuzDownloadSettings downloadSettings = null)
+        public static QobuzConfig FromPluginSettings(QobuzIndexerSettings indexerSettings, QobuzDownloadSettings? downloadSettings = null)
         {
             var config = new QobuzConfig
             {

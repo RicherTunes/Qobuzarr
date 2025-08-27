@@ -41,8 +41,7 @@ namespace Qobuzarr.Tests.Unit.API
             _apiClient.SetSession(_testSession);
 
             // Assert
-            // Session should be stored internally (verified by subsequent API calls)
-            Assert.True(true); // Session setting doesn't have direct verification
+            _apiClient.HasValidSession().Should().BeTrue("session should be stored and valid");
         }
 
         [Fact]
@@ -50,42 +49,59 @@ namespace Qobuzarr.Tests.Unit.API
         {
             // Arrange
             _apiClient.SetSession(_testSession);
+            _apiClient.HasValidSession().Should().BeTrue("session should be initially set");
 
             // Act
-            _apiClient.SetSession(null);
+            _apiClient.ClearSession();
 
             // Assert
-            // Session should be cleared (verified by subsequent API calls)
-            Assert.True(true); // Session clearing doesn't have direct verification
+            _apiClient.HasValidSession().Should().BeFalse("session should be cleared after calling ClearSession");
         }
 
         [Fact]
-        public void GetAsync_Integration_RequiresRealHttpClient()
+        public void Constructor_WithNullHttpClient_ShouldThrowArgumentNullException()
         {
-            // This test would require real HTTP integration
-            // For unit testing, we focus on session management and validation logic
-            var endpoint = "/album/get";
-            var parameters = new Dictionary<string, string>
+            // Act & Assert
+            var exception = Assert.Throws<ArgumentNullException>(() => 
+                new QobuzApiClient(null, MockCacheManager, MockLogger.Object));
+            
+            exception.ParamName.Should().Be("httpClient");
+        }
+
+        [Fact]
+        public void Constructor_WithNullLogger_ShouldThrowArgumentNullException()
+        {
+            // Act & Assert
+            var exception = Assert.Throws<ArgumentNullException>(() => 
+                new QobuzApiClient(MockHttpClient.Object, MockCacheManager, null));
+            
+            exception.ParamName.Should().Be("logger");
+        }
+
+        [Fact]
+        public void HasValidSession_WithNoSession_ShouldReturnFalse()
+        {
+            // Arrange - No session set
+            
+            // Act & Assert
+            _apiClient.HasValidSession().Should().BeFalse("no session has been set");
+        }
+
+        [Fact]
+        public void HasValidSession_WithExpiredSession_ShouldReturnFalse()
+        {
+            // Arrange
+            var expiredSession = new QobuzSession
             {
-                { "album_id", "123456" }
+                UserId = "12345678",
+                AuthToken = "expired_token",
+                AppId = "test_app_id",
+                ExpiresAt = DateTime.UtcNow.AddHours(-1) // Expired 1 hour ago
             };
+            _apiClient.SetSession(expiredSession);
 
-            // Verify that endpoint construction would be correct
-            endpoint.Should().StartWith("/");
-            parameters.Should().ContainKey("album_id");
-        }
-
-        [Fact]
-        public void GetAsync_SessionValidation_RequiresIntegrationTesting()
-        {
-            // Session validation requires real API integration
-            // Unit tests focus on data validation and session management
-            var endpoint = "/album/get";
-            var parameters = new Dictionary<string, string>();
-
-            // Verify input validation logic
-            endpoint.Should().NotBeNullOrEmpty();
-            parameters.Should().NotBeNull();
+            // Act & Assert
+            _apiClient.HasValidSession().Should().BeFalse("session is expired");
         }
 
         [Fact]
@@ -205,11 +221,12 @@ namespace Qobuzarr.Tests.Unit.API
                 tasks.Add(_apiClient.GetAsync<dynamic>(endpoint, parameters));
             }
 
-            await Task.WhenAll(tasks);
+            var results = await Task.WhenAll(tasks);
 
             // Assert
+            results.Should().HaveCount(5, "all requests should complete");
+            results.Should().AllSatisfy(r => r.Should().NotBeNull("each response should be valid"));
             MockHttpClient.Verify(x => x.ExecuteAsync(It.IsAny<HttpRequest>()), Times.Exactly(5));
-            // Rate limiting should ensure requests don't exceed limits
         }
 
         [Fact]
@@ -293,13 +310,15 @@ namespace Qobuzarr.Tests.Unit.API
                          .ReturnsAsync(httpResponse);
 
             // Act
-            await _apiClient.PostAsync<dynamic>(endpoint, requestData);
+            var result = await _apiClient.PostAsync<dynamic>(endpoint, requestData);
 
             // Assert
-            capturedRequest.Should().NotBeNull();
+            result.Should().NotBeNull("POST request should return a valid response");
+            capturedRequest.Should().NotBeNull("HTTP request should have been captured");
             var url = capturedRequest.Url.ToString();
-            url.Should().Contain("/user/login");
-            capturedRequest.Headers.ContentType.Should().Be("application/json");
+            url.Should().Contain("/user/login", "URL should contain the correct endpoint");
+            capturedRequest.Headers.ContentType.Should().Be("application/json", "Content-Type should be set for JSON requests");
+            capturedRequest.Method.Should().Be(HttpMethod.Post, "HTTP method should be POST");
         }
 
         [Theory]
@@ -346,13 +365,41 @@ namespace Qobuzarr.Tests.Unit.API
                 _apiClient.GetAsync<dynamic>(endpoint, parameters));
         }
 
-        // Disabled - QobuzApiClient doesn't implement IDisposable
-        // [Fact]
-        // public void Dispose_ShouldCleanupResources()
-        // {
-        //     // Act & Assert
-        //     _apiClient.Invoking(x => x.Dispose()).Should().NotThrow();
-        // }
+        [Fact]
+        public async Task GetAsync_WithoutSession_ShouldStillMakeRequest()
+        {
+            // Arrange
+            var endpoint = "/album/get";
+            var parameters = new Dictionary<string, string>
+            {
+                { "album_id", "123456" }
+            };
+
+            var httpResponse = HttpTestHelpers.CreateResponse(SampleQobuzResponses.SampleAlbumResponse, HttpStatusCode.OK);
+
+            HttpRequest capturedRequest = null;
+            MockHttpClient.Setup(x => x.ExecuteAsync(It.IsAny<HttpRequest>()))
+                         .Callback<HttpRequest>(req => capturedRequest = req)
+                         .ReturnsAsync(httpResponse);
+
+            // Act - No session set
+            var result = await _apiClient.GetAsync<dynamic>(endpoint, parameters);
+
+            // Assert
+            result.Should().NotBeNull("request should succeed even without session");
+            capturedRequest.Should().NotBeNull();
+            var url = capturedRequest.Url.ToString();
+            url.Should().NotContain("user_auth_token", "unauthenticated request should not include auth token");
+            url.Should().NotContain("app_id", "unauthenticated request should not include app_id");
+        }
+
+        [Fact] 
+        public void ClearSession_WhenNoSessionSet_ShouldNotThrow()
+        {
+            // Act & Assert
+            _apiClient.Invoking(x => x.ClearSession()).Should().NotThrow("clearing session should be safe even when no session is set");
+            _apiClient.HasValidSession().Should().BeFalse("should still report no valid session");
+        }
 
         public override void Dispose()
         {

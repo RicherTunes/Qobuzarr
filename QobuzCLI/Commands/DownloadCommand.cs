@@ -436,14 +436,14 @@ public class DownloadCommand
                     
                 case "playlist":
                     _logger.LogInformation("Downloading playlist: {Title}", result.Title);
-                    var playlistResult = await _pluginHost.DownloadPlaylistAsync(result.Id, outputDir, quality).ConfigureAwait(false);
+                    var playlistResult = await _pluginHost.DownloadPlaylistAsync(result.Id, outputDir, quality!).ConfigureAwait(false);
                     // Convert PlaylistDownloadResult to DownloadResult with safe conversions
                     downloadResult = ConvertPlaylistResultSafely(playlistResult);
                     break;
                     
                 case "label":
                     _logger.LogInformation("Downloading label: {Title}", result.Title);
-                    var labelResult = await _pluginHost.DownloadLabelAsync(result.Id, outputDir, quality).ConfigureAwait(false);
+                    var labelResult = await _pluginHost.DownloadLabelAsync(result.Id, outputDir, quality!).ConfigureAwait(false);
                     // Convert LabelDownloadResult to DownloadResult with safe conversions
                     downloadResult = ConvertLabelResultSafely(labelResult);
                     break;
@@ -834,7 +834,7 @@ public class DownloadCommand
 
                     trackDownloads.Add(new Lidarr.Plugin.Qobuzarr.Models.TrackDownload
                     {
-                        StreamingUrl = track.Skipped ? null : "downloaded",
+                        StreamingUrl = track.Skipped ? null! : "downloaded",
                         QobuzTrackId = trackId,
                         Title = $"Track {track.Position}",
                         MetadataSource = track.Skipped ? "Skipped" : "Playlist Download"
@@ -893,7 +893,7 @@ public class DownloadCommand
                     {
                         trackDownloads.Add(new Lidarr.Plugin.Qobuzarr.Models.TrackDownload
                         {
-                            StreamingUrl = album.Skipped ? null : "downloaded",
+                            StreamingUrl = album.Skipped ? null! : "downloaded",
                             Title = $"{album.ArtistName} - {album.AlbumName} (Track {i})",
                             Album = album.AlbumName,
                             Artist = album.ArtistName,
