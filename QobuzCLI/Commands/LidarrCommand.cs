@@ -350,7 +350,7 @@ public class LidarrCommand
                 AnsiConsole.MarkupLine("[cyan]📋 Fetching wanted albums from Lidarr...[/]");
                 
                 var wantedAlbums = await _lidarrIntegrationService.GetFilteredWantedAlbumsAsync(
-                    filterOptions, options.Limit, null, CancellationToken.None).ConfigureAwait(false);
+                    filterOptions, options.Limit, null!, CancellationToken.None).ConfigureAwait(false);
 
                 if (!wantedAlbums.Any())
                 {

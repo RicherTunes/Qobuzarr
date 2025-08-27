@@ -63,7 +63,7 @@ namespace QobuzCLI.Models
         /// <summary>
         /// Loads metadata from disk for a given music file
         /// </summary>
-        public static async Task<QobuzMetadata> LoadAsync(string musicFilePath)
+        public static async Task<QobuzMetadata?> LoadAsync(string musicFilePath)
         {
             var metadataPath = GetMetadataPath(musicFilePath);
             if (!System.IO.File.Exists(metadataPath))
@@ -76,7 +76,7 @@ namespace QobuzCLI.Models
                 {
                     PropertyNamingPolicy = JsonNamingPolicy.CamelCase
                 };
-                return JsonSerializer.Deserialize<QobuzMetadata>(json, options);
+                return JsonSerializer.Deserialize<QobuzMetadata>(json, options)!;
             }
             catch
             {

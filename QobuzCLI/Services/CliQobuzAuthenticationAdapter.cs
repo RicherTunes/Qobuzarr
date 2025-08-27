@@ -48,7 +48,7 @@ namespace QobuzCLI.Services
             return true;
         }
 
-        public QobuzSession GetCachedSession()
+        public QobuzSession? GetCachedSession()
         {
             return _cachedSession;
         }
