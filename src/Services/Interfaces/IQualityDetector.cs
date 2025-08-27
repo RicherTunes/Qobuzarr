@@ -72,7 +72,7 @@ namespace Lidarr.Plugin.Qobuzarr.Services.Interfaces
         /// <param name="album">The album to analyze</param>
         /// <param name="cancellationToken">Token to cancel the operation</param>
         /// <returns>Album quality detection result</returns>
-        Task<Lidarr.Plugin.Qobuzarr.Services.Consolidated.AlbumQualityResult> DetectAlbumQualityAsync(QobuzAlbum album, CancellationToken cancellationToken = default);
+        Task<AlbumQualityResult> DetectAlbumQualityAsync(QobuzAlbum album, CancellationToken cancellationToken = default);
 
         /// <summary>
         /// Gets available qualities for a track as QualityFormat objects.

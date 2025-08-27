@@ -128,12 +128,20 @@ namespace Lidarr.Plugin.Qobuzarr.Services
             // Register QobuzApiClient directly as singleton - no factory needed
             container.Register<API.IQobuzApiClient, API.QobuzApiClient>(Reuse.Singleton);
 
-            // Map IQobuzQualityManager to the actual consolidated implementation
-            // This maintains compatibility while we update all references
+            // Register decomposed quality services  
+            container.Register<Quality.IQualityDetectionService, Quality.QualityDetectionService>(Reuse.Singleton);
+            container.Register<Quality.IStreamInfoService, Quality.StreamInfoService>(Reuse.Singleton);
+            container.Register<Quality.IQualityCacheService, Quality.QualityCacheService>(Reuse.Singleton);
+            container.Register<Quality.IQualityMappingService, Quality.QualityMappingService>(Reuse.Singleton);
+
+            // Map IQobuzQualityManager to the refactored implementation using decomposed services
             container.Register<Consolidated.IQobuzQualityManager, Consolidated.QobuzQualityManager>(
                 Reuse.Singleton,
                 Made.Of(() => new Consolidated.QobuzQualityManager(
-                    Arg.Of<API.IQobuzApiClient>(),
+                    Arg.Of<Quality.IQualityDetectionService>(),
+                    Arg.Of<Quality.IStreamInfoService>(),
+                    Arg.Of<Quality.IQualityCacheService>(),
+                    Arg.Of<Quality.IQualityMappingService>(),
                     Arg.Of<IQobuzLogger>())));
 
             Logger.Debug("Services registered successfully");
