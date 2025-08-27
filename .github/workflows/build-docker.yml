@@ -90,6 +90,8 @@ jobs:
             <PackageReference Include="System.Text.Json" />
             <PackageReference Include="System.Net.Http" />
             <PackageReference Include="System.Text.RegularExpressions" />
+            <!-- DryIoc for dependency injection -->
+            <PackageReference Include="DryIoc" />
           </ItemGroup>
 
           <!-- Shared library reference for ecosystem support -->
