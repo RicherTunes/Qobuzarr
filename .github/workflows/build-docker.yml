@@ -72,6 +72,8 @@ jobs:
             <RootNamespace>Lidarr.Plugin.Qobuzarr</RootNamespace>
             <OutputPath>bin\</OutputPath>
             <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+            <!-- Disable central package management for standalone Docker project -->
+            <ManagePackageVersionsCentrally>false</ManagePackageVersionsCentrally>
           </PropertyGroup>
 
           <ItemGroup>
