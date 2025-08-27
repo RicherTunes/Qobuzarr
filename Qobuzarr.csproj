@@ -131,8 +131,8 @@
     <ProjectReference Include="ext\Lidarr-source\src\Lidarr.Http\Lidarr.Http.csproj">
       <Private>false</Private>
     </ProjectReference>
-    <!-- Shared library reference - using local package for now, will be NuGet package -->
-    <ProjectReference Include="Lidarr.Plugin.Common\Lidarr.Plugin.Common.csproj">
+    <!-- Shared library reference - using submodule for development -->
+    <ProjectReference Include="ext\Lidarr.Plugin.Common\src\Lidarr.Plugin.Common.csproj">
       <Private>true</Private>
     </ProjectReference>
     
