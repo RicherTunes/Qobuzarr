@@ -30,13 +30,6 @@
     
   </PropertyGroup>
   
-  <!-- Temporarily exclude incomplete files -->
-  <ItemGroup>
-    <!-- Exclude broken services until fixed -->
-    <Compile Remove="src\Services\Core.disabled\**\*.cs" />
-    <Compile Remove="src\Services\Orchestrators.disabled\**\*.cs" />
-    <Compile Remove="src\Services\Observability.disabled\**\*.cs" />
-  </ItemGroup>
   
   <PropertyGroup>
     <EnableNETAnalyzers>true</EnableNETAnalyzers>
@@ -138,10 +131,14 @@
     <ProjectReference Include="ext\Lidarr-source\src\Lidarr.Http\Lidarr.Http.csproj">
       <Private>false</Private>
     </ProjectReference>
-    <!-- Shared library reference -->
+    <!-- Shared library reference - using local package for now, will be NuGet package -->
     <ProjectReference Include="Lidarr.Plugin.Common\Lidarr.Plugin.Common.csproj">
       <Private>true</Private>
     </ProjectReference>
+    
+    <!-- TODO: Replace with NuGet package reference once published:
+    <PackageReference Include="Lidarr.Plugin.Common" Version="1.0.0" />
+    -->
   </ItemGroup>
 
   <!-- File exclusions -->
