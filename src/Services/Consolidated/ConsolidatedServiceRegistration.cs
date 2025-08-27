@@ -1,5 +1,6 @@
 using Lidarr.Plugin.Qobuzarr.Abstractions;
 using Lidarr.Plugin.Qobuzarr.API;
+using Lidarr.Plugin.Qobuzarr.Services.Quality;
 
 namespace Lidarr.Plugin.Qobuzarr.Services.Consolidated
 {
@@ -14,14 +15,22 @@ namespace Lidarr.Plugin.Qobuzarr.Services.Consolidated
     public static class ConsolidatedServiceRegistration
     {
         /// <summary>
-        /// Creates the consolidated QobuzQualityManager instance.
+        /// Creates the refactored QobuzQualityManager instance with decomposed services.
         /// This will be automatically registered as a singleton by Lidarr's DI container.
         /// </summary>
         public static IQobuzQualityManager CreateQualityManager(
-            IQobuzApiClient apiClient,
+            IQualityDetectionService qualityDetectionService,
+            IStreamInfoService streamInfoService,
+            IQualityCacheService qualityCacheService,
+            IQualityMappingService qualityMappingService,
             IQobuzLogger logger)
         {
-            return new QobuzQualityManager(apiClient, logger);
+            return new QobuzQualityManager(
+                qualityDetectionService, 
+                streamInfoService, 
+                qualityCacheService, 
+                qualityMappingService, 
+                logger);
         }
     }
 }
