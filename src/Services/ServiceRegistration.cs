@@ -152,7 +152,7 @@ namespace Lidarr.Plugin.Qobuzarr.Services
                 typeof(ServiceInterfaces.IQualityDefinitionService),
                 typeof(ServiceInterfaces.IQualityFallbackStrategy),
                 typeof(ServiceInterfaces.IQualityDetector),
-                typeof(ServiceInterfaces.IQobuzApiClient),
+                // typeof(ServiceInterfaces.IQobuzApiClient), // Obsolete - interface consolidated to API namespace
                 typeof(ServiceInterfaces.ISessionManager),
                 // typeof(ServiceInterfaces.ICredentialValidator), // Disabled - interface file moved to .disabled
                 typeof(ServiceInterfaces.ITokenRefresher),
