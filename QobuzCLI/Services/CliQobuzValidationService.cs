@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using Lidarr.Plugin.Qobuzarr.Abstractions;
 using Lidarr.Plugin.Qobuzarr.Models;
 using Lidarr.Plugin.Qobuzarr.Services;
+using Lidarr.Plugin.Qobuzarr.Services.Consolidated;
 
 namespace QobuzCLI.Services
 {
