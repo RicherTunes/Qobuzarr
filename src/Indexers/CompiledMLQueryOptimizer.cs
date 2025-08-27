@@ -47,6 +47,14 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
             2.45f, 3.12f, 3.67f, 2.89f, 1.56f, 2.34f, -2.78f, 3.91f
         };
 
+        // Medium query weights - optimized for moderate complexity patterns
+        // These weights target queries with 2-3 word artists/albums, common editions, and moderate ambiguity
+        private static readonly float[] MediumWeights = new float[] {
+            0.45f, 1.23f, 0.89f, 1.76f, 2.14f, -0.67f, -0.34f, 1.12f,
+            // Enhanced features for medium complexity detection
+            1.34f, 1.89f, 2.12f, 1.67f, 0.91f, 1.45f, -0.89f, 2.34f
+        };
+
         // Adaptive decision thresholds (self-tuning based on performance)
         private float _simpleThreshold = 0.65f;
         private float _complexThreshold = 0.42f;
@@ -95,23 +103,33 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
                 // Extract features
                 var features = ExtractFeatures(artistName, albumTitle);
                 
-                // Apply learned decision tree
+                // Apply learned decision tree with three-way classification
                 var simpleScore = ComputeScore(features, SimpleWeights);
                 var complexScore = ComputeScore(features, ComplexWeights);
+                var mediumScore = ComputeScore(features, MediumWeights);
                 
-                // Adaptive decision logic with self-tuning thresholds
-                if (simpleScore > _simpleThreshold && simpleScore > complexScore)
+                // Enhanced decision logic with proper medium query detection
+                // Use argmax to select the highest scoring classification
+                if (simpleScore >= complexScore && simpleScore >= mediumScore && simpleScore > _simpleThreshold)
                 {
                     result = QueryComplexity.Simple;
                 }
-                else if (complexScore > _complexThreshold)
+                else if (complexScore >= simpleScore && complexScore >= mediumScore && complexScore > _complexThreshold)
                 {
                     result = QueryComplexity.Complex;
                 }
-                else
+                else if (mediumScore >= simpleScore && mediumScore >= complexScore)
                 {
                     result = QueryComplexity.Medium;
                 }
+                else
+                {
+                    // Conservative fallback when scores are too close
+                    result = QueryComplexity.Medium;
+                }
+                
+                // Apply genre-specific optimization rules
+                result = ApplyGenreOptimization(artistName, albumTitle, result);
                 
                 // Removed adaptive threshold adjustment to prevent model drift
                 // Static thresholds from training ensure consistent behavior
@@ -152,7 +170,7 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
             // Calculate probability scores using softmax-like approach
             var simpleScore = Math.Exp(ComputeScore(features, SimpleWeights));
             var complexScore = Math.Exp(ComputeScore(features, ComplexWeights));
-            var mediumScore = Math.Exp(1.0f); // Baseline for medium
+            var mediumScore = Math.Exp(ComputeScore(features, MediumWeights)); // Use dedicated medium weights
             
             var total = simpleScore + complexScore + mediumScore;
             
@@ -167,6 +185,58 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
                 default:
                     return 0.33; // Equal probability fallback
             }
+        }
+
+        // Batch prediction for concurrent queries - optimized for high throughput
+        public List<(QueryComplexity complexity, double confidence)> PredictBatch(List<(string artist, string album)> queries)
+        {
+            var results = new List<(QueryComplexity, double)>(queries.Count);
+            
+            // Pre-allocate feature arrays for memory efficiency
+            var allFeatures = new float[queries.Count][];
+            
+            // Parallel feature extraction for better CPU utilization
+            Parallel.For(0, queries.Count, i =>
+            {
+                allFeatures[i] = ExtractFeatures(queries[i].artist, queries[i].album);
+            });
+            
+            // Sequential prediction to avoid lock contention
+            for (int i = 0; i < queries.Count; i++)
+            {
+                var features = allFeatures[i];
+                
+                // Apply learned decision tree
+                var simpleScore = ComputeScore(features, SimpleWeights);
+                var complexScore = ComputeScore(features, ComplexWeights);
+                var mediumScore = ComputeScore(features, MediumWeights);
+                
+                QueryComplexity result;
+                if (simpleScore >= complexScore && simpleScore >= mediumScore && simpleScore > _simpleThreshold)
+                {
+                    result = QueryComplexity.Simple;
+                }
+                else if (complexScore >= simpleScore && complexScore >= mediumScore && complexScore > _complexThreshold)
+                {
+                    result = QueryComplexity.Complex;
+                }
+                else
+                {
+                    result = QueryComplexity.Medium;
+                }
+                
+                var confidence = GetConfidenceScore(queries[i].artist, queries[i].album, result);
+                results.Add((result, confidence));
+                
+                // Update statistics
+                lock (_metricsLock)
+                {
+                    _totalPredictions++;
+                    _statistics[result]++;
+                }
+            }
+            
+            return results;
         }
 
         public void RecordResult(string artistName, string albumTitle, QueryComplexity usedComplexity, bool wasSuccessful)
@@ -326,53 +396,76 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
             await System.Threading.Tasks.Task.CompletedTask;
         }
 
+        // Thread-local feature buffer pool to reduce allocations
+        [ThreadStatic]
+        private static float[] _featureBuffer;
+        
+        // Cached string arrays to avoid repeated allocations
+        private static readonly string[] SpecialEditionTerms = { "remaster", "deluxe", "anniversary", "edition", 
+                                                                  "expanded", "collector", "special", "bonus" };
+        
         /// <summary>
         /// Extract features from artist and album names.
-        /// Enhanced feature extraction for improved ML prediction accuracy.
+        /// Enhanced feature extraction for improved ML prediction accuracy with optimized memory usage.
         /// </summary>
         private float[] ExtractFeatures(string artistName, string albumTitle)
         {
             var artist = artistName?.ToLowerInvariant() ?? "";
             var album = albumTitle?.ToLowerInvariant() ?? "";
             
-            var features = new float[16]; // Expanded from 8 to 16 features
+            // Reuse thread-local buffer to avoid allocations
+            if (_featureBuffer == null)
+            {
+                _featureBuffer = new float[16];
+            }
+            else
+            {
+                Array.Clear(_featureBuffer, 0, 16);
+            }
             
-            // Original features (0-7)
-            features[0] = Math.Min(artist.Split(' ').Length / 5.0f, 1.0f);
-            features[1] = Math.Min(album.Split(' ').Length / 10.0f, 1.0f);
-            features[2] = CountSpecialChars(album) / 5.0f;
-            features[3] = (album.Contains("(") || album.Contains("[")) ? 1.0f : 0.0f;
-            features[4] = IsSpecialEdition(album) ? 1.0f : 0.0f;
-            features[5] = (!artist.Contains(" ")) ? 1.0f : 0.0f;
-            features[6] = IsCommonAlbumPattern(album) ? 1.0f : 0.0f;
-            features[7] = Math.Min(album.Length / 50.0f, 1.0f);
+            // Cache string operations to avoid multiple splits
+            var artistWords = artist.Split(' ');
+            var albumWords = album.Split(' ');
+            
+            // Original features (0-7) with optimized calculations
+            _featureBuffer[0] = Math.Min(artistWords.Length / 5.0f, 1.0f);
+            _featureBuffer[1] = Math.Min(albumWords.Length / 10.0f, 1.0f);
+            _featureBuffer[2] = CountSpecialChars(album) / 5.0f;
+            _featureBuffer[3] = (album.IndexOf('(') >= 0 || album.IndexOf('[') >= 0) ? 1.0f : 0.0f;
+            _featureBuffer[4] = IsSpecialEdition(album) ? 1.0f : 0.0f;
+            _featureBuffer[5] = (artistWords.Length == 1) ? 1.0f : 0.0f;
+            _featureBuffer[6] = IsCommonAlbumPattern(album) ? 1.0f : 0.0f;
+            _featureBuffer[7] = Math.Min(album.Length / 50.0f, 1.0f);
             
             // NEW: Enhanced features for better pattern recognition (8-15)
             
             // Feature 8: Has featured artists (feat., ft., &, with)
-            features[8] = HasFeaturedArtists(artist) ? 1.0f : 0.0f;
+            _featureBuffer[8] = HasFeaturedArtists(artist) ? 1.0f : 0.0f;
             
             // Feature 9: Is compilation/various artists
-            features[9] = IsCompilation(artist) ? 1.0f : 0.0f;
+            _featureBuffer[9] = IsCompilation(artist) ? 1.0f : 0.0f;
             
             // Feature 10: Has year in title (common for remasters)
-            features[10] = HasYearInTitle(album) ? 1.0f : 0.0f;
+            _featureBuffer[10] = HasYearInTitle(album) ? 1.0f : 0.0f;
             
             // Feature 11: Is live album
-            features[11] = IsLiveAlbum(album) ? 1.0f : 0.0f;
+            _featureBuffer[11] = IsLiveAlbum(album) ? 1.0f : 0.0f;
             
             // Feature 12: Is EP/Single (short releases)
-            features[12] = IsEPOrSingle(album) ? 1.0f : 0.0f;
+            _featureBuffer[12] = IsEPOrSingle(album) ? 1.0f : 0.0f;
             
             // Feature 13: Has non-ASCII characters (internationalization)
-            features[13] = HasNonAsciiChars(artist + " " + album) ? 1.0f : 0.0f;
+            _featureBuffer[13] = HasNonAsciiChars(artist + " " + album) ? 1.0f : 0.0f;
             
             // Feature 14: String similarity between artist and album (self-titled)
-            features[14] = CalculateStringSimilarity(artist, album);
+            _featureBuffer[14] = CalculateStringSimilarity(artist, album);
             
             // Feature 15: Query ambiguity score (common words that return many results)
-            features[15] = CalculateAmbiguityScore(artist, album);
+            _featureBuffer[15] = CalculateAmbiguityScore(artist, album);
             
+            // Return a copy to avoid thread safety issues with shared buffer
+            var features = new float[16];
+            Array.Copy(_featureBuffer, features, 16);
             return features;
         }
 
@@ -396,9 +489,8 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
 
         private bool IsSpecialEdition(string album)
         {
-            var specialTerms = new[] { "remaster", "deluxe", "anniversary", "edition", 
-                                       "expanded", "collector", "special", "bonus" };
-            return specialTerms.Any(term => album.Contains(term));
+            // Use pre-cached array to avoid allocation
+            return SpecialEditionTerms.Any(term => album.Contains(term));
         }
 
         private bool IsCommonAlbumPattern(string album)
@@ -429,6 +521,65 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
         {
             var compilationTerms = new[] { "various", "compilation", "v.a.", "various artists", "va" };
             return compilationTerms.Any(term => artist.Equals(term, StringComparison.OrdinalIgnoreCase));
+        }
+        
+        // Genre-specific optimization patterns
+        private QueryComplexity ApplyGenreOptimization(string artist, string album, QueryComplexity baseComplexity)
+        {
+            // Classical music patterns - often complex due to opus numbers, movements
+            if (IsClassicalMusic(artist, album))
+            {
+                return baseComplexity == QueryComplexity.Simple ? QueryComplexity.Medium : QueryComplexity.Complex;
+            }
+            
+            // Jazz patterns - often have live recordings and alternate takes
+            if (IsJazzMusic(artist, album))
+            {
+                return baseComplexity == QueryComplexity.Simple && album.Contains("live", StringComparison.OrdinalIgnoreCase) 
+                    ? QueryComplexity.Medium : baseComplexity;
+            }
+            
+            // Electronic/Dance - often have remixes and extended versions
+            if (IsElectronicMusic(artist, album))
+            {
+                return album.Contains("remix", StringComparison.OrdinalIgnoreCase) || album.Contains("extended", StringComparison.OrdinalIgnoreCase)
+                    ? QueryComplexity.Medium : baseComplexity;
+            }
+            
+            // Soundtrack/OST - typically simple searches
+            if (IsSoundtrack(album))
+            {
+                return QueryComplexity.Simple;
+            }
+            
+            return baseComplexity;
+        }
+        
+        private bool IsClassicalMusic(string artist, string album)
+        {
+            var classicalPatterns = new[] { "symphony", "concerto", "sonata", "opus", "op.", "bwv", "k.", "mozart", "beethoven", "bach", "brahms", "orchestra", "philharmonic" };
+            var text = (artist + " " + album).ToLowerInvariant();
+            return classicalPatterns.Any(p => text.Contains(p));
+        }
+        
+        private bool IsJazzMusic(string artist, string album)
+        {
+            var jazzPatterns = new[] { "quintet", "quartet", "trio", "jazz", "bebop", "swing", "miles davis", "john coltrane", "blue note", "improvisation" };
+            var text = (artist + " " + album).ToLowerInvariant();
+            return jazzPatterns.Any(p => text.Contains(p));
+        }
+        
+        private bool IsElectronicMusic(string artist, string album)
+        {
+            var electronicPatterns = new[] { "dj ", "remix", "mix ", "electronic", "techno", "house", "trance", "dubstep", "edm", "feat.", "vs." };
+            var text = (artist + " " + album).ToLowerInvariant();
+            return electronicPatterns.Any(p => text.Contains(p));
+        }
+        
+        private bool IsSoundtrack(string album)
+        {
+            var soundtrackPatterns = new[] { "soundtrack", "ost", "original score", "motion picture", "film music" };
+            return soundtrackPatterns.Any(p => album.Contains(p, StringComparison.OrdinalIgnoreCase));
         }
         
         private bool HasYearInTitle(string album)
