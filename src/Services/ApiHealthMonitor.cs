@@ -3,18 +3,23 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using NLog;
+using Lidarr.Plugin.Common.Services.Performance;
 
 namespace Lidarr.Plugin.Qobuzarr.Services
 {
     /// <summary>
-    /// Monitors API health and handles rate limiting variations
-    /// Prevents optimization failures due to API behavioral changes
+    /// ENHANCED: Monitors API health using shared library performance monitoring.
+    /// Combines custom Qobuz health logic with ecosystem-standard performance tracking.
+    /// Prevents optimization failures due to API behavioral changes.
     /// </summary>
-    public class ApiHealthMonitor
+    public class ApiHealthMonitor : IDisposable
     {
         private readonly Logger _logger;
         private readonly Dictionary<string, ApiEndpointHealth> _endpointHealth;
         private readonly object _lockObject = new();
+        
+        // ENHANCED: Use shared library performance monitoring
+        private readonly PerformanceMonitor _performanceMonitor;
         
         private DateTime _lastHealthCheck = DateTime.MinValue;
         private readonly TimeSpan _healthCheckInterval = TimeSpan.FromMinutes(5);
@@ -23,13 +28,20 @@ namespace Lidarr.Plugin.Qobuzarr.Services
         {
             _logger = logger ?? LogManager.GetCurrentClassLogger();
             _endpointHealth = new Dictionary<string, ApiEndpointHealth>();
+            
+            // ENHANCED: Initialize shared library performance monitoring
+            _performanceMonitor = new PerformanceMonitor(TimeSpan.FromMinutes(5));
         }
 
         /// <summary>
-        /// Records successful API call for health tracking
+        /// ENHANCED: Records successful API call using both custom health tracking and shared library monitoring.
         /// </summary>
         public void RecordSuccess(string endpoint, TimeSpan responseTime)
         {
+            // ENHANCED: Use shared library performance monitoring
+            _performanceMonitor.RecordApiCall(endpoint, responseTime, fromCache: false, statusCode: 200);
+            
+            // Maintain existing Qobuz-specific health tracking
             lock (_lockObject)
             {
                 if (!_endpointHealth.TryGetValue(endpoint, out var health))
@@ -43,10 +55,15 @@ namespace Lidarr.Plugin.Qobuzarr.Services
         }
 
         /// <summary>
-        /// Records API failure for health tracking
+        /// ENHANCED: Records API failure using both custom health tracking and shared library monitoring.
         /// </summary>
         public void RecordFailure(string endpoint, string errorType, Exception exception = null)
         {
+            // ENHANCED: Use shared library performance monitoring for failures
+            var statusCode = GetStatusCodeFromError(errorType, exception);
+            _performanceMonitor.RecordApiCall(endpoint, TimeSpan.Zero, fromCache: false, statusCode: statusCode);
+            
+            // Maintain existing Qobuz-specific health tracking
             lock (_lockObject)
             {
                 if (!_endpointHealth.TryGetValue(endpoint, out var health))
@@ -179,6 +196,65 @@ namespace Lidarr.Plugin.Qobuzarr.Services
                     _logger.Debug("🧹 HEALTH CLEANUP: Removed {0} old endpoint entries", oldEntries.Count);
                 }
             }
+        }
+
+        /// <summary>
+        /// ENHANCED: Get performance summary combining shared library and custom metrics.
+        /// </summary>
+        public object GetEnhancedPerformanceSummary()
+        {
+            var sharedSummary = _performanceMonitor.GetSummary();
+            var customHealth = GetHealthSummary();
+            
+            return new
+            {
+                SharedLibraryMetrics = new
+                {
+                    TotalOperations = sharedSummary.TotalOperations,
+                    ErrorRate = sharedSummary.OverallErrorRate,
+                    LastUpdated = sharedSummary.LastUpdated
+                },
+                QobuzSpecificHealth = customHealth,
+                CombinedHealthScore = CalculateCombinedHealth(sharedSummary, customHealth)
+            };
+        }
+
+        /// <summary>
+        /// Helper method to extract HTTP status code from error information.
+        /// </summary>
+        private static int GetStatusCodeFromError(string errorType, Exception exception)
+        {
+            if (errorType?.ToLowerInvariant().Contains("rate") == true || 
+                errorType?.ToLowerInvariant().Contains("limit") == true)
+                return 429;
+                
+            if (errorType?.ToLowerInvariant().Contains("auth") == true)
+                return 401;
+                
+            if (exception?.Message?.Contains("404") == true)
+                return 404;
+                
+            return 500; // Default server error
+        }
+
+        /// <summary>
+        /// Calculate combined health score from shared and custom metrics.
+        /// </summary>
+        private static double CalculateCombinedHealth(PerformanceSummary shared, ApiHealthSummary custom)
+        {
+            var sharedHealth = 100 - Math.Min(shared.OverallErrorRate, 100);
+            var customHealth = custom.HealthPercentage;
+            
+            // Weight: 70% shared library metrics, 30% Qobuz-specific health
+            return (sharedHealth * 0.7) + (customHealth * 0.3);
+        }
+
+        /// <summary>
+        /// Dispose of shared library performance monitor.
+        /// </summary>
+        public void Dispose()
+        {
+            _performanceMonitor?.Dispose();
         }
     }
 
