@@ -15,6 +15,7 @@ using Lidarr.Plugin.Qobuzarr.Models.Authentication;
 using Lidarr.Plugin.Qobuzarr.Configuration;
 using Lidarr.Plugin.Qobuzarr.Security;
 using Lidarr.Plugin.Qobuzarr.Utilities;
+using Lidarr.Plugin.Qobuzarr.Services.Interfaces;
 
 namespace Lidarr.Plugin.Qobuzarr.Authentication
 {
@@ -29,6 +30,7 @@ namespace Lidarr.Plugin.Qobuzarr.Authentication
         private readonly ILocalizationService _localizationService;
         private readonly ICacheManager _cacheManager;
         private readonly Logger _logger;
+        private readonly ICredentialValidator _credentialValidator;
 
         private const string LOGIN_ENDPOINT = "/user/login";
         private const string SESSION_CACHE_KEY = "qobuz_session";
@@ -40,13 +42,15 @@ namespace Lidarr.Plugin.Qobuzarr.Authentication
                                         IConfigService configService,
                                         ILocalizationService localizationService,
                                         ICacheManager cacheManager,
-                                        Logger logger)
+                                        Logger logger,
+                                        ICredentialValidator credentialValidator = null)
         {
             _httpClient = httpClient;
             _configService = configService;
             _localizationService = localizationService;
             _cacheManager = cacheManager;
             _logger = logger;
+            _credentialValidator = credentialValidator ?? new CredentialValidator(logger);
             _sessionCache = _cacheManager.GetCache<QobuzSession>(GetType());
         }
 
@@ -54,16 +58,26 @@ namespace Lidarr.Plugin.Qobuzarr.Authentication
         {
             try
             {
-                if (!credentials.IsValid())
+                // Enhanced validation using comprehensive credential validator
+                var validationResult = _credentialValidator.ValidateCredentials(credentials);
+                if (!validationResult.IsValid)
                 {
-                    throw new InvalidOperationException("Invalid credentials provided");
+                    var errorMessage = string.Join("; ", validationResult.Errors);
+                    throw new QobuzAuthenticationException($"Credential validation failed: {errorMessage}");
                 }
 
-                // Use provided app credentials or environment variables
+                // Use sanitized values from validator for enhanced security
+                var email = validationResult.SanitizedEmail ?? credentials.Email;
+                var userId = validationResult.SanitizedUserId ?? credentials.UserId;
+                var authToken = validationResult.SanitizedAuthToken ?? credentials.AuthToken;
+                var appId = validationResult.SanitizedAppId ?? credentials.AppId;
+                var appSecret = validationResult.SanitizedAppSecret ?? credentials.AppSecret;
+
+                // Use sanitized app credentials or environment variables
                 // If empty, QobuzApiSharp library will use its built-in defaults
-                var appId = credentials.AppId.IsNotNullOrWhiteSpace() ? credentials.AppId : 
+                appId = appId.IsNotNullOrWhiteSpace() ? appId : 
                            Environment.GetEnvironmentVariable(QobuzConstants.Authentication.AppIdEnvironmentVariable);
-                var appSecret = credentials.AppSecret.IsNotNullOrWhiteSpace() ? credentials.AppSecret : 
+                appSecret = appSecret.IsNotNullOrWhiteSpace() ? appSecret : 
                                Environment.GetEnvironmentVariable(QobuzConstants.Authentication.AppSecretEnvironmentVariable);
                 
                 // Both must be provided together if using custom credentials
