@@ -146,7 +146,7 @@ namespace Lidarr.Plugin.Qobuzarr.Core
         public async Task<(int selectedQuality, QobuzStreamInfo streamInfo)> GetBestAvailableStreamAsync(string trackId, int preferredQuality)
         {
             // Create QobuzQuality from int (following migration adapter pattern)
-            var quality = new Services.Consolidated.QobuzQuality { Id = preferredQuality };
+            var quality = Models.QobuzQuality.FromId(preferredQuality);
             
             // Call new consolidated API
             var result = await _qualityManager.SelectBestQualityAsync(trackId, quality);

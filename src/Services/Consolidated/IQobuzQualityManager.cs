@@ -33,7 +33,7 @@ namespace Lidarr.Plugin.Qobuzarr.Services.Consolidated
         /// <param name="preferredQuality">User's preferred quality ID.</param>
         /// <param name="cancellationToken">Cancellation token for the operation.</param>
         /// <returns>Album quality detection result with optimization information.</returns>
-        Task<AlbumQualityResult> DetectAlbumQualityAsync(
+        Task<Models.AlbumQualityResult> DetectAlbumQualityAsync(
             QobuzAlbum album, 
             int preferredQuality,
             CancellationToken cancellationToken = default);
