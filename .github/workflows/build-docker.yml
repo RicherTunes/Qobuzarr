@@ -79,19 +79,17 @@ jobs:
           </ItemGroup>
 
           <ItemGroup>
-            <PackageReference Include="Newtonsoft.Json" />
-            <PackageReference Include="NLog" />
-            <PackageReference Include="FluentValidation" />
-            <PackageReference Include="TagLibSharp-Lidarr" />
-            <PackageReference Include="Microsoft.ML" />
-            <PackageReference Include="System.Resources.Extensions" />
-            <!-- Performance Monitoring now uses NLog (Lidarr's built-in logging) -->
-            <!-- Security patches for transitive vulnerabilities -->
-            <PackageReference Include="System.Text.Json" />
-            <PackageReference Include="System.Net.Http" />
-            <PackageReference Include="System.Text.RegularExpressions" />
+            <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
+            <PackageReference Include="NLog" Version="5.4.0" />
+            <PackageReference Include="FluentValidation" Version="9.5.4" />
+            <PackageReference Include="TagLibSharp-Lidarr" Version="2.2.0.27" />
+            <PackageReference Include="Microsoft.ML" Version="2.0.1" />
+            <PackageReference Include="System.Resources.Extensions" Version="8.0.0" />
+            <PackageReference Include="System.Text.Json" Version="8.0.0" />
+            <PackageReference Include="System.Net.Http" Version="4.3.4" />
+            <PackageReference Include="System.Text.RegularExpressions" Version="4.3.1" />
             <!-- DryIoc for dependency injection -->
-            <PackageReference Include="DryIoc" />
+            <PackageReference Include="DryIoc" Version="5.4.3" />
           </ItemGroup>
 
           <!-- Shared library reference for ecosystem support -->
