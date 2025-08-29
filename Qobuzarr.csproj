@@ -123,15 +123,19 @@
   <!-- ✅ PRE-BUILT ASSEMBLIES: Single assembly source for compatibility (CLAUDE.md solution) -->
   <ItemGroup>
     <Reference Include="Lidarr.Core">
-      <HintPath>ext\Lidarr-source\_output\net6.0\win-x64\Lidarr.Core.dll</HintPath>
+      <HintPath>ext\Lidarr\_output\net6.0\Lidarr.Core.dll</HintPath>
       <Private>false</Private>
     </Reference>
     <Reference Include="Lidarr.Common">
-      <HintPath>ext\Lidarr-source\_output\net6.0\win-x64\Lidarr.Common.dll</HintPath>
+      <HintPath>ext\Lidarr\_output\net6.0\Lidarr.Common.dll</HintPath>
       <Private>false</Private>
     </Reference>
     <Reference Include="Lidarr.Http">
-      <HintPath>ext\Lidarr-source\_output\net6.0\win-x64\Lidarr.Http.dll</HintPath>
+      <HintPath>ext\Lidarr\_output\net6.0\Lidarr.Http.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="Lidarr.Api.V1">
+      <HintPath>ext\Lidarr\_output\net6.0\Lidarr.Api.V1.dll</HintPath>
       <Private>false</Private>
     </Reference>
     <!-- Shared library reference - using submodule for development -->

@@ -50,11 +50,23 @@ jobs:
       run: |
         echo "📦 Setting up Lidarr dependencies using pre-built assemblies..."
         
-        # Use the proven pre-built assembly approach
-        chmod +x ./download-lidarr-assemblies.sh
-        ./download-lidarr-assemblies.sh --version 2.13.2.4685
+        # Check if assemblies already exist (from git)
+        if [ -d "ext/Lidarr/_output/net6.0" ] && [ $(ls -1 ext/Lidarr/_output/net6.0/*.dll 2>/dev/null | wc -l) -gt 0 ]; then
+          echo "✅ Using existing Lidarr assemblies from repository"
+        else
+          # Create directory structure
+          mkdir -p ext/Lidarr/_output/net6.0
+          
+          # Use the proven pre-built assembly approach
+          chmod +x ./download-lidarr-assemblies.sh
+          ./download-lidarr-assemblies.sh --version 2.13.2.4685
+        fi
         
         echo "✅ Lidarr pre-built assemblies ready"
+        
+        # Verify assemblies were downloaded
+        echo "📋 Verifying available assemblies:"
+        ls -la ext/Lidarr/_output/net6.0/ || echo "⚠️ Assembly directory not found"
 
     - name: Set Version from Single Source of Truth
       run: |
