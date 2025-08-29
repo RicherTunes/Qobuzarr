@@ -9,11 +9,14 @@ using NLog;
 using NSubstitute;
 using Xunit;
 using Lidarr.Plugin.Qobuzarr.API;
-using Lidarr.Plugin.Qobuzarr.Services;
+// DISABLED: AdaptiveQobuzApiClient and IAdaptiveRateLimiter have been removed
+// using Lidarr.Plugin.Qobuzarr.Services;
 using Lidarr.Plugin.Qobuzarr.Models.Authentication;
 
 namespace Qobuzarr.Tests.Unit.API
 {
+    // DISABLED: AdaptiveQobuzApiClient has been removed - functionality consolidated into main API client
+    /*
     public class AdaptiveQobuzApiClientTests : IDisposable
     {
         private AdaptiveQobuzApiClient _client;
@@ -228,4 +231,5 @@ namespace Qobuzarr.Tests.Unit.API
             // Clean up any resources if needed
         }
     }
+    */
 }

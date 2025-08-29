@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Threading;
 using System.Threading.Tasks;
 using Lidarr.Plugin.Qobuzarr.Models.Authentication;
 
@@ -52,5 +53,14 @@ namespace Lidarr.Plugin.Qobuzarr.API
         /// </summary>
         /// <returns>True if a valid session is set; false otherwise.</returns>
         bool HasValidSession();
+
+        /// <summary>
+        /// Gets the streaming URL for a track with the specified quality.
+        /// </summary>
+        /// <param name="trackId">The Qobuz track ID.</param>
+        /// <param name="formatId">The desired quality format ID (5=MP3, 6=CD, 7=Hi-Res, 27=Studio).</param>
+        /// <param name="cancellationToken">Cancellation token for the operation.</param>
+        /// <returns>The streaming URL for downloading the track.</returns>
+        Task<string> GetStreamingUrlAsync(string trackId, int formatId, CancellationToken cancellationToken = default);
     }
 }

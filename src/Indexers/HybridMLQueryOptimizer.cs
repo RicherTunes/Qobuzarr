@@ -353,7 +353,7 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
         private void InitializeHybridModel()
         {
             // Simulate hybrid model initialization work for performance timing
-            System.Threading.Thread.Sleep(2); // Slightly longer than single model
+            // Removed Thread.Sleep anti-pattern - hybrid model should initialize instantly
         }
         
         /// <summary>
