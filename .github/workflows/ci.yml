@@ -50,11 +50,21 @@ jobs:
       run: |
         echo "📦 Setting up Lidarr dependencies using pre-built assemblies..."
         
-        # Check if assemblies already exist (from git)
-        if [ -d "ext/Lidarr/_output/net6.0" ] && [ $(ls -1 ext/Lidarr/_output/net6.0/*.dll 2>/dev/null | wc -l) -gt 0 ]; then
+        # Check if source-built assemblies exist first (highest priority)
+        if [ -d "ext/Lidarr-source/_output/net6.0/win-x64" ] && [ $(ls -1 ext/Lidarr-source/_output/net6.0/win-x64/*.dll 2>/dev/null | wc -l) -gt 0 ]; then
+          echo "✅ Using source-built Lidarr assemblies (most complete)"
+          
+          # Ensure output directory exists
+          mkdir -p ext/Lidarr/_output/net6.0
+          
+          # Copy source-built assemblies to expected location
+          cp -f ext/Lidarr-source/_output/net6.0/win-x64/*.dll ext/Lidarr/_output/net6.0/ || true
+          
+        elif [ -d "ext/Lidarr/_output/net6.0" ] && [ $(ls -1 ext/Lidarr/_output/net6.0/*.dll 2>/dev/null | wc -l) -gt 0 ]; then
           echo "✅ Using existing Lidarr assemblies from repository"
+          
         else
-          # Create directory structure
+          # Fallback: Create directory structure and download
           mkdir -p ext/Lidarr/_output/net6.0
           
           # Use the proven pre-built assembly approach
