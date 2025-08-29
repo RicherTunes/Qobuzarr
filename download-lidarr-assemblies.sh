@@ -94,7 +94,19 @@ tar -xzf "$archive_path"
 
 # Copy required assemblies
 source_dir="Lidarr"
-required_assemblies=("Lidarr.Core.dll" "Lidarr.Common.dll" "Lidarr.Http.dll" "Lidarr.Api.V1.dll")
+required_assemblies=(
+    "Lidarr.Core.dll"
+    "Lidarr.Common.dll" 
+    "Lidarr.Http.dll"
+    "Lidarr.Api.V1.dll"
+    "NzbDrone.Core.dll"
+    "NzbDrone.Common.dll"
+    "NzbDrone.Host.dll"
+    "NzbDrone.Api.dll"
+    "Microsoft.AspNetCore.Authorization.dll"
+    "Microsoft.AspNetCore.Mvc.Core.dll"
+    "TagLibSharp.dll"
+)
 
 for assembly in "${required_assemblies[@]}"; do
     source_path="$source_dir/$assembly"
