@@ -228,7 +228,7 @@ namespace Qobuzarr.Tests.Unit.Indexers
             result.Album.Should().Be("Release Test Album");
             result.PublishDate.Date.Should().Be(new DateTime(2023, 6, 15).Date, "Date should match regardless of timezone");
             result.Indexer.Should().Be(nameof(QobuzarrDownloadProtocol));
-            result.DownloadProtocol.Should().Be(DownloadProtocol.Unknown);
+            result.DownloadProtocol.Should().Be("Qobuzarr");
             result.Size.Should().BeGreaterThan(0, "Size should be calculated based on quality");
             
             // Critical: Title should contain quality markers for Lidarr detection
