@@ -32,19 +32,22 @@ jobs:
       with:
         dotnet-version: ${{ env.DOTNET_VERSION }}
 
-    - name: Setup Lidarr source for tests
+    - name: Setup Lidarr assemblies for build and tests
       run: |
-        echo "📦 Setting up Lidarr source for test execution..."
+        echo "📦 Setting up pre-built Lidarr assemblies..."
         
-        # Check if Lidarr source exists
-        if [ ! -d "ext/Lidarr-source" ]; then
-          echo "Cloning Lidarr plugins branch..."
-          git clone --depth 1 --branch plugins https://github.com/Lidarr/Lidarr.git ext/Lidarr-source
-        fi
+        # Create output directory structure that matches project expectations
+        mkdir -p ext/Lidarr/_output/net6.0
         
-        # Apply version override for compatibility
-        echo "Applying version override to match runtime..."
-        sed -i "s/<AssemblyVersion>[0-9.*]\+<\/AssemblyVersion>/<AssemblyVersion>2.13.3.4692<\/AssemblyVersion>/g" ext/Lidarr-source/src/Directory.Build.props || true
+        # Use the proven pre-built assembly download approach
+        chmod +x ./download-lidarr-assemblies.sh
+        ./download-lidarr-assemblies.sh --version 2.13.2.4685
+        
+        echo "✅ Lidarr assemblies ready for build and tests"
+        
+        # Verify assemblies were downloaded
+        echo "📋 Available assemblies:"
+        ls -la ext/Lidarr/_output/net6.0/ || echo "⚠️ Assembly directory not found"
 
     - name: Restore dependencies
       run: |
