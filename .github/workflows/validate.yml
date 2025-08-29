@@ -66,11 +66,11 @@ jobs:
           exit 1
         fi
         
-        # Check Protocol implementation
-        if grep -q "nameof(QobuzarrDownloadProtocol)" src/Indexers/QobuzIndexer.cs; then
-          echo "✅ QobuzIndexer has correct Protocol implementation"
+        # Check Protocol implementation (DownloadProtocol enum for release assemblies)
+        if grep -q "DownloadProtocol.Unknown" src/Indexers/QobuzIndexer.cs; then
+          echo "✅ QobuzIndexer has correct Protocol implementation (release branch compatibility)"
         else
-          echo "❌ QobuzIndexer missing correct Protocol"
+          echo "❌ QobuzIndexer missing correct Protocol implementation"
           exit 1
         fi
         

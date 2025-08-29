@@ -99,7 +99,7 @@ namespace Lidarr.Plugin.Qobuzarr.Services
                     Album = album.Title,
                     PublishDate = DateTime.TryParse(album.ReleaseDateOriginal, out var date) ? date : DateTime.MinValue,
                     Size = EstimateTrackSize(track),
-                    DownloadProtocol = "Unknown", // Streaming protocol
+                    DownloadProtocol = DownloadProtocol.Unknown, // Streaming protocol
                     Source = "Qobuzarr"
                 };
 
