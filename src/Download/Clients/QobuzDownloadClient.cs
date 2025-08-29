@@ -51,8 +51,8 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Clients
 
         public override string Name => "Qobuzarr";
         
-        // Protocol property - follows working plugin pattern for plugins branch compatibility
-        public override string Protocol => nameof(QobuzarrDownloadProtocol);
+        // Protocol property - uses DownloadProtocol enum for release branch compatibility  
+        public override DownloadProtocol Protocol => DownloadProtocol.Unknown;
 
         public QobuzDownloadClient(IQobuzAuthenticationService authService,
                                   IQobuzApiClient apiClient,
