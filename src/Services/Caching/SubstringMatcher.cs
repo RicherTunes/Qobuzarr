@@ -49,7 +49,7 @@ namespace Lidarr.Plugin.Qobuzarr.Services.Caching
         /// <returns>Similarity score where 1.0 = identical, 0.0 = completely different</returns>
         public double CalculateSimilarity(string s1, string s2)
         {
-            return StringSimilarity.Calculate(s1, s2);
+            return Utilities.StringSimilarity.Calculate(s1, s2);
         }
 
         /// <summary>
@@ -61,7 +61,7 @@ namespace Lidarr.Plugin.Qobuzarr.Services.Caching
         /// <returns>True if strings are similar above threshold, false otherwise</returns>
         public bool IsSimilar(string s1, string s2, double threshold)
         {
-            Guard.InRange(threshold, 0.0, 1.0);
+            Utilities.Guard.InRange(threshold, 0.0, 1.0);
             return CalculateSimilarity(s1, s2) >= threshold;
         }
 
@@ -85,12 +85,12 @@ namespace Lidarr.Plugin.Qobuzarr.Services.Caching
             Func<TEntry, string> albumAccessor,
             double similarityThreshold) where TEntry : class
         {
-            Guard.NotNull(entries);
-            Guard.NotNullOrWhiteSpace(searchArtist);
-            Guard.NotNullOrWhiteSpace(searchAlbum);
-            Guard.NotNull(artistAccessor);
-            Guard.NotNull(albumAccessor);
-            Guard.InRange(similarityThreshold, 0.0, 1.0);
+            Utilities.Guard.NotNull(entries);
+            Utilities.Guard.NotNullOrWhiteSpace(searchArtist);
+            Utilities.Guard.NotNullOrWhiteSpace(searchAlbum);
+            Utilities.Guard.NotNull(artistAccessor);
+            Utilities.Guard.NotNull(albumAccessor);
+            Utilities.Guard.InRange(similarityThreshold, 0.0, 1.0);
 
             var matches = new List<TEntry>();
 
@@ -139,12 +139,12 @@ namespace Lidarr.Plugin.Qobuzarr.Services.Caching
             Func<TEntry, string> albumAccessor,
             double similarityThreshold) where TEntry : class
         {
-            Guard.NotNull(entries);
-            Guard.NotNullOrWhiteSpace(searchArtist);
-            Guard.NotNullOrWhiteSpace(searchAlbum);
-            Guard.NotNull(artistAccessor);
-            Guard.NotNull(albumAccessor);
-            Guard.InRange(similarityThreshold, 0.0, 1.0);
+            Utilities.Guard.NotNull(entries);
+            Utilities.Guard.NotNullOrWhiteSpace(searchArtist);
+            Utilities.Guard.NotNullOrWhiteSpace(searchAlbum);
+            Utilities.Guard.NotNull(artistAccessor);
+            Utilities.Guard.NotNull(albumAccessor);
+            Utilities.Guard.InRange(similarityThreshold, 0.0, 1.0);
 
             var matches = new List<TEntry>();
 
@@ -195,12 +195,12 @@ namespace Lidarr.Plugin.Qobuzarr.Services.Caching
             double similarityThreshold,
             int maxResults = 5) where TEntry : class
         {
-            Guard.NotNull(entries);
-            Guard.NotNullOrWhiteSpace(searchArtist);
-            Guard.NotNullOrWhiteSpace(searchAlbum);
-            Guard.NotNull(artistAccessor);
-            Guard.NotNull(albumAccessor);
-            Guard.InRange(similarityThreshold, 0.0, 1.0);
+            Utilities.Guard.NotNull(entries);
+            Utilities.Guard.NotNullOrWhiteSpace(searchArtist);
+            Utilities.Guard.NotNullOrWhiteSpace(searchAlbum);
+            Utilities.Guard.NotNull(artistAccessor);
+            Utilities.Guard.NotNull(albumAccessor);
+            Utilities.Guard.InRange(similarityThreshold, 0.0, 1.0);
             Guard.GreaterThan(maxResults, 0);
 
             var combinedQuery = $"{searchArtist} {searchAlbum}";

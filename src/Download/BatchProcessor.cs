@@ -287,7 +287,7 @@ namespace Lidarr.Plugin.Qobuzarr.Download
         {
             // Only suggest collection, don't force it
             // The runtime will decide if/when to actually collect
-            GC.Collect(0, GCCollectionMode.Optimized, blocking: false);
+            
             return Task.CompletedTask;
         }
 
