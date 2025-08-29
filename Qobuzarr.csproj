@@ -53,6 +53,9 @@
     
     <!-- Disable ILRepack until assembly resolution issues are fixed -->
     <ILRepackEnabled>false</ILRepackEnabled>
+    
+    <!-- Enable CLI framework in shared library for development/testing -->
+    <IncludeCLIFramework>true</IncludeCLIFramework>
   </PropertyGroup>
 
   <!-- Source files inclusion -->
