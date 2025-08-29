@@ -138,6 +138,10 @@
       <HintPath>ext\Lidarr\_output\net6.0\Lidarr.Api.V1.dll</HintPath>
       <Private>false</Private>
     </Reference>
+    <Reference Include="Lidarr.SignalR">
+      <HintPath>ext\Lidarr\_output\net6.0\Lidarr.SignalR.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
     <!-- Shared library reference - using submodule for development -->
     <ProjectReference Include="ext\Lidarr.Plugin.Common\src\Lidarr.Plugin.Common.csproj">
       <Private>true</Private>
