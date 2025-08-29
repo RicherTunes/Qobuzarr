@@ -149,8 +149,7 @@ namespace Lidarr.Plugin.Qobuzarr.Services
                 {
                     _logger.Warn("Aggressive memory optimization requested due to critical status");
                     
-                    // Even in aggressive mode, use non-blocking optimized collection
-                    GC.Collect(2, GCCollectionMode.Optimized, blocking: false, compacting: true);
+                    // REMOVED: GC.Collect anti-pattern - let runtime manage garbage collection naturally
                     
                     // Add latency pressure to encourage more aggressive collection
                     GCSettings.LatencyMode = GCLatencyMode.LowLatency;
@@ -164,7 +163,7 @@ namespace Lidarr.Plugin.Qobuzarr.Services
                 else
                 {
                     // Normal optimization - just suggest collection
-                    GC.Collect(0, GCCollectionMode.Optimized, blocking: false);
+                    
                     
                     // Brief delay to allow GC to work if it chooses to
                     await Task.Delay(100);

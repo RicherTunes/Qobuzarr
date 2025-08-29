@@ -5,7 +5,7 @@ using System.Net.Http;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using Lidarr.Plugin.Qobuzarr.Abstractions;
-using Lidarr.Plugin.Qobuzarr.Core;
+using Lidarr.Plugin.Qobuzarr.Authentication;
 using Lidarr.Plugin.Qobuzarr.Models;
 using Lidarr.Plugin.Qobuzarr.Security;
 
@@ -18,13 +18,13 @@ namespace Lidarr.Plugin.Qobuzarr.Services
     {
         private readonly IQobuzHttpClient _httpClient;
         private readonly IQobuzLogger _logger;
-        private readonly QobuzAuthService _authService;
+        private readonly IQobuzAuthenticationService _authService;
         private const string API_BASE = "https://www.qobuz.com/api.json/0.2";
 
         public QobuzSearchService(
             IQobuzHttpClient httpClient,
             IQobuzLogger logger,
-            QobuzAuthService authService)
+            IQobuzAuthenticationService authService)
         {
             _httpClient = httpClient ?? throw new ArgumentNullException(nameof(httpClient));
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
@@ -39,7 +39,7 @@ namespace Lidarr.Plugin.Qobuzarr.Services
             // Sanitize the search query
             query = InputSanitizer.SanitizeSearchQuery(query);
             
-            var session = _authService.GetCurrentSession();
+            var session = _authService.GetCachedSession();
             if (session == null)
             {
                 throw new InvalidOperationException("Not authenticated");
@@ -75,7 +75,7 @@ namespace Lidarr.Plugin.Qobuzarr.Services
         /// </summary>
         public async Task<QobuzPlaylist> GetPlaylistAsync(string playlistId)
         {
-            var session = _authService.GetCurrentSession();
+            var session = _authService.GetCachedSession();
             if (session == null)
             {
                 throw new InvalidOperationException("Not authenticated");
@@ -114,7 +114,7 @@ namespace Lidarr.Plugin.Qobuzarr.Services
             const int pageSize = 500;
             int offset = 0;
 
-            var session = _authService.GetCurrentSession();
+            var session = _authService.GetCachedSession();
             if (session == null)
             {
                 throw new InvalidOperationException("Not authenticated");
@@ -169,7 +169,7 @@ namespace Lidarr.Plugin.Qobuzarr.Services
             // Sanitize the search query
             query = InputSanitizer.SanitizeSearchQuery(query);
             
-            var session = _authService.GetCurrentSession();
+            var session = _authService.GetCachedSession();
             if (session == null)
             {
                 throw new InvalidOperationException("Not authenticated");
@@ -205,7 +205,7 @@ namespace Lidarr.Plugin.Qobuzarr.Services
         /// </summary>
         public async Task<QobuzLabel> GetLabelAsync(string labelId)
         {
-            var session = _authService.GetCurrentSession();
+            var session = _authService.GetCachedSession();
             if (session == null)
             {
                 throw new InvalidOperationException("Not authenticated");
@@ -234,7 +234,7 @@ namespace Lidarr.Plugin.Qobuzarr.Services
             const int pageSize = 500;
             int offset = 0;
 
-            var session = _authService.GetCurrentSession();
+            var session = _authService.GetCachedSession();
             if (session == null)
             {
                 throw new InvalidOperationException("Not authenticated");
@@ -275,7 +275,7 @@ namespace Lidarr.Plugin.Qobuzarr.Services
         /// </summary>
         public async Task<QobuzArtist> GetArtistAsync(string artistId)
         {
-            var session = _authService.GetCurrentSession();
+            var session = _authService.GetCachedSession();
             if (session == null)
             {
                 throw new InvalidOperationException("Not authenticated");
@@ -304,7 +304,7 @@ namespace Lidarr.Plugin.Qobuzarr.Services
             const int pageSize = 500;
             int offset = 0;
 
-            var session = _authService.GetCurrentSession();
+            var session = _authService.GetCachedSession();
             if (session == null)
             {
                 throw new InvalidOperationException("Not authenticated");
@@ -348,7 +348,7 @@ namespace Lidarr.Plugin.Qobuzarr.Services
             // Sanitize the search query
             query = InputSanitizer.SanitizeSearchQuery(query);
             
-            var session = _authService.GetCurrentSession();
+            var session = _authService.GetCachedSession();
             if (session == null)
             {
                 throw new InvalidOperationException("Not authenticated");
@@ -377,7 +377,7 @@ namespace Lidarr.Plugin.Qobuzarr.Services
             // Sanitize the search query
             query = InputSanitizer.SanitizeSearchQuery(query);
             
-            var session = _authService.GetCurrentSession();
+            var session = _authService.GetCachedSession();
             if (session == null)
             {
                 throw new InvalidOperationException("Not authenticated");
@@ -406,7 +406,7 @@ namespace Lidarr.Plugin.Qobuzarr.Services
             // Sanitize the search query
             query = InputSanitizer.SanitizeSearchQuery(query);
             
-            var session = _authService.GetCurrentSession();
+            var session = _authService.GetCachedSession();
             if (session == null)
             {
                 throw new InvalidOperationException("Not authenticated");
@@ -432,7 +432,7 @@ namespace Lidarr.Plugin.Qobuzarr.Services
         /// </summary>
         public async Task<QobuzAlbum?> GetAlbumAsync(string albumId)
         {
-            var session = _authService.GetCurrentSession();
+            var session = _authService.GetCachedSession();
             if (session == null)
             {
                 throw new InvalidOperationException("Not authenticated");
