@@ -5,7 +5,7 @@ using System.Threading.Tasks;
 using Lidarr.Plugin.Qobuzarr.Abstractions;
 using Lidarr.Plugin.Qobuzarr.Models;
 using Lidarr.Plugin.Qobuzarr.Services;
-using Lidarr.Plugin.Qobuzarr.Services.Consolidated;
+using QobuzCLI.Services.Adapters;
 
 namespace QobuzCLI.Services
 {
@@ -17,14 +17,14 @@ namespace QobuzCLI.Services
     {
         private readonly QobuzStreamUrlService _streamUrlService;
         private readonly QobuzSearchService _searchService;
-        private readonly QobuzQualityService _qualityService;
+        private readonly CliQualityServiceAdapter _qualityService;
         private readonly CliQobuzValidationService _validationService;
         private readonly IQobuzLogger _logger;
 
         public CliApiService(
             QobuzStreamUrlService streamUrlService,
             QobuzSearchService searchService,
-            QobuzQualityService qualityService,
+            CliQualityServiceAdapter qualityService,
             CliQobuzValidationService validationService,
             IQobuzLogger logger)
         {
