@@ -9,7 +9,7 @@ using Lidarr.Plugin.Qobuzarr.API;
 using Lidarr.Plugin.Qobuzarr.Integration;
 using Lidarr.Plugin.Qobuzarr.Models;
 using Lidarr.Plugin.Qobuzarr.Models.Lidarr;
-using Lidarr.Plugin.Qobuzarr.Services.Consolidated;
+using Lidarr.Plugin.Common.Services.Performance;
 using Lidarr.Plugin.Qobuzarr.Utilities;
 
 namespace Lidarr.Plugin.Qobuzarr.Services
@@ -22,8 +22,8 @@ namespace Lidarr.Plugin.Qobuzarr.Services
     {
         private readonly ILidarrApiClient _lidarrApiClient;
         private readonly IQobuzApiClient _qobuzApiClient;
-        private readonly IAdaptiveRateLimiter _rateLimiter;
-        private readonly IQobuzQualityManager _qualityManager;
+        private readonly IUniversalAdaptiveRateLimiter _rateLimiter;
+        private readonly IQualityService _qualityService;
         private readonly ILidarrStatisticsCollector _statisticsCollector;
         private readonly Logger _logger;
 
@@ -49,15 +49,15 @@ namespace Lidarr.Plugin.Qobuzarr.Services
         public LidarrAlbumRetriever(
             ILidarrApiClient lidarrApiClient,
             IQobuzApiClient qobuzApiClient,
-            IAdaptiveRateLimiter rateLimiter,
-            IQobuzQualityManager qualityManager,
+            IUniversalAdaptiveRateLimiter rateLimiter,
+            IQualityService qualityManager,
             ILidarrStatisticsCollector statisticsCollector,
             Logger logger)
         {
             _lidarrApiClient = Guard.NotNull(lidarrApiClient, nameof(lidarrApiClient));
             _qobuzApiClient = Guard.NotNull(qobuzApiClient, nameof(qobuzApiClient));
             _rateLimiter = Guard.NotNull(rateLimiter, nameof(rateLimiter));
-            _qualityManager = Guard.NotNull(qualityManager, nameof(qualityManager));
+            _qualityService = Guard.NotNull(qualityManager, nameof(qualityManager));
             _statisticsCollector = Guard.NotNull(statisticsCollector, nameof(statisticsCollector));
             _logger = Guard.NotNull(logger, nameof(logger));
 
@@ -168,7 +168,7 @@ namespace Lidarr.Plugin.Qobuzarr.Services
                 await semaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
                 try
                 {
-                    await _rateLimiter.WaitIfNeededAsync("/album/search", cancellationToken).ConfigureAwait(false);
+                    await _rateLimiter.WaitIfNeededAsync("Qobuz", "/album/search", cancellationToken).ConfigureAwait(false);
                     
                     var qobuzAlbum = await SearchSingleAlbumAsync(album, cancellationToken).ConfigureAwait(false);
                     
@@ -266,7 +266,7 @@ namespace Lidarr.Plugin.Qobuzarr.Services
                     var qualityProfile = await GetQualityProfileForAlbumAsync(match.Key, cancellationToken).ConfigureAwait(false);
                     
                     // Map Lidarr quality profile to Qobuz quality
-                    var mappedQuality = _qualityManager.MapLidarrQuality(qualityProfile);
+                    var mappedQuality = _qualityService.MapLidarrQuality(qualityProfile);
                     
                     // Get quality recommendation with fallback chain
                     var qualityRecommendation = CreateQualityRecommendation(mappedQuality, qualityProfile);
@@ -355,7 +355,7 @@ namespace Lidarr.Plugin.Qobuzarr.Services
         /// </summary>
         private QualityRecommendation CreateQualityRecommendation(QobuzQuality mappedQuality, LidarrQualityProfile profile)
         {
-            var fallbackChain = _qualityManager.GetQualityFallbackChain(mappedQuality);
+            var fallbackChain = _qualityService.GetQualityFallbackChain(mappedQuality);
             
             return new QualityRecommendation
             {
@@ -378,7 +378,7 @@ namespace Lidarr.Plugin.Qobuzarr.Services
                 return null;
 
             // Get the fallback chain from the quality manager
-            var fallbackChain = _qualityManager.GetQualityFallbackChain(mappedQuality);
+            var fallbackChain = _qualityService.GetQualityFallbackChain(mappedQuality);
             
             // Try to find the best matching quality from the fallback chain
             foreach (var quality in fallbackChain)

@@ -78,8 +78,7 @@ namespace Lidarr.Plugin.Qobuzarr.Services
 
                 _logger.Debug("📝 CONFIG CHANGE: Configuration file modified");
                 
-                // Defensive: Wait briefly for file to be fully written
-                Thread.Sleep(QobuzConstants.Timing.FileOperations.FileSystemStabilizationDelayMs);
+                // REMOVED: Thread.Sleep anti-pattern - file system should stabilize naturally
                 
                 LoadConfiguration(e.FullPath);
             }

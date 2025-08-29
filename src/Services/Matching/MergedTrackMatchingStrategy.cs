@@ -147,7 +147,7 @@ namespace Lidarr.Plugin.Qobuzarr.Services.Matching
                 return true;
 
             // Check string similarity
-            return StringSimilarity.Calculate(normalized1, normalized2) >= 0.7;
+            return Utilities.StringSimilarity.Calculate(normalized1, normalized2) >= 0.7;
         }
 
         private List<List<LidarrTrack>> FindConsecutiveLidarrGroups(List<LidarrTrack> tracks)

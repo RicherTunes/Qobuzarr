@@ -9,6 +9,7 @@ using FluentValidation.Results;
 using NzbDrone.Common.Disk;
 using NzbDrone.Common.Extensions;
 using NzbDrone.Common.Http;
+using NzbDrone.Common.Http.Dispatchers;
 using NzbDrone.Core.Configuration;
 using NzbDrone.Core.Download;
 using NzbDrone.Core.Download.Clients;
@@ -45,7 +46,7 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Clients
         private readonly IDownloadOrchestrator _orchestrator;
         private readonly IDownloadSummary _downloadSummary;
         private readonly IBatchProcessor _batchProcessor;
-        private readonly IQobuzTrackDownloaderFactory _trackDownloaderFactory;
+        // Removed dependency on IQobuzTrackDownloaderFactory - consolidated into this class
         private readonly ConcurrentDictionary<string, QobuzDownloadItem> _activeDownloads;
 
         public override string Name => "Qobuzarr";
@@ -62,7 +63,6 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Clients
                                   IDownloadOrchestrator orchestrator,
                                   IDownloadSummary downloadSummary,
                                   IBatchProcessor batchProcessor,
-                                  IQobuzTrackDownloaderFactory trackDownloaderFactory,
                                   IConfigService configService,
                                   IDiskProvider diskProvider,
                                   IRemotePathMappingService remotePathMappingService,
@@ -79,7 +79,7 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Clients
             _orchestrator = orchestrator ?? throw new ArgumentNullException(nameof(orchestrator));
             _downloadSummary = downloadSummary ?? throw new ArgumentNullException(nameof(downloadSummary));
             _batchProcessor = batchProcessor ?? throw new ArgumentNullException(nameof(batchProcessor));
-            _trackDownloaderFactory = trackDownloaderFactory ?? throw new ArgumentNullException(nameof(trackDownloaderFactory));
+            // Track downloader functionality consolidated into this class
             
             _activeDownloads = new ConcurrentDictionary<string, QobuzDownloadItem>();
         }
@@ -498,7 +498,7 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Clients
         private async Task DownloadSingleTrackAsync(QobuzDownloadItem downloadItem, QobuzAlbum album, QobuzTrack track)
         {
             // Use the injected factory - no more manual instantiation!
-            var trackDownloader = _trackDownloaderFactory.CreateTrackDownloader();
+            // Use integrated download functionality instead of factory
             
             var trackProgress = new Progress<double>(progress =>
             {
@@ -517,20 +517,119 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Clients
                 }
             });
 
-            var outputPath = await trackDownloader.DownloadTrackAsync(
-                track,
-                album,
-                downloadItem.OutputPath,
-                Settings.PreferredQuality,
-                trackProgress,
-                downloadItem.CancellationTokenSource.Token
-            ).ConfigureAwait(false);
-
-            // Validate the downloaded file
-            if (!trackDownloader.ValidateDownloadedFile(outputPath))
+            // REAL download implementation - get stream URL and download actual audio
+            var outputPath = Path.Combine(downloadItem.OutputPath, $"{track.TrackNumber:00} - {track.Title}.flac");
+            
+            try
             {
-                throw new InvalidOperationException($"Downloaded file validation failed: {track.GetFullTitle()}");
+                _logger.Info("🎵 Downloading track: {0} to {1}", track.Title, outputPath);
+                
+                // 1. Get streaming URL from Qobuz API
+                var streamUrl = await _apiClient.GetStreamingUrlAsync(track.Id, Settings.PreferredQuality).ConfigureAwait(false);
+                if (string.IsNullOrEmpty(streamUrl))
+                {
+                    throw new InvalidOperationException($"Could not get streaming URL for track: {track.Title}");
+                }
+                
+                _logger.Debug("🔗 Got streaming URL for track {0}", track.Id);
+                
+                // 2. Create output directory
+                Directory.CreateDirectory(Path.GetDirectoryName(outputPath));
+                
+                // 3. Download actual audio file using Lidarr's HTTP client
+                var requestBuilder = new HttpRequestBuilder(streamUrl);
+                var request = requestBuilder.Build();
+                request.SuppressHttpError = true;
+                request.RequestTimeout = TimeSpan.FromMinutes(10);
+                
+                _logger.Debug("📥 Starting HTTP download for track {0}", track.Title);
+                var response = await _httpClient.ExecuteAsync(request);
+                
+                if (response.HasHttpError)
+                {
+                    throw new InvalidOperationException($"HTTP error downloading track: {response.StatusCode}");
+                }
+                
+                var audioBytes = response.ResponseData;
+                
+                // 4. Write audio data to file
+                await File.WriteAllBytesAsync(outputPath, audioBytes, downloadItem.CancellationTokenSource.Token);
+                
+                _logger.Debug("💾 Audio file written: {0} bytes", audioBytes.Length);
+                
+                // 5. Apply metadata tags using TagLibSharp
+                await ApplyMetadataTagsAsync(outputPath, track, album);
+                
+                _logger.Info("✅ Downloaded: {0} ({1:F1} MB)", track.Title, audioBytes.Length / 1024.0 / 1024.0);
             }
+            catch (Exception ex)
+            {
+                _logger.Error(ex, "❌ Download failed for track: {0}", track.Title);
+                
+                // Clean up partial file
+                if (File.Exists(outputPath))
+                {
+                    try { File.Delete(outputPath); } catch { }
+                }
+                throw;
+            }
+            
+            // Validate the actual audio file was created
+            if (!File.Exists(outputPath) || new FileInfo(outputPath).Length < 1024)
+            {
+                throw new InvalidOperationException($"Downloaded file validation failed: {track.Title}");
+            }
+        }
+
+        private async Task ApplyMetadataTagsAsync(string filePath, QobuzTrack track, QobuzAlbum album)
+        {
+            await Task.Run(() =>
+            {
+                try
+                {
+                    using var file = TagLib.File.Create(filePath);
+                    
+                    file.Tag.Title = track.Title;
+                    file.Tag.Track = (uint)track.TrackNumber;
+                    file.Tag.Disc = (uint)track.DiscNumber;
+                    
+                    if (album != null)
+                    {
+                        file.Tag.Album = album.Title;
+                        file.Tag.AlbumArtists = new[] { album.Artist?.Name ?? "Unknown Artist" };
+                        if (album.ReleaseDate != default)
+                        {
+                            file.Tag.Year = (uint)album.ReleaseDate.Year;
+                        }
+                        if (album.Genre != null)
+                        {
+                            file.Tag.Genres = new[] { album.Genre.Name };
+                        }
+                        if (album.Label != null)
+                        {
+                            // Use Comment field since Publishers doesn't exist in TagLibSharp
+                            file.Tag.Comment = $"Label: {album.Label.Name}";
+                        }
+                    }
+                    
+                    if (track.Performer != null)
+                    {
+                        file.Tag.Performers = new[] { track.Performer.Name };
+                    }
+                    
+                    if (track.Composer != null)
+                    {
+                        file.Tag.Composers = new[] { track.Composer.Name };
+                    }
+                    
+                    file.Save();
+                    _logger.Debug("✅ Metadata applied to: {0}", Path.GetFileName(filePath));
+                }
+                catch (Exception ex)
+                {
+                    _logger.Warn(ex, "Failed to apply metadata to: {0}", Path.GetFileName(filePath));
+                }
+            });
         }
 
         private string ExtractAlbumIdFromRelease(ReleaseInfo release)

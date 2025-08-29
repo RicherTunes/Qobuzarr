@@ -115,7 +115,7 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Services
                 {
                     try
                     {
-                        // Brief delay to allow in-flight operations to complete
+                        // Brief delay for cleanup - Thread.Sleep acceptable here since it's in background ThreadPool
                         Thread.Sleep(100);
                         oldSemaphore?.Dispose();
                     }
