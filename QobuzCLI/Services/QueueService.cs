@@ -615,14 +615,14 @@ public class QueueService : IQueueService
                 // Perform the actual download
                 var downloadResult = await DownloadItemAsync(downloadId, title, artist, qobuzId, quality, outputDir, trackCount, item.SearchType, cancellationToken).ConfigureAwait(false);
                 
-                if (downloadResult.IsSuccessful())
+                if (downloadResult.IsSuccessful)
                 {
-                    await _stateService.CompleteDownloadAsync(downloadId, outputDir, downloadResult.GetTracksDownloaded()).ConfigureAwait(false);
+                    await _stateService.CompleteDownloadAsync(downloadId, outputDir, downloadResult.TrackDownloads?.Count ?? 0).ConfigureAwait(false);
                     await UpdateQueueItemStatusAsync(queueId, item.Id, QueueStatus.Completed).ConfigureAwait(false);
                 }
                 else
                 {
-                    await _stateService.FailDownloadAsync(downloadId, downloadResult.GetSummaryMessage()).ConfigureAwait(false);
+                    await _stateService.FailDownloadAsync(downloadId, downloadResult.Message ?? "Download failed").ConfigureAwait(false);
                     await UpdateQueueItemStatusAsync(queueId, item.Id, QueueStatus.Failed).ConfigureAwait(false);
                 }
             }
@@ -756,7 +756,7 @@ public class QueueService : IQueueService
         _isDisposed = true;
     }
     
-    private async Task<Lidarr.Plugin.Qobuzarr.Services.DownloadResult> DownloadItemAsync(
+    private async Task<CliDownloadResult> DownloadItemAsync(
         string downloadId, 
         string title, 
         string artist, 
@@ -779,7 +779,7 @@ public class QueueService : IQueueService
             Directory.CreateDirectory(albumDir);
             
             // Call the real download service - check if it's an artist
-            Lidarr.Plugin.Qobuzarr.Services.DownloadResult downloadResult;
+            CliDownloadResult downloadResult;
             var itemType = searchType.ToString().ToLower();
             
             if (itemType == "artist")
@@ -789,14 +789,14 @@ public class QueueService : IQueueService
             }
             else
             {
-                downloadResult = await _pluginHost.DownloadAlbumAsync(qobuzId, albumDir).ConfigureAwait(false);
+                downloadResult = await _pluginHost.DownloadAlbumAsync(qobuzId, albumDir, null).ConfigureAwait(false);
             }
             
-            if (downloadResult.IsSuccessful())
+            if (downloadResult.IsSuccessful)
             {
                 // Update progress to 100% on success
                 await _stateService.UpdateDownloadProgressAsync(downloadId, 100, 
-                    $"Download completed - {downloadResult.GetSummaryMessage()}").ConfigureAwait(false);
+                    $"Download completed - {downloadResult.Message}").ConfigureAwait(false);
             }
             
             return downloadResult;
@@ -804,12 +804,16 @@ public class QueueService : IQueueService
         catch (Exception ex)
         {
             _logger.LogError(ex, "Download failed for {Title} by {Artist}", title, artist);
-            return new Lidarr.Plugin.Qobuzarr.Services.DownloadResult
+            return new CliDownloadResult
             {
-                TrackDownloads = new List<Lidarr.Plugin.Qobuzarr.Models.TrackDownload>(),
+                Success = false,
+                Message = ex.Message,
+                TrackDownloads = new List<TrackDownloadInfo>(),
                 MetadataStrategy = "Failed",
                 ApiCallsSaved = 0,
-                AdditionalApiCalls = 0
+                AdditionalApiCalls = 0,
+                StartedAt = DateTime.UtcNow,
+                CompletedAt = DateTime.UtcNow
             };
         }
     }
