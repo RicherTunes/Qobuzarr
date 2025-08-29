@@ -41,14 +41,14 @@ jobs:
 
     - name: Validate project structure
       run: |
-        echo "🔍 Validating project structure..."
+        echo "Validating project structure..."
         
         # Check required files
         for file in Qobuzarr.csproj plugin.json Directory.Packages.props CLAUDE.md; do
           if [ -f "$file" ]; then
-            echo "✅ $file exists"
+            echo "✓ $file exists"
           else
-            echo "❌ $file missing"
+            echo "✗ $file missing"
             exit 1
           fi
         done
@@ -56,9 +56,9 @@ jobs:
         # Check required directories
         for dir in src src/API src/Authentication src/Download src/Indexers; do
           if [ -d "$dir" ]; then
-            echo "✅ $dir/ exists"
+            echo "✓ $dir/ exists"
           else
-            echo "❌ $dir/ missing"
+            echo "✗ $dir/ missing"
             exit 1
           fi
         done
@@ -69,17 +69,17 @@ jobs:
         
         # Check memory leak fix
         if grep -q "IDisposable" src/Download/Clients/QobuzDownloadItem.cs; then
-          echo "✅ QobuzDownloadItem implements IDisposable"
+          echo "[OK] QobuzDownloadItem implements IDisposable"
         else
-          echo "❌ QobuzDownloadItem missing IDisposable"
+          echo "[ERROR] QobuzDownloadItem missing IDisposable"
           exit 1
         fi
         
         # Check Protocol implementation (release branch compatibility)
         if grep -q "DownloadProtocol.Unknown" src/Indexers/QobuzIndexer.cs; then
-          echo "✅ QobuzIndexer has correct Protocol implementation"
+          echo "[OK] QobuzIndexer has correct Protocol implementation"
         else
-          echo "❌ QobuzIndexer missing correct Protocol"
+          echo "[ERROR] QobuzIndexer missing correct Protocol"
           exit 1
         fi
 
@@ -87,7 +87,7 @@ jobs:
       run: |
         echo "🔍 Validating plugin.json..."
         python3 -m json.tool plugin.json > /dev/null
-        echo "✅ plugin.json is valid JSON"
+        echo "[OK] plugin.json is valid JSON"
         
         VERSION=$(cat plugin.json | python3 -c "import sys, json; print(json.load(sys.stdin)['version'])")
         echo "📦 Plugin version: $VERSION"
@@ -98,15 +98,15 @@ jobs:
         
         # Check for hardcoded credentials
         if grep -r "password\s*=\s*\"" src/ --include="*.cs" | grep -v "// " | grep -v "password\": null"; then
-          echo "⚠️ Warning: Possible hardcoded passwords found"
+          echo "[WARN] Warning: Possible hardcoded passwords found"
         else
-          echo "✅ No hardcoded passwords detected"
+          echo "[OK] No hardcoded passwords detected"
         fi
         
         if grep -r "api[_-]?key\s*=\s*\"" src/ --include="*.cs" | grep -v "// "; then
-          echo "⚠️ Warning: Possible hardcoded API keys found" 
+          echo "[WARN] Warning: Possible hardcoded API keys found" 
         else
-          echo "✅ No hardcoded API keys detected"
+          echo "[OK] No hardcoded API keys detected"
         fi
 
   # ============================================================================
@@ -152,8 +152,8 @@ jobs:
         chmod +x ./download-lidarr-assemblies.sh
         ./download-lidarr-assemblies.sh --version ${{ env.MINIMUM_LIDARR_VERSION }}
         
-        echo "✅ Lidarr assemblies ready"
-        ls -la ext/Lidarr/_output/net6.0/ || echo "⚠️ Assembly directory not found"
+        echo "[OK] Lidarr assemblies ready"
+        ls -la ext/Lidarr/_output/net6.0/ || echo "[WARN] Assembly directory not found"
 
     - name: Set version
       run: |
@@ -183,7 +183,7 @@ jobs:
           -p:EnableNETAnalyzers=false \
           -p:TreatWarningsAsErrors=false
         
-        echo "✅ Plugin built successfully"
+        echo "[OK] Plugin built successfully"
 
     - name: Build CLI (if present)
       run: |
@@ -194,9 +194,9 @@ jobs:
             -p:RunAnalyzersDuringBuild=false \
             -p:EnableNETAnalyzers=false \
             -p:TreatWarningsAsErrors=false
-          echo "✅ CLI built successfully"
+          echo "[OK] CLI built successfully"
         else
-          echo "ℹ️ No CLI project found"
+          echo "[INFO] No CLI project found"
         fi
 
     - name: Run tests
@@ -210,7 +210,7 @@ jobs:
             find tests -name "*.csproj" -exec dotnet test {} --configuration Release --logger "console;verbosity=normal" \;
           fi
         else
-          echo "ℹ️ No tests directory found"
+          echo "[INFO] No tests directory found"
         fi
 
     - name: Verify plugin output
@@ -219,10 +219,10 @@ jobs:
         ls -la bin/
         
         if [ -f "bin/Lidarr.Plugin.Qobuzarr.dll" ]; then
-          echo "✅ Plugin DLL created successfully"
+          echo "[OK] Plugin DLL created successfully"
           echo "📦 Size: $(stat -c%s bin/Lidarr.Plugin.Qobuzarr.dll) bytes"
         else
-          echo "❌ Plugin DLL not found!"
+          echo "[ERROR] Plugin DLL not found!"
           exit 1
         fi
 
@@ -237,7 +237,7 @@ jobs:
         cd bin
         zip -r "../${{ env.PLUGIN_NAME }}-v$PLUGIN_VERSION.zip" *
         cd ..
-        echo "✅ Plugin packaged successfully"
+        echo "[OK] Plugin packaged successfully"
         ls -la *.zip
 
     - name: Upload build artifacts
@@ -264,7 +264,7 @@ jobs:
         echo "" >> $GITHUB_STEP_SUMMARY
         
         if [ -f "bin/Lidarr.Plugin.Qobuzarr.dll" ]; then
-          echo "### ✅ Build Artifacts" >> $GITHUB_STEP_SUMMARY
+          echo "### [OK] Build Artifacts" >> $GITHUB_STEP_SUMMARY
           echo "- Plugin DLL: $(stat -c%s bin/Lidarr.Plugin.Qobuzarr.dll) bytes" >> $GITHUB_STEP_SUMMARY
         fi
 
