@@ -55,6 +55,7 @@
     <ILRepackEnabled>false</ILRepackEnabled>
     
     <!-- Enable CLI framework in shared library for development/testing -->
+    <!-- NOTE: External consumers can set to 'false' to avoid pre-release dependencies -->
     <IncludeCLIFramework>true</IncludeCLIFramework>
   </PropertyGroup>
 
