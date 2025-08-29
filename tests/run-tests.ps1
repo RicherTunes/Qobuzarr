@@ -7,11 +7,11 @@ param(
     [switch]$Verbose = $false
 )
 
-Write-Host "🧪 Qobuzzarr Unit Test Runner" -ForegroundColor Cyan
+Write-Host "[TEST] Qobuzzarr Unit Test Runner" -ForegroundColor Cyan
 Write-Host "================================" -ForegroundColor Cyan
 
 $ProjectRoot = Split-Path -Parent $PSScriptRoot
-$TestProject = Join-Path $PSScriptRoot "Lidarr.Plugin.Qobuz.Tests\Lidarr.Plugin.Qobuz.Tests.csproj"
+$TestProject = Join-Path $PSScriptRoot "Qobuzarr.Tests\Qobuzarr.Tests.csproj"
 $OutputDir = Join-Path $PSScriptRoot "TestResults"
 
 # Ensure output directory exists
@@ -19,14 +19,14 @@ if (!(Test-Path $OutputDir)) {
     New-Item -ItemType Directory -Path $OutputDir -Force | Out-Null
 }
 
-Write-Host "📁 Project Root: $ProjectRoot" -ForegroundColor Gray
-Write-Host "📁 Test Project: $TestProject" -ForegroundColor Gray
-Write-Host "📁 Output Directory: $OutputDir" -ForegroundColor Gray
+Write-Host "[INFO] Project Root: $ProjectRoot" -ForegroundColor Gray
+Write-Host "[INFO] Test Project: $TestProject" -ForegroundColor Gray
+Write-Host "[INFO] Output Directory: $OutputDir" -ForegroundColor Gray
 Write-Host ""
 
 # Check if test project exists
 if (!(Test-Path $TestProject)) {
-    Write-Host "❌ Test project not found: $TestProject" -ForegroundColor Red
+    Write-Host "[ERROR] Test project not found: $TestProject" -ForegroundColor Red
     exit 1
 }
 
