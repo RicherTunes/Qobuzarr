@@ -31,7 +31,7 @@ if (!(Test-Path $TestProject)) {
 }
 
 # Build the test project
-Write-Host "🔨 Building test project..." -ForegroundColor Yellow
+Write-Host "[BUILD] Building test project..." -ForegroundColor Yellow
 $buildArgs = @(
     "build"
     $TestProject
@@ -45,11 +45,11 @@ if ($Verbose) {
 
 $buildResult = & dotnet @buildArgs
 if ($LASTEXITCODE -ne 0) {
-    Write-Host "❌ Build failed!" -ForegroundColor Red
+    Write-Host "[ERROR] Build failed!" -ForegroundColor Red
     exit 1
 }
 
-Write-Host "✅ Build successful!" -ForegroundColor Green
+Write-Host "[OK] Build successful!" -ForegroundColor Green
 Write-Host ""
 
 # Prepare test arguments
