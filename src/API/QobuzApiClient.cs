@@ -11,8 +11,9 @@ using Lidarr.Plugin.Qobuzarr.Models;
 using Lidarr.Plugin.Qobuzarr.Models.Authentication;
 using Lidarr.Plugin.Qobuzarr.Configuration;
 using Lidarr.Plugin.Qobuzarr.Authentication;
+using SessionManager = Lidarr.Plugin.Qobuzarr.Authentication.SessionManager;
 using Lidarr.Plugin.Qobuzarr.API.Http;
-using Lidarr.Plugin.Qobuzarr.API.Auth;
+using Lidarr.Plugin.Qobuzarr.Services.Interfaces;
 using Lidarr.Plugin.Qobuzarr.API.Signing;
 using Lidarr.Plugin.Qobuzarr.API.Caching;
 
@@ -32,7 +33,7 @@ namespace Lidarr.Plugin.Qobuzarr.API
     public class QobuzApiClient : IQobuzApiClient
     {
         private readonly IQobuzHttpClient _httpClient;
-        private readonly IQobuzAuthenticationManager _authManager;
+        private readonly ISessionManager _sessionManager;
         private readonly IQobuzRequestSigner _requestSigner;
         private readonly IQobuzResponseCache _responseCache;
         private readonly Logger _logger;
@@ -48,13 +49,13 @@ namespace Lidarr.Plugin.Qobuzarr.API
         /// <param name="logger">The logger for recording API interactions.</param>
         public QobuzApiClient(
             IQobuzHttpClient httpClient,
-            IQobuzAuthenticationManager authManager,
+            ISessionManager sessionManager,
             IQobuzRequestSigner requestSigner,
             IQobuzResponseCache responseCache,
             Logger logger)
         {
             _httpClient = httpClient ?? throw new ArgumentNullException(nameof(httpClient));
-            _authManager = authManager ?? throw new ArgumentNullException(nameof(authManager));
+            _sessionManager = sessionManager ?? throw new ArgumentNullException(nameof(sessionManager));
             _requestSigner = requestSigner ?? throw new ArgumentNullException(nameof(requestSigner));
             _responseCache = responseCache ?? throw new ArgumentNullException(nameof(responseCache));
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
@@ -71,7 +72,7 @@ namespace Lidarr.Plugin.Qobuzarr.API
         public QobuzApiClient(IHttpClient httpClient, ICacheManager cacheManager, Logger logger)
             : this(
                 new QobuzHttpClient(httpClient, logger),
-                new QobuzAuthenticationManager(logger),
+                new SessionManager(cacheManager, null, logger),
                 new QobuzRequestSigner(logger),
                 new QobuzResponseCache(cacheManager, logger),
                 logger)
@@ -121,7 +122,8 @@ namespace Lidarr.Plugin.Qobuzarr.API
         /// <param name="session">The authenticated Qobuz session containing user credentials and app information.</param>
         public void SetSession(QobuzSession session)
         {
-            _authManager.SetSession(session);
+            // Use the existing StoreSession method from SessionManager implementation
+            ((SessionManager)_sessionManager).StoreSession(session);
             _logger.Debug("Session set for API client");
         }
 
@@ -131,7 +133,7 @@ namespace Lidarr.Plugin.Qobuzarr.API
         /// </summary>
         public void ClearSession()
         {
-            _authManager.ClearSession();
+            ((SessionManager)_sessionManager).ClearSession();
             _logger.Debug("Session cleared from API client");
         }
 
@@ -141,7 +143,7 @@ namespace Lidarr.Plugin.Qobuzarr.API
         /// <returns>True if a valid session is available; false if no session or session is expired.</returns>
         public bool HasValidSession()
         {
-            return _authManager.HasValidSession();
+            return ((SessionManager)_sessionManager).HasValidSession();
         }
 
         private async Task<T> ExecuteRequestAsync<T>(string method, string endpoint, Dictionary<string, string>? parameters = null, object? data = null) where T : class
@@ -149,7 +151,7 @@ namespace Lidarr.Plugin.Qobuzarr.API
             try
             {
                 // Validate and renew session if needed
-                await _authManager.ValidateAndRenewIfNeededAsync().ConfigureAwait(false);
+                // SessionManager handles validation internally through GetCurrentSession
 
                 // Build request URL
                 var url = $"{QobuzConstants.Api.BaseUrl}{endpoint}";
@@ -160,7 +162,7 @@ namespace Lidarr.Plugin.Qobuzarr.API
                 var allParameters = new Dictionary<string, string>();
                 
                 // Add session parameters if authenticated
-                var currentSession = _authManager.CurrentSession;
+                var currentSession = ((SessionManager)_sessionManager).GetCurrentSession();
                 if (currentSession != null)
                 {
                     allParameters["app_id"] = currentSession.AppId;

@@ -6,6 +6,8 @@ using NzbDrone.Core.Indexers;
 using NLog;
 using Lidarr.Plugin.Qobuzarr.Models.Authentication;
 using Lidarr.Plugin.Qobuzarr.Indexers.RequestGeneration;
+using Lidarr.Plugin.Qobuzarr.Services;
+using Lidarr.Plugin.Qobuzarr.Models;
 
 namespace Lidarr.Plugin.Qobuzarr.Indexers
 {

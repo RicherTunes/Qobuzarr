@@ -7,13 +7,16 @@ using FluentAssertions;
 using NSubstitute;
 using Xunit;
 using Lidarr.Plugin.Qobuzarr.Abstractions;
-using Lidarr.Plugin.Qobuzarr.Services.Consolidated;
-using Lidarr.Plugin.Qobuzarr.Services.Quality;
+// DISABLED: QobuzQualityManager and related quality services have been removed/consolidated
+// using Lidarr.Plugin.Qobuzarr.Services.Consolidated;
+// using Lidarr.Plugin.Qobuzarr.Services.Quality;
 using Lidarr.Plugin.Qobuzarr.Models.Lidarr;
 using Lidarr.Plugin.Qobuzarr.Models;
 
 namespace Qobuzarr.Tests.Unit.Services
 {
+    // DISABLED: QobuzQualityManager has been removed - functionality consolidated into other services
+    /* 
     public class QobuzQualityManagerTests
     {
         private readonly IQualityDetectionService _mockDetectionService;
@@ -231,4 +234,5 @@ namespace Qobuzarr.Tests.Unit.Services
                 .WithParameterName("logger");
         }
     }
+    */
 }

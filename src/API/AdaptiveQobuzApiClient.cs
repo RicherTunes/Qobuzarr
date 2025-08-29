@@ -1,10 +1,12 @@
 using System;
 using System.Collections.Generic;
-using System.Threading.Tasks;
 using System.Net.Http;
+using System.Threading;
+using System.Threading.Tasks;
 using NLog;
 using Lidarr.Plugin.Qobuzarr.Models.Authentication;
 using Lidarr.Plugin.Qobuzarr.Services;
+using Lidarr.Plugin.Common.Services.Performance;
 
 namespace Lidarr.Plugin.Qobuzarr.API
 {
@@ -15,12 +17,12 @@ namespace Lidarr.Plugin.Qobuzarr.API
     public class AdaptiveQobuzApiClient : IQobuzApiClient
     {
         private readonly IQobuzApiClient _innerClient;
-        private readonly IAdaptiveRateLimiter _adaptiveRateLimiter;
+        private readonly IUniversalAdaptiveRateLimiter _adaptiveRateLimiter;
         private readonly Logger _logger;
 
         public AdaptiveQobuzApiClient(
             IQobuzApiClient innerClient,
-            IAdaptiveRateLimiter adaptiveRateLimiter,
+            IUniversalAdaptiveRateLimiter adaptiveRateLimiter,
             Logger logger)
         {
             _innerClient = innerClient;
@@ -31,7 +33,7 @@ namespace Lidarr.Plugin.Qobuzarr.API
         public async Task<T> GetAsync<T>(string endpoint, Dictionary<string, string>? parameters = null) where T : class
         {
             // Apply adaptive rate limiting before making the request
-            await _adaptiveRateLimiter.WaitIfNeededAsync(endpoint).ConfigureAwait(false);
+            await _adaptiveRateLimiter.WaitIfNeededAsync("Qobuz", endpoint).ConfigureAwait(false);
             
             try
             {
@@ -39,7 +41,7 @@ namespace Lidarr.Plugin.Qobuzarr.API
                 
                 // Record successful response
                 var successResponse = new HttpResponseMessage(System.Net.HttpStatusCode.OK);
-                _adaptiveRateLimiter.RecordResponse(endpoint, successResponse);
+                _adaptiveRateLimiter.RecordResponse("Qobuz", endpoint, successResponse);
                 
                 return result;
             }
@@ -56,7 +58,7 @@ namespace Lidarr.Plugin.Qobuzarr.API
                     errorResponse = new HttpResponseMessage(System.Net.HttpStatusCode.Unauthorized);
                 }
                 
-                _adaptiveRateLimiter.RecordResponse(endpoint, errorResponse);
+                _adaptiveRateLimiter.RecordResponse("Qobuz", endpoint, errorResponse);
                 throw;
             }
         }
@@ -64,7 +66,7 @@ namespace Lidarr.Plugin.Qobuzarr.API
         public async Task<T> PostAsync<T>(string endpoint, object? data = null) where T : class
         {
             // Apply adaptive rate limiting before making the request
-            await _adaptiveRateLimiter.WaitIfNeededAsync(endpoint).ConfigureAwait(false);
+            await _adaptiveRateLimiter.WaitIfNeededAsync("Qobuz", endpoint).ConfigureAwait(false);
             
             try
             {
@@ -72,7 +74,7 @@ namespace Lidarr.Plugin.Qobuzarr.API
                 
                 // Record successful response
                 var successResponse = new HttpResponseMessage(System.Net.HttpStatusCode.OK);
-                _adaptiveRateLimiter.RecordResponse(endpoint, successResponse);
+                _adaptiveRateLimiter.RecordResponse("Qobuz", endpoint, successResponse);
                 
                 return result;
             }
@@ -85,7 +87,7 @@ namespace Lidarr.Plugin.Qobuzarr.API
                     errorResponse = new HttpResponseMessage(System.Net.HttpStatusCode.TooManyRequests);
                 }
                 
-                _adaptiveRateLimiter.RecordResponse(endpoint, errorResponse);
+                _adaptiveRateLimiter.RecordResponse("Qobuz", endpoint, errorResponse);
                 throw;
             }
         }
@@ -110,7 +112,13 @@ namespace Lidarr.Plugin.Qobuzarr.API
         /// </summary>
         public RateLimitStats GetRateLimitStats()
         {
-            return _adaptiveRateLimiter.GetStats();
+            var serviceStats = _adaptiveRateLimiter.GetServiceStats("Qobuz");
+            // Convert to our expected type
+            return new RateLimitStats
+            {
+                EndpointLimits = new Dictionary<string, int>(),
+                TotalEndpoints = serviceStats.EndpointStats.Count
+            };
         }
 
         /// <summary>
@@ -118,7 +126,36 @@ namespace Lidarr.Plugin.Qobuzarr.API
         /// </summary>
         public int GetCurrentRateLimit(string endpoint)
         {
-            return _adaptiveRateLimiter.GetCurrentLimit(endpoint);
+            return _adaptiveRateLimiter.GetCurrentLimit("Qobuz", endpoint);
+        }
+
+        /// <summary>
+        /// Delegates streaming URL requests to the inner client with rate limiting.
+        /// </summary>
+        public async Task<string> GetStreamingUrlAsync(string trackId, int formatId, CancellationToken cancellationToken = default)
+        {
+            var endpoint = "/track/getFileUrl";
+            
+            // Apply rate limiting
+            await _adaptiveRateLimiter.WaitIfNeededAsync("Qobuz", endpoint, cancellationToken).ConfigureAwait(false);
+            
+            try
+            {
+                var result = await _innerClient.GetStreamingUrlAsync(trackId, formatId, cancellationToken).ConfigureAwait(false);
+                
+                // Record successful response for rate limiter
+                var successResponse = new HttpResponseMessage(System.Net.HttpStatusCode.OK);
+                _adaptiveRateLimiter.RecordResponse("Qobuz", endpoint, successResponse);
+                
+                return result;
+            }
+            catch (Exception ex)
+            {
+                // Record error response for rate limiter
+                var errorResponse = new HttpResponseMessage(System.Net.HttpStatusCode.InternalServerError);
+                _adaptiveRateLimiter.RecordResponse("Qobuz", endpoint, errorResponse);
+                throw;
+            }
         }
     }
 }

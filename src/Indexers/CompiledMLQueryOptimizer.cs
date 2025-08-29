@@ -490,7 +490,7 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
         {
             // Simulate model initialization work for performance timing
             // In a real implementation, this might load coefficients from embedded resources
-            System.Threading.Thread.Sleep(1); // Minimal delay to simulate work
+            // Removed Thread.Sleep anti-pattern - ML model initialization should be instant for compiled models
         }
         
         /// <summary>
