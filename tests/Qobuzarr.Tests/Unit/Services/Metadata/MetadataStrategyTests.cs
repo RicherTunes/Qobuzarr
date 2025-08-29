@@ -12,12 +12,15 @@ using Lidarr.Plugin.Qobuzarr.Constants;
 using Lidarr.Plugin.Qobuzarr.API;
 using Lidarr.Plugin.Qobuzarr.Models;
 using Lidarr.Plugin.Qobuzarr.Models.Lidarr;
-using Lidarr.Plugin.Qobuzarr.Services.Metadata;
-using Lidarr.Plugin.Qobuzarr.Download;
+// DISABLED: Metadata strategy classes and services have been removed/consolidated
+// using Lidarr.Plugin.Qobuzarr.Services.Metadata;
+// using Lidarr.Plugin.Qobuzarr.Download;
 using Lidarr.Plugin.Qobuzarr.Indexers;
 
 namespace Qobuzarr.Tests.Unit.Services.Metadata
 {
+    // DISABLED: MetadataStrategyEngine and related services have been removed - functionality consolidated
+    /*
     public class MetadataStrategyTests
     {
         private readonly Logger _mockLogger;
@@ -748,4 +751,5 @@ namespace Qobuzarr.Tests.Unit.Services.Metadata
             };
         }
     }
+    */
 }

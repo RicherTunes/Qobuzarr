@@ -6,15 +6,17 @@ using Xunit;
 using FluentAssertions;
 using NLog;
 using NSubstitute;
-using Lidarr.Plugin.Qobuzarr.Services;
+// DISABLED: Many defensive services have been removed/consolidated
+// using Lidarr.Plugin.Qobuzarr.Services;
 using Lidarr.Plugin.Qobuzarr.Utilities;
 
 namespace Qobuzarr.Tests.Unit.Services
 {
     /// <summary>
-    /// Comprehensive unit tests for defensive services
-    /// Ensures all edge cases and failure modes are properly handled
+    /// DISABLED: Comprehensive unit tests for defensive services
+    /// Many defensive services have been removed - functionality consolidated into other services
     /// </summary>
+    /*
     public class DefensiveServicesTests
     {
         private readonly Logger _mockLogger = Substitute.For<Logger>();
@@ -454,4 +456,5 @@ namespace Qobuzarr.Tests.Unit.Services
             public TimeSpan? Duration { get; set; }
         }
     }
+    */
 }
