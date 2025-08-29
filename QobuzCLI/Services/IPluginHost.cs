@@ -72,7 +72,7 @@ public interface IPluginHost
     /// <param name="outputPath">The directory where album files should be saved.</param>
     /// <param name="quality">Optional quality preference (MP3, FLAC, Hi-Res). If null, uses default from config.</param>
     /// <returns>The download result containing success status and file information.</returns>
-    Task<Lidarr.Plugin.Qobuzarr.Services.DownloadResult> DownloadAlbumAsync(string albumId, string outputPath, string? quality = null);
+    Task<CliDownloadResult> DownloadAlbumAsync(string albumId, string outputPath, string? quality = null);
     
     /// <summary>
     /// Downloads all albums from a specific artist's discography.
@@ -80,7 +80,7 @@ public interface IPluginHost
     /// <param name="artistId">The Qobuz artist ID whose discography should be downloaded.</param>
     /// <param name="outputPath">The directory where artist albums should be saved.</param>
     /// <returns>The download result containing success status and file information.</returns>
-    Task<Lidarr.Plugin.Qobuzarr.Services.DownloadResult> DownloadArtistAsync(string artistId, string outputPath);
+    Task<CliDownloadResult> DownloadArtistAsync(string artistId, string outputPath);
     
     /// <summary>
     /// Downloads a complete playlist from Qobuz including all tracks.
@@ -91,7 +91,7 @@ public interface IPluginHost
     /// <param name="quality">Optional quality preference (MP3, FLAC, Hi-Res). If null, uses default from config.</param>
     /// <param name="createM3u8">Whether to create an M3U8 playlist file. Default is true.</param>
     /// <returns>The playlist download result containing success status and track information.</returns>
-    Task<Lidarr.Plugin.Qobuzarr.Download.Services.PlaylistDownloadResult> DownloadPlaylistAsync(
+    Task<CliPlaylistDownloadResult> DownloadPlaylistAsync(
         string playlistId, 
         string outputPath, 
         string? quality = null,

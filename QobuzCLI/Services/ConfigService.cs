@@ -104,6 +104,10 @@ public class ConfigService : IConfigService
             {
                 // Create new default configuration
                 _configuration = new QobuzConfiguration();
+                
+                // Load from environment variables if available
+                LoadFromEnvironmentVariables(_configuration);
+                
                 await SaveConfigurationAsync(_configuration).ConfigureAwait(false);
                 _logger.LogInformation("Created default configuration at {ConfigPath}", _newConfigPath);
             }
@@ -564,6 +568,87 @@ public class ConfigService : IConfigService
                 Category = "Lidarr Integration"
             }
         };
+    }
+    
+    /// <summary>
+    /// Load configuration values from environment variables
+    /// </summary>
+    private void LoadFromEnvironmentVariables(QobuzConfiguration configuration)
+    {
+        // Load authentication credentials from environment
+        var appId = Environment.GetEnvironmentVariable("QOBUZ_APP_ID");
+        if (!string.IsNullOrEmpty(appId))
+        {
+            configuration.Authentication.AppId = appId;
+            _logger.LogDebug("Loaded QOBUZ_APP_ID from environment");
+        }
+        
+        var appSecret = Environment.GetEnvironmentVariable("QOBUZ_APP_SECRET");
+        if (!string.IsNullOrEmpty(appSecret))
+        {
+            configuration.Authentication.AppSecret = appSecret;
+            _logger.LogDebug("Loaded QOBUZ_APP_SECRET from environment");
+        }
+        
+        var email = Environment.GetEnvironmentVariable("QOBUZ_EMAIL");
+        if (!string.IsNullOrEmpty(email))
+        {
+            configuration.Authentication.Email = email;
+            configuration.Authentication.AuthMethod = "email";
+            _logger.LogDebug("Loaded QOBUZ_EMAIL from environment");
+        }
+        
+        var password = Environment.GetEnvironmentVariable("QOBUZ_PASSWORD");
+        if (!string.IsNullOrEmpty(password))
+        {
+            configuration.Authentication.Password = password;
+            _logger.LogDebug("Loaded QOBUZ_PASSWORD from environment");
+        }
+        
+        var userId = Environment.GetEnvironmentVariable("QOBUZ_USER_ID");
+        if (!string.IsNullOrEmpty(userId))
+        {
+            configuration.Authentication.UserId = userId;
+            if (string.IsNullOrEmpty(email)) // Only switch to token auth if email not set
+            {
+                configuration.Authentication.AuthMethod = "token";
+            }
+            _logger.LogDebug("Loaded QOBUZ_USER_ID from environment");
+        }
+        
+        var authToken = Environment.GetEnvironmentVariable("QOBUZ_AUTH_TOKEN");
+        if (!string.IsNullOrEmpty(authToken))
+        {
+            configuration.Authentication.AuthToken = authToken;
+            if (string.IsNullOrEmpty(email)) // Only switch to token auth if email not set
+            {
+                configuration.Authentication.AuthMethod = "token";
+            }
+            _logger.LogDebug("Loaded QOBUZ_AUTH_TOKEN from environment");
+        }
+        
+        // Load quality setting
+        var quality = Environment.GetEnvironmentVariable("QOBUZ_QUALITY");
+        if (!string.IsNullOrEmpty(quality))
+        {
+            configuration.Quality.Quality = quality switch
+            {
+                "5" => "mp3-320",
+                "6" => "flac-cd",
+                "7" => "flac-hires",
+                "27" => "flac-max",
+                _ => quality
+            };
+            _logger.LogDebug("Loaded QOBUZ_QUALITY from environment: {Quality}", configuration.Quality.Quality);
+        }
+        
+        // Load download path
+        var downloadPath = Environment.GetEnvironmentVariable("QOBUZ_DOWNLOAD_PATH");
+        if (!string.IsNullOrEmpty(downloadPath))
+        {
+            configuration.Download.OutputDirectory = downloadPath;
+            _logger.LogDebug("Loaded QOBUZ_DOWNLOAD_PATH from environment: {Path}", downloadPath);
+        }
     }
 
     private static string ToPascalCase(string kebabCase)
