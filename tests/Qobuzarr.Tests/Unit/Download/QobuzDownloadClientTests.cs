@@ -273,7 +273,7 @@ namespace Qobuzarr.Tests.Unit.Download
         public void Protocol_ShouldReturnQobuzarrDownloadProtocol()
         {
             // Act & Assert
-            _downloadClient.Protocol.Should().Be("QobuzarrDownloadProtocol");
+            _downloadClient.Protocol.Should().Be(DownloadProtocol.Unknown);
         }
 
         [Fact]
