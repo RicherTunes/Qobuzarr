@@ -20,6 +20,9 @@
     <RunAnalyzersDuringBuild>false</RunAnalyzersDuringBuild>
     <RunCodeAnalysis>false</RunCodeAnalysis>
     <EnableNETAnalyzers>false</EnableNETAnalyzers>
+    
+    <!-- Enable CLI framework in shared library (CLI project needs this) -->
+    <IncludeCLIFramework>true</IncludeCLIFramework>
   </PropertyGroup>
 
   <ItemGroup>
