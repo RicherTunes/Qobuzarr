@@ -160,7 +160,7 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Clients
                 Removed = false,
                 DownloadClientInfo = new DownloadClientItemClientInfo
                 {
-                    Protocol = nameof(QobuzarrDownloadProtocol),
+                    Protocol = DownloadProtocol.Unknown.ToString(),
                     Type = "Qobuzarr",
                     Id = downloadClientId, // Use actual download client ID
                     Name = downloadClientName ?? "Qobuzarr",
