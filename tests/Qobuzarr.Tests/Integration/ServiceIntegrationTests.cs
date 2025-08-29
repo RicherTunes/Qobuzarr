@@ -5,15 +5,17 @@ using Xunit;
 using FluentAssertions;
 using NLog;
 using NSubstitute;
-using Lidarr.Plugin.Qobuzarr.Services;
+// DISABLED: ServiceIntegrationLayer has been removed - functionality consolidated
+// using Lidarr.Plugin.Qobuzarr.Services;
 using Lidarr.Plugin.Qobuzarr.Utilities;
 
 namespace Qobuzarr.Tests.Integration
 {
     /// <summary>
-    /// Integration tests that verify services work together correctly
-    /// Tests the full defensive service stack in realistic scenarios
+    /// DISABLED: Integration tests that verify services work together correctly
+    /// ServiceIntegrationLayer has been removed - functionality consolidated into other services
     /// </summary>
+    /* 
     public class ServiceIntegrationTests : IDisposable
     {
         private readonly string _testCacheDir;
@@ -263,4 +265,5 @@ namespace Qobuzarr.Tests.Integration
             }
         }
     }
+    */
 }

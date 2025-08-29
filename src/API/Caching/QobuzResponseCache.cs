@@ -43,12 +43,12 @@ namespace Lidarr.Plugin.Qobuzarr.API.Caching
             if (cached != null)
             {
                 _logger.Debug("Cache hit for {0}", endpoint);
-                _performanceMonitor?.RecordCacheHit("QobuzResponse", cacheKey, true, stopwatch.Elapsed);
+                _performanceMonitor?.RecordCacheHit(cacheKey, "QobuzResponse", stopwatch.Elapsed, 0);
                 return cached as T;
             }
 
             _logger.Debug("Cache miss for {0}", endpoint);
-            _performanceMonitor?.RecordCacheHit("QobuzResponse", cacheKey, false, stopwatch.Elapsed);
+            _performanceMonitor?.RecordCacheMiss(cacheKey);
             return null;
         }
 

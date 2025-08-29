@@ -1,7 +1,6 @@
 using System;
 using System.IO;
 using System.Text.RegularExpressions;
-using Lidarr.Plugin.Common.Utilities;
 
 namespace Lidarr.Plugin.Qobuzarr.Utilities
 {
@@ -18,7 +17,7 @@ namespace Lidarr.Plugin.Qobuzarr.Utilities
         /// </summary>
         public static string SanitizeFileName(string fileName)
         {
-            return FileNameSanitizer.SanitizeFileName(fileName);
+            return Lidarr.Plugin.Common.Utilities.FileNameSanitizer.SanitizeFileName(fileName);
         }
 
         /// <summary>
