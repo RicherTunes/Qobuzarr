@@ -44,22 +44,29 @@ jobs:
       run: |
         echo '{"sdk":{"version": "${{ env.DOTNET_VERSION }}"}}' > ./global.json
 
-    - name: Setup Lidarr source (plugins branch)
+    - name: Setup Lidarr assemblies (pre-built approach)
       run: |
-        echo "Setting up Lidarr plugins branch source..."
-        if [ ! -d "ext/Lidarr-source" ]; then
-          git clone --depth 1 --branch plugins https://github.com/Lidarr/Lidarr.git ext/Lidarr-source
-        fi
+        echo "📦 Setting up pre-built Lidarr assemblies..."
+        
+        # Create output directory structure that matches project expectations
+        mkdir -p ext/Lidarr/_output/net6.0
+        
+        # Use the proven pre-built assembly download approach
+        chmod +x ./download-lidarr-assemblies.sh
+        ./download-lidarr-assemblies.sh --version ${{ env.MINIMUM_LIDARR_VERSION }}
+        
+        echo "✅ Lidarr assemblies ready"
+        
+        # Verify assemblies were downloaded
+        echo "📋 Available assemblies:"
+        ls -la ext/Lidarr/_output/net6.0/ || echo "⚠️ Assembly directory not found"
 
     - name: Update Version Info
       run: |
-        # Update our plugin version
+        # Update our plugin version (pre-built assemblies don't need Lidarr source version override)
         sed -i'' -e "s/<AssemblyVersion>[0-9.*]\+<\/AssemblyVersion>/<AssemblyVersion>$PLUGIN_VERSION<\/AssemblyVersion>/g" Directory.Build.props || echo "No plugin Directory.Build.props found"
         
-        # Update Lidarr source version (THE CRITICAL STEP)
-        sed -i'' -e "s/<AssemblyVersion>[0-9.*]\+<\/AssemblyVersion>/<AssemblyVersion>$MINIMUM_LIDARR_VERSION<\/AssemblyVersion>/g" ext/Lidarr-source/src/Directory.Build.props || echo "No Lidarr Directory.Build.props found"
-        
-        echo "Version overrides applied successfully"
+        echo "Plugin version updated to $PLUGIN_VERSION"
 
     - name: Restore dependencies
       run: |
