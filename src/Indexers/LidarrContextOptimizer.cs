@@ -178,7 +178,7 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
                 {
                     // Try fuzzy match
                     artist = artists.FirstOrDefault(a => 
-                        StringSimilarity.LevenshteinDistance(a.Name.ToLower(), artistName.ToLower()) <= 2);
+                        Utilities.StringSimilarity.LevenshteinDistance(a.Name.ToLower(), artistName.ToLower()) <= 2);
                 }
 
                 if (artist != null)
@@ -232,7 +232,7 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
                 {
                     // Try fuzzy match
                     album = albums.FirstOrDefault(a =>
-                        StringSimilarity.LevenshteinDistance(a.Title.ToLower(), albumTitle.ToLower()) <= 3);
+                        Utilities.StringSimilarity.LevenshteinDistance(a.Title.ToLower(), albumTitle.ToLower()) <= 3);
                 }
 
                 if (album != null)

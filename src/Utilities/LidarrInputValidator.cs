@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text.RegularExpressions;
-using Lidarr.Plugin.Common.Utilities;
 
 namespace Lidarr.Plugin.Qobuzarr.Utilities
 {
@@ -146,7 +145,7 @@ namespace Lidarr.Plugin.Qobuzarr.Utilities
         /// <returns>Sanitized file name</returns>
         public static string SanitizeFileName(string fileName)
         {
-            return FileNameSanitizer.SanitizeFileName(fileName);
+            return Lidarr.Plugin.Common.Utilities.FileNameSanitizer.SanitizeFileName(fileName);
         }
 
         /// <summary>

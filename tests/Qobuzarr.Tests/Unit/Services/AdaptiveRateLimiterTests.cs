@@ -9,10 +9,13 @@ using NLog.Config;
 using NLog.Targets;
 using NSubstitute;
 using Xunit;
-using Lidarr.Plugin.Qobuzarr.Services;
+// DISABLED: AdaptiveRateLimiter has been removed - functionality consolidated into other services
+// using Lidarr.Plugin.Qobuzarr.Services;
 
 namespace Qobuzarr.Tests.Unit.Services
 {
+    // DISABLED: AdaptiveRateLimiter has been removed - functionality consolidated into other services
+    /*
     public class AdaptiveRateLimiterTests : IDisposable
     {
         private AdaptiveRateLimiter _rateLimiter;
@@ -224,4 +227,5 @@ namespace Qobuzarr.Tests.Unit.Services
             afterLimit.Should().Be(51); // 85% of 60
         }
     }
+    */
 }

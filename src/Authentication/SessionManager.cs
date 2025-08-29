@@ -42,6 +42,7 @@ namespace Lidarr.Plugin.Qobuzarr.Authentication
     {
         private readonly ICacheManager _cacheManager;
         private readonly Logger _logger;
+        private readonly IQobuzAuthenticationService _authenticationService;
         private readonly ICached<QobuzSession> _sessionCache;
         private readonly object _sessionLock = new object();
 
@@ -68,9 +69,11 @@ namespace Lidarr.Plugin.Qobuzarr.Authentication
 
         private const string SESSION_CACHE_KEY = "qobuz_current_session";
 
-        public SessionManager(ICacheManager cacheManager, Logger logger)
+
+        public SessionManager(ICacheManager cacheManager, IQobuzAuthenticationService authenticationService, Logger logger)
         {
             _cacheManager = cacheManager ?? throw new ArgumentNullException(nameof(cacheManager));
+            _authenticationService = authenticationService ?? throw new ArgumentNullException(nameof(authenticationService));
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
             
             _sessionCache = _cacheManager.GetCache<QobuzSession>(GetType(), "sessions");
@@ -81,17 +84,26 @@ namespace Lidarr.Plugin.Qobuzarr.Authentication
         // Implement centralized interface methods
         public async Task<QobuzSession?> CreateSessionAsync(QobuzCredentials credentials, CancellationToken cancellationToken = default)
         {
-            // For now, create a basic session - this would normally involve API calls
-            var session = new QobuzSession
+            try
             {
-                UserId = "dummy_user",
-                AuthToken = "dummy_token",
-                ExpiresAt = DateTime.UtcNow.AddHours(24),
-                CreatedAt = DateTime.UtcNow
-            };
-            
-            StoreSession(session);
-            return await Task.FromResult(session);
+                // Use the real authentication service instead of dummy values
+                var session = await _authenticationService.AuthenticateAsync(credentials);
+                
+                if (session != null && session.IsValid())
+                {
+                    StoreSession(session);
+                    _logger.Info("✅ Real authentication session created for user: {0}", session.UserId);
+                    return session;
+                }
+                
+                _logger.Error("❌ Authentication failed - invalid credentials");
+                return null;
+            }
+            catch (Exception ex)
+            {
+                _logger.Error(ex, "❌ Failed to create authentication session");
+                return null;
+            }
         }
 
         public async Task<QobuzSession?> GetCurrentSessionAsync(CancellationToken cancellationToken = default)

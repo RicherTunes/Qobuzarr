@@ -3,14 +3,16 @@ using System.Reflection;
 using FluentAssertions;
 using Xunit;
 using Lidarr.Plugin.Qobuzarr.Services;
-using Lidarr.Plugin.Qobuzarr.Download.Services;
+// DISABLED: PlaylistDownloadService and LabelDownloadService have been removed
+// using Lidarr.Plugin.Qobuzarr.Download.Services;
 
 namespace Qobuzarr.Tests.Unit.Services
 {
     /// <summary>
-    /// Tests to verify the new playlist and label functionality exists in the services
-    /// This ensures the methods were properly added to support playlist and label downloads
+    /// DISABLED: Tests to verify the new playlist and label functionality exists in the services
+    /// PlaylistDownloadService and LabelDownloadService have been removed - functionality consolidated
     /// </summary>
+    /*
     public class PlaylistLabelServiceExistenceTests
     {
         [Fact]
@@ -150,4 +152,5 @@ namespace Qobuzarr.Tests.Unit.Services
             labelType.Should().NotBeNull("QobuzLabel model should exist");
         }
     }
+    */
 }

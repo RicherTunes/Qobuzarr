@@ -15,6 +15,7 @@ using Lidarr.Plugin.Qobuzarr.Authentication;
 using Lidarr.Plugin.Qobuzarr.API;
 using Lidarr.Plugin.Qobuzarr.Security;
 using Lidarr.Plugin.Qobuzarr.Indexers.Core;
+using Lidarr.Plugin.Common.Base;
 
 namespace Lidarr.Plugin.Qobuzarr.Indexers
 {

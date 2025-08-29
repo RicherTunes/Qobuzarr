@@ -6,7 +6,6 @@ using System.Threading.Tasks;
 using Lidarr.Plugin.Qobuzarr.Abstractions;
 using Lidarr.Plugin.Qobuzarr.Models;
 using Lidarr.Plugin.Qobuzarr.Utilities;
-using Lidarr.Plugin.Common.Utilities;
 using TagLib;
 
 namespace Lidarr.Plugin.Qobuzarr.Core
@@ -106,7 +105,7 @@ namespace Lidarr.Plugin.Qobuzarr.Core
 
         private string SanitizeFileName(string fileName)
         {
-            return FileNameSanitizer.SanitizeFileName(fileName);
+            return Lidarr.Plugin.Common.Utilities.FileNameSanitizer.SanitizeFileName(fileName);
         }
 
         private async Task ApplyMetadataAsync(string filePath, QobuzTrack track, QobuzAlbum album)

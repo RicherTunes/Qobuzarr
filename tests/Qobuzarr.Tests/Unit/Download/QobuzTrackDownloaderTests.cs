@@ -9,12 +9,13 @@ using Moq;
 using NzbDrone.Common.Http;
 using Xunit;
 using Lidarr.Plugin.Qobuzarr.API;
-using Lidarr.Plugin.Qobuzarr.Download;
+// DISABLED: QobuzTrackDownloader, SafeMetadataOptimizer and related services have been removed
+// using Lidarr.Plugin.Qobuzarr.Download;
 using Lidarr.Plugin.Qobuzarr.Models;
 using Lidarr.Plugin.Qobuzarr.Abstractions;
-using Lidarr.Plugin.Qobuzarr.Download.Services;
-using Lidarr.Plugin.Qobuzarr.Services;
-using Lidarr.Plugin.Qobuzarr.Services.Metadata;
+// using Lidarr.Plugin.Qobuzarr.Download.Services;
+// using Lidarr.Plugin.Qobuzarr.Services;
+// using Lidarr.Plugin.Qobuzarr.Services.Metadata;
 using Lidarr.Plugin.Qobuzarr.Indexers;
 using NLog;
 using Qobuzarr.Tests.Helpers;
@@ -22,8 +23,10 @@ using Qobuzarr.Tests.Helpers;
 namespace Qobuzarr.Tests.Unit.Download
 {
     /// <summary>
-    /// Basic unit tests for QobuzTrackDownloader using the current API
+    /// DISABLED: Basic unit tests for QobuzTrackDownloader using the current API
+    /// QobuzTrackDownloader has been removed - functionality consolidated into other services
     /// </summary>
+    /*
     public class QobuzTrackDownloaderTests : IDisposable
     {
         private readonly Mock<IQobuzApiClient> _mockApiClient;
@@ -207,4 +210,5 @@ namespace Qobuzarr.Tests.Unit.Download
 
         #endregion
     }
+    */
 }

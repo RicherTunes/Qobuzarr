@@ -2,7 +2,6 @@ using System;
 using System.IO;
 using System.Linq;
 using System.Text.RegularExpressions;
-using Lidarr.Plugin.Common.Utilities;
 
 namespace Lidarr.Plugin.Qobuzarr.Utilities
 {
@@ -24,7 +23,7 @@ namespace Lidarr.Plugin.Qobuzarr.Utilities
         /// <returns>A sanitized filename safe for the file system</returns>
         public static string SanitizeFileName(string fileName, int maxLength = 255)
         {
-            var sanitized = FileNameSanitizer.SanitizeFileName(fileName);
+            var sanitized = Lidarr.Plugin.Common.Utilities.FileNameSanitizer.SanitizeFileName(fileName);
             
             // Apply maxLength constraint if needed
             if (sanitized.Length > maxLength)
