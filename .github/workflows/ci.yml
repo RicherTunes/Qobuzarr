@@ -46,9 +46,9 @@ jobs:
         # Check required files
         for file in Qobuzarr.csproj plugin.json Directory.Packages.props CLAUDE.md; do
           if [ -f "$file" ]; then
-            echo "✓ $file exists"
+            echo "[OK] $file exists"
           else
-            echo "✗ $file missing"
+            echo "[ERROR] $file missing"
             exit 1
           fi
         done
@@ -56,16 +56,16 @@ jobs:
         # Check required directories
         for dir in src src/API src/Authentication src/Download src/Indexers; do
           if [ -d "$dir" ]; then
-            echo "✓ $dir/ exists"
+            echo "[OK] $dir/ exists"
           else
-            echo "✗ $dir/ missing"
+            echo "[ERROR] $dir/ missing"
             exit 1
           fi
         done
 
     - name: Validate critical implementations
       run: |
-        echo "🔍 Checking critical implementations..."
+        echo "[CHECK] Checking critical implementations..."
         
         # Check memory leak fix
         if grep -q "IDisposable" src/Download/Clients/QobuzDownloadItem.cs; then
