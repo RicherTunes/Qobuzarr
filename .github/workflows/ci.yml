@@ -203,6 +203,14 @@ jobs:
       run: |
         if [ -d "tests" ]; then
           echo "[TEST] Running tests..."
+          # Use direct dotnet commands to get detailed error output
+          echo "[DEBUG] First, try to build the test project directly..."
+          dotnet build tests/Qobuzarr.Tests/Qobuzarr.Tests.csproj --configuration Release --verbosity detailed || echo "[WARN] Main test project build failed"
+          
+          echo "[DEBUG] Try building other test projects..."
+          find tests -name "*.csproj" -exec echo "Building: {}" \; -exec dotnet build {} --configuration Release --verbosity normal \;
+          
+          echo "[DEBUG] Now try running tests..."
           if [ -f "tests/run-tests.ps1" ]; then
             pwsh -File ./tests/run-tests.ps1
           else
