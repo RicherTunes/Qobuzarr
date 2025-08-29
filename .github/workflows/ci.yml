@@ -202,7 +202,7 @@ jobs:
     - name: Run tests
       run: |
         if [ -d "tests" ]; then
-          echo "🧪 Running tests..."
+          echo "[TEST] Running tests..."
           if [ -f "tests/run-tests.ps1" ]; then
             pwsh -File ./tests/run-tests.ps1
           else
