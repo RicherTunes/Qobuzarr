@@ -120,17 +120,20 @@
     </PackageReference> -->
   </ItemGroup>
 
-  <!-- ✅ PLUGINS BRANCH: Project references to plugins branch source (like TrevTV) -->
+  <!-- ✅ PRE-BUILT ASSEMBLIES: Single assembly source for compatibility (CLAUDE.md solution) -->
   <ItemGroup>
-    <ProjectReference Include="ext\Lidarr-source\src\NzbDrone.Core\Lidarr.Core.csproj">
+    <Reference Include="Lidarr.Core">
+      <HintPath>ext\Lidarr-source\_output\net6.0\win-x64\Lidarr.Core.dll</HintPath>
       <Private>false</Private>
-    </ProjectReference>
-    <ProjectReference Include="ext\Lidarr-source\src\NzbDrone.Common\Lidarr.Common.csproj">
+    </Reference>
+    <Reference Include="Lidarr.Common">
+      <HintPath>ext\Lidarr-source\_output\net6.0\win-x64\Lidarr.Common.dll</HintPath>
       <Private>false</Private>
-    </ProjectReference>
-    <ProjectReference Include="ext\Lidarr-source\src\Lidarr.Http\Lidarr.Http.csproj">
+    </Reference>
+    <Reference Include="Lidarr.Http">
+      <HintPath>ext\Lidarr-source\_output\net6.0\win-x64\Lidarr.Http.dll</HintPath>
       <Private>false</Private>
-    </ProjectReference>
+    </Reference>
     <!-- Shared library reference - using submodule for development -->
     <ProjectReference Include="ext\Lidarr.Plugin.Common\src\Lidarr.Plugin.Common.csproj">
       <Private>true</Private>
