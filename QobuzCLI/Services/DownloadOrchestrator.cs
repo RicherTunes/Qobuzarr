@@ -44,7 +44,7 @@ namespace QobuzCLI.Services
         /// <param name="quality">Quality preference (can be null to use config default).</param>
         /// <param name="progressTask">Optional progress task for UI updates.</param>
         /// <returns>Result indicating success/failure and details about the download.</returns>
-        public async Task<Lidarr.Plugin.Qobuzarr.Services.DownloadResult> ExecuteDownloadAsync(
+        public async Task<CliDownloadResult> ExecuteDownloadAsync(
             string downloadId, 
             SearchResult result, 
             string outputDir, 
@@ -72,20 +72,25 @@ namespace QobuzCLI.Services
                     if (progressTask != null) progressTask.Value = 100;
                     await _stateService.UpdateDownloadProgressAsync(downloadId, 100, $"Skipped - {reason}").ConfigureAwait(false);
                     
-                    return new Lidarr.Plugin.Qobuzarr.Services.DownloadResult
+                    var skipResult = new CliDownloadResult
                     {
-                        TrackDownloads = new List<Lidarr.Plugin.Qobuzarr.Models.TrackDownload>(),
+                        Success = false,
+                        Message = $"Skipped - {reason}",
+                        StartedAt = DateTime.UtcNow,
+                        CompletedAt = DateTime.UtcNow,
+                        TrackDownloads = new List<TrackDownloadInfo>(),
                         MetadataStrategy = "Skipped - Already Exists",
                         ApiCallsSaved = 0,
                         AdditionalApiCalls = 0
                     };
+                    return skipResult;
                 }
             }
             
             Directory.CreateDirectory(albumDir);
             
             // Use the plugin host for actual download - check type
-            Lidarr.Plugin.Qobuzarr.Services.DownloadResult downloadResult;
+            CliDownloadResult downloadResult;
             if (result.Type.ToLower() == "artist")
             {
                 _logger.LogInformation("Downloading artist: {Artist}", result.Artist);

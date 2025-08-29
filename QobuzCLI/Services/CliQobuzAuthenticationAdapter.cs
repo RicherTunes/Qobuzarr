@@ -1,8 +1,11 @@
 using System;
 using System.Threading.Tasks;
 using Lidarr.Plugin.Qobuzarr.Authentication;
-using Lidarr.Plugin.Qobuzarr.Core;
 using Lidarr.Plugin.Qobuzarr.Models.Authentication;
+using Lidarr.Plugin.Qobuzarr.Abstractions;
+using Microsoft.Extensions.Logging;
+// Use alias to resolve ambiguity
+using IQobuzHttpClient = Lidarr.Plugin.Qobuzarr.API.Http.IQobuzHttpClient;
 
 namespace QobuzCLI.Services
 {
@@ -12,17 +15,40 @@ namespace QobuzCLI.Services
     /// </summary>
     public class CliQobuzAuthenticationAdapter : IQobuzAuthenticationService
     {
-        private readonly QobuzAuthService _coreAuthService;
         private QobuzSession? _cachedSession;
+        private IQobuzHttpClient? _httpClient;
+        private IQobuzLogger? _logger;
 
-        public CliQobuzAuthenticationAdapter(QobuzAuthService coreAuthService)
+        public CliQobuzAuthenticationAdapter()
         {
-            _coreAuthService = coreAuthService ?? throw new ArgumentNullException(nameof(coreAuthService));
+            // Will be initialized later via SetDependencies
+        }
+        
+        public void SetDependencies(IQobuzHttpClient httpClient, IQobuzLogger logger)
+        {
+            _httpClient = httpClient;
+            _logger = logger;
         }
 
         public async Task<QobuzSession> AuthenticateAsync(QobuzCredentials credentials)
         {
-            var session = await _coreAuthService.AuthenticateAsync(credentials);
+            if (_httpClient == null || _logger == null)
+            {
+                throw new InvalidOperationException("Dependencies not initialized. Call SetDependencies first.");
+            }
+            
+            // For CLI, we'll create a simple session based on the provided credentials
+            // The actual authentication will be handled by the API client when making requests
+            var session = new QobuzSession
+            {
+                AuthToken = credentials.MD5Password ?? credentials.AuthToken, // Use MD5Password or AuthToken
+                AppId = credentials.AppId,
+                AppSecret = credentials.AppSecret, // CRITICAL FIX: Must include AppSecret for signature generation!
+                UserId = credentials.Email ?? credentials.UserId,
+                ExpiresAt = DateTime.UtcNow.AddHours(24),
+                CreatedAt = DateTime.UtcNow
+            };
+            
             _cachedSession = session;
             return session;
         }

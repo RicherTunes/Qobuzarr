@@ -10,6 +10,7 @@ using QobuzCLI.Models;
 using QobuzCLI.Services.Adapters;
 using Lidarr.Plugin.Qobuzarr.Utilities;
 using Lidarr.Plugin.Qobuzarr.Services;
+using Lidarr.Plugin.Common.Services.Performance;
 
 namespace QobuzCLI.Services
 {
@@ -22,7 +23,8 @@ namespace QobuzCLI.Services
         private readonly IStateService _stateService;
         private readonly IPluginHost _pluginHost;
         private readonly IConfigService _configService;
-        private readonly IAdaptiveRateLimiter _rateLimiter;
+        // Rate limiting now handled internally by plugin services
+        // private readonly IUniversalAdaptiveRateLimiter _rateLimiter;
         
         private readonly string _queuesFilePath;
         private readonly ConcurrentDictionary<string, DownloadQueue> _queues;
@@ -39,14 +41,13 @@ namespace QobuzCLI.Services
             ILogger<ImprovedQueueService> logger,
             IStateService stateService,
             IPluginHost pluginHost,
-            IConfigService configService,
-            IAdaptiveRateLimiter rateLimiter)
+            IConfigService configService)
         {
             _logger = logger;
             _stateService = stateService;
             _pluginHost = pluginHost;
             _configService = configService;
-            _rateLimiter = rateLimiter;
+            // _rateLimiter = rateLimiter;
             
             var queueDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".qobuz");
             Directory.CreateDirectory(queueDir);
@@ -458,8 +459,8 @@ namespace QobuzCLI.Services
                     
                     try
                     {
-                        // Apply rate limiting for download
-                        await _service._rateLimiter.WaitIfNeededAsync("download", ct).ConfigureAwait(false);
+                        // Rate limiting now handled internally by plugin services
+                        // await _service._rateLimiter.WaitIfNeededAsync("download", ct).ConfigureAwait(false);
                         
                         // Perform download with retry
                         var success = await DownloadWithRetryAsync(item, downloadId, ct).ConfigureAwait(false);
@@ -514,15 +515,15 @@ namespace QobuzCLI.Services
                         var albumDir = Path.Combine(artistDir, FileSystemUtilities.SanitizeFileName(title));
                         Directory.CreateDirectory(albumDir);
                         
-                        var result = await _service._pluginHost.DownloadAlbumAsync(qobuzId, albumDir).ConfigureAwait(false);
+                        var result = await _service._pluginHost.DownloadAlbumAsync(qobuzId, albumDir, null).ConfigureAwait(false);
                         
-                        if (result.IsSuccessful())
+                        if (result.IsSuccessful)
                         {
-                            await _service._stateService.CompleteDownloadAsync(downloadId, albumDir, result.GetTracksDownloaded()).ConfigureAwait(false);
+                            await _service._stateService.CompleteDownloadAsync(downloadId, albumDir, result.TrackDownloads?.Count ?? 0).ConfigureAwait(false);
                             return true;
                         }
                         
-                        throw new Exception(result.GetSummaryMessage());
+                        throw new Exception(result.Message ?? "Download failed");
                     }
                     catch (Exception ex) when (retryCount < maxRetries && !ct.IsCancellationRequested)
                     {

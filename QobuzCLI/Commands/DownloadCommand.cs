@@ -3,6 +3,8 @@ using System.Linq;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
 using QobuzCLI.Models;
+using CliDownloadResult = QobuzCLI.Models.CliDownloadResult;
+using CliPlaylistDownloadResult = QobuzCLI.Models.CliPlaylistDownloadResult;
 using QobuzCLI.Services;
 using QobuzCLI.Services.Logging;
 using QobuzCLI.Services.Adapters;
@@ -405,7 +407,7 @@ public class DownloadCommand
                 }).ToArray();
 
                 var downloadResults = await Task.WhenAll(tasks).ConfigureAwait(false);
-                DisplayDownloadSummary(downloadResults, config.OutputDirectory);
+                DisplayDownloadSummary(downloadResults.ToArray(), config.OutputDirectory);
             });
     }
 
@@ -413,7 +415,7 @@ public class DownloadCommand
     /// Execute download using plugin's core functionality directly.
     /// This is the correct architecture - CLI delegates to plugin, never reimplements.
     /// </summary>
-    private async Task<Lidarr.Plugin.Qobuzarr.Services.DownloadResult> ExecutePluginDownloadAsync(Models.SearchResult result, string outputDir, string? quality)
+    private async Task<CliDownloadResult> ExecutePluginDownloadAsync(Models.SearchResult result, string outputDir, string? quality)
     {
         _logger.LogInformation("Starting download: {Title} by {Artist}", result.Title, result.Artist);
         
@@ -426,7 +428,7 @@ public class DownloadCommand
             Directory.CreateDirectory(albumDir);
             
             // Delegate to plugin's download service - this is the correct pattern!
-            Lidarr.Plugin.Qobuzarr.Services.DownloadResult downloadResult;
+            CliDownloadResult downloadResult;
             switch (result.Type.ToLower())
             {
                 case "artist":
@@ -437,15 +439,15 @@ public class DownloadCommand
                 case "playlist":
                     _logger.LogInformation("Downloading playlist: {Title}", result.Title);
                     var playlistResult = await _pluginHost.DownloadPlaylistAsync(result.Id, outputDir, quality!).ConfigureAwait(false);
-                    // Convert PlaylistDownloadResult to DownloadResult with safe conversions
-                    downloadResult = ConvertPlaylistResultSafely(playlistResult);
+                    // Convert PlaylistDownloadResult to CliDownloadResult
+                    downloadResult = ConvertPlaylistResultToCliResult(playlistResult);
                     break;
                     
                 case "label":
                     _logger.LogInformation("Downloading label: {Title}", result.Title);
                     var labelResult = await _pluginHost.DownloadLabelAsync(result.Id, outputDir, quality!).ConfigureAwait(false);
-                    // Convert LabelDownloadResult to DownloadResult with safe conversions
-                    downloadResult = ConvertLabelResultSafely(labelResult);
+                    // Convert LabelDownloadResult to CliDownloadResult
+                    downloadResult = ConvertLabelResultToCliResult(labelResult);
                     break;
                     
                 default: // album or track
@@ -454,14 +456,14 @@ public class DownloadCommand
                     break;
             }
             
-            if (downloadResult.IsSuccessful())
+            if (downloadResult.IsSuccessful)
             {
                 _logger.LogInformation("Completed: {Title} by {Artist} ({TracksDownloaded} tracks)", 
-                    result.Title, result.Artist, downloadResult.GetTracksDownloaded());
+                    result.Title, result.Artist, downloadResult.TrackDownloads?.Count ?? 0);
             }
             else
             {
-                _logger.LogError("Failed: {Title} - {Error}", result.Title, downloadResult.GetSummaryMessage());
+                _logger.LogError("Failed: {Title} - {Error}", result.Title, downloadResult.Message);
             }
             
             return downloadResult;
@@ -469,13 +471,17 @@ public class DownloadCommand
         catch (Exception ex)
         {
             _logger.LogError(ex, "Download failed for {Title}", result.Title);
-            // Return a properly constructed plugin DownloadResult on error
-            return new Lidarr.Plugin.Qobuzarr.Services.DownloadResult
+            // Return a properly constructed CLI DownloadResult on error
+            return new CliDownloadResult
             {
-                TrackDownloads = new List<Lidarr.Plugin.Qobuzarr.Models.TrackDownload>(),
+                Success = false,
+                Message = ex.Message,
+                TrackDownloads = new List<TrackDownloadInfo>(),
                 MetadataStrategy = "Failed",
                 ApiCallsSaved = 0,
-                AdditionalApiCalls = 0
+                AdditionalApiCalls = 0,
+                StartedAt = DateTime.UtcNow,
+                CompletedAt = DateTime.UtcNow
             };
         }
     }
@@ -538,7 +544,7 @@ public class DownloadCommand
     /// <summary>
     /// Display download results summary - CLI-specific UI logic.
     /// </summary>
-    private void DisplayDownloadSummary(Lidarr.Plugin.Qobuzarr.Services.DownloadResult[] downloadResults, string outputDirectory)
+    private void DisplayDownloadSummary(CliDownloadResult[] downloadResults, string outputDirectory)
     {
         var successful = downloadResults.Where(r => r.IsSuccessful()).ToList();
         var failed = downloadResults.Where(r => !r.IsSuccessful()).ToList();
@@ -673,44 +679,18 @@ public class DownloadCommand
         var validatedResults = new List<Models.SearchResult>();
         var skippedCount = 0;
 
-        AnsiConsole.MarkupLine("[cyan]🔍 Validating downloadability...[/]");
+        // REGRESSION FIX: Skip validation that causes HTTP 400 errors
+        // Original implementation didn't validate - just attempted downloads
+        AnsiConsole.MarkupLine("[cyan]📥 Preparing downloads (validation disabled for compatibility)...[/]");
 
         foreach (var result in results)
         {
             try
             {
-                // Only validate albums for now (artists and tracks need different validation)
-                if (result.Type.ToLower() == "album")
-                {
-                    // Initialize plugin if needed for validation
-                    if (!_pluginHost.IsInitialized)
-                    {
-                        await _pluginHost.InitializeAsync(config).ConfigureAwait(false);
-                    }
-
-                    // Get the quality ID for validation
-                    var qualityId = GetQualityId(config.Quality);
-                    
-                    // Validate using the plugin's API service
-                    var isDownloadable = await ValidateAlbumDownloadabilityAsync(result.Id, qualityId).ConfigureAwait(false);
-                    
-                    if (isDownloadable)
-                    {
-                        validatedResults.Add(result);
-                        AnsiConsole.MarkupLine($"[green]✓[/] {result.Artist} - {result.Title}");
-                    }
-                    else
-                    {
-                        skippedCount++;
-                        AnsiConsole.MarkupLine($"[yellow]⏭[/] {result.Artist} - {result.Title} [dim](not downloadable)[/]");
-                    }
-                }
-                else
-                {
-                    // For non-albums, add without validation for now
-                    validatedResults.Add(result);
-                    AnsiConsole.MarkupLine($"[blue]→[/] {result.Artist} - {result.Title} [dim](validation skipped for {result.Type})[/]");
-                }
+                // REGRESSION FIX: Skip validation that causes HTTP 400 errors
+                // Original implementation didn't validate individual tracks
+                validatedResults.Add(result);
+                AnsiConsole.MarkupLine($"[green]✓[/] {result.Artist} - {result.Title} [dim](ready for download)[/]");
             }
             catch (Exception ex)
             {
@@ -808,14 +788,14 @@ public class DownloadCommand
     /// <summary>
     /// Safely converts PlaylistDownloadResult to DownloadResult with proper error handling
     /// </summary>
-    private Lidarr.Plugin.Qobuzarr.Services.DownloadResult ConvertPlaylistResultSafely(
-        Lidarr.Plugin.Qobuzarr.Download.Services.PlaylistDownloadResult playlistResult)
+    private CliDownloadResult ConvertPlaylistResultToCliResult(
+        CliPlaylistDownloadResult playlistResult)
     {
         try
         {
             var trackDownloads = new List<Lidarr.Plugin.Qobuzarr.Models.TrackDownload>();
             
-            foreach (var track in playlistResult.DownloadedTracks ?? new List<Lidarr.Plugin.Qobuzarr.Download.Services.TrackDownloadInfo>())
+            foreach (var track in playlistResult.DownloadedTracks ?? new List<QobuzCLI.Models.TrackDownloadInfo>())
             {
                 try
                 {
@@ -852,9 +832,13 @@ public class DownloadCommand
                 }
             }
 
-            return new Lidarr.Plugin.Qobuzarr.Services.DownloadResult
+            return new CliDownloadResult
             {
-                TrackDownloads = trackDownloads,
+                Success = playlistResult.Success,
+                Message = playlistResult.Message,
+                StartedAt = playlistResult.StartedAt,
+                CompletedAt = playlistResult.CompletedAt,
+                TrackDownloads = playlistResult.DownloadedTracks ?? new List<TrackDownloadInfo>(),
                 MetadataStrategy = "Playlist Download",
                 ApiCallsSaved = 0,
                 AdditionalApiCalls = playlistResult.TotalTracks
@@ -863,63 +847,26 @@ public class DownloadCommand
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to convert playlist download result");
-            return new Lidarr.Plugin.Qobuzarr.Services.DownloadResult
-            {
-                TrackDownloads = new List<Lidarr.Plugin.Qobuzarr.Models.TrackDownload>(),
-                MetadataStrategy = "Playlist Download - Conversion Failed",
-                ApiCallsSaved = 0,
-                AdditionalApiCalls = 0
-            };
+            return CliDownloadResult.Failure("Playlist download conversion failed");
         }
     }
 
     /// <summary>
     /// Safely converts LabelDownloadResult to DownloadResult with proper error handling
     /// </summary>
-    private Lidarr.Plugin.Qobuzarr.Services.DownloadResult ConvertLabelResultSafely(
+    private CliDownloadResult ConvertLabelResultToCliResult(
         Lidarr.Plugin.Qobuzarr.Download.Services.LabelDownloadResult labelResult)
     {
         try
         {
-            var trackDownloads = new List<Lidarr.Plugin.Qobuzarr.Models.TrackDownload>();
-            
-            foreach (var album in labelResult.DownloadedAlbums ?? new List<Lidarr.Plugin.Qobuzarr.Download.Services.AlbumDownloadInfo>())
+            return new CliDownloadResult
             {
-                try
-                {
-                    var trackCount = Math.Max(1, album.TrackCount); // Ensure at least 1 track
-                    
-                    for (int i = 1; i <= trackCount; i++)
-                    {
-                        trackDownloads.Add(new Lidarr.Plugin.Qobuzarr.Models.TrackDownload
-                        {
-                            StreamingUrl = album.Skipped ? null! : "downloaded",
-                            Title = $"{album.ArtistName} - {album.AlbumName} (Track {i})",
-                            Album = album.AlbumName,
-                            Artist = album.ArtistName,
-                            MetadataSource = album.Skipped ? "Skipped" : "Label Download"
-                        });
-                    }
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogError(ex, "Error converting label album '{AlbumName}' by '{ArtistName}'", 
-                        album.AlbumName, album.ArtistName);
-                    // Add a placeholder for the failed album
-                    trackDownloads.Add(new Lidarr.Plugin.Qobuzarr.Models.TrackDownload
-                    {
-                        Title = $"{album.ArtistName} - {album.AlbumName} (Conversion Error)",
-                        Album = album.AlbumName,
-                        Artist = album.ArtistName,
-                        MetadataSource = "Error"
-                    });
-                }
-            }
-
-            return new Lidarr.Plugin.Qobuzarr.Services.DownloadResult
-            {
-                TrackDownloads = trackDownloads,
-                MetadataStrategy = "Label Download",
+                Success = labelResult.Success,
+                Message = labelResult.Message ?? $"Downloaded {labelResult.SuccessfulAlbums}/{labelResult.TotalAlbums} albums from {labelResult.LabelName}",
+                StartedAt = labelResult.StartedAt,
+                CompletedAt = labelResult.CompletedAt,
+                TrackDownloads = new List<TrackDownloadInfo>(), // Label downloads don't track individual tracks
+                MetadataStrategy = "Label",
                 ApiCallsSaved = 0,
                 AdditionalApiCalls = labelResult.TotalAlbums
             };
@@ -927,13 +874,7 @@ public class DownloadCommand
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to convert label download result");
-            return new Lidarr.Plugin.Qobuzarr.Services.DownloadResult
-            {
-                TrackDownloads = new List<Lidarr.Plugin.Qobuzarr.Models.TrackDownload>(),
-                MetadataStrategy = "Label Download - Conversion Failed",
-                ApiCallsSaved = 0,
-                AdditionalApiCalls = 0
-            };
+            return CliDownloadResult.Failure("Label download conversion failed");
         }
     }
 

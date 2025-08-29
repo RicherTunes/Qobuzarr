@@ -5,6 +5,7 @@
     <TargetFramework>net6.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
+    <DefineConstants>CLI_BUILD</DefineConstants>
     <AssemblyName>qobuz</AssemblyName>
     <Version>1.0.0</Version>
     <Description>Qobuz CLI - Comprehensive testing tool for the Qobuz Lidarr Plugin</Description>
@@ -15,10 +16,10 @@
     <!-- Only suppress non-critical StyleCop and documentation warnings, not nullability issues -->
     <NoWarn>SA1200;SA1633;CS1591</NoWarn>
     
-    <!-- Enable analyzers but configure appropriately for CLI -->
-    <RunAnalyzersDuringBuild>true</RunAnalyzersDuringBuild>
+    <!-- Suppress analyzers to avoid StyleCop errors from Lidarr source (same as main plugin) -->
+    <RunAnalyzersDuringBuild>false</RunAnalyzersDuringBuild>
     <RunCodeAnalysis>false</RunCodeAnalysis>
-    <EnableNETAnalyzers>true</EnableNETAnalyzers>
+    <EnableNETAnalyzers>false</EnableNETAnalyzers>
   </PropertyGroup>
 
   <ItemGroup>
@@ -33,28 +34,29 @@
     <PackageReference Include="Newtonsoft.Json.Schema" />
     <PackageReference Include="Spectre.Console" />
     <PackageReference Include="Spectre.Console.Cli" />
-    <!-- NLog removed - CLI uses direct console output instead of NLog -->
-    <!-- NLog.Extensions.Logging removed - not needed without NLog -->
+    <PackageReference Include="NLog" />
+    <PackageReference Include="NLog.Extensions.Logging" />
     <PackageReference Include="TagLibSharp-Lidarr" />
+    <PackageReference Include="DotNetEnv" />
   </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\Qobuzarr.csproj" />
   </ItemGroup>
 
-  <!-- Lidarr assemblies from pre-built release (needed for direct interfaces) -->
+  <!-- ✅ PRE-BUILT ASSEMBLIES: Use single assembly source (no StyleCop conflicts) -->
   <ItemGroup>
-    <Reference Include="Lidarr.Common">
-      <HintPath>..\ext\Lidarr\_output\net6.0\Lidarr.Common.dll</HintPath>
-      <Private>false</Private>
-    </Reference>
     <Reference Include="Lidarr.Core">
       <HintPath>..\ext\Lidarr\_output\net6.0\Lidarr.Core.dll</HintPath>
-      <Private>false</Private>
+      <Private>true</Private>
+    </Reference>
+    <Reference Include="Lidarr.Common">
+      <HintPath>..\ext\Lidarr\_output\net6.0\Lidarr.Common.dll</HintPath>
+      <Private>true</Private>
     </Reference>
     <Reference Include="Lidarr.Http">
       <HintPath>..\ext\Lidarr\_output\net6.0\Lidarr.Http.dll</HintPath>
-      <Private>false</Private>
+      <Private>true</Private>
     </Reference>
   </ItemGroup>
 

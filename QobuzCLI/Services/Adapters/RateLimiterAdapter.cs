@@ -3,6 +3,7 @@ using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
 using Lidarr.Plugin.Qobuzarr.Services;
+using Lidarr.Plugin.Common.Services.Performance;
 using NzbDrone.Common.Http;
 
 namespace QobuzCLI.Services.Adapters
@@ -11,39 +12,43 @@ namespace QobuzCLI.Services.Adapters
     /// Adapter that provides the plugin's IAdaptiveRateLimiter implementation to CLI components.
     /// This maintains the plugin-first architecture by using the plugin's rate limiter directly.
     /// </summary>
-    public class RateLimiterAdapter : IAdaptiveRateLimiter
+    public class RateLimiterAdapter : IUniversalAdaptiveRateLimiter
     {
-        private readonly IAdaptiveRateLimiter _pluginRateLimiter;
+        private readonly IUniversalAdaptiveRateLimiter _pluginRateLimiter;
 
-        public RateLimiterAdapter(IAdaptiveRateLimiter pluginRateLimiter)
+        public RateLimiterAdapter(IUniversalAdaptiveRateLimiter pluginRateLimiter)
         {
             _pluginRateLimiter = pluginRateLimiter ?? throw new ArgumentNullException(nameof(pluginRateLimiter));
         }
 
-        public async Task<bool> WaitIfNeededAsync(string endpoint, CancellationToken cancellationToken = default)
+        public async Task<bool> WaitIfNeededAsync(string service, string endpoint, CancellationToken cancellationToken = default)
         {
-            return await _pluginRateLimiter.WaitIfNeededAsync(endpoint, cancellationToken);
+            return await _pluginRateLimiter.WaitIfNeededAsync(service, endpoint, cancellationToken);
         }
 
-        public void RecordResponse(string endpoint, HttpResponseMessage response)
+        public void RecordResponse(string service, string endpoint, HttpResponseMessage response)
         {
-            _pluginRateLimiter.RecordResponse(endpoint, response);
+            _pluginRateLimiter.RecordResponse(service, endpoint, response);
         }
 
-        public void RecordResponse(string endpoint, HttpResponse response)
+        public int GetCurrentLimit(string service, string endpoint)
         {
-            _pluginRateLimiter.RecordResponse(endpoint, response);
+            return _pluginRateLimiter.GetCurrentLimit(service, endpoint);
         }
 
-        public int GetCurrentLimit(string endpoint)
+        public ServiceRateLimitStats GetServiceStats(string service)
         {
-            return _pluginRateLimiter.GetCurrentLimit(endpoint);
+            return _pluginRateLimiter.GetServiceStats(service);
         }
 
-        public RateLimitStats GetStats()
+        public GlobalRateLimitStats GetGlobalStats()
         {
-            // Direct pass-through since interfaces are now the same
-            return _pluginRateLimiter.GetStats();
+            return _pluginRateLimiter.GetGlobalStats();
+        }
+
+        public void Dispose()
+        {
+            _pluginRateLimiter?.Dispose();
         }
     }
 }
