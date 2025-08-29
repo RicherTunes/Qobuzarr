@@ -144,7 +144,7 @@ namespace Lidarr.Plugin.Qobuzarr.Services.Matching
                 // High similarity with track number match
                 else if (lidarrTrack.TrackNumber == qobuzTrack.TrackNumber)
                 {
-                    var titleSimilarity = StringSimilarity.Calculate(normalizedLidarr, normalizedQobuz);
+                    var titleSimilarity = Utilities.StringSimilarity.Calculate(normalizedLidarr, normalizedQobuz);
                     if (titleSimilarity >= 0.8)
                     {
                         score = 0.9 * titleSimilarity;
@@ -155,7 +155,7 @@ namespace Lidarr.Plugin.Qobuzarr.Services.Matching
                 else if (lidarrTrack.DurationMs > 0)
                 {
                     var durationDiff = Math.Abs(lidarrTrack.Duration.TotalSeconds - qobuzTrack.Duration.TotalSeconds);
-                    var titleSimilarity = StringSimilarity.Calculate(normalizedLidarr, normalizedQobuz);
+                    var titleSimilarity = Utilities.StringSimilarity.Calculate(normalizedLidarr, normalizedQobuz);
                     
                     if (durationDiff <= 15 && titleSimilarity >= 0.7) // 15 second tolerance
                     {
@@ -166,7 +166,7 @@ namespace Lidarr.Plugin.Qobuzarr.Services.Matching
                 // Fuzzy title matching
                 else
                 {
-                    var titleSimilarity = StringSimilarity.Calculate(normalizedLidarr, normalizedQobuz);
+                    var titleSimilarity = Utilities.StringSimilarity.Calculate(normalizedLidarr, normalizedQobuz);
                     if (titleSimilarity >= 0.8)
                     {
                         score = 0.8 * titleSimilarity;

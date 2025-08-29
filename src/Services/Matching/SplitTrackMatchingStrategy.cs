@@ -155,7 +155,7 @@ namespace Lidarr.Plugin.Qobuzarr.Services.Matching
                 return true;
 
             // Check string similarity
-            return StringSimilarity.Calculate(normalized1, normalized2) >= 0.7;
+            return Utilities.StringSimilarity.Calculate(normalized1, normalized2) >= 0.7;
         }
 
         private bool ContainsSplitIndicator(string qobuzTitle, string lidarrTitle)
@@ -219,7 +219,7 @@ namespace Lidarr.Plugin.Qobuzarr.Services.Matching
             }
 
             // Check title similarity
-            var avgSimilarity = qobuzTracks.Average(q => StringSimilarity.Calculate(lidarrTrack.Title, q.Title));
+            var avgSimilarity = qobuzTracks.Average(q => Utilities.StringSimilarity.Calculate(lidarrTrack.Title, q.Title));
             confidence += avgSimilarity * 0.2;
 
             return Math.Min(1.0, confidence);

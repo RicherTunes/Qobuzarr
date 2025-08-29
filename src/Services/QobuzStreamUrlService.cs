@@ -3,7 +3,7 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Threading.Tasks;
 using Lidarr.Plugin.Qobuzarr.Abstractions;
-using Lidarr.Plugin.Qobuzarr.Core;
+using Lidarr.Plugin.Qobuzarr.Authentication;
 using Lidarr.Plugin.Qobuzarr.Models;
 
 namespace Lidarr.Plugin.Qobuzarr.Services
@@ -15,13 +15,13 @@ namespace Lidarr.Plugin.Qobuzarr.Services
     {
         private readonly IQobuzHttpClient _httpClient;
         private readonly IQobuzLogger _logger;
-        private readonly QobuzAuthService _authService;
+        private readonly IQobuzAuthenticationService _authService;
         private const string API_BASE = "https://www.qobuz.com/api.json/0.2";
 
         public QobuzStreamUrlService(
             IQobuzHttpClient httpClient,
             IQobuzLogger logger,
-            QobuzAuthService authService)
+            IQobuzAuthenticationService authService)
         {
             _httpClient = httpClient ?? throw new ArgumentNullException(nameof(httpClient));
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
@@ -33,7 +33,7 @@ namespace Lidarr.Plugin.Qobuzarr.Services
         /// </summary>
         public async Task<QobuzStreamInfo?> GetStreamInfoAsync(string trackId, int formatId)
         {
-            var session = _authService.GetCurrentSession();
+            var session = _authService.GetCachedSession();
             if (session == null)
             {
                 throw new InvalidOperationException("Not authenticated");
