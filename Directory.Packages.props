@@ -16,6 +16,7 @@
     <PackageVersion Include="Newtonsoft.Json" Version="13.0.3" />
     <!-- NLog 6.0.3 - latest version with breaking changes -->
     <PackageVersion Include="NLog" Version="6.0.3" />
+    <PackageVersion Include="NLog.Extensions.Logging" Version="5.3.14" />
     <PackageVersion Include="FluentValidation" Version="11.11.0" />
     <PackageVersion Include="System.Resources.Extensions" Version="8.0.0" />
     
@@ -42,9 +43,10 @@
   <ItemGroup>
     <!-- CLI Framework -->
     <PackageVersion Include="System.CommandLine" Version="2.0.0-beta4.22272.1" />
-    <PackageVersion Include="Spectre.Console" Version="0.47.0" />
-    <PackageVersion Include="Spectre.Console.Cli" Version="0.47.0" />
+    <PackageVersion Include="Spectre.Console" Version="0.48.0" />
+    <PackageVersion Include="Spectre.Console.Cli" Version="0.48.0" />
     <PackageVersion Include="Newtonsoft.Json.Schema" Version="3.0.15" />
+    <PackageVersion Include="DotNetEnv" Version="3.1.1" />
     
     <!-- Microsoft Extensions (mix of versions based on compatibility requirements) -->
     <PackageVersion Include="Microsoft.Extensions.DependencyInjection" Version="8.0.0" />
@@ -52,7 +54,7 @@
     <PackageVersion Include="Microsoft.Extensions.Configuration.Json" Version="8.0.0" />
     <PackageVersion Include="Microsoft.Extensions.Configuration.EnvironmentVariables" Version="8.0.0" />
     <PackageVersion Include="Microsoft.Extensions.Logging" Version="8.0.0" />
-    <PackageVersion Include="Microsoft.Extensions.Logging.Abstractions" Version="8.0.0" />
+    <PackageVersion Include="Microsoft.Extensions.Logging.Abstractions" Version="8.0.2" />
     <PackageVersion Include="Microsoft.Extensions.Logging.Console" Version="8.0.0" />
     <PackageVersion Include="Microsoft.Extensions.Http" Version="8.0.0" />
     <!-- NLog.Extensions.Logging removed - use Lidarr's built-in logging -->
@@ -80,7 +82,6 @@
     
     <!-- Integration Test Dependencies -->
     <PackageVersion Include="Docker.DotNet" Version="3.125.15" />
-    <PackageVersion Include="DotNetEnv" Version="3.1.1" />
     
     <!-- Advanced Quality Testing (Sprint 6) -->
     <PackageVersion Include="BenchmarkDotNet" Version="0.13.12" />
