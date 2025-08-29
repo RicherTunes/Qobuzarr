@@ -9,6 +9,7 @@ using QobuzCLI.Services.Adapters;
 using QobuzCLI.Services.Logging;
 using Spectre.Console;
 using Lidarr.Plugin.Qobuzarr.Services;
+using DotNetEnv;
 
 namespace QobuzCLI;
 
@@ -50,6 +51,9 @@ class Program
         
         try
         {
+            // Load .env file if it exists (for easier credential management)
+            LoadEnvironmentVariables();
+            
             // Configuration logging simplified for CLI
             
             // Setup dependency injection
@@ -108,14 +112,14 @@ class Program
             var logger = sp.GetRequiredService<ILogger<Dashboard>>();
             return new Dashboard(logger, sp);
         });
+        services.AddSingleton<IDashboard>(sp => sp.GetRequiredService<Dashboard>());
 
         // Core services
         services.AddSingleton<IConfigService, ConfigService>();
         services.AddSingleton<ISecureCredentialStorage, SecureCredentialStorage>();
         services.AddSingleton<ISecureConfigService, SecureConfigService>();
         
-        // Register plugin's rate limiter - used directly by CLI components
-        services.AddSingleton<Lidarr.Plugin.Qobuzarr.Services.IAdaptiveRateLimiter, Lidarr.Plugin.Qobuzarr.Services.AdaptiveRateLimiter>();
+        // Rate limiter removed - now integrated into plugin's API client
         services.AddSingleton<DownloadProgressTracker>();
         // PluginMetadataService removed - using plugin's QobuzTrackDownloader.ApplyBasicMetadata instead
         services.AddSingleton<DownloadOrchestrator>();
@@ -136,8 +140,28 @@ class Program
             return new QobuzCLI.Services.Logging.DashboardLogger(logger, dashboard, "Default");
         });
         
-        // Register HttpClient for plugin use
-        services.AddSingleton<HttpClient>();
+        // Register HttpClient with proper configuration
+        services.AddHttpClient<HttpClient>(client =>
+        {
+            client.Timeout = TimeSpan.FromSeconds(30);
+            client.DefaultRequestHeaders.Add("User-Agent", "QobuzCLI/1.0.0");
+        }).ConfigurePrimaryHttpMessageHandler(() =>
+        {
+            var handler = new HttpClientHandler();
+            
+            // Use system proxy settings
+            handler.UseProxy = true;
+            handler.UseDefaultCredentials = true;
+            
+            return handler;
+        });
+        
+        // Also register as singleton for backward compatibility
+        services.AddSingleton<HttpClient>(sp => 
+        {
+            var factory = sp.GetRequiredService<IHttpClientFactory>();
+            return factory.CreateClient(nameof(HttpClient));
+        });
         
         // Use SimplePluginService (transitional implementation)
         // This replaces the 1,776-line RealQobuzService god object with a focused implementation
@@ -151,7 +175,7 @@ class Program
         services.AddSingleton<ISearchService, SearchService>();
         services.AddSingleton<IConflictService, ConflictService>();
         services.AddSingleton<IStateService, StateService>();
-        services.AddSingleton<ISmartDuplicateChecker, SimpleDuplicateChecker>();
+        // Duplicate checker removed - handled by plugin's download orchestration
         services.AddSingleton<IBatchDownloadService, BatchDownloadService>();
         services.AddSingleton<QueueMonitoringService>();
         services.AddSingleton<IConsoleUI, SpectreConsoleUI>();
@@ -206,6 +230,64 @@ class Program
         // rootCommand.AddCommand(serviceProvider.GetRequiredService<TestMLCommand>().Command);
 
         return rootCommand;
+    }
+    
+    /// <summary>
+    /// Load environment variables from .env file if it exists
+    /// </summary>
+    private static void LoadEnvironmentVariables()
+    {
+        try
+        {
+            // Check for .env file in current directory first
+            var currentDirEnvFile = Path.Combine(Directory.GetCurrentDirectory(), ".env");
+            if (File.Exists(currentDirEnvFile))
+            {
+                Env.Load(currentDirEnvFile);
+                Console.WriteLine($"Loaded environment variables from {currentDirEnvFile}");
+                return;
+            }
+            
+            // Check for .env file in project root (for development)
+            var projectRoot = FindProjectRoot();
+            if (!string.IsNullOrEmpty(projectRoot))
+            {
+                var projectEnvFile = Path.Combine(projectRoot, ".env");
+                if (File.Exists(projectEnvFile))
+                {
+                    Env.Load(projectEnvFile);
+                    Console.WriteLine($"Loaded environment variables from {projectEnvFile}");
+                    return;
+                }
+            }
+            
+            // No .env file found - that's OK, environment variables might be set directly
+        }
+        catch (Exception ex)
+        {
+            // Don't fail if .env loading fails - just log and continue
+            Console.WriteLine($"Warning: Could not load .env file: {ex.Message}");
+        }
+    }
+    
+    /// <summary>
+    /// Find the project root directory (containing .csproj or .sln files)
+    /// </summary>
+    private static string? FindProjectRoot()
+    {
+        var currentDir = Directory.GetCurrentDirectory();
+        var directory = new DirectoryInfo(currentDir);
+        
+        while (directory != null)
+        {
+            if (directory.GetFiles("*.sln").Any() || directory.GetFiles("Qobuzarr.csproj").Any())
+            {
+                return directory.FullName;
+            }
+            directory = directory.Parent;
+        }
+        
+        return null;
     }
 }
 

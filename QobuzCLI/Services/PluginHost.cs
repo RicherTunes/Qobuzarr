@@ -1,3 +1,9 @@
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
+using System.Net.Http;
+using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Lidarr.Plugin.Qobuzarr.Configuration;
 using QobuzCLI.Models;
@@ -18,6 +24,8 @@ using QobuzCLI.Services.Adapters;
 using System.Collections.Concurrent;
 using System.Linq;
 using Lidarr.Plugin.Qobuzarr.Download.Services;
+// Use alias to resolve IQobuzHttpClient ambiguity
+using IQobuzHttpClient = Lidarr.Plugin.Qobuzarr.API.Http.IQobuzHttpClient;
 
 namespace QobuzCLI.Services;
 
@@ -27,14 +35,15 @@ public class PluginHost : IPluginHost, IDisposable
     private readonly HttpClient _httpClient;
     private QobuzConfig? _config;
     private bool _isInitialized;
-    private QobuzAuthService? _authService;
+    private IQobuzAuthenticationService? _authService;
     private CliQobuzAuthenticationAdapter? _authAdapter;
     private CliApiService? _apiClient;
     private CliDownloadService? _downloadService;
     private QobuzSession? _session;
     private IQobuzLogger? _pluginLogger;
     private IQobuzCache? _cache;
-    private IQobuzHttpClient? _pluginHttpClient;
+    private IQobuzHttpClient? _pluginHttpClient;  // API.Http version for new services
+    private Lidarr.Plugin.Qobuzarr.Abstractions.IQobuzHttpClient? _abstractionsHttpClient; // Abstractions version for legacy code
 
     public PluginHost(ILogger<PluginHost> logger, HttpClient httpClient)
     {
@@ -410,12 +419,25 @@ public class PluginHost : IPluginHost, IDisposable
         }).ToList();
     }
 
-    public Task<Lidarr.Plugin.Qobuzarr.Services.DownloadResult> DownloadAlbumAsync(string albumId, string outputPath)
+    // Implement the interface requirement that returns plugin's DownloadResult type
+    async Task<Lidarr.Plugin.Qobuzarr.Services.DownloadResult> IPluginHost.DownloadAlbumAsync(string albumId, string outputPath)
     {
-        return DownloadAlbumAsync(albumId, outputPath, null);
+        var cliResult = await DownloadAlbumAsync(albumId, outputPath, null);
+        
+        // Convert CLI result to plugin result
+        return new Lidarr.Plugin.Qobuzarr.Services.DownloadResult
+        {
+            Success = cliResult.Success,
+            TrackId = cliResult.TrackId ?? string.Empty,
+            Message = cliResult.Message ?? string.Empty,
+            FilePath = cliResult.FilePath ?? string.Empty,
+            FileSize = cliResult.FileSize,
+            StartedAt = cliResult.StartedAt,
+            CompletedAt = cliResult.CompletedAt
+        };
     }
 
-    public async Task<Lidarr.Plugin.Qobuzarr.Services.DownloadResult> DownloadAlbumAsync(string albumId, string outputPath, string? quality = null)
+    public async Task<CliDownloadResult> DownloadAlbumAsync(string albumId, string outputPath, string? quality = null)
     {
         // Validate album ID first before checking initialization
         if (string.IsNullOrWhiteSpace(albumId))
@@ -526,9 +548,19 @@ public class PluginHost : IPluginHost, IDisposable
             _logger.LogInformation("Download completed: {SuccessfulDownloads}/{TotalTracks} tracks", successfulDownloads, tracks.Count);
 
             // Create proper DownloadResult with actual track data
-            return new Lidarr.Plugin.Qobuzarr.Services.DownloadResult
+            return new CliDownloadResult
             {
-                TrackDownloads = trackResults.ToList(),
+                Success = successfulDownloads > 0,
+                Message = $"Downloaded {successfulDownloads}/{tracks.Count} tracks",
+                StartedAt = DateTime.UtcNow.AddMinutes(-5), // Estimate
+                CompletedAt = DateTime.UtcNow,
+                TrackDownloads = trackResults.Select(t => new TrackDownloadInfo 
+                { 
+                    TrackId = t.QobuzTrackId?.ToString() ?? "", 
+                    StreamingUrl = t.StreamingUrl ?? "", 
+                    Success = !string.IsNullOrEmpty(t.StreamingUrl) && t.StreamingUrl != null,
+                    Message = !string.IsNullOrEmpty(t.StreamingUrl) ? "Downloaded" : "Failed"
+                }).ToList(),
                 MetadataStrategy = "CLI Direct Download",
                 ApiCallsSaved = 0,
                 AdditionalApiCalls = tracks.Count // Each track required an API call
@@ -541,7 +573,7 @@ public class PluginHost : IPluginHost, IDisposable
         }
     }
 
-    public async Task<Lidarr.Plugin.Qobuzarr.Services.DownloadResult> DownloadArtistAsync(string artistId, string outputPath)
+    public async Task<CliDownloadResult> DownloadArtistAsync(string artistId, string outputPath)
     {
         // Tests expect this to throw NotImplementedException - keeping for test compatibility  
         throw new NotImplementedException("Artist download functionality not yet implemented in CLI wrapper");
@@ -582,8 +614,9 @@ public class PluginHost : IPluginHost, IDisposable
             Directory.CreateDirectory(artistDir);
 
             // Aggregate all track downloads
-            var allTrackDownloads = new List<TrackDownload>();
+            var allTrackDownloads = new List<TrackDownloadInfo>();
             var totalApiCalls = 0;
+            var startTime = DateTime.UtcNow;
 
             // Download each album
             foreach (var album in albums)
@@ -620,12 +653,16 @@ public class PluginHost : IPluginHost, IDisposable
                 }
             }
 
-            var successfulDownloads = allTrackDownloads.Count(t => !string.IsNullOrEmpty(t.StreamingUrl));
+            var successfulDownloads = allTrackDownloads.Count(t => t.Success);
             _logger.LogInformation("Artist download completed: {SuccessfulDownloads}/{TotalTracks} tracks from {AlbumCount} albums", 
                 successfulDownloads, allTrackDownloads.Count, albums.Count);
 
-            return new Lidarr.Plugin.Qobuzarr.Services.DownloadResult
+            return new CliDownloadResult
             {
+                Success = successfulDownloads > 0,
+                Message = $"Downloaded {successfulDownloads} tracks from {albums.Count} albums",
+                StartedAt = startTime,
+                CompletedAt = DateTime.UtcNow,
                 TrackDownloads = allTrackDownloads,
                 MetadataStrategy = "Artist Batch Download",
                 ApiCallsSaved = 0,
@@ -639,7 +676,7 @@ public class PluginHost : IPluginHost, IDisposable
         }
     }
 
-    public async Task<PlaylistDownloadResult> DownloadPlaylistAsync(
+    public async Task<CliPlaylistDownloadResult> DownloadPlaylistAsync(
         string playlistId, 
         string outputPath, 
         string? quality = null,
@@ -741,7 +778,7 @@ public class PluginHost : IPluginHost, IDisposable
             _logger.LogInformation("Playlist download completed: {SuccessfulDownloads}/{TotalTracks} tracks", 
                 successfulDownloads.Count, tracks.Count);
 
-            return new PlaylistDownloadResult
+            return new CliPlaylistDownloadResult
             {
                 PlaylistId = playlistId,
                 PlaylistName = playlist.Name,
@@ -750,9 +787,17 @@ public class PluginHost : IPluginHost, IDisposable
                 FailedTracks = failedDownloads.Count,
                 M3u8FilePath = createM3u8 && successfulDownloads.Any() ? 
                     Path.Combine(playlistDir, $"{SanitizeFileName(playlist.Name)}.m3u8") : null!,
-                IsSuccessful = successfulDownloads.Count > 0,
-                StartTime = startTime,
-                EndTime = DateTime.UtcNow
+                Success = successfulDownloads.Count > 0,
+                StartedAt = startTime,
+                CompletedAt = DateTime.UtcNow,
+                Message = $"Downloaded {successfulDownloads.Count}/{tracks.Count} tracks",
+                DownloadedTracks = successfulDownloads.Select(fileName => new TrackDownloadInfo
+                {
+                    TrackId = "", // We don't have track IDs for playlist downloads
+                    StreamingUrl = fileName,
+                    Success = true,
+                    Message = "Downloaded"
+                }).ToList()
             };
         }
         catch (Exception ex)
@@ -865,9 +910,10 @@ public class PluginHost : IPluginHost, IDisposable
                 TotalAlbums = albums.Count,
                 SuccessfulAlbums = successfulAlbums.Count,
                 FailedAlbums = failedAlbums.Count,
-                IsSuccessful = successfulAlbums.Count > 0,
-                StartTime = startTime,
-                EndTime = DateTime.UtcNow
+                Success = successfulAlbums.Count > 0,
+                StartedAt = startTime,
+                CompletedAt = DateTime.UtcNow,
+                Message = $"Downloaded {successfulAlbums.Count}/{albums.Count} albums"
             };
         }
         catch (Exception ex)
@@ -1058,7 +1104,8 @@ public class PluginHost : IPluginHost, IDisposable
     {
         _pluginLogger = new CliLoggerAdapter(_logger);
         _cache = new CliCacheAdapter();
-        _pluginHttpClient = new CliHttpClientAdapter(_httpClient);
+        _pluginHttpClient = new PluginHttpClientAdapter(_httpClient);
+        _abstractionsHttpClient = new CliHttpClientAdapter(_httpClient);
     }
 
     /// <summary>
@@ -1067,21 +1114,36 @@ public class PluginHost : IPluginHost, IDisposable
     /// </summary>
     private void InitializePluginServices()
     {
-        // Create authentication service
-        _authService = new QobuzAuthService(_pluginHttpClient!, _pluginLogger!, _cache!);
-        _authAdapter = new CliQobuzAuthenticationAdapter(_authService);
+        // Create CLI authentication adapter and set its dependencies
+        _authAdapter = new CliQobuzAuthenticationAdapter();
+        _authAdapter.SetDependencies(_pluginHttpClient!, _pluginLogger!);
+        
+        // Use the adapter as the auth service
+        _authService = _authAdapter;
         
         // Create API services with proper dependency injection
-        var streamUrlService = new QobuzStreamUrlService(_pluginHttpClient!, _pluginLogger!, _authService);
-        var searchService = new QobuzSearchService(_pluginHttpClient, _pluginLogger, _authService);
+        var streamUrlService = new QobuzStreamUrlService(_abstractionsHttpClient!, _pluginLogger!, _authService);
+        var searchService = new QobuzSearchService(_abstractionsHttpClient!, _pluginLogger!, _authService);
         
-        // For CLI context, use CLI-specific services with legacy interfaces
-        var qualityService = new QobuzQualityService(streamUrlService, _pluginLogger);
-        var cliValidationService = new CliQobuzValidationService(searchService, qualityService, _pluginLogger, _cache);
+        // Create a basic Qobuz API client for the quality service adapter
+        // This is needed because the adapter needs to make API calls
+        var simpleApiClient = new SimpleQobuzApiClient(_pluginHttpClient!, _authService, _pluginLogger!);
         
-        // Create CLI-specific API service that works with legacy interfaces
-        _apiClient = new CliApiService(streamUrlService, searchService, qualityService, cliValidationService, _pluginLogger);
-        _downloadService = new CliDownloadService(_pluginHttpClient, _pluginLogger, _apiClient);
+        // Create unified quality service and adapter
+        var memoryCache = new Microsoft.Extensions.Caching.Memory.MemoryCache(new Microsoft.Extensions.Caching.Memory.MemoryCacheOptions());
+        var nlogLogger = NLog.LogManager.GetCurrentClassLogger();
+        var unifiedQualityService = new UnifiedQualityService(nlogLogger, memoryCache);
+        var qualityServiceAdapter = new QobuzCLI.Services.Adapters.CliQualityServiceAdapter(
+            unifiedQualityService, simpleApiClient, streamUrlService, nlogLogger);
+        
+        // Use the adapter for validation service
+        var cliValidationService = new CliQobuzValidationService(searchService, qualityServiceAdapter, _pluginLogger, _cache);
+        
+        // Create CLI-specific API service with the adapter
+        _apiClient = new CliApiService(streamUrlService, searchService, qualityServiceAdapter, cliValidationService, _pluginLogger);
+        
+        // Use enhanced CliDownloadService with REAL download functionality
+        _downloadService = new CliDownloadService(_abstractionsHttpClient!, _pluginLogger, _apiClient);
     }
 
     #endregion
