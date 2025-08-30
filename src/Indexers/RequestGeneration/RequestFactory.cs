@@ -6,6 +6,8 @@ using NzbDrone.Core.Indexers;
 using NzbDrone.Common.Http;
 using NLog;
 using Lidarr.Plugin.Qobuzarr.Models.Authentication;
+using Lidarr.Plugin.Qobuzarr.Configuration;
+using Lidarr.Plugin.Common.Base;
 
 namespace Lidarr.Plugin.Qobuzarr.Indexers.RequestGeneration
 {
@@ -38,32 +40,38 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers.RequestGeneration
                     throw new ArgumentException("Query cannot be null or empty", nameof(query));
                 }
 
-                var requestBuilder = new HttpRequestBuilder(BASE_URL + SEARCH_ENDPOINT)
-                    .SetSegment("query", query)
-                    .AddQueryParam("query", query)
-                    .AddQueryParam("limit", PAGE_SIZE)
-                    .AddQueryParam("offset", 0);
+                // Compose query parameters using shared helpers
+                var parameters = new Dictionary<string, string>
+                {
+                    ["query"] = query,
+                    ["limit"] = PAGE_SIZE.ToString(),
+                    ["offset"] = "0",
+                    ["format_id"] = "7" // Hi-Res default; kept consistent with previous behavior
+                };
 
                 // Add authentication if session is available
                 if (session != null && !string.IsNullOrWhiteSpace(session.AuthToken))
                 {
-                    requestBuilder.AddQueryParam("user_auth_token", session.AuthToken);
-                    
+                    parameters["user_auth_token"] = session.AuthToken;
                     if (!string.IsNullOrWhiteSpace(session.AppId))
                     {
-                        requestBuilder.AddQueryParam("app_id", session.AppId);
+                        parameters["app_id"] = session.AppId;
                     }
                 }
 
-                // Add quality filter (default to Hi-Res quality)
-                var preferredQuality = 7; // Hi-Res quality by default
-                requestBuilder.AddQueryParam("format_id", preferredQuality.ToString());
+                var url = StreamingIndexerHelpers.BuildSearchUrl(BASE_URL, SEARCH_ENDPOINT, parameters);
 
-                var httpRequest = requestBuilder.Build();
-                var indexerRequest = new IndexerRequest(httpRequest);
+                var httpRequest = new HttpRequest(url);
+
+                // Standard headers via shared helper
+                var headers = StreamingIndexerHelpers.CreateStreamingHeaders(QobuzConstants.Api.UserAgent);
+                foreach (var kv in headers)
+                {
+                    httpRequest.Headers[kv.Key] = kv.Value;
+                }
 
                 _logger.Debug("Created search request for query: {0}", query);
-                return indexerRequest;
+                return new IndexerRequest(httpRequest);
             }
             catch (Exception ex)
             {
