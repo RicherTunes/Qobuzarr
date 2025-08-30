@@ -1,12 +1,12 @@
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.Linq;
 using NLog;
-using NzbDrone.Common.Cache;
-using NzbDrone.Common.Extensions;
 using Lidarr.Plugin.Qobuzarr.Configuration;
+using Lidarr.Plugin.Qobuzarr.Constants;
 using Lidarr.Plugin.Qobuzarr.Services;
+using Lidarr.Plugin.Common.Services.Caching;
+using Microsoft.Extensions.Logging;
 
 namespace Lidarr.Plugin.Qobuzarr.API.Caching
 {
@@ -14,64 +14,20 @@ namespace Lidarr.Plugin.Qobuzarr.API.Caching
     /// Implementation of response caching for Qobuz API calls.
     /// Manages cache key generation, TTL determination, and cache operations.
     /// </summary>
-    public class QobuzResponseCache : IQobuzResponseCache
+    public class QobuzResponseCache : StreamingResponseCache, IQobuzResponseCache
     {
-        private readonly ICacheManager _cacheManager;
-        private readonly ICached<object> _cache;
         private readonly Logger _logger;
-        private readonly IPerformanceMonitoringService? _performanceMonitor;
 
-        public QobuzResponseCache(ICacheManager cacheManager, Logger logger, IPerformanceMonitoringService? performanceMonitor = null)
+        public QobuzResponseCache(Logger logger, IPerformanceMonitoringService? performanceMonitor = null)
+            : base(CreateMsLogger(logger))
         {
-            _cacheManager = cacheManager ?? throw new ArgumentNullException(nameof(cacheManager));
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
-            _performanceMonitor = performanceMonitor;
-            _cache = _cacheManager.GetCache<object>(GetType());
         }
 
-        /// <inheritdoc/>
-        public T? Get<T>(string endpoint, Dictionary<string, string> parameters) where T : class
-        {
-            if (!ShouldCache(endpoint))
-                return null;
-
-            var cacheKey = GenerateCacheKey(endpoint, parameters);
-            var stopwatch = Stopwatch.StartNew();
-            var cached = _cache.Find(cacheKey);
-            stopwatch.Stop();
-
-            if (cached != null)
-            {
-                _logger.Debug("Cache hit for {0}", endpoint);
-                _performanceMonitor?.RecordCacheHit(cacheKey, "QobuzResponse", stopwatch.Elapsed, 0);
-                return cached as T;
-            }
-
-            _logger.Debug("Cache miss for {0}", endpoint);
-            _performanceMonitor?.RecordCacheMiss(cacheKey);
-            return null;
-        }
+        // Using base Get/Set implementations from StreamingResponseCache
 
         /// <inheritdoc/>
-        public void Set<T>(string endpoint, Dictionary<string, string> parameters, T value) where T : class
-        {
-            var duration = GetCacheDuration(endpoint);
-            Set(endpoint, parameters, value, duration);
-        }
-
-        /// <inheritdoc/>
-        public void Set<T>(string endpoint, Dictionary<string, string> parameters, T value, TimeSpan duration) where T : class
-        {
-            if (!ShouldCache(endpoint) || value == null)
-                return;
-
-            var cacheKey = GenerateCacheKey(endpoint, parameters);
-            _cache.Set(cacheKey, value, duration);
-            _logger.Debug("Cached response for {0} (TTL: {1})", endpoint, duration);
-        }
-
-        /// <inheritdoc/>
-        public bool ShouldCache(string endpoint)
+        public override bool ShouldCache(string endpoint)
         {
             // Cache search results and metadata, but not authentication or streaming URLs
             return endpoint.Contains("/search/") ||
@@ -83,7 +39,7 @@ namespace Lidarr.Plugin.Qobuzarr.API.Caching
         }
 
         /// <inheritdoc/>
-        public TimeSpan GetCacheDuration(string endpoint)
+        public override TimeSpan GetCacheDuration(string endpoint)
         {
             return endpoint switch
             {
@@ -97,32 +53,24 @@ namespace Lidarr.Plugin.Qobuzarr.API.Caching
             };
         }
 
-        /// <inheritdoc/>
-        public string GenerateCacheKey(string endpoint, Dictionary<string, string> parameters)
+        protected override string GetServiceName() => QobuzarrConstants.ServiceName;
+
+        // Override GenerateCacheKey to match Qobuz-specific masking
+        public override string GenerateCacheKey(string endpoint, Dictionary<string, string> parameters)
         {
-            // Exclude authentication tokens from cache key to allow sharing cached data
-            var relevantParams = parameters
-                .Where(p => p.Key != "user_auth_token" && p.Key != "app_id")
+            var filtered = parameters
+                .Where(p => !IsSensitiveParameter(p.Key))
                 .OrderBy(p => p.Key)
-                .Select(p => $"{p.Key}={p.Value}")
-                .Join("&");
-
-            var key = $"qobuz_api_{endpoint}_{relevantParams}";
-            return key.GetHashCode().ToString();
+                .Select(p => $"{p.Key}={p.Value}");
+            var key = $"qobuz_api_{endpoint}_{string.Join("&", filtered)}";
+            return Math.Abs(key.GetHashCode()).ToString();
         }
 
-        /// <inheritdoc/>
-        public void Clear()
+        private static Microsoft.Extensions.Logging.ILogger CreateMsLogger(Logger nlog)
         {
-            _cache.Clear();
-            _logger.Debug("Cleared all cached responses");
-        }
-
-        /// <inheritdoc/>
-        public void ClearEndpoint(string endpoint)
-        {
-            // Note: ICached doesn't support partial clearing, so we log a warning
-            _logger.Warn("Partial cache clearing not supported - use Clear() to clear all cached responses");
+            // Best-effort: create a basic console logger if no factory is provided; avoid hard coupling
+            using var factory = LoggerFactory.Create(builder => builder.AddConsole());
+            return factory.CreateLogger("QobuzResponseCache");
         }
     }
 }
