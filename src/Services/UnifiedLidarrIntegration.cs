@@ -10,7 +10,9 @@ using NzbDrone.Core.Music;
 using NzbDrone.Core.Parser.Model;
 using NzbDrone.Core.Profiles.Qualities;
 using Lidarr.Plugin.Common.Services;
+using Lidarr.Plugin.Qobuzarr.Constants;
 using Lidarr.Plugin.Qobuzarr.Models;
+using Lidarr.Plugin.Qobuzarr.Download;
 
 namespace Lidarr.Plugin.Qobuzarr.Services
 {
@@ -99,8 +101,8 @@ namespace Lidarr.Plugin.Qobuzarr.Services
                     Album = album.Title,
                     PublishDate = DateTime.TryParse(album.ReleaseDateOriginal, out var date) ? date : DateTime.MinValue,
                     Size = EstimateTrackSize(track),
-                    DownloadProtocol = DownloadProtocol.Unknown, // Streaming protocol
-                    Source = "Qobuzarr"
+                    DownloadProtocol = nameof(QobuzarrDownloadProtocol), // Streaming protocol
+                    Source = QobuzarrConstants.PluginName
                 };
 
                 // Add quality information if available

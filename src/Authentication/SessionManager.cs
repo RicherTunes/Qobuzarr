@@ -6,6 +6,7 @@ using NLog;
 using Lidarr.Plugin.Qobuzarr.Models.Authentication;
 using Lidarr.Plugin.Qobuzarr.Exceptions;
 using Lidarr.Plugin.Qobuzarr.Services.Interfaces;
+using Lidarr.Plugin.Qobuzarr.Configuration;
 
 namespace Lidarr.Plugin.Qobuzarr.Authentication
 {

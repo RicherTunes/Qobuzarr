@@ -11,11 +11,13 @@ using NzbDrone.Core.Indexers;
 using NzbDrone.Core.Parser;
 using NzbDrone.Core.Parser.Model;
 using NzbDrone.Core.Validation;
+using Lidarr.Plugin.Qobuzarr.Constants;
 using Lidarr.Plugin.Qobuzarr.Authentication;
 using Lidarr.Plugin.Qobuzarr.API;
 using Lidarr.Plugin.Qobuzarr.Security;
 using Lidarr.Plugin.Qobuzarr.Indexers.Core;
 using Lidarr.Plugin.Common.Base;
+using Lidarr.Plugin.Qobuzarr.Download;
 
 namespace Lidarr.Plugin.Qobuzarr.Indexers
 {
@@ -29,8 +31,8 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
     /// </summary>
     public class QobuzIndexer : HttpIndexerBase<QobuzIndexerSettings>, IDisposable
     {
-        public override string Name => "Qobuzarr";
-        public override DownloadProtocol Protocol => DownloadProtocol.Unknown;
+        public override string Name => QobuzarrConstants.PluginName;
+        public override string Protocol => nameof(QobuzarrDownloadProtocol);
         public override bool SupportsRss => false;
         public override bool SupportsSearch => true;
         public override int PageSize => 100;

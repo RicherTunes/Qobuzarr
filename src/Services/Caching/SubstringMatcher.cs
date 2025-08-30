@@ -1,55 +1,66 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
+using System.Text;
 using System.Text.RegularExpressions;
+using Lidarr.Plugin.Qobuzarr.Services.Caching;
 using Lidarr.Plugin.Qobuzarr.Utilities;
 
 namespace Lidarr.Plugin.Qobuzarr.Services.Caching
 {
     /// <summary>
-    /// Implementation of substring matching and similarity calculation algorithms
+    /// Substring matcher implementation for fuzzy string matching
     /// </summary>
     public class SubstringMatcher : ISubstringMatcher
     {
-        private static readonly string[] CommonWords = 
-        {
-            "the", "a", "an", "and", "or", "of", "in", "on", "at", "to", "for"
-        };
-
         /// <summary>
         /// Normalizes a string for improved matching accuracy
-        /// Handles case, punctuation, extra whitespace, and common stop words
         /// </summary>
         /// <param name="input">Input string to normalize</param>
         /// <returns>Normalized string optimized for similarity comparison</returns>
         public string NormalizeString(string input)
         {
             if (string.IsNullOrWhiteSpace(input))
-                return "";
+                return string.Empty;
 
-            // Convert to lowercase
-            var normalized = input.ToLowerInvariant();
+            // Normalize Unicode and remove accents
+            var normalized = input.Normalize(NormalizationForm.FormD);
+            var sb = new StringBuilder();
             
-            // Remove punctuation and extra whitespace
-            normalized = Regex.Replace(normalized, @"[^\w\s]", " ");
-            normalized = Regex.Replace(normalized, @"\s+", " ").Trim();
+            foreach (char c in normalized)
+            {
+                if (CharUnicodeInfo.GetUnicodeCategory(c) != UnicodeCategory.NonSpacingMark)
+                    sb.Append(c);
+            }
             
-            // Remove common words
-            var words = normalized.Split(' ').Where(w => !CommonWords.Contains(w));
+            normalized = sb.ToString().Normalize(NormalizationForm.FormC);
             
-            return string.Join(" ", words);
+            // Remove extra whitespace and punctuation
+            normalized = Regex.Replace(normalized, @"\s+", " ");
+            normalized = Regex.Replace(normalized, @"[^\w\s]", "");
+            
+            return normalized.Trim().ToLowerInvariant();
         }
 
         /// <summary>
         /// Calculates similarity score between two strings using Levenshtein distance
-        /// Normalizes by maximum string length to provide consistent scoring
         /// </summary>
         /// <param name="s1">First string for comparison</param>
         /// <param name="s2">Second string for comparison</param>
         /// <returns>Similarity score where 1.0 = identical, 0.0 = completely different</returns>
         public double CalculateSimilarity(string s1, string s2)
         {
-            return Utilities.StringSimilarity.Calculate(s1, s2);
+            if (string.IsNullOrEmpty(s1) && string.IsNullOrEmpty(s2))
+                return 1.0;
+                
+            if (string.IsNullOrEmpty(s1) || string.IsNullOrEmpty(s2))
+                return 0.0;
+
+            var distance = LevenshteinDistance(s1, s2);
+            var maxLength = Math.Max(s1.Length, s2.Length);
+            
+            return 1.0 - ((double)distance / maxLength);
         }
 
         /// <summary>
@@ -61,22 +72,13 @@ namespace Lidarr.Plugin.Qobuzarr.Services.Caching
         /// <returns>True if strings are similar above threshold, false otherwise</returns>
         public bool IsSimilar(string s1, string s2, double threshold)
         {
-            Utilities.Guard.InRange(threshold, 0.0, 1.0);
+            Guard.InRange(threshold, 0.0, 1.0);
             return CalculateSimilarity(s1, s2) >= threshold;
         }
 
         /// <summary>
         /// Finds entries with artist names that contain or are contained by the search artist
-        /// Applies similarity scoring to album titles for match qualification
         /// </summary>
-        /// <typeparam name="TEntry">Type of cache entries</typeparam>
-        /// <param name="entries">Collection of entries to search</param>
-        /// <param name="searchArtist">Normalized artist name to match against</param>
-        /// <param name="searchAlbum">Normalized album name for similarity scoring</param>
-        /// <param name="artistAccessor">Function to get normalized artist from entry</param>
-        /// <param name="albumAccessor">Function to get normalized album from entry</param>
-        /// <param name="similarityThreshold">Minimum similarity threshold</param>
-        /// <returns>Matching cache entries</returns>
         public IEnumerable<TEntry> FindArtistMatches<TEntry>(
             IEnumerable<TEntry> entries,
             string searchArtist,
@@ -85,52 +87,23 @@ namespace Lidarr.Plugin.Qobuzarr.Services.Caching
             Func<TEntry, string> albumAccessor,
             double similarityThreshold) where TEntry : class
         {
-            Utilities.Guard.NotNull(entries);
-            Utilities.Guard.NotNullOrWhiteSpace(searchArtist);
-            Utilities.Guard.NotNullOrWhiteSpace(searchAlbum);
-            Utilities.Guard.NotNull(artistAccessor);
-            Utilities.Guard.NotNull(albumAccessor);
-            Utilities.Guard.InRange(similarityThreshold, 0.0, 1.0);
+            Guard.NotNull(entries);
+            Guard.NotNull(artistAccessor);
+            Guard.NotNull(albumAccessor);
 
-            var matches = new List<TEntry>();
-
-            foreach (var entry in entries)
+            var normalizedSearchArtist = NormalizeString(searchArtist);
+            
+            return entries.Where(entry =>
             {
-                var entryArtist = artistAccessor(entry);
-                var entryAlbum = albumAccessor(entry);
-
-                // Check for exact artist match or partial artist match
-                if (entryArtist == searchArtist || 
-                    entryArtist.Contains(searchArtist) || 
-                    searchArtist.Contains(entryArtist))
-                {
-                    var albumSimilarity = CalculateSimilarity(searchAlbum, entryAlbum);
-                    
-                    // Use slightly lower threshold for partial artist matches
-                    var threshold = entryArtist == searchArtist ? similarityThreshold : similarityThreshold * 0.9;
-                    
-                    if (albumSimilarity >= threshold)
-                    {
-                        matches.Add(entry);
-                    }
-                }
-            }
-
-            return matches.Distinct();
+                var entryArtist = NormalizeString(artistAccessor(entry));
+                return IsSubstringMatch(normalizedSearchArtist, entryArtist) ||
+                       CalculateSimilarity(normalizedSearchArtist, entryArtist) >= similarityThreshold;
+            });
         }
 
         /// <summary>
         /// Finds entries with album names that contain or are contained by the search album
-        /// Applies similarity scoring to artist names for match qualification
         /// </summary>
-        /// <typeparam name="TEntry">Type of cache entries</typeparam>
-        /// <param name="entries">Collection of entries to search</param>
-        /// <param name="searchArtist">Normalized artist name for similarity scoring</param>
-        /// <param name="searchAlbum">Normalized album name to match against</param>
-        /// <param name="artistAccessor">Function to get normalized artist from entry</param>
-        /// <param name="albumAccessor">Function to get normalized album from entry</param>
-        /// <param name="similarityThreshold">Minimum similarity threshold</param>
-        /// <returns>Matching cache entries</returns>
         public IEnumerable<TEntry> FindAlbumMatches<TEntry>(
             IEnumerable<TEntry> entries,
             string searchArtist,
@@ -139,53 +112,23 @@ namespace Lidarr.Plugin.Qobuzarr.Services.Caching
             Func<TEntry, string> albumAccessor,
             double similarityThreshold) where TEntry : class
         {
-            Utilities.Guard.NotNull(entries);
-            Utilities.Guard.NotNullOrWhiteSpace(searchArtist);
-            Utilities.Guard.NotNullOrWhiteSpace(searchAlbum);
-            Utilities.Guard.NotNull(artistAccessor);
-            Utilities.Guard.NotNull(albumAccessor);
-            Utilities.Guard.InRange(similarityThreshold, 0.0, 1.0);
+            Guard.NotNull(entries);
+            Guard.NotNull(artistAccessor);
+            Guard.NotNull(albumAccessor);
 
-            var matches = new List<TEntry>();
-
-            foreach (var entry in entries)
+            var normalizedSearchAlbum = NormalizeString(searchAlbum);
+            
+            return entries.Where(entry =>
             {
-                var entryArtist = artistAccessor(entry);
-                var entryAlbum = albumAccessor(entry);
-
-                // Check for exact album match or partial album match
-                if (entryAlbum == searchAlbum || 
-                    entryAlbum.Contains(searchAlbum) || 
-                    searchAlbum.Contains(entryAlbum))
-                {
-                    var artistSimilarity = CalculateSimilarity(searchArtist, entryArtist);
-                    
-                    // Use slightly lower threshold for partial album matches
-                    var threshold = entryAlbum == searchAlbum ? similarityThreshold : similarityThreshold * 0.9;
-                    
-                    if (artistSimilarity >= threshold)
-                    {
-                        matches.Add(entry);
-                    }
-                }
-            }
-
-            return matches.Distinct();
+                var entryAlbum = NormalizeString(albumAccessor(entry));
+                return IsSubstringMatch(normalizedSearchAlbum, entryAlbum) ||
+                       CalculateSimilarity(normalizedSearchAlbum, entryAlbum) >= similarityThreshold;
+            });
         }
 
         /// <summary>
         /// Performs comprehensive fuzzy matching using combined artist+album similarity
-        /// Last resort matching strategy when substring approaches fail
         /// </summary>
-        /// <typeparam name="TEntry">Type of cache entries</typeparam>
-        /// <param name="entries">Collection of entries to search</param>
-        /// <param name="searchArtist">Normalized artist name</param>
-        /// <param name="searchAlbum">Normalized album name</param>
-        /// <param name="artistAccessor">Function to get normalized artist from entry</param>
-        /// <param name="albumAccessor">Function to get normalized album from entry</param>
-        /// <param name="similarityThreshold">Minimum similarity threshold</param>
-        /// <param name="maxResults">Maximum number of results to return</param>
-        /// <returns>Best matching cache entries ordered by similarity</returns>
         public IEnumerable<TEntry> FindFuzzyMatches<TEntry>(
             IEnumerable<TEntry> entries,
             string searchArtist,
@@ -195,36 +138,70 @@ namespace Lidarr.Plugin.Qobuzarr.Services.Caching
             double similarityThreshold,
             int maxResults = 5) where TEntry : class
         {
-            Utilities.Guard.NotNull(entries);
-            Utilities.Guard.NotNullOrWhiteSpace(searchArtist);
-            Utilities.Guard.NotNullOrWhiteSpace(searchAlbum);
-            Utilities.Guard.NotNull(artistAccessor);
-            Utilities.Guard.NotNull(albumAccessor);
-            Utilities.Guard.InRange(similarityThreshold, 0.0, 1.0);
+            Guard.NotNull(entries);
+            Guard.NotNull(artistAccessor);
+            Guard.NotNull(albumAccessor);
             Guard.GreaterThan(maxResults, 0);
 
-            var combinedQuery = $"{searchArtist} {searchAlbum}";
-            var matches = new List<(TEntry entry, double similarity)>();
+            var normalizedSearchArtist = NormalizeString(searchArtist);
+            var normalizedSearchAlbum = NormalizeString(searchAlbum);
+            
+            return entries
+                .Select(entry => new {
+                    Entry = entry,
+                    ArtistSimilarity = CalculateSimilarity(normalizedSearchArtist, NormalizeString(artistAccessor(entry))),
+                    AlbumSimilarity = CalculateSimilarity(normalizedSearchAlbum, NormalizeString(albumAccessor(entry)))
+                })
+                .Where(x => (x.ArtistSimilarity + x.AlbumSimilarity) / 2.0 >= similarityThreshold)
+                .OrderByDescending(x => (x.ArtistSimilarity + x.AlbumSimilarity) / 2.0)
+                .Take(maxResults)
+                .Select(x => x.Entry);
+        }
 
-            foreach (var entry in entries)
+        /// <summary>
+        /// Checks if two strings have a substring relationship
+        /// </summary>
+        private bool IsSubstringMatch(string s1, string s2)
+        {
+            if (string.IsNullOrEmpty(s1) || string.IsNullOrEmpty(s2))
+                return false;
+                
+            return s1.Contains(s2, StringComparison.OrdinalIgnoreCase) ||
+                   s2.Contains(s1, StringComparison.OrdinalIgnoreCase);
+        }
+
+        /// <summary>
+        /// Calculates Levenshtein distance between two strings
+        /// </summary>
+        private int LevenshteinDistance(string source, string target)
+        {
+            if (string.IsNullOrEmpty(source))
+                return target?.Length ?? 0;
+                
+            if (string.IsNullOrEmpty(target))
+                return source.Length;
+
+            var matrix = new int[source.Length + 1, target.Length + 1];
+
+            for (int i = 0; i <= source.Length; i++)
+                matrix[i, 0] = i;
+                
+            for (int j = 0; j <= target.Length; j++)
+                matrix[0, j] = j;
+
+            for (int i = 1; i <= source.Length; i++)
             {
-                var entryArtist = artistAccessor(entry);
-                var entryAlbum = albumAccessor(entry);
-                var combinedEntry = $"{entryArtist} {entryAlbum}";
-                
-                var similarity = CalculateSimilarity(combinedQuery, combinedEntry);
-                
-                if (similarity >= similarityThreshold)
+                for (int j = 1; j <= target.Length; j++)
                 {
-                    matches.Add((entry, similarity));
+                    var cost = source[i - 1] == target[j - 1] ? 0 : 1;
+                    
+                    matrix[i, j] = Math.Min(
+                        Math.Min(matrix[i - 1, j] + 1, matrix[i, j - 1] + 1),
+                        matrix[i - 1, j - 1] + cost);
                 }
             }
 
-            return matches
-                .OrderByDescending(m => m.similarity)
-                .Take(maxResults)
-                .Select(m => m.entry);
+            return matrix[source.Length, target.Length];
         }
-
     }
 }

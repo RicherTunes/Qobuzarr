@@ -49,10 +49,10 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Clients
         // Removed dependency on IQobuzTrackDownloaderFactory - consolidated into this class
         private readonly ConcurrentDictionary<string, QobuzDownloadItem> _activeDownloads;
 
-        public override string Name => "Qobuzarr";
+        public override string Name => QobuzarrConstants.PluginName;
         
-        // Protocol property - uses DownloadProtocol enum for release branch compatibility  
-        public override DownloadProtocol Protocol => DownloadProtocol.Unknown;
+        // Protocol property - uses string for plugins branch compatibility  
+        public override string Protocol => nameof(QobuzarrDownloadProtocol);
 
         public QobuzDownloadClient(IQobuzAuthenticationService authService,
                                   IQobuzApiClient apiClient,
