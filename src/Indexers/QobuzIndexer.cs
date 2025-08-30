@@ -18,6 +18,7 @@ using Lidarr.Plugin.Qobuzarr.Security;
 using Lidarr.Plugin.Qobuzarr.Indexers.Core;
 using Lidarr.Plugin.Common.Base;
 using Lidarr.Plugin.Qobuzarr.Download;
+using Lidarr.Plugin.Common.Services;
 
 namespace Lidarr.Plugin.Qobuzarr.Indexers
 {
@@ -42,6 +43,7 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
         private readonly IIndexerRateLimitManager _rateLimitManager;
         private readonly IIndexerMLManager _mlManager;
         private readonly IQobuzApiClient _apiClient;
+        private readonly StreamingIndexerMixin _mixin;
         
         // Cached instances for context sharing
         private QobuzRequestGenerator _requestGenerator;
@@ -66,6 +68,9 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
             _rateLimitManager = new IndexerRateLimitManager(logger);
             _mlManager = new IndexerMLManager(secureModelLoader, Settings, logger);
             
+            // Shared mixin for incremental adoption of common features
+            _mixin = new StreamingIndexerMixin(QobuzarrConstants.ServiceName);
+
             // Initialize ML optimizer lazily
             _patternLearningEngine = new Lazy<IPatternLearningEngine>(() => 
                 _mlManager.CreateMLOptimizer(logger));
@@ -132,6 +137,12 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
                     {
                         try
                         {
+                            // Apply shared-library pacing in addition to local manager (low-risk incremental adoption)
+                            if (Settings?.ApiRateLimit > 0)
+                            {
+                                await _mixin.ApplyRateLimitAsync(Settings.ApiRateLimit).ConfigureAwait(false);
+                            }
+
                             var response = await _httpClient.ExecuteAsync(request.HttpRequest).ConfigureAwait(false);
                             var indexerResponse = new IndexerResponse(request, response);
                             
