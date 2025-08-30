@@ -6,7 +6,7 @@ namespace Lidarr.Plugin.Qobuzarr.Services.Caching
     /// <summary>
     /// Substring cache entry with all metadata for substring matching
     /// </summary>
-    public class SubstringCacheEntry : ITimestampedCacheEntry
+    public class SubstringCacheEntry
     {
         /// <summary>
         /// Unique cache key for this entry

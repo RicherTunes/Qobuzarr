@@ -26,6 +26,11 @@ namespace Lidarr.Plugin.Qobuzarr.Constants
         /// The protocol identifier used for Lidarr plugin system
         /// </summary>
         public const string ProtocolName = "Qobuzarr";
+        
+        /// <summary>
+        /// The download category identifier for Lidarr downloads
+        /// </summary>
+        public const string DownloadCategory = "qobuzarr";
 
         /// <summary>
         /// Plugin metadata information (restored from deleted QobuzarrPlugin.cs)
