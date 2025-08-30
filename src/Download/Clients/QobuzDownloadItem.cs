@@ -5,6 +5,7 @@ using NzbDrone.Core.Download;
 using NzbDrone.Core.Indexers;
 using Lidarr.Plugin.Qobuzarr.Models;
 using Lidarr.Plugin.Qobuzarr.Constants;
+using Lidarr.Plugin.Qobuzarr.Download;
 
 namespace Lidarr.Plugin.Qobuzarr.Download.Clients
 {
@@ -155,15 +156,15 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Clients
                 CanBeRemoved = Status == DownloadItemStatus.Completed || Status == DownloadItemStatus.Failed,
                 OutputPath = new NzbDrone.Common.Disk.OsPath(OutputPath ?? ""),
                 IsEncrypted = false,
-                Category = "qobuzarr", // Set category to help Lidarr identify our downloads
+                Category = QobuzarrConstants.DownloadCategory, // Set category to help Lidarr identify our downloads
                 SeedRatio = null, // Not applicable for direct downloads
                 Removed = false,
                 DownloadClientInfo = new DownloadClientItemClientInfo
                 {
-                    Protocol = DownloadProtocol.Unknown,
-                    Type = "Qobuzarr",
+                    Protocol = nameof(QobuzarrDownloadProtocol),
+                    Type = QobuzarrConstants.PluginName,
                     Id = downloadClientId, // Use actual download client ID
-                    Name = downloadClientName ?? "Qobuzarr",
+                    Name = downloadClientName ?? QobuzarrConstants.PluginName,
                     RemoveCompletedDownloads = true, // Allow Lidarr to clean up after import
                     HasPostImportCategory = true // Enable post-import processing
                 }
