@@ -6,6 +6,7 @@ using NzbDrone.Core.Parser.Model;
 using Lidarr.Plugin.Qobuzarr.Models;
 using Lidarr.Plugin.Qobuzarr.Constants;
 using NzbDrone.Core.Indexers;
+using Lidarr.Plugin.Qobuzarr.Download;
 
 namespace Lidarr.Plugin.Qobuzarr.Indexers.Parsing
 {
@@ -52,7 +53,7 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers.Parsing
                 Guid = $"qobuz-{album.Id}-{(int)quality}",
                 
                 // CRITICAL: Set the download protocol to fix frontend display
-                DownloadProtocol = DownloadProtocol.Unknown,
+                DownloadProtocol = nameof(QobuzarrDownloadProtocol),
                 
                 // Basic metadata - ENSURE NON-EMPTY NAMES
                 Artist = artistName,
@@ -60,7 +61,7 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers.Parsing
                 DownloadUrl = GenerateDownloadUrl(album, quality),
                 InfoUrl = GenerateInfoUrl(album),
                 PublishDate = album.ReleaseDate,
-                Indexer = "Qobuzarr",
+                Indexer = QobuzarrConstants.PluginName,
                 
                 // Note: Codec and Container properties are ignored by Lidarr's quality detection
                 // Quality is determined solely from the Title using regex patterns

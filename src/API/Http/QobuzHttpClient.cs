@@ -9,6 +9,7 @@ using NzbDrone.Common.Http;
 using Lidarr.Plugin.Qobuzarr.Configuration;
 using Lidarr.Plugin.Qobuzarr.Services;
 using Lidarr.Plugin.Qobuzarr.Utilities;
+using SharedRetryUtilities = Lidarr.Plugin.Common.Utilities.RetryUtilities;
 
 namespace Lidarr.Plugin.Qobuzarr.API.Http
 {
@@ -43,7 +44,7 @@ namespace Lidarr.Plugin.Qobuzarr.API.Http
             try
             {
                 // Execute with retry logic for transient failures
-                var response = await RetryUtilities.ExecuteWithRetryAsync(
+                var response = await SharedRetryUtilities.ExecuteWithRetryAsync(
                     () => ExecuteWithRateLimitHandling(request),
                     QobuzConstants.Api.MaxRetries,
                     1000,

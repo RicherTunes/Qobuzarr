@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using NLog;
 using Lidarr.Plugin.Qobuzarr.Abstractions;
 using Lidarr.Plugin.Qobuzarr.API;
+using Lidarr.Plugin.Qobuzarr.Constants;
 using Lidarr.Plugin.Qobuzarr.Integration;
 using Lidarr.Plugin.Qobuzarr.Models;
 using Lidarr.Plugin.Qobuzarr.Models.Lidarr;
@@ -168,7 +169,7 @@ namespace Lidarr.Plugin.Qobuzarr.Services
                 await semaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
                 try
                 {
-                    await _rateLimiter.WaitIfNeededAsync("Qobuz", "/album/search", cancellationToken).ConfigureAwait(false);
+                    await _rateLimiter.WaitIfNeededAsync(QobuzarrConstants.ServiceName, "/album/search", cancellationToken).ConfigureAwait(false);
                     
                     var qobuzAlbum = await SearchSingleAlbumAsync(album, cancellationToken).ConfigureAwait(false);
                     
