@@ -74,7 +74,7 @@ namespace Lidarr.Plugin.Qobuzarr.API
                 new QobuzHttpClient(httpClient, logger),
                 new SessionManager(cacheManager, null, logger),
                 new QobuzRequestSigner(logger),
-                new QobuzResponseCache(cacheManager, logger),
+                new QobuzResponseCache(logger),
                 logger)
         {
             // This constructor maintains backward compatibility with existing code
