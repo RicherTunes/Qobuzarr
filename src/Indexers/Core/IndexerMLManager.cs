@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using NLog;
+using Lidarr.Plugin.Qobuzarr.Constants;
 using Lidarr.Plugin.Qobuzarr.Security;
 using Lidarr.Plugin.Qobuzarr.Indexers;
 
@@ -305,7 +306,7 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers.Core
                 {
                     System.IO.Path.Combine(baseDir, "PersonalizedMLQueryOptimizer.dll"),
                     System.IO.Path.Combine(baseDir, "PersonalMLQueryOptimizer.dll"),
-                    System.IO.Path.Combine(baseDir, "plugins", "Qobuzarr", "PersonalizedMLQueryOptimizer.dll"),
+                    System.IO.Path.Combine(baseDir, "plugins", QobuzarrConstants.PluginFolderName, "PersonalizedMLQueryOptimizer.dll"),
                     System.IO.Path.Combine(baseDir, "ML", "PersonalizedMLQueryOptimizer.dll")
                 };
 
