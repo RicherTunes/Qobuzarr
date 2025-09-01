@@ -26,12 +26,19 @@ jobs:
     runs-on: ubuntu-latest
     
     steps:
-    - name: Checkout
+    - name: Checkout (with submodules)
+      if: ${{ secrets.SUBMODULES_TOKEN != '' }}
       uses: actions/checkout@v4
       with:
         fetch-depth: 0
         submodules: recursive
         token: ${{ secrets.SUBMODULES_TOKEN }}
+
+    - name: Checkout (no submodules)
+      if: ${{ secrets.SUBMODULES_TOKEN == '' }}
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
 
     - name: Security Scan (git-leaks)
       uses: gitleaks/gitleaks-action@v2
@@ -122,11 +129,16 @@ jobs:
         framework: [ net6.0 ]
     
     steps:
-    - name: Checkout
+    - name: Checkout (with submodules)
+      if: ${{ secrets.SUBMODULES_TOKEN != '' }}
       uses: actions/checkout@v4
       with:
         submodules: recursive
         token: ${{ secrets.SUBMODULES_TOKEN }}
+
+    - name: Checkout (no submodules)
+      if: ${{ secrets.SUBMODULES_TOKEN == '' }}
+      uses: actions/checkout@v4
 
     - name: Setup .NET
       uses: actions/setup-dotnet@v4
