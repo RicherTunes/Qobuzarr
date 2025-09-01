@@ -49,12 +49,12 @@ namespace Lidarr.Plugin.Qobuzarr.Authentication
         private int _consecutiveFailures = 0;
         
         // Configuration
-        private readonly TimeSpan _refreshCooldown = TimeSpan.FromMinutes(1); // Minimum time between refresh attempts
-        private readonly TimeSpan _refreshBuffer = TimeSpan.FromMinutes(30); // Refresh this many minutes before expiry
-        private readonly int _maxRetryAttempts = 3;
-        private readonly TimeSpan _initialRetryDelay = TimeSpan.FromSeconds(30);
-        private readonly double _backoffMultiplier = 2.0;
-        private readonly int _circuitBreakerThreshold = 5; // Fail-open after this many consecutive failures
+        private readonly TimeSpan _refreshCooldown = TimeSpan.FromSeconds(Constants.QobuzarrConstants.Defaults.TokenRefreshCooldownSeconds); // Minimum time between refresh attempts
+        private readonly TimeSpan _refreshBuffer = TimeSpan.FromMinutes(Constants.QobuzarrConstants.Defaults.TokenRefreshBufferMinutes); // Refresh this many minutes before expiry
+        private readonly int _maxRetryAttempts = Constants.QobuzarrConstants.Defaults.TokenMaxRetryAttempts;
+        private readonly TimeSpan _initialRetryDelay = TimeSpan.FromSeconds(Constants.QobuzarrConstants.Defaults.TokenInitialRetryDelaySeconds);
+        private readonly double _backoffMultiplier = Constants.QobuzarrConstants.Defaults.TokenBackoffMultiplier;
+        private readonly int _circuitBreakerThreshold = Constants.QobuzarrConstants.Defaults.TokenCircuitBreakerThreshold; // Fail-open after this many consecutive failures
         
         // Metrics
         private long _successfulRefreshes = 0;

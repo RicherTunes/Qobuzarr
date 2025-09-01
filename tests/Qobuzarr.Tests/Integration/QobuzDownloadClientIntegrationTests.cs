@@ -35,6 +35,7 @@ namespace Qobuzarr.Tests.Integration
     /// </summary>
     [Collection("QobuzIntegration")]
     [Trait("Category", "Integration")]
+    [Trait("Category", "LiveIntegration")]
     [Trait("RequiresCredentials", "true")]
     public class QobuzDownloadClientIntegrationTests : IAsyncLifetime, IDisposable
     {
@@ -97,7 +98,7 @@ namespace Qobuzarr.Tests.Integration
 
                 if (string.IsNullOrEmpty(appId) || string.IsNullOrEmpty(email))
                 {
-                    throw new SkipException("Qobuz credentials not configured. Set QOBUZ_APP_ID, QOBUZ_APP_SECRET, QOBUZ_EMAIL, and QOBUZ_PASSWORD environment variables.");
+                    throw new Xunit.Sdk.SkipException("Skipping: Qobuz credentials not configured (set QOBUZ_APP_ID, QOBUZ_APP_SECRET, QOBUZ_EMAIL, QOBUZ_PASSWORD)");
                 }
 
                 // Initialize services
@@ -120,7 +121,7 @@ namespace Qobuzarr.Tests.Integration
             catch (Exception ex)
             {
                 _output.WriteLine($"Initialization failed: {ex.Message}");
-                throw new SkipException($"Test initialization failed: {ex.Message}");
+                throw new Xunit.Sdk.SkipException($"Skipping: Test initialization failed: {ex.Message}");
             }
         }
 

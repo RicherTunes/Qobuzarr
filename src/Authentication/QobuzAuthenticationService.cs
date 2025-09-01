@@ -16,6 +16,8 @@ using Lidarr.Plugin.Qobuzarr.Configuration;
 using Lidarr.Plugin.Qobuzarr.Security;
 using Lidarr.Plugin.Qobuzarr.Utilities;
 using Lidarr.Plugin.Qobuzarr.Services.Interfaces;
+using Lidarr.Plugin.Common.Interfaces;
+using Lidarr.Plugin.Common.Services.Authentication;
 
 namespace Lidarr.Plugin.Qobuzarr.Authentication
 {
@@ -23,7 +25,10 @@ namespace Lidarr.Plugin.Qobuzarr.Authentication
     /// Implements Qobuz API authentication functionality including session management and credential validation.
     /// Supports both email/password and user ID/token authentication methods.
     /// </summary>
-    public class QobuzAuthenticationService : IQobuzAuthenticationService
+    public class QobuzAuthenticationService : IQobuzAuthenticationService,
+        IStreamingAuthenticationService<QobuzSession, QobuzCredentials>,
+        IStreamingTokenProvider,
+        IStreamingTokenAuthenticationService<QobuzSession, QobuzCredentials>
     {
         private readonly IHttpClient _httpClient;
         private readonly IConfigService _configService;
@@ -53,6 +58,81 @@ namespace Lidarr.Plugin.Qobuzarr.Authentication
             _credentialValidator = credentialValidator ?? new CredentialValidator(logger);
             _sessionCache = _cacheManager.GetCache<QobuzSession>(GetType());
         }
+
+        // Shared IStreamingAuthenticationService implementation (adapters)
+        async Task<AuthResult<QobuzSession>> IStreamingAuthenticationService<QobuzSession, QobuzCredentials>.AuthenticateAsync(QobuzCredentials credentials)
+        {
+            try
+            {
+                var session = await AuthenticateAsync(credentials).ConfigureAwait(false);
+                return AuthResult<QobuzSession>.Successful(session);
+            }
+            catch (Exception ex)
+            {
+                return AuthResult<QobuzSession>.Failed(ex.Message);
+            }
+        }
+
+        async Task<QobuzSession> IStreamingAuthenticationService<QobuzSession, QobuzCredentials>.GetValidSessionAsync()
+        {
+            var session = GetCachedSession();
+            if (session == null) return null;
+            var valid = await ValidateSessionAsync(session).ConfigureAwait(false);
+            return valid ? session : null;
+        }
+
+        async Task<bool> IStreamingAuthenticationService<QobuzSession, QobuzCredentials>.ValidateSessionAsync(QobuzSession session)
+            => await ValidateSessionAsync(session).ConfigureAwait(false);
+
+        Task<QobuzSession?> IStreamingAuthenticationService<QobuzSession, QobuzCredentials>.RefreshSessionAsync(QobuzSession session)
+            => Task.FromResult<QobuzSession?>(null); // Not supported by Qobuz
+
+        Task IStreamingAuthenticationService<QobuzSession, QobuzCredentials>.RevokeSessionAsync(QobuzSession session)
+        {
+            ClearSession();
+            return Task.CompletedTask;
+        }
+
+        QobuzSession IStreamingAuthenticationService<QobuzSession, QobuzCredentials>.GetCachedSession() => GetCachedSession();
+        void IStreamingAuthenticationService<QobuzSession, QobuzCredentials>.ClearSession() => ClearSession();
+        void IStreamingAuthenticationService<QobuzSession, QobuzCredentials>.StoreSession(QobuzSession session) => StoreSession(session);
+
+        // Shared IStreamingTokenProvider implementation (token-centric contract)
+        public async Task<string> GetAccessTokenAsync()
+        {
+            var session = GetCachedSession();
+            if (session == null)
+                return null;
+            var valid = await ValidateSessionAsync(session).ConfigureAwait(false);
+            return valid ? session.AuthToken : null;
+        }
+
+        public Task<string> RefreshTokenAsync()
+        {
+            // Qobuz does not support token refresh; full re-auth is required
+            return Task.FromResult<string>(null);
+        }
+
+        public async Task<bool> ValidateTokenAsync(string token)
+        {
+            if (string.IsNullOrWhiteSpace(token)) return false;
+            var session = GetCachedSession();
+            if (session == null) return false;
+            if (!string.Equals(session.AuthToken, token, StringComparison.Ordinal)) return false;
+            return await ValidateSessionAsync(session).ConfigureAwait(false);
+        }
+
+        public DateTime? GetTokenExpiration(string token)
+        {
+            var session = GetCachedSession();
+            if (session == null) return null;
+            if (!string.Equals(session.AuthToken, token, StringComparison.Ordinal)) return null;
+            return session.ExpiresAt;
+        }
+
+        public void ClearAuthenticationCache() => ClearSession();
+        public bool SupportsRefresh => false;
+        public string ServiceName => "Qobuz";
 
         public async Task<QobuzSession> AuthenticateAsync(QobuzCredentials credentials)
         {
@@ -300,6 +380,21 @@ namespace Lidarr.Plugin.Qobuzarr.Authentication
             {
                 _logger.Warn(ex, "Failed to store session in cache");
             }
+        }
+
+        // Optional: factory to create a StreamingTokenManager wired to this service
+        public StreamingTokenManager<QobuzSession, QobuzCredentials> CreateTokenManager()
+        {
+            return new StreamingTokenManager<QobuzSession, QobuzCredentials>(this, new NoopLogger<StreamingTokenManager<QobuzSession, QobuzCredentials>>() );
+        }
+
+        private sealed class NoopLogger<T> : Microsoft.Extensions.Logging.ILogger<T>
+        {
+            public IDisposable BeginScope<TState>(TState state) => NoopDisposable.Instance;
+            public bool IsEnabled(Microsoft.Extensions.Logging.LogLevel logLevel) => false;
+            public void Log<TState>(Microsoft.Extensions.Logging.LogLevel logLevel, Microsoft.Extensions.Logging.EventId eventId, TState state, Exception exception, Func<TState, Exception, string> formatter) { }
+
+            private sealed class NoopDisposable : IDisposable { public static readonly NoopDisposable Instance = new NoopDisposable(); public void Dispose() { } }
         }
 
         public void ClearSession()

@@ -15,18 +15,18 @@ namespace QobuzCLI.Services
     /// </summary>
     public class CliQobuzValidationService
     {
-        private readonly QobuzSearchService _searchService;
+        private readonly Lidarr.Plugin.Qobuzarr.API.IQobuzApiClient _apiClient;
         private readonly CliQualityServiceAdapter _qualityService;
         private readonly IQobuzLogger _logger;
         private readonly IQobuzCache? _cache;
 
         public CliQobuzValidationService(
-            QobuzSearchService searchService,
+            Lidarr.Plugin.Qobuzarr.API.IQobuzApiClient apiClient,
             CliQualityServiceAdapter qualityService,
             IQobuzLogger logger,
             IQobuzCache? cache = null)
         {
-            _searchService = searchService ?? throw new ArgumentNullException(nameof(searchService));
+            _apiClient = apiClient ?? throw new ArgumentNullException(nameof(apiClient));
             _qualityService = qualityService ?? throw new ArgumentNullException(nameof(qualityService));
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
             _cache = cache;
@@ -42,7 +42,7 @@ namespace QobuzCLI.Services
                 _logger.Debug("Validating downloadability for album {0}", albumId);
 
                 // Get album details first
-                var album = await _searchService.GetAlbumAsync(albumId);
+                var album = await _apiClient.GetAsync<QobuzAlbum>("/album/get", new System.Collections.Generic.Dictionary<string,string>{{"album_id", albumId}});
                 if (album == null)
                 {
                     _logger.Debug("Album {0} not found - not downloadable", albumId);

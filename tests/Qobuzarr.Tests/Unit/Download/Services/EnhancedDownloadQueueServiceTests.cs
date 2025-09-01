@@ -445,7 +445,7 @@ namespace Qobuzarr.Tests.Unit.Download.Services
             }
 
             // Wait for all operations
-            Task.WaitAll(countTasks.ToArray<Task>().Concat(updateTasks).ToArray());
+            Task.WaitAll(countTasks.ToArray<Task>().Concat(updateTasks).ToArray(), TimeSpan.FromSeconds(10));
 
             // Assert
             var finalCount = _sut.GetDownloadCountByStatus(DownloadItemStatus.Downloading);

@@ -1,9 +1,10 @@
 using System.ComponentModel.DataAnnotations;
 using Newtonsoft.Json;
+using Lidarr.Plugin.Common.Interfaces;
 
 namespace Lidarr.Plugin.Qobuzarr.Models.Authentication
 {
-    public class QobuzCredentials
+    public class QobuzCredentials : IAuthCredentials
     {
         [JsonProperty("email")]
         public string? Email { get; set; }
@@ -41,6 +42,23 @@ namespace Lidarr.Plugin.Qobuzarr.Models.Authentication
                 return true;
             }
 
+            return false;
+        }
+
+        // IAuthCredentials implementation for shared contract
+        [JsonIgnore]
+        public AuthenticationType Type => IsEmailAuth()
+            ? AuthenticationType.UsernamePassword
+            : AuthenticationType.Token;
+
+        public bool IsValid(out string errorMessage)
+        {
+            if (IsValid())
+            {
+                errorMessage = string.Empty;
+                return true;
+            }
+            errorMessage = "Invalid credentials: provide Email+MD5Password or UserId+AuthToken.";
             return false;
         }
 
