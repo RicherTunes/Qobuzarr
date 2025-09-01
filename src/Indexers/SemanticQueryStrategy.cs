@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using NLog;
+using Lidarr.Plugin.Qobuzarr.Security;
 
 namespace Lidarr.Plugin.Qobuzarr.Indexers
 {
@@ -30,15 +31,19 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
         /// <returns>QueryStrategy with semantic-aware settings</returns>
         public QueryStrategy DetermineStrategy(string artist, string album)
         {
+            // Sanitize inputs to prevent propagating dangerous content
+            var safeArtist = InputSanitizer.SanitizeSearchQuery(artist);
+            var safeAlbum = InputSanitizer.SanitizeSearchQuery(album);
+
             // Analyze album components semantically
-            var components = _componentClassifier.ClassifyComponents(album);
+            var components = _componentClassifier.ClassifyComponents(safeAlbum);
             var hasVersionDescriptor = components.Values.Any(c => c == AlbumComponentType.VersionDescriptor);
             var hasEditionMarker = components.Values.Any(c => c == AlbumComponentType.EditionMarker);
-            var preservedTerms = _componentClassifier.GetPreservedTerms(album);
-            var cleaningLevel = _componentClassifier.RecommendCleaningLevel(album);
+            var preservedTerms = _componentClassifier.GetPreservedTerms(safeAlbum);
+            var cleaningLevel = _componentClassifier.RecommendCleaningLevel(safeAlbum);
             
             // Get traditional complexity for fallback decisions
-            var complexity = _complexityClassifier.ClassifyComplexity(artist, album);
+            var complexity = _complexityClassifier.ClassifyComplexity(safeArtist, safeAlbum);
             
             _logger?.Debug("Semantic analysis for '{0} - {1}': HasVersionDescriptor={2}, HasEditionMarker={3}, CleaningLevel={4}, Complexity={5}", 
                           artist, album, hasVersionDescriptor, hasEditionMarker, cleaningLevel, complexity);
@@ -107,19 +112,22 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
         /// <returns>List of optimized queries</returns>
         public List<string> BuildQueriesForStrategy(string artist, string album, QueryStrategy strategy)
         {
+            // Sanitize inputs upfront
+            var safeArtist = InputSanitizer.SanitizeSearchQuery(artist);
+            var safeAlbum = InputSanitizer.SanitizeSearchQuery(album);
             var queries = new List<string>();
 
             switch (strategy.CleaningLevel)
             {
                 case CleaningLevel.None:
                     // Exact match only
-                    queries.Add($"{artist} {album}");
+                    queries.Add($"{safeArtist} {safeAlbum}");
                     break;
 
                 case CleaningLevel.Minimal:
                     // Preserve all meaningful terms
-                    var minimalClean = CleanQueryWithPreservation(album, strategy.PreserveTerms);
-                    queries.Add($"{artist} {minimalClean}");
+                    var minimalClean = CleanQueryWithPreservation(safeAlbum, strategy.PreserveTerms);
+                    queries.Add($"{safeArtist} {minimalClean}");
                     
                     // For version descriptors, also try album-only search
                     if (strategy.PreserveTerms.Any(t => IsVersionDescriptor(t)))
@@ -129,30 +137,35 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
                         // Also try with artist last for some version descriptors
                         if (strategy.QueryVariants >= 3)
                         {
-                            queries.Add($"{minimalClean} {artist}");
+                            queries.Add($"{minimalClean} {safeArtist}");
                         }
                     }
                     break;
 
                 case CleaningLevel.Moderate:
                     // Remove some edition markers but preserve core content
-                    var moderateClean = CleanQuerySelectively(album, strategy.PreserveTerms);
-                    queries.Add($"{artist} {moderateClean}");
+                    var moderateClean = CleanQuerySelectively(safeAlbum, strategy.PreserveTerms);
+                    queries.Add($"{safeArtist} {moderateClean}");
                     if (strategy.QueryVariants >= 2)
                     {
-                        queries.Add($"{artist} - {moderateClean}");
+                        queries.Add($"{safeArtist} - {moderateClean}");
                     }
                     break;
 
                 case CleaningLevel.Aggressive:
                     // Standard aggressive cleaning for simple albums
-                    var aggressiveClean = CleanQueryAggressive(album);
-                    queries.Add($"{artist} {aggressiveClean}");
+                    var aggressiveClean = CleanQueryAggressive(safeAlbum);
+                    queries.Add($"{safeArtist} {aggressiveClean}");
                     break;
             }
 
-            // Ensure we don't exceed the requested number of variants
-            return queries.Take(strategy.QueryVariants).ToList();
+            // Ensure we don't exceed the requested number of variants and re-sanitize final queries
+            var limited = queries.Take(strategy.QueryVariants).ToList();
+            for (int i = 0; i < limited.Count; i++)
+            {
+                limited[i] = InputSanitizer.SanitizeSearchQuery(limited[i]);
+            }
+            return limited;
         }
 
         /// <summary>

@@ -1121,30 +1121,52 @@ public class PluginHost : IPluginHost, IDisposable
         // Use the adapter as the auth service
         _authService = _authAdapter;
         
-        // Create API services with proper dependency injection
-        var streamUrlService = new QobuzStreamUrlService(_abstractionsHttpClient!, _pluginLogger!, _authService);
-        var searchService = new QobuzSearchService(_abstractionsHttpClient!, _pluginLogger!, _authService);
-        
-        // Create a basic Qobuz API client for the quality service adapter
-        // This is needed because the adapter needs to make API calls
-        var simpleApiClient = new SimpleQobuzApiClient(_pluginHttpClient!, _authService, _pluginLogger!);
+        // Prefer the plugin's concrete API client over the simple CLI adapter to share functionality
+        var nlogLogger = NLog.LogManager.GetCurrentClassLogger();
+        var sessionManager = new QobuzCLI.Services.Adapters.CliSessionManager(_authService);
+        var signer = new Lidarr.Plugin.Qobuzarr.API.Signing.QobuzRequestSigner(nlogLogger);
+        var responseCache = new Lidarr.Plugin.Qobuzarr.API.Caching.QobuzResponseCache(nlogLogger);
+        var pluginApiClient = new Lidarr.Plugin.Qobuzarr.API.QobuzApiClient(_pluginHttpClient!, sessionManager, signer, responseCache, nlogLogger);
+        pluginApiClient.SetAuthenticationService(_authService);
+        pluginApiClient.SetCredentialsProvider(async () => BuildCredentialsFromConfig(_config!));
         
         // Create unified quality service and adapter
         var memoryCache = new Microsoft.Extensions.Caching.Memory.MemoryCache(new Microsoft.Extensions.Caching.Memory.MemoryCacheOptions());
-        var nlogLogger = NLog.LogManager.GetCurrentClassLogger();
         var unifiedQualityService = new UnifiedQualityService(nlogLogger, memoryCache);
         var qualityServiceAdapter = new QobuzCLI.Services.Adapters.CliQualityServiceAdapter(
-            unifiedQualityService, simpleApiClient, streamUrlService, nlogLogger);
+            unifiedQualityService, pluginApiClient, nlogLogger);
         
         // Use the adapter for validation service
-        var cliValidationService = new CliQobuzValidationService(searchService, qualityServiceAdapter, _pluginLogger, _cache);
+        var cliValidationService = new CliQobuzValidationService(pluginApiClient, qualityServiceAdapter, _pluginLogger, _cache);
         
         // Create CLI-specific API service with the adapter
-        _apiClient = new CliApiService(streamUrlService, searchService, qualityServiceAdapter, cliValidationService, _pluginLogger);
+        _apiClient = new CliApiService(null, null, qualityServiceAdapter, cliValidationService, _pluginLogger, pluginApiClient);
         
         // Use enhanced CliDownloadService with REAL download functionality
         _downloadService = new CliDownloadService(_abstractionsHttpClient!, _pluginLogger, _apiClient);
     }
 
     #endregion
+
+    private QobuzCredentials BuildCredentialsFromConfig(QobuzConfig config)
+    {
+        var credentials = new QobuzCredentials
+        {
+            AppId = string.IsNullOrEmpty(config.AppId) ? QobuzConstants.Authentication.GetDefaultAppId() : config.AppId,
+            AppSecret = string.IsNullOrEmpty(config.AppSecret) ? QobuzConstants.Authentication.GetDefaultAppSecret() : config.AppSecret
+        };
+
+        if (config.IsTokenAuth())
+        {
+            credentials.UserId = config.UserId;
+            credentials.AuthToken = config.AuthToken;
+        }
+        else
+        {
+            credentials.Email = config.Email;
+            credentials.MD5Password = HashingUtility.ComputeMD5Hash(config.Password ?? "");
+        }
+
+        return credentials;
+    }
 }
