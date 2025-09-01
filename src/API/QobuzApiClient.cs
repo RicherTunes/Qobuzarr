@@ -38,6 +38,8 @@ namespace Lidarr.Plugin.Qobuzarr.API
         private readonly IQobuzResponseCache _responseCache;
         private readonly Logger _logger;
         private IQobuzAuthenticationService? _authService;
+        private Lidarr.Plugin.Common.Services.Authentication.StreamingTokenManager<QobuzSession, QobuzCredentials>? _tokenManager;
+        private Func<Task<QobuzCredentials>>? _credentialsProvider;
 
         /// <summary>
         /// Initializes a new instance of the QobuzApiClient with the required dependencies.
@@ -72,7 +74,7 @@ namespace Lidarr.Plugin.Qobuzarr.API
         public QobuzApiClient(IHttpClient httpClient, ICacheManager cacheManager, Logger logger)
             : this(
                 new QobuzHttpClient(httpClient, logger),
-                new SessionManager(cacheManager, null, logger),
+                new NullSessionManager(),
                 new QobuzRequestSigner(logger),
                 new QobuzResponseCache(logger),
                 logger)
@@ -81,12 +83,34 @@ namespace Lidarr.Plugin.Qobuzarr.API
             _logger.Debug("QobuzApiClient created using backward-compatible constructor");
         }
 
+        private sealed class NullSessionManager : Services.Interfaces.ISessionManager
+        {
+            public Task<Models.Authentication.QobuzSession?> CreateSessionAsync(Models.Authentication.QobuzCredentials credentials, CancellationToken cancellationToken = default) => Task.FromResult<Models.Authentication.QobuzSession?>(null);
+            public Task<Models.Authentication.QobuzSession?> GetCurrentSessionAsync(CancellationToken cancellationToken = default) => Task.FromResult<Models.Authentication.QobuzSession?>(null);
+            public Task<bool> IsSessionValidAsync(Models.Authentication.QobuzSession session, CancellationToken cancellationToken = default) => Task.FromResult(false);
+            public Task InvalidateSessionAsync(CancellationToken cancellationToken = default) => Task.CompletedTask;
+            public Task<Models.Authentication.QobuzSession?> RefreshSessionAsync(Models.Authentication.QobuzSession session, CancellationToken cancellationToken = default) => Task.FromResult<Models.Authentication.QobuzSession?>(null);
+            public bool HasValidSession() => false;
+        }
+
         /// <summary>
         /// Set the authentication service for session renewal
         /// </summary>
         public void SetAuthenticationService(IQobuzAuthenticationService authService)
         {
             _authService = authService;
+            if (authService is QobuzAuthenticationService realAuth)
+            {
+                _tokenManager = realAuth.CreateTokenManager();
+            }
+        }
+
+        /// <summary>
+        /// Sets a credentials provider used for token renewal (re-auth) when sessions expire.
+        /// </summary>
+        public void SetCredentialsProvider(Func<Task<QobuzCredentials>> credentialsProvider)
+        {
+            _credentialsProvider = credentialsProvider;
         }
 
         /// <summary>
@@ -152,6 +176,18 @@ namespace Lidarr.Plugin.Qobuzarr.API
             {
                 // Validate and renew session if needed
                 // SessionManager handles validation internally through GetCurrentSession
+
+                // Ensure we have a valid session (use token manager if available)
+                if (_tokenManager != null)
+                {
+                    var fallbackCreds = _credentialsProvider != null ? await _credentialsProvider().ConfigureAwait(false) : null;
+                    var validSession = await _tokenManager.GetValidSessionAsync(fallbackCreds).ConfigureAwait(false);
+                    if (validSession != null)
+                    {
+                        // Sync with existing session manager so downstream remains consistent
+                        ((SessionManager)_sessionManager).StoreSession(validSession);
+                    }
+                }
 
                 // Build request URL
                 var url = $"{QobuzConstants.Api.BaseUrl}{endpoint}";

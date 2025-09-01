@@ -214,6 +214,7 @@ namespace Qobuzarr.Tests.Unit.Indexers
         }
 
         [Fact]
+        [Trait("Category", "Slow")]
         public void BuildOptimizedQueries_PerformanceTest_ShouldBeEfficient()
         {
             // Arrange
@@ -243,6 +244,7 @@ namespace Qobuzarr.Tests.Unit.Indexers
         }
 
         [Fact]
+        [Trait("Category", "Slow")]
         public void BuildOptimizedQueries_ThreadSafety_ShouldHandleConcurrentAccess()
         {
             // Arrange

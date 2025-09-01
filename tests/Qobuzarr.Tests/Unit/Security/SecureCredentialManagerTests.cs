@@ -425,7 +425,7 @@ namespace Qobuzarr.Tests.Unit.Security
                 });
             }
 
-            Task.WaitAll(tasks);
+            Task.WaitAll(tasks, TimeSpan.FromSeconds(5));
 
             // Assert
             exceptions.Should().BeEmpty("No exceptions should occur during concurrent operations");

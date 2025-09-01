@@ -54,7 +54,8 @@ namespace Qobuzarr.IntegrationTests
             _isUnraidEnvironment = !string.IsNullOrWhiteSpace(_unraidHost) && !string.IsNullOrWhiteSpace(_unraidApiKey);
             
             _httpClient.DefaultRequestHeaders.Add("X-Api-Key", _lidarrApiKey);
-            _httpClient.Timeout = TimeSpan.FromMinutes(5);
+            // Keep tight timeouts in test framework to avoid long hangs
+            _httpClient.Timeout = TimeSpan.FromSeconds(5);
             
             _output.WriteLine($"🎵 Live Lidarr Integration Framework");
             _output.WriteLine($"  Lidarr URL: {_lidarrUrl}");
