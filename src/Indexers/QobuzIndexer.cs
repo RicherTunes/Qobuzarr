@@ -74,6 +74,20 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
             // Initialize ML optimizer lazily
             _patternLearningEngine = new Lazy<IPatternLearningEngine>(() => 
                 _mlManager.CreateMLOptimizer(logger));
+
+            // Wire API client with auth service and a credentials provider for re-auth (no behavior change for Qobuz)
+            try
+            {
+                if (_apiClient is API.QobuzApiClient concrete)
+                {
+                    concrete.SetAuthenticationService(authService);
+                    concrete.SetCredentialsProvider(async () => await Task.FromResult(BuildFallbackCredentialsFromSettings()));
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.Warn(ex, "Non-fatal: Failed to wire auth service/credentials provider to API client");
+            }
         }
 
         #region Lidarr Integration Points
@@ -89,6 +103,30 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
                     _patternLearningEngine.Value);
             }
             return _requestGenerator;
+        }
+
+        private Models.Authentication.QobuzCredentials BuildFallbackCredentialsFromSettings()
+        {
+            var creds = new Models.Authentication.QobuzCredentials();
+
+            // Prefer email + password if provided (hash to MD5 as required by Qobuz)
+            if (!string.IsNullOrWhiteSpace(Settings?.Email) && !string.IsNullOrWhiteSpace(Settings?.Password))
+            {
+                creds.Email = Settings.Email;
+                creds.MD5Password = Utilities.HashingUtility.ComputePasswordMD5Hash(Settings.Password);
+            }
+            else if (!string.IsNullOrWhiteSpace(Settings?.UserId) && !string.IsNullOrWhiteSpace(Settings?.AuthToken))
+            {
+                // Fallback to UserId + AuthToken
+                creds.UserId = Settings.UserId;
+                creds.AuthToken = Settings.AuthToken;
+            }
+
+            // Optional app credentials (used if configured)
+            if (!string.IsNullOrWhiteSpace(Settings?.AppId)) creds.AppId = Settings.AppId;
+            if (!string.IsNullOrWhiteSpace(Settings?.AppSecret)) creds.AppSecret = Settings.AppSecret;
+
+            return creds;
         }
 
         public override IParseIndexerResponse GetParser()
