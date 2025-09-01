@@ -76,11 +76,11 @@ jobs:
           exit 1
         fi
         
-        # Check Protocol implementation (release branch compatibility)
-        if grep -q "DownloadProtocol.Unknown" src/Indexers/QobuzIndexer.cs; then
-          echo "[OK] QobuzIndexer has correct Protocol implementation"
+        # Check Protocol implementation (support both legacy enum and plugin string)
+        if grep -q "DownloadProtocol.Unknown" src/Indexers/QobuzIndexer.cs || grep -q "public override string Protocol" src/Indexers/QobuzIndexer.cs; then
+          echo "[OK] QobuzIndexer has Protocol implementation"
         else
-          echo "[ERROR] QobuzIndexer missing correct Protocol"
+          echo "[ERROR] QobuzIndexer missing Protocol implementation"
           exit 1
         fi
 
