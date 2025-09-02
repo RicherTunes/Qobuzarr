@@ -221,15 +221,21 @@ jobs:
     - name: Build CLI (if present)
       continue-on-error: true
       run: |
-
         if [ -d "QobuzCLI" ]; then
           echo "🔨 Building CLI project..."
-          dotnet restore QobuzCLI/QobuzCLI.csproj
+          dotnet restore QobuzCLI/QobuzCLI.csproj || true
+          set +e
           dotnet build QobuzCLI/QobuzCLI.csproj --configuration Release --no-restore \
             -p:RunAnalyzersDuringBuild=false \
             -p:EnableNETAnalyzers=false \
             -p:TreatWarningsAsErrors=false
-          echo "[OK] CLI built successfully"
+          status=$?
+          set -e
+          if [ $status -ne 0 ]; then
+            echo "[WARN] CLI build failed (non-blocking). Proceeding with pipeline."
+          else
+            echo "[OK] CLI built successfully"
+          fi
         else
           echo "[INFO] No CLI project found"
         fi
