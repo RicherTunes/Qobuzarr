@@ -26,6 +26,11 @@ public record DownloadOptions(
     string? QueueId,
     string? ReportFormat,
     string? ReportOutput,
+    string? AlbumId,
+    int Priority,
+    string? QueueId,
+    string? ReportFormat,
+    string? ReportOutput,
     int? Concurrency);
 
 /// <summary>
@@ -98,6 +103,7 @@ public class DownloadCommand
         var selectOption = new Option<bool>("--select", "Show selection prompt if multiple results found");
         var allOption = new Option<bool>("--all", "Download all matching results");
         var typeOption = new Option<string?>("--type", "Search type: auto, album, artist, track, playlist, label");
+        var albumIdOption = new Option<string?>("--album-id", "Download a specific album by Qobuz album ID (bypasses search)");
         var priorityOption = new Option<int>("--priority", () => 0, "Queue priority (higher = sooner)");
         var queueOption = new Option<string?>("--queue", "Target queue ID");
         var reportFormatOption = new Option<string?>("--report-format", "Generate report: html, text, json");
@@ -112,6 +118,7 @@ public class DownloadCommand
         downloadCommand.AddOption(selectOption);
         downloadCommand.AddOption(allOption);
         downloadCommand.AddOption(typeOption);
+        downloadCommand.AddOption(albumIdOption);
         downloadCommand.AddOption(priorityOption);
         downloadCommand.AddOption(queueOption);
         downloadCommand.AddOption(reportFormatOption);
@@ -129,6 +136,7 @@ public class DownloadCommand
                 context.ParseResult.GetValueForOption(selectOption),
                 context.ParseResult.GetValueForOption(allOption),
                 context.ParseResult.GetValueForOption(typeOption),
+                context.ParseResult.GetValueForOption(albumIdOption),
                 context.ParseResult.GetValueForOption(priorityOption),
                 context.ParseResult.GetValueForOption(queueOption),
                 context.ParseResult.GetValueForOption(reportFormatOption),
@@ -422,8 +430,8 @@ public class DownloadCommand
         try
         {
             // Create output directory structure using CLI naming conventions
-            var artistDir = Path.Combine(outputDir, FileSystemUtilities.SanitizeFileName(result.Artist));
-            var albumDir = Path.Combine(artistDir, FileSystemUtilities.CreateAlbumDirectoryName(result.Title, result.Year));
+            var artistDir = Path.Combine(outputDir, Lidarr.Plugin.Common.Utilities.FileSystemUtilities.SanitizeFileName(result.Artist));
+            var albumDir = Path.Combine(artistDir, Lidarr.Plugin.Common.Utilities.FileSystemUtilities.CreateAlbumDirectoryName(result.Title, result.Year));
             
             Directory.CreateDirectory(albumDir);
             
@@ -904,3 +912,4 @@ public class DownloadCommand
         return config;
     }
 }
+
