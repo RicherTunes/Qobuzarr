@@ -1,2 +1,3 @@
 // Global usings to leverage shared utilities from Lidarr.Plugin.Common across the plugin
-// Intentionally avoid bringing entire namespace to prevent Guard ambiguity; use explicit aliases where needed.
+// Map Guard to the shared implementation for concise usage across the codebase
+global using Guard = Lidarr.Plugin.Common.Utilities.Guard;

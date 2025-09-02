@@ -141,7 +141,7 @@ namespace Lidarr.Plugin.Qobuzarr.Services.Caching
             Guard.NotNull(entries);
             Guard.NotNull(artistAccessor);
             Guard.NotNull(albumAccessor);
-            Guard.GreaterThan(maxResults, 0);
+            Guard.InRange(maxResults, 1, int.MaxValue);
 
             var normalizedSearchArtist = NormalizeString(searchArtist);
             var normalizedSearchAlbum = NormalizeString(searchAlbum);

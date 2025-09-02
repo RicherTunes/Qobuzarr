@@ -279,7 +279,7 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Services
 
         public bool IsPreviewOrSampleUrl(string url)
         {
-            return PreviewDetectionUtility.IsPreviewOrSampleUrl(url);
+            return Lidarr.Plugin.Common.Utilities.PreviewDetectionUtility.IsPreviewOrSampleUrl(url);
         }
 
         /// <summary>

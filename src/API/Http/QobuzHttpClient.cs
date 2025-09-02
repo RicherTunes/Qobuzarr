@@ -9,6 +9,8 @@ using NzbDrone.Common.Http;
 using Lidarr.Plugin.Qobuzarr.Configuration;
 using Lidarr.Plugin.Qobuzarr.Services;
 using Lidarr.Plugin.Qobuzarr.Utilities;
+using Lidarr.Plugin.Common.Services.Performance;
+using Lidarr.Plugin.Qobuzarr.Constants;
 using SharedRetryUtilities = Lidarr.Plugin.Common.Utilities.RetryUtilities;
 
 namespace Lidarr.Plugin.Qobuzarr.API.Http
@@ -20,23 +22,59 @@ namespace Lidarr.Plugin.Qobuzarr.API.Http
     public class QobuzHttpClient : IQobuzHttpClient
     {
         private readonly IHttpClient _httpClient;
-        private readonly RateLimiter _rateLimiter;
+        private readonly IUniversalAdaptiveRateLimiter? _adaptiveRateLimiter;
         private readonly Logger _logger;
         private readonly IPerformanceMonitoringService? _performanceMonitor;
+        private readonly object _fallbackLock = new object();
+        private readonly System.Collections.Generic.Queue<DateTime> _fallbackRequestTimes = new System.Collections.Generic.Queue<DateTime>();
+        private readonly TimeSpan _fallbackWindow = TimeSpan.FromMinutes(1);
 
-        public QobuzHttpClient(IHttpClient httpClient, Logger logger, IPerformanceMonitoringService? performanceMonitor = null)
+        public QobuzHttpClient(
+            IHttpClient httpClient,
+            Logger logger,
+            IPerformanceMonitoringService? performanceMonitor = null,
+            IUniversalAdaptiveRateLimiter? adaptiveRateLimiter = null)
         {
             _httpClient = httpClient ?? throw new ArgumentNullException(nameof(httpClient));
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
             _performanceMonitor = performanceMonitor;
-            _rateLimiter = new RateLimiter(QobuzConstants.Api.RateLimitPerMinute, TimeSpan.FromMinutes(1));
+            _adaptiveRateLimiter = adaptiveRateLimiter; // Optional: relies on host DI; falls back gracefully when null
         }
 
         /// <inheritdoc/>
         public async Task<HttpResponse> ExecuteAsync(HttpRequest request, CancellationToken cancellationToken = default)
         {
-            // Apply rate limiting
-            await _rateLimiter.WaitAsync(cancellationToken).ConfigureAwait(false);
+            // Apply adaptive rate limiting when available
+            var endpoint = request?.Url?.ToString() ?? "unknown";
+            if (_adaptiveRateLimiter != null)
+            {
+                await _adaptiveRateLimiter.WaitIfNeededAsync(QobuzarrConstants.ServiceName, endpoint, cancellationToken)
+                    .ConfigureAwait(false);
+            }
+            else
+            {
+                // Minimal fallback throttling to avoid hammering the API when adaptive limiter is unavailable
+                TimeSpan? wait = null;
+                lock (_fallbackLock)
+                {
+                    var now = DateTime.UtcNow;
+                    while (_fallbackRequestTimes.Count > 0 && now - _fallbackRequestTimes.Peek() > _fallbackWindow)
+                    {
+                        _fallbackRequestTimes.Dequeue();
+                    }
+                    if (_fallbackRequestTimes.Count >= QobuzConstants.Api.RateLimitPerMinute)
+                    {
+                        var oldest = _fallbackRequestTimes.Peek();
+                        wait = _fallbackWindow - (now - oldest);
+                        _fallbackRequestTimes.Dequeue();
+                    }
+                    _fallbackRequestTimes.Enqueue(now);
+                }
+                if (wait.HasValue && wait.Value > TimeSpan.Zero)
+                {
+                    await Task.Delay(wait.Value, cancellationToken).ConfigureAwait(false);
+                }
+            }
 
             _logger.Debug("Executing HTTP {0} request to {1}", request.Method, request.Url);
 
@@ -56,12 +94,24 @@ namespace Lidarr.Plugin.Qobuzarr.API.Http
                 // Record API call performance (not cached since this is direct HTTP)
                 _performanceMonitor?.RecordApiCall(request.Url.ToString(), stopwatch.Elapsed, false);
 
+                // Feed response into adaptive limiter if configured
+                if (_adaptiveRateLimiter != null)
+                {
+                    var msg = new HttpResponseMessage(response.StatusCode);
+                    _adaptiveRateLimiter.RecordResponse(QobuzarrConstants.ServiceName, endpoint, msg);
+                }
+
                 return response;
             }
             catch (Exception ex)
             {
                 stopwatch.Stop();
                 _logger.Error(ex, "HTTP request failed for URL {0}", request.Url);
+                if (_adaptiveRateLimiter != null)
+                {
+                    var msg = new HttpResponseMessage(System.Net.HttpStatusCode.InternalServerError);
+                    _adaptiveRateLimiter.RecordResponse(QobuzarrConstants.ServiceName, endpoint, msg);
+                }
                 throw;
             }
         }
