@@ -166,16 +166,20 @@ jobs:
     - name: Download Lidarr host assemblies (plugins branch)
       if: steps.host_cache.outputs.cache-hit != 'true'
       run: |
-        echo "📥 Preparing Lidarr plugins-branch host assemblies for ${MINIMUM_LIDARR_VERSION}"
-        chmod +x ./download-plugins-branch-assemblies.sh || true
-        chmod +x ./download-lidarr-assemblies.sh || true
-        # Try plugins-branch first (requires Docker on runner)
-        if ./download-plugins-branch-assemblies.sh "$MINIMUM_LIDARR_VERSION" "ext/Lidarr-source/_output/net6.0"; then
-          echo "plugins-branch assemblies downloaded"
-        else
-          echo "[WARN] plugins-branch download failed; falling back to stable release assemblies"
-          ./download-lidarr-assemblies.sh --version "$MINIMUM_LIDARR_VERSION" --output ext/Lidarr-source/_output/net6.0
-        fi
+        echo "📥 Preparing Lidarr plugins-branch host assemblies (hotio pr-plugins)"
+        mkdir -p ext/Lidarr-source/_output/net6.0
+        IMAGE="ghcr.io/hotio/lidarr:pr-plugins"
+        echo "Pulling $IMAGE"
+        docker pull "$IMAGE"
+        cid=$(docker create "$IMAGE")
+        echo "Extracting assemblies from container..."
+        docker cp "$cid:/app" ext/Lidarr-source/_extracted || docker cp "$cid:/opt/lidarr" ext/Lidarr-source/_extracted
+        docker rm "$cid" >/dev/null
+        echo "Copying assemblies to output directory..."
+        find ext/Lidarr-source/_extracted -maxdepth 1 -type f -name "*.dll" -print -exec cp {} ext/Lidarr-source/_output/net6.0 \; || true
+        # Fallback: search deeper if needed
+        find ext/Lidarr-source/_extracted -type f -name "*.dll" -print -exec cp {} ext/Lidarr-source/_output/net6.0 \; || true
+        rm -rf ext/Lidarr-source/_extracted
         # Seed a cache key file to bust cache when content changes
         find ext/Lidarr-source/_output/net6.0 -type f -maxdepth 1 -name "*.dll" -printf "%f %s\n" | sort > ext/Lidarr-source/_cache-key.txt || true
         echo "📂 Listing host assemblies:"
