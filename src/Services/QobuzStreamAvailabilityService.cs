@@ -252,7 +252,7 @@ namespace Lidarr.Plugin.Qobuzarr.Services
 
         private bool IsPreviewOrSampleUrl(string url)
         {
-            return Utilities.PreviewDetectionUtility.IsPreviewOrSampleUrl(url);
+            return Lidarr.Plugin.Common.Utilities.PreviewDetectionUtility.IsPreviewOrSampleUrl(url);
         }
     }
 }

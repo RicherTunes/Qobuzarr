@@ -52,9 +52,6 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers.Parsing
                 // CRITICAL: Include quality in GUID to differentiate releases
                 Guid = $"qobuz-{album.Id}-{(int)quality}",
                 
-                // CRITICAL: Set the download protocol to fix frontend display
-                DownloadProtocol = nameof(QobuzarrDownloadProtocol),
-                
                 // Basic metadata - ENSURE NON-EMPTY NAMES
                 Artist = artistName,
                 Album = albumTitle,
@@ -69,6 +66,9 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers.Parsing
                 // CRITICAL: Quality-specific size calculation
                 Size = CalculateSizeForQuality(album, quality)
             };
+
+            // Backward- and forward-compatible protocol assignment
+            TrySetDownloadProtocol(release);
 
             // Generate quality-specific title
             release.Title = _titleGenerator.GenerateQualitySpecificTitle(album, quality, year);
@@ -119,6 +119,30 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers.Parsing
             var avgDuration = isSingle ? 3.25 * 60 : 3.5 * 60; // Singles: 3.25min, Albums: 3.5min
             
             return Math.Max(trackCount * avgDuration, 30); // 30 second minimum
+        }
+
+        private void TrySetDownloadProtocol(ReleaseInfo release)
+        {
+            try
+            {
+                var prop = typeof(ReleaseInfo).GetProperty("DownloadProtocol");
+                if (prop == null || !prop.CanWrite) return;
+
+                if (prop.PropertyType == typeof(string))
+                {
+                    prop.SetValue(release, nameof(QobuzarrDownloadProtocol));
+                }
+                else if (prop.PropertyType.IsEnum)
+                {
+                    // Set to Unknown for legacy enum-based protocol
+                    var unknown = Enum.Parse(prop.PropertyType, "Unknown");
+                    prop.SetValue(release, unknown);
+                }
+            }
+            catch
+            {
+                // no-op: avoid failing on protocol assignment differences
+            }
         }
 
         public string GenerateInfoUrl(QobuzAlbum album)
