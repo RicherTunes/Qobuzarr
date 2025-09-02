@@ -59,8 +59,7 @@
     <!-- External consumers get production-ready build unless they explicitly enable this -->
     <IncludeCLIFramework>true</IncludeCLIFramework>
     
-    <!-- Prefer plugin string protocol implementation over legacy enum -->
-    <DefineConstants>$(DefineConstants);PLUGIN_PROTOCOL</DefineConstants>
+    <!-- Use legacy enum protocol for maximum compatibility with host assemblies -->
   </PropertyGroup>
 
   <!-- Source files inclusion -->
