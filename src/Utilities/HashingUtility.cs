@@ -20,19 +20,7 @@ namespace Lidarr.Plugin.Qobuzarr.Utilities
         /// <exception cref="ArgumentNullException">Thrown when input is null</exception>
         public static string ComputeMD5Hash(string input)
         {
-            if (input == null)
-            {
-                throw new ArgumentNullException(nameof(input));
-            }
-
-            using (var md5 = MD5.Create())
-            {
-                var inputBytes = Encoding.UTF8.GetBytes(input);
-                var hashBytes = md5.ComputeHash(inputBytes);
-                
-                // Convert to lowercase hex string - optimized for performance
-                return Convert.ToHexString(hashBytes).ToLowerInvariant();
-            }
+            return Lidarr.Plugin.Common.Utilities.HashingUtility.ComputeMD5Hash(input);
         }
 
         /// <summary>
@@ -58,13 +46,7 @@ namespace Lidarr.Plugin.Qobuzarr.Utilities
         /// <returns>A stable cache key string</returns>
         public static string GenerateCacheKey(params string[] components)
         {
-            if (components == null || components.Length == 0)
-            {
-                throw new ArgumentException("At least one component is required", nameof(components));
-            }
-
-            var combined = string.Join("|", components);
-            return ComputeMD5Hash(combined);
+            return Lidarr.Plugin.Common.Utilities.HashingUtility.GenerateCacheKey(components);
         }
     }
 }

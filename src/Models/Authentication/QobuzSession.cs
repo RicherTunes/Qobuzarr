@@ -1,9 +1,11 @@
 using System;
+using System.Collections.Generic;
 using Newtonsoft.Json;
+using Lidarr.Plugin.Common.Interfaces;
 
 namespace Lidarr.Plugin.Qobuzarr.Models.Authentication
 {
-    public class QobuzSession
+    public class QobuzSession : IAuthSession
     {
         [JsonProperty("user_id")]
         public string UserId { get; set; }
@@ -25,6 +27,25 @@ namespace Lidarr.Plugin.Qobuzarr.Models.Authentication
 
         [JsonProperty("created_at")]
         public DateTime CreatedAt { get; set; }
+
+        // IAuthSession implementation (shared contract)
+        [JsonIgnore]
+        string IAuthSession.AccessToken => AuthToken;
+
+        [JsonIgnore]
+        DateTime? IAuthSession.ExpiresAt => ExpiresAt;
+
+        [JsonIgnore]
+        bool IAuthSession.IsExpired => DateTime.UtcNow >= ExpiresAt;
+
+        [JsonIgnore]
+        Dictionary<string, object> IAuthSession.Metadata => new Dictionary<string, object>
+        {
+            ["userId"] = UserId ?? string.Empty,
+            ["appId"] = AppId ?? string.Empty,
+            ["subscriptionTier"] = Subscription?.GetTierDescription() ?? string.Empty,
+            ["createdAt"] = CreatedAt
+        };
 
         /// <summary>
         /// Check if the session is still valid

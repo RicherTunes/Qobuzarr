@@ -8,12 +8,36 @@ using NzbDrone.Core.Validation;
 using NzbDrone.Common.Extensions;
 using Lidarr.Plugin.Qobuzarr.Configuration;
 using Lidarr.Plugin.Qobuzarr.Security;
+using Lidarr.Plugin.Common.Base;
 
 namespace Lidarr.Plugin.Qobuzarr.Indexers
 {
     public class QobuzIndexerSettings : IIndexerSettings
     {
         private static readonly QobuzIndexerSettingsValidator Validator = new QobuzIndexerSettingsValidator();
+        
+        // Compose with shared BaseStreamingSettings for reuse of defaults/masking in code paths
+        internal BaseStreamingSettings ToSharedSettings()
+        {
+            // Map overlapping fields to the shared settings object
+            return new QobuzSharedSettings
+            {
+                BaseUrl = this.BaseUrl,
+                Email = this.Email,
+                Password = this.Password,
+                AuthToken = this.AuthToken,
+                UserId = this.UserId,
+                CountryCode = this.CountryCode,
+                SearchLimit = this.SearchLimit,
+                IncludeSingles = this.IncludeSingles,
+                IncludeCompilations = this.IncludeCompilations,
+                ApiRateLimit = this.ApiRateLimit,
+                SearchCacheDuration = this.SearchCacheDuration,
+                ConnectionTimeout = this.ConnectionTimeout,
+                OrganizeByArtist = true,
+                EarlyReleaseDayLimit = 0
+            };
+        }
 
         public QobuzIndexerSettings()
         {
@@ -263,6 +287,25 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
             return ConcurrencyMode == (int)Lidarr.Plugin.Qobuzarr.Indexers.ConcurrencyMode.Adaptive;
         }
 
+    }
+    
+    // Adapter to reuse shared behaviors without changing Lidarr UI contracts
+    internal class QobuzSharedSettings : BaseStreamingSettings
+    {
+        public override string BaseUrl { get; set; }
+        public override string Email { get; set; }
+        public override string Password { get; set; }
+        public override string AuthToken { get; set; }
+        public override string UserId { get; set; }
+        public override string CountryCode { get; set; }
+        public override int SearchLimit { get; set; }
+        public override bool IncludeSingles { get; set; }
+        public override bool IncludeCompilations { get; set; }
+        public override int ApiRateLimit { get; set; }
+        public override int SearchCacheDuration { get; set; }
+        public override int ConnectionTimeout { get; set; }
+        public override bool OrganizeByArtist { get; set; }
+        public override int EarlyReleaseDayLimit { get; set; }
     }
 
     public enum AuthenticationMethod

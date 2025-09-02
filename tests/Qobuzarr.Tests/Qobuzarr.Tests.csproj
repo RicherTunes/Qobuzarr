@@ -23,6 +23,8 @@
     <PackageReference Include="Equ" />
     <PackageReference Include="FsCheck" />
     <PackageReference Include="FsCheck.Xunit" />
+    <!-- Ensure NLog runtime is available for tests that reference plugin logging -->
+    <PackageReference Include="NLog" />
     <PackageReference Include="coverlet.collector">
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
       <PrivateAssets>all</PrivateAssets>
