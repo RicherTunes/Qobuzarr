@@ -184,6 +184,9 @@ jobs:
         find ext/Lidarr-source/_output/net6.0 -type f -maxdepth 1 -name "*.dll" -printf "%f %s\n" | sort > ext/Lidarr-source/_cache-key.txt || true
         echo "📂 Listing host assemblies:"
         ls -la ext/Lidarr-source/_output/net6.0 || echo "[WARN] Host build output not found"
+        # Mirror to ext/Lidarr/_output for CLI hint paths
+        mkdir -p ext/Lidarr/_output/net6.0
+        cp -f ext/Lidarr-source/_output/net6.0/*.dll ext/Lidarr/_output/net6.0/ || true
 
     - name: Set version
       run: |
