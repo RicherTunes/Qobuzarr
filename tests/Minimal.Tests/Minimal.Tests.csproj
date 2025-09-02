@@ -5,6 +5,8 @@
     <LangVersion>latest</LangVersion>
     <IsPackable>false</IsPackable>
     <IsTestProject>true</IsTestProject>
+    <!-- Ensure transitive runtime deps (like NLog) are copied for plugin types -->
+    <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
   </PropertyGroup>
 
   <ItemGroup>
@@ -17,6 +19,8 @@
     <PackageReference Include="Microsoft.NET.Test.Sdk" />
     <PackageReference Include="Newtonsoft.Json" />
     <PackageReference Include="Moq" />
+    <!-- Ensure NLog runtime is available when loading plugin types in tests -->
+    <PackageReference Include="NLog" />
   </ItemGroup>
 
   <ItemGroup>

@@ -193,6 +193,7 @@ namespace Qobuzarr.Tests.Unit.Indexers
         }
 
         [Fact]
+        [Trait("Category", "Slow")]
         public void ClassifyComplexity_PerformanceTest_ShouldBeEfficient()
         {
             // Arrange

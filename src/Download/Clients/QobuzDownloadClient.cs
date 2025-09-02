@@ -89,7 +89,8 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Clients
         /// </summary>
         private void UpdateConcurrencySettings()
         {
-            var newLimit = Math.Max(1, Math.Min(Settings?.GetEffectiveConcurrency() ?? 3, 20)); // Cap at 20 for safety
+            var newLimit = Math.Max(1, Math.Min(Settings?.GetEffectiveConcurrency() ?? Constants.QobuzarrConstants.Defaults.DefaultConcurrentDownloads,
+                                                 Constants.QobuzarrConstants.Defaults.MaxConcurrentDownloads)); // Cap for safety
             _concurrencyManager?.UpdateConcurrencyLimit(newLimit);
             _logger.Debug("Updated concurrency limit to {0} concurrent downloads for this client", newLimit);
         }

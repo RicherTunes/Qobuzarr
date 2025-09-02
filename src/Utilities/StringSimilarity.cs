@@ -1,6 +1,8 @@
 using System;
 using System.Linq;
 using System.Text.RegularExpressions;
+using Microsoft.Extensions.Logging.Abstractions;
+using Lidarr.Plugin.Common.Services.Globalization;
 
 namespace Lidarr.Plugin.Qobuzarr.Utilities
 {
@@ -10,6 +12,7 @@ namespace Lidarr.Plugin.Qobuzarr.Utilities
     /// </summary>
     public static class StringSimilarity
     {
+        private static readonly UnicodeNormalizer Unicode = new UnicodeNormalizer(NullLogger<UnicodeNormalizer>.Instance);
         private static readonly Regex NonAlphanumericRegex = new Regex(@"[^a-zA-Z0-9\s]", RegexOptions.Compiled);
         private static readonly Regex MultipleSpacesRegex = new Regex(@"\s+", RegexOptions.Compiled);
         
@@ -28,10 +31,14 @@ namespace Lidarr.Plugin.Qobuzarr.Utilities
             if (s1.Equals(s2, StringComparison.OrdinalIgnoreCase))
                 return 1.0;
 
-            var distance = LevenshteinDistance(s1.ToLowerInvariant(), s2.ToLowerInvariant());
-            var maxLength = Math.Max(s1.Length, s2.Length);
-            
-            return 1.0 - ((double)distance / maxLength);
+            // Light joiner normalization to align with historical behavior
+            static string PreNormalize(string x) => x.Replace("&", " and ");
+
+            var p1 = PreNormalize(s1);
+            var p2 = PreNormalize(s2);
+
+            // Delegate similarity calculation to shared Unicode-aware implementation
+            return Unicode.CalculateInternationalSimilarity(p1, p2);
         }
 
         /// <summary>
