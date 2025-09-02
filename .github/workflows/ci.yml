@@ -343,7 +343,8 @@ jobs:
     - name: Download artifacts
       uses: actions/download-artifact@v4
       with:
-        name: ${{ env.PLUGIN_NAME }}-net6.0
+        pattern: ${{ env.PLUGIN_NAME }}-*
+        merge-multiple: true
 
     - name: Generate changelog
       run: |
