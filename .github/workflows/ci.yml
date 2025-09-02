@@ -147,7 +147,24 @@ jobs:
     # Use actions/setup-dotnet toolchain; avoid invalid global.json like '8.0.x'
     # Global.json is unnecessary here and can cause SDK resolution failures.
 
+    - name: Ensure submodules (plugins branch)
+      run: |
+        git submodule sync --recursive
+        git submodule update --init --remote --recursive
+
+    - name: Cache Lidarr host build output
+      id: host_cache
+      uses: actions/cache@v3
+      with:
+        path: |
+          ext/Lidarr-source/_output/net6.0
+          ext/Lidarr-source/_temp/obj
+        key: ${{ runner.os }}-lidarr-host-${{ hashFiles('ext/Lidarr-source/src/**/*.csproj','ext/Lidarr-source/src/**/*.cs','ext/Lidarr-source/frontend/src/**/*','ext/Lidarr-source/package.json','ext/Lidarr-source/yarn.lock') }}
+        restore-keys: |
+          ${{ runner.os }}-lidarr-host-
+
     - name: Build Lidarr host (plugins branch)
+      if: steps.host_cache.outputs.cache-hit != 'true'
       run: |
         echo "🔧 Building Lidarr host (plugins branch)"
         dotnet restore ext/Lidarr-source/src/Lidarr.sln
