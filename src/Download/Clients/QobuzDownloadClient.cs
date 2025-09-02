@@ -51,12 +51,8 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Clients
 
         public override string Name => QobuzarrConstants.PluginName;
         
-        // Protocol property - support both host variants via conditional compilation
-#if PLUGIN_PROTOCOL
+        // Plugin protocol identifier (plugin branch host)
         public override string Protocol => nameof(QobuzarrDownloadProtocol);
-#else
-        public override DownloadProtocol Protocol => DownloadProtocol.Unknown;
-#endif
 
         public QobuzDownloadClient(IQobuzAuthenticationService authService,
                                   IQobuzApiClient apiClient,
