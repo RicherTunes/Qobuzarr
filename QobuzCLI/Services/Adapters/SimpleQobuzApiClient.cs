@@ -24,6 +24,8 @@ namespace QobuzCLI.Services.Adapters
         private readonly IQobuzAuthenticationService _authService;
         private readonly IQobuzLogger _logger;
         private QobuzSession? _session;
+        private Func<Task<QobuzCredentials>>? _credentialsProvider;
+        private readonly object _sessionLock = new object();
 
         public SimpleQobuzApiClient(
             IQobuzHttpClient httpClient,
@@ -36,8 +38,44 @@ namespace QobuzCLI.Services.Adapters
             _session = authService.GetCachedSession();
         }
 
+        public void SetCredentialsProvider(Func<Task<QobuzCredentials>> credentialsProvider)
+        {
+            _credentialsProvider = credentialsProvider;
+        }
+
+        private async Task EnsureSessionAsync()
+        {
+            // Fast path
+            if (_session != null && await _authService.ValidateSessionAsync(_session).ConfigureAwait(false))
+            {
+                return;
+            }
+
+            if (_credentialsProvider == null)
+            {
+                return; // Nothing we can do; caller will hit unauthorized if needed
+            }
+
+            // Slow path: re-auth using provided credentials
+            try
+            {
+                var creds = await _credentialsProvider().ConfigureAwait(false);
+                if (creds == null) return;
+                var newSession = await _authService.AuthenticateAsync(creds).ConfigureAwait(false);
+                lock (_sessionLock)
+                {
+                    _session = newSession;
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.Warn($"Re-authentication failed: {ex.Message}");
+            }
+        }
+
         public async Task<T> GetAsync<T>(string endpoint, Dictionary<string, string>? parameters = null) where T : class
         {
+            await EnsureSessionAsync().ConfigureAwait(false);
             // Build the URL with parameters
             var url = BuildUrl(endpoint, parameters);
             
@@ -59,6 +97,7 @@ namespace QobuzCLI.Services.Adapters
 
         public async Task<T> PostAsync<T>(string endpoint, object? data = null) where T : class
         {
+            await EnsureSessionAsync().ConfigureAwait(false);
             // Build the URL
             var url = BuildUrl(endpoint, null);
             
@@ -103,6 +142,7 @@ namespace QobuzCLI.Services.Adapters
 
         public async Task<string> GetStreamingUrlAsync(string trackId, int formatId, CancellationToken cancellationToken = default)
         {
+            await EnsureSessionAsync().ConfigureAwait(false);
             var parameters = new Dictionary<string, string>
             {
                 { "track_id", trackId },

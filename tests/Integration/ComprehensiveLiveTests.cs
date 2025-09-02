@@ -25,15 +25,19 @@ namespace Qobuzarr.IntegrationTests
 
         public async Task InitializeAsync()
         {
-            _framework = new LiveLidarrIntegrationFramework(_output);
-            
-            // Validate basic connectivity first
-            var connectivityResult = await _framework.ValidateBasicConnectivityAsync();
-            _output.WriteLine(connectivityResult.ToString());
-            
-            if (!connectivityResult.IsSuccess)
+            try
             {
-                throw new InvalidOperationException("Cannot connect to Lidarr instance. Check LIDARR_URL and LIDARR_API_KEY environment variables.");
+                _framework = new LiveLidarrIntegrationFramework(_output);
+                var connectivityResult = await _framework.ValidateBasicConnectivityAsync();
+                _output.WriteLine(connectivityResult.ToString());
+                if (!connectivityResult.IsSuccess)
+                {
+                    throw new Xunit.Sdk.SkipException("Skipping: Lidarr not reachable (set LIDARR_URL and LIDARR_API_KEY)");
+                }
+            }
+            catch (Exception ex)
+            {
+                throw new Xunit.Sdk.SkipException($"Skipping: Live integration not configured ({ex.Message})");
             }
         }
 

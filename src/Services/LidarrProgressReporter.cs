@@ -185,7 +185,7 @@ namespace Lidarr.Plugin.Qobuzarr.Services
 
         public ProgressTracker(int totalItems, string operationType, IProgress<ProgressReport> progress, Logger logger, Action<Guid> onCompleted)
         {
-            TotalItems = Guard.GreaterThan(totalItems, 0, nameof(totalItems));
+            TotalItems = Guard.InRange(totalItems, 1, int.MaxValue, nameof(totalItems));
             OperationType = Guard.NotNullOrEmpty(operationType, nameof(operationType));
             _progress = progress;
             _logger = Guard.NotNull(logger, nameof(logger));

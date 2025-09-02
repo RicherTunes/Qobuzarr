@@ -5,6 +5,7 @@ using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Web;
+using LimitConstants = Lidarr.Plugin.Qobuzarr.Constants.QobuzarrConstants;
 
 namespace Lidarr.Plugin.Qobuzarr.Security
 {
@@ -21,13 +22,13 @@ namespace Lidarr.Plugin.Qobuzarr.Security
         private static readonly Regex CountryCodeRegex = new(@"^[A-Z]{2}$", RegexOptions.Compiled);
         private static readonly Regex AppIdRegex = new(@"^[a-zA-Z0-9_-]{1,50}$", RegexOptions.Compiled);
         
-        // Maximum lengths for various input types
-        private const int MaxEmailLength = 254;
-        private const int MaxPasswordLength = 128;
-        private const int MaxQueryLength = 200;
-        private const int MaxPathLength = 260;
-        private const int MaxUrlLength = 2048;
-        private const int MaxTokenLength = 500;
+        // Maximum lengths for various input types (centralized)
+        private const int MaxEmailLength = LimitConstants.Limits.MaxEmailLength;
+        private const int MaxPasswordLength = LimitConstants.Limits.MaxPasswordLength;
+        private const int MaxQueryLength = LimitConstants.Limits.MaxQueryLength;
+        private const int MaxPathLength = LimitConstants.Limits.MaxPathLength;
+        private const int MaxUrlLength = LimitConstants.Limits.MaxUrlLength;
+        private const int MaxTokenLength = LimitConstants.Limits.MaxTokenLength;
 
         /// <summary>
         /// Sanitizes email input for authentication
@@ -92,8 +93,29 @@ namespace Lidarr.Plugin.Qobuzarr.Security
             // Remove script injection attempts
             query = Regex.Replace(query, @"<[^>]*>", ""); // Remove HTML tags
             query = Regex.Replace(query, @"javascript:", "", RegexOptions.IgnoreCase);
-            query = Regex.Replace(query, @"on\w+\s*=", "", RegexOptions.IgnoreCase); // Remove event handlers
-            
+            // Remove inline event handlers and their assignments
+            query = Regex.Replace(query, "on\\w+\\s*=\\s*(['\"])?.*?\\1", "", RegexOptions.IgnoreCase);
+            // Remove common JS function calls often used in XSS
+            query = Regex.Replace(query, @"(alert|eval|prompt|confirm)\s*\(", "", RegexOptions.IgnoreCase);
+
+            // Remove command injection and shell control operators
+            var dangerousTokens = new[] { "&&", "||", "`", "|", ";", "$(", "${", "rm -rf", "del /", "format ", "shutdown", "reboot", "/bin/", "cmd.exe", "powershell", "nc -l", "wget", "curl", "xp_cmdshell" };
+            foreach (var token in dangerousTokens)
+            {
+                query = Regex.Replace(query, Regex.Escape(token), "", RegexOptions.IgnoreCase);
+            }
+
+            // Remove path traversal sequences
+            var traversalPatterns = new[] { "../", "..\\", "%2e%2e%2f", "%2e%2e%5c", "..%2f", "..%5c" };
+            foreach (var pattern in traversalPatterns)
+            {
+                query = query.Replace(pattern, string.Empty, StringComparison.OrdinalIgnoreCase);
+            }
+
+            // Remove Windows absolute path indicators and common system folders
+            query = Regex.Replace(query, @"[A-Za-z]:\\", "", RegexOptions.IgnoreCase);
+            query = query.Replace("\\Windows\\", string.Empty, StringComparison.OrdinalIgnoreCase);
+
             // Escape special characters for API usage
             query = HttpUtility.HtmlEncode(query);
             

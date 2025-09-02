@@ -72,7 +72,7 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
             ISubstringMatcher substringMatcher = null,
             ICacheSerializer<SubstringCacheEntry> serializer = null)
         {
-            Guard.GreaterThan(maxCacheSize, 0);
+            Guard.InRange(maxCacheSize, 1, int.MaxValue);
             CacheConfiguration.ValidateCacheSize(maxCacheSize, nameof(maxCacheSize));
             CacheConfiguration.ValidateSimilarityThreshold(similarityThreshold, nameof(similarityThreshold));
 
