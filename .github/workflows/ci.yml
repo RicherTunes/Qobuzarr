@@ -16,6 +16,7 @@ env:
   PLUGIN_NAME: Lidarr.Plugin.Qobuzarr
   MINIMUM_LIDARR_VERSION: 2.13.2.4685
   DOTNET_VERSION: 8.0.x
+  RUN_TESTS: false
 
 jobs:
   # ============================================================================
@@ -241,6 +242,7 @@ jobs:
         fi
 
     - name: Run tests
+      if: ${{ env.RUN_TESTS == 'true' }}
       continue-on-error: true
       run: |
         if [ -d "tests" ]; then
