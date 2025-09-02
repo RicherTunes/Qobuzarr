@@ -218,7 +218,10 @@ jobs:
         
         echo "[OK] Plugin built successfully"
 
-    - name: Build CLI (if present)\n      continue-on-error: true\n      run: |
+    - name: Build CLI (if present)
+      continue-on-error: true
+      run: |
+
         if [ -d "QobuzCLI" ]; then
           echo "🔨 Building CLI project..."
           dotnet restore QobuzCLI/QobuzCLI.csproj
