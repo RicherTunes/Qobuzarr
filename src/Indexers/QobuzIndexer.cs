@@ -33,7 +33,12 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
     public class QobuzIndexer : HttpIndexerBase<QobuzIndexerSettings>, IDisposable
     {
         public override string Name => QobuzarrConstants.PluginName;
+        // Support both legacy enum-based protocol and new plugin string protocol
+#if PLUGIN_PROTOCOL
         public override string Protocol => nameof(QobuzarrDownloadProtocol);
+#else
+        public override DownloadProtocol Protocol => DownloadProtocol.Unknown;
+#endif
         public override bool SupportsRss => false;
         public override bool SupportsSearch => true;
         public override int PageSize => 100;

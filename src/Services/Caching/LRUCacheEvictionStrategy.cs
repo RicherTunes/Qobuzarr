@@ -32,8 +32,8 @@ namespace Lidarr.Plugin.Qobuzarr.Services.Caching
         public IEnumerable<TEntry> SelectEntriesForEviction(IEnumerable<TEntry> allEntries, int maxCacheSize, int currentSize)
         {
             Guard.NotNull(allEntries);
-            Guard.GreaterThan(maxCacheSize, 0);
-            Guard.GreaterThanOrEqualTo(currentSize, 0);
+            Guard.InRange(maxCacheSize, 1, int.MaxValue);
+            Guard.InRange(currentSize, 0, int.MaxValue);
 
             if (currentSize <= maxCacheSize)
                 return Enumerable.Empty<TEntry>();
