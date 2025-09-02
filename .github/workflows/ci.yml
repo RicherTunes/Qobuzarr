@@ -163,12 +163,17 @@ jobs:
         restore-keys: |
           ${{ runner.os }}-lidarr-host-
 
-    - name: Build Lidarr host (plugins branch)
+    - name: Download Lidarr host assemblies
       if: steps.host_cache.outputs.cache-hit != 'true'
       run: |
-        echo "🔧 Building Lidarr host (plugins branch)"
-        dotnet restore ext/Lidarr-source/src/Lidarr.sln
-        dotnet build ext/Lidarr-source/src/Lidarr.sln -c Release -f net6.0
+        echo "📥 Preparing Lidarr host assemblies for $(MINIMUM_LIDARR_VERSION)"
+        chmod +x ./download-lidarr-assemblies.sh
+        ./download-lidarr-assemblies.sh --version $MINIMUM_LIDARR_VERSION --output ext/Lidarr-source/_output/net6.0 || {
+          echo "[WARN] Download script failed; showing directory for debugging";
+          ls -la;
+          exit 1;
+        }
+        echo "📂 Listing host assemblies:"
         ls -la ext/Lidarr-source/_output/net6.0 || echo "[WARN] Host build output not found"
 
     - name: Set version
