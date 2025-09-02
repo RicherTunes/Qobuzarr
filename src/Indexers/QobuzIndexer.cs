@@ -18,6 +18,7 @@ using Lidarr.Plugin.Qobuzarr.Security;
 using Lidarr.Plugin.Qobuzarr.Indexers.Core;
 using Lidarr.Plugin.Common.Base;
 using Lidarr.Plugin.Qobuzarr.Download;
+using NzbDrone.Core.Download;
 using Lidarr.Plugin.Common.Services;
 
 namespace Lidarr.Plugin.Qobuzarr.Indexers
@@ -33,7 +34,7 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
     public class QobuzIndexer : HttpIndexerBase<QobuzIndexerSettings>, IDisposable
     {
         public override string Name => QobuzarrConstants.PluginName;
-        // Plugin protocol identifier (plugin branch host)
+        // Protocol identifier
         public override string Protocol => nameof(QobuzarrDownloadProtocol);
         public override bool SupportsRss => false;
         public override bool SupportsSearch => true;
