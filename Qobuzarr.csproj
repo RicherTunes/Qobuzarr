@@ -59,7 +59,8 @@
     <!-- External consumers get production-ready build unless they explicitly enable this -->
     <IncludeCLIFramework>true</IncludeCLIFramework>
     
-    <!-- Use legacy enum protocol for maximum compatibility with host assemblies -->
+    <!-- Target plugin branch host API (string-based Protocol and IDownloadProtocol) -->
+    <DefineConstants>$(DefineConstants);PLUGIN_PROTOCOL</DefineConstants>
   </PropertyGroup>
 
   <!-- Source files inclusion -->
@@ -130,19 +131,19 @@
   <!-- ✅ SOURCE-BUILT ASSEMBLIES: Use complete assemblies with DownloadProtocol support -->
   <ItemGroup>
     <Reference Include="Lidarr.Core">
-      <HintPath>ext\Lidarr\_output\net6.0\Lidarr.Core.dll</HintPath>
+      <HintPath>ext\Lidarr-source\_output\net6.0\Lidarr.Core.dll</HintPath>
       <Private>false</Private>
     </Reference>
     <Reference Include="Lidarr.Common">
-      <HintPath>ext\Lidarr\_output\net6.0\Lidarr.Common.dll</HintPath>
+      <HintPath>ext\Lidarr-source\_output\net6.0\Lidarr.Common.dll</HintPath>
       <Private>false</Private>
     </Reference>
     <Reference Include="Lidarr.Http">
-      <HintPath>ext\Lidarr\_output\net6.0\Lidarr.Http.dll</HintPath>
+      <HintPath>ext\Lidarr-source\_output\net6.0\Lidarr.Http.dll</HintPath>
       <Private>false</Private>
     </Reference>
     <Reference Include="Lidarr.SignalR">
-      <HintPath>ext\Lidarr\_output\net6.0\Lidarr.SignalR.dll</HintPath>
+      <HintPath>ext\Lidarr-source\_output\net6.0\Lidarr.SignalR.dll</HintPath>
       <Private>false</Private>
     </Reference>
     <!-- Shared library reference - using submodule for development -->

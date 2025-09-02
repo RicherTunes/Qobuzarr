@@ -147,17 +147,12 @@ jobs:
     # Use actions/setup-dotnet toolchain; avoid invalid global.json like '8.0.x'
     # Global.json is unnecessary here and can cause SDK resolution failures.
 
-    - name: Setup Lidarr assemblies
+    - name: Build Lidarr host (plugins branch)
       run: |
-        echo "📦 Setting up Lidarr assemblies..."
-        mkdir -p ext/Lidarr/_output/net6.0
-        
-        # Use proven pre-built assembly approach
-        chmod +x ./download-lidarr-assemblies.sh
-        ./download-lidarr-assemblies.sh --version ${{ env.MINIMUM_LIDARR_VERSION }}
-        
-        echo "[OK] Lidarr assemblies ready"
-        ls -la ext/Lidarr/_output/net6.0/ || echo "[WARN] Assembly directory not found"
+        echo "🔧 Building Lidarr host (plugins branch)"
+        dotnet restore ext/Lidarr-source/src/Lidarr.sln
+        dotnet build ext/Lidarr-source/src/Lidarr.sln -c Release -f net6.0
+        ls -la ext/Lidarr-source/_output/net6.0 || echo "[WARN] Host build output not found"
 
     - name: Set version
       run: |
