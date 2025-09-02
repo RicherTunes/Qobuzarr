@@ -19,18 +19,15 @@ namespace QobuzCLI.Services.Adapters
     {
         private readonly IQualityService _pluginQualityService;
         private readonly IQobuzApiClient _apiClient;
-        private readonly QobuzStreamUrlService _streamUrlService;
         private readonly Logger _logger;
 
         public CliQualityServiceAdapter(
             IQualityService pluginQualityService,
             IQobuzApiClient apiClient,
-            QobuzStreamUrlService streamUrlService,
             Logger logger)
         {
             _pluginQualityService = pluginQualityService ?? throw new ArgumentNullException(nameof(pluginQualityService));
             _apiClient = apiClient ?? throw new ArgumentNullException(nameof(apiClient));
-            _streamUrlService = streamUrlService ?? throw new ArgumentNullException(nameof(streamUrlService));
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         }
 
@@ -134,13 +131,23 @@ namespace QobuzCLI.Services.Adapters
                 var bestFormat = GetBestAvailableFormatId(track, preferredQuality);
                 
                 // Get stream info for that format
-                var streamInfo = await _streamUrlService.GetStreamInfoAsync(trackId, bestFormat);
+                // Prefer plugin API client for streaming URL
+                var url = await _apiClient.GetStreamingUrlAsync(trackId, bestFormat).ConfigureAwait(false);
+                QobuzStreamInfo? streamInfo = null;
+                if (!string.IsNullOrWhiteSpace(url))
+                {
+                    streamInfo = new QobuzStreamInfo { Url = url, FormatId = bestFormat };
+                }
                 if (streamInfo == null)
                 {
                     // Try fallback to CD quality
                     _logger.Warn($"Could not get stream for format {bestFormat}, trying CD quality");
                     bestFormat = 6;
-                    streamInfo = await _streamUrlService.GetStreamInfoAsync(trackId, bestFormat);
+                    url = await _apiClient.GetStreamingUrlAsync(trackId, bestFormat).ConfigureAwait(false);
+                    if (!string.IsNullOrWhiteSpace(url))
+                    {
+                        streamInfo = new QobuzStreamInfo { Url = url, FormatId = bestFormat };
+                    }
                 }
 
                 if (streamInfo == null)

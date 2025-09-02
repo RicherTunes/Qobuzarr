@@ -26,12 +26,18 @@ namespace Qobuzarr.IntegrationTests
 
         public async Task InitializeAsync()
         {
-            _framework = new LiveLidarrIntegrationFramework(_output);
-            
-            var connectivityResult = await _framework.ValidateBasicConnectivityAsync();
-            if (!connectivityResult.IsSuccess)
+            try
             {
-                throw new InvalidOperationException("Cannot connect to Lidarr for security testing");
+                _framework = new LiveLidarrIntegrationFramework(_output);
+                var connectivityResult = await _framework.ValidateBasicConnectivityAsync();
+                if (!connectivityResult.IsSuccess)
+                {
+                    throw new Xunit.Sdk.SkipException("Skipping: Lidarr not reachable (set LIDARR_URL and LIDARR_API_KEY)");
+                }
+            }
+            catch (Exception ex)
+            {
+                throw new Xunit.Sdk.SkipException($"Skipping: Live integration not configured ({ex.Message})");
             }
         }
 
@@ -41,6 +47,7 @@ namespace Qobuzarr.IntegrationTests
         }
 
         [Fact]
+        [Trait("Category", "LiveIntegration")]
         [Trait("Category", "Security")]
         [Trait("Priority", "Critical")]
         public async Task Test_InputSanitizer_Email_Validation()
@@ -75,6 +82,7 @@ namespace Qobuzarr.IntegrationTests
         }
 
         [Fact]
+        [Trait("Category", "LiveIntegration")]
         [Trait("Category", "Security")]
         [Trait("Priority", "Critical")]
         public async Task Test_InputSanitizer_Query_Sanitization()
@@ -125,6 +133,7 @@ namespace Qobuzarr.IntegrationTests
         }
 
         [Fact]
+        [Trait("Category", "LiveIntegration")]
         [Trait("Category", "Security")]
         [Trait("Priority", "Critical")]
         public async Task Test_InputSanitizer_Path_Traversal_Prevention()
@@ -174,6 +183,7 @@ namespace Qobuzarr.IntegrationTests
         }
 
         [Fact]
+        [Trait("Category", "LiveIntegration")]
         [Trait("Category", "Security")]
         [Trait("Priority", "High")]
         public async Task Test_InputSanitizer_Credential_Validation()
@@ -240,6 +250,7 @@ namespace Qobuzarr.IntegrationTests
         }
 
         [Fact]
+        [Trait("Category", "LiveIntegration")]
         [Trait("Category", "Security")]
         [Trait("Priority", "High")]
         public async Task Test_InputSanitizer_Country_Code_Validation()
@@ -430,6 +441,7 @@ namespace Qobuzarr.IntegrationTests
         }
 
         [Fact]
+        [Trait("Category", "LiveIntegration")]
         [Trait("Category", "Security")]  
         [Trait("Priority", "Medium")]
         public async Task Test_Authentication_Security_In_Live_Environment()
