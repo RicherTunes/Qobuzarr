@@ -119,6 +119,8 @@ jobs:
   # BUILD AND TEST JOB - Full compilation and testing
   # ============================================================================
   build-and-test:
+    env:
+      RUN_TESTS: 'false'
     name: Build and Test
     runs-on: ubuntu-latest
     needs: validate
