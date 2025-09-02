@@ -59,7 +59,7 @@
     <!-- External consumers get production-ready build unless they explicitly enable this -->
     <IncludeCLIFramework>true</IncludeCLIFramework>
     
-    <!-- Target plugin branch host API (string-based Protocol and IDownloadProtocol) -->
+    <!-- Build against Lidarr plugins-branch host API (string Protocol + IDownloadProtocol) -->
     <DefineConstants>$(DefineConstants);PLUGIN_PROTOCOL</DefineConstants>
   </PropertyGroup>
 
