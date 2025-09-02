@@ -226,16 +226,17 @@ jobs:
       run: |
         if [ -d "QobuzCLI" ]; then
           echo "🔨 Building CLI project..."
-          dotnet restore QobuzCLI/QobuzCLI.csproj || true
           set +e
+          dotnet restore QobuzCLI/QobuzCLI.csproj
+          restore_status=$?
           dotnet build QobuzCLI/QobuzCLI.csproj --configuration Release --no-restore \
             -p:RunAnalyzersDuringBuild=false \
             -p:EnableNETAnalyzers=false \
             -p:TreatWarningsAsErrors=false
-          status=$?
+          build_status=$?
           set -e
-          if [ $status -ne 0 ]; then
-            echo "[WARN] CLI build failed (non-blocking). Proceeding with pipeline."
+          if [ $restore_status -ne 0 ] || [ $build_status -ne 0 ]; then
+            echo "[WARN] CLI restore/build failed (non-blocking). Proceeding with pipeline."
           else
             echo "[OK] CLI built successfully"
           fi
