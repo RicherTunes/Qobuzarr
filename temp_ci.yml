@@ -144,8 +144,9 @@ jobs:
         restore-keys: |
           ${{ runner.os }}-nuget-
 
-    # Use actions/setup-dotnet toolchain; avoid invalid global.json like '8.0.x'
-    # Global.json is unnecessary here and can cause SDK resolution failures.
+    - name: Create global.json
+      run: |
+        echo '{"sdk":{"version":"${{ env.DOTNET_VERSION }}"}}' > global.json
 
     - name: Setup Lidarr assemblies
       run: |
@@ -252,21 +253,13 @@ jobs:
         echo "[OK] Plugin packaged successfully"
         ls -la *.zip
 
-    - name: Generate release notes (dev)
-      run: |
-        echo "# ${PLUGIN_NAME} v${PLUGIN_VERSION}" > release-notes.txt
-        echo "" >> release-notes.txt
-        echo "## Recent Changes" >> release-notes.txt
-        git log --pretty=format:"- %h %s (%an)" -n 25 >> release-notes.txt || echo "- Changes from main branch" >> release-notes.txt
-
     - name: Upload build artifacts
       uses: actions/upload-artifact@v4
       with:
-        name: ${{ env.PLUGIN_NAME }}-${{ matrix.framework }}-run-${{ github.run_number }}
+        name: ${{ env.PLUGIN_NAME }}-${{ matrix.framework }}
         path: |
           bin/**
           *.zip
-          release-notes.txt
           !bin/**/ref/**
           !bin/**/runtimes/linux-*/**
           !bin/**/runtimes/osx-*/**

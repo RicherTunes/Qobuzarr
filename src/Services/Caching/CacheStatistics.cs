@@ -116,9 +116,9 @@ namespace Lidarr.Plugin.Qobuzarr.Services.Caching
         /// <returns>Statistics object with calculated metrics</returns>
         public CacheStatisticsSnapshot GetStatistics(int totalEntries, int uniqueArtists, int uniqueAlbums)
         {
-            Guard.GreaterThanOrEqualTo(totalEntries, 0);
-            Guard.GreaterThanOrEqualTo(uniqueArtists, 0);
-            Guard.GreaterThanOrEqualTo(uniqueAlbums, 0);
+            Guard.InRange(totalEntries, 0, int.MaxValue);
+            Guard.InRange(uniqueArtists, 0, int.MaxValue);
+            Guard.InRange(uniqueAlbums, 0, int.MaxValue);
 
             var totalHits = TotalHits;
             var totalMisses = TotalMisses;

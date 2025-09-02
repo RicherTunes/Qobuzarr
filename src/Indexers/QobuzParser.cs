@@ -102,6 +102,12 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
             }
         }
 
+        // Backward-compatibility for tests: expose legacy private method name via reflection
+        private ReleaseInfo CreateReleaseInfoForQuality(QobuzAlbum album, QobuzAudioQuality quality, string originalQuery)
+        {
+            return _releaseInfoFactory.CreateReleaseInfoForQuality(album, quality, originalQuery);
+        }
+
         private QobuzAlbumSearchResponse TryParseAlbumSearchResponse(string content)
         {
             try
