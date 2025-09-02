@@ -10,12 +10,8 @@ on:
 permissions:
   contents: write
 
-env:
-  DOTNET_SKIP_FIRST_TIME_EXPERIENCE: true
-  DOTNET_CLI_TELEMETRY_OPTOUT: true
-  PLUGIN_NAME: Lidarr.Plugin.Qobuzarr
-  MINIMUM_LIDARR_VERSION: 2.13.2.4685
-  DOTNET_VERSION: 8.0.x
+
+  BUILD_CLI: 'false'
   RUN_TESTS: false
 
 jobs:
@@ -221,28 +217,6 @@ jobs:
         
         echo "[OK] Plugin built successfully"
 
-    - name: Build CLI (if present)
-      continue-on-error: true
-      run: |
-        if [ -d "QobuzCLI" ]; then
-          echo "🔨 Building CLI project..."
-          set +e
-          dotnet restore QobuzCLI/QobuzCLI.csproj
-          restore_status=$?
-          dotnet build QobuzCLI/QobuzCLI.csproj --configuration Release --no-restore \
-            -p:RunAnalyzersDuringBuild=false \
-            -p:EnableNETAnalyzers=false \
-            -p:TreatWarningsAsErrors=false
-          build_status=$?
-          set -e
-          if [ $restore_status -ne 0 ] || [ $build_status -ne 0 ]; then
-            echo "[WARN] CLI restore/build failed (non-blocking). Proceeding with pipeline."
-          else
-            echo "[OK] CLI built successfully"
-          fi
-        else
-          echo "[INFO] No CLI project found"
-        fi
 
     - name: Run tests
       if: ${{ env.RUN_TESTS == 'true' }}
@@ -366,3 +340,71 @@ jobs:
         draft: false
         prerelease: true
 
+  # ============================================================================
+  # OPTIONAL CLI JOB - Strict build, opt-in via BUILD_CLI=true
+  # ============================================================================
+  build-cli:
+    name: Build CLI
+    runs-on: ubuntu-latest
+    needs: validate
+    if: ${{ env.BUILD_CLI == 'true' }}
+
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+      with:
+        submodules: recursive
+
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: ${{ env.DOTNET_VERSION }}
+
+    - name: Cache NuGet packages
+      uses: actions/cache@v3
+      with:
+        path: ~/.nuget/packages
+        key: ${{ runner.os }}-nuget-${{ hashFiles('**/*.csproj') }}
+        restore-keys: |
+          ${{ runner.os }}-nuget-
+
+    - name: Cache Lidarr host build output
+      id: host_cache_cli
+      uses: actions/cache@v3
+      with:
+        path: |
+          ext/Lidarr-source/_output/net6.0
+          ext/Lidarr-source/_temp/obj
+        key: ${{ runner.os }}-lidarr-host-plugins-${{ env.MINIMUM_LIDARR_VERSION }}-${{ hashFiles('ext/Lidarr-source/_cache-key.txt') }}
+        restore-keys: |
+          ${{ runner.os }}-lidarr-host-plugins-
+
+    - name: Download Lidarr host assemblies (plugins branch)
+      if: steps.host_cache_cli.outputs.cache-hit != 'true'
+      run: |
+        echo "📥 Preparing Lidarr plugins-branch host assemblies (hotio pr-plugins)"
+        mkdir -p ext/Lidarr-source/_output/net6.0
+        IMAGE="ghcr.io/hotio/lidarr:pr-plugins"
+        echo "Pulling $IMAGE"
+        docker pull "$IMAGE"
+        cid=$(docker create "$IMAGE")
+        echo "Extracting assemblies from container..."
+        docker cp "$cid:/app" ext/Lidarr-source/_extracted || docker cp "$cid:/opt/lidarr" ext/Lidarr-source/_extracted
+        docker rm "$cid" >/dev/null
+        find ext/Lidarr-source/_extracted -type f -name "*.dll" -print -exec cp {} ext/Lidarr-source/_output/net6.0 \; || true
+        rm -rf ext/Lidarr-source/_extracted
+        find ext/Lidarr-source/_output/net6.0 -type f -maxdepth 1 -name "*.dll" -printf "%f %s\n" | sort > ext/Lidarr-source/_cache-key.txt || true
+        echo "📂 Listing host assemblies:"
+        ls -la ext/Lidarr-source/_output/net6.0 || echo "[WARN] Host build output not found"
+        mkdir -p ext/Lidarr/_output/net6.0
+        cp -f ext/Lidarr-source/_output/net6.0/*.dll ext/Lidarr/_output/net6.0/ || true
+
+    - name: Restore CLI
+      run: dotnet restore QobuzCLI/QobuzCLI.csproj
+
+    - name: Build CLI
+      run: |
+        dotnet build QobuzCLI/QobuzCLI.csproj --configuration Release --no-restore \
+          -p:RunAnalyzersDuringBuild=false \
+          -p:EnableNETAnalyzers=false \
+          -p:TreatWarningsAsErrors=false
