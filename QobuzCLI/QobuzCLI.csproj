@@ -45,6 +45,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Qobuzarr.csproj" />
+    <ProjectReference Include="..\ext\Lidarr.Plugin.Common\src\Lidarr.Plugin.Common.csproj" />
   </ItemGroup>
 
   <!-- ✅ PRE-BUILT ASSEMBLIES: Use single assembly source (no StyleCop conflicts) -->
