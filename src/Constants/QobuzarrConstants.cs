@@ -1,66 +1,38 @@
-using System;
-
 namespace Lidarr.Plugin.Qobuzarr.Constants
 {
-    /// <summary>
-    /// Central constants for the Qobuzarr plugin to eliminate hardcoding
-    /// </summary>
-    public static class QobuzarrConstants
+    internal static class QobuzarrConstants
     {
-        /// <summary>
-        /// The plugin display name used throughout the application
-        /// </summary>
+        // General identifiers used across the plugin
         public const string PluginName = "Qobuzarr";
-        
-        /// <summary>
-        /// The service name for metadata source identification
-        /// </summary>
         public const string ServiceName = "Qobuz";
-        
-        /// <summary>
-        /// The plugin folder name used for file system operations
-        /// </summary>
-        public const string PluginFolderName = "Qobuzarr";
-        
-        /// <summary>
-        /// The protocol identifier used for Lidarr plugin system
-        /// </summary>
-        public const string ProtocolName = "Qobuzarr";
-        
-        /// <summary>
-        /// The download category identifier for Lidarr downloads
-        /// </summary>
-        public const string DownloadCategory = "qobuzarr";
+        // Matches default deploy path used in csproj (plugins\\RicherTunes\\Qobuzarr)
+        public const string PluginFolderName = "RicherTunes\\Qobuzarr";
+        public const string DownloadCategory = "qobuz";
 
-        /// <summary>
-        /// Plugin metadata information (restored from deleted QobuzarrPlugin.cs)
-        /// </summary>
-        public static class Plugin
+        internal static class Limits
         {
-            /// <summary>
-            /// The plugin name
-            /// </summary>
-            public const string Name = "Qobuzarr";
-            
-            /// <summary>
-            /// The plugin description
-            /// </summary>
-            public const string Description = "High-quality music indexer and download client for Qobuz streaming service";
-            
-            /// <summary>
-            /// The plugin author
-            /// </summary>
-            public const string Author = "RicherTunes";
-            
-            /// <summary>
-            /// The plugin GitHub repository URL
-            /// </summary>
-            public const string GithubUrl = "https://github.com/richertunes/qobuzarr";
-            
-            /// <summary>
-            /// Gets the plugin version from the assembly metadata (single source of truth in csproj)
-            /// </summary>
-            public static string Version => typeof(QobuzarrConstants).Assembly.GetName().Version?.ToString() ?? "0.0.0.0";
+            public const int MaxEmailLength = 254;
+            public const int MaxPasswordLength = 128;
+            public const int MaxQueryLength = 200;
+            public const int MaxPathLength = 260;
+            public const int MaxUrlLength = 2048;
+            public const int MaxTokenLength = 500;
+            public const int MaxAlbumTitleLength = 2000; // protects classifier from pathological inputs
+        }
+
+        internal static class Defaults
+        {
+            // Concurrency
+            public const int DefaultConcurrentDownloads = 3;
+            public const int MaxConcurrentDownloads = 20;
+
+            // Token refresh (see TokenRefresher)
+            public const int TokenRefreshBufferMinutes = 30;
+            public const int TokenRefreshCooldownSeconds = 60;
+            public const int TokenMaxRetryAttempts = 3;
+            public const int TokenInitialRetryDelaySeconds = 30;
+            public const double TokenBackoffMultiplier = 2.0;
+            public const int TokenCircuitBreakerThreshold = 5;
         }
     }
 }

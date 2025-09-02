@@ -100,6 +100,11 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
         /// <returns>Dictionary mapping each component to its semantic type</returns>
         public Dictionary<string, AlbumComponentType> ClassifyComponents(string albumTitle)
         {
+            // Protect against pathological inputs to prevent excessive allocations
+            if (!string.IsNullOrEmpty(albumTitle) && albumTitle.Length > Lidarr.Plugin.Qobuzarr.Constants.QobuzarrConstants.Limits.MaxAlbumTitleLength)
+            {
+                return new Dictionary<string, AlbumComponentType>();
+            }
             var components = new Dictionary<string, AlbumComponentType>();
             
             if (string.IsNullOrWhiteSpace(albumTitle))

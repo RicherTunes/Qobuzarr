@@ -22,6 +22,8 @@
     <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" />
     <PackageReference Include="Moq" />
     <PackageReference Include="FluentAssertions" />
+    <!-- Ensure NLog is present when CLI tests load plugin types referencing NLog -->
+    <PackageReference Include="NLog" />
   </ItemGroup>
 
   <ItemGroup>

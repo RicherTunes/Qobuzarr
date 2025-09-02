@@ -180,7 +180,7 @@ namespace Lidarr.Plugin.Qobuzarr.Models
         /// </summary>
         public string GetSafeFileName(string extension = "flac")
         {
-            return Utilities.FileSystemUtilities.CreateTrackFileName(GetFullTitle(), TrackNumber, extension);
+            return global::Lidarr.Plugin.Common.Utilities.FileSystemUtilities.CreateTrackFileName(GetFullTitle(), TrackNumber, extension);
         }
 
         /// <summary>
