@@ -1,3 +1,5 @@
+using Lidarr.Plugin.Qobuzarr.Constants;
+
 namespace Lidarr.Plugin.Qobuzarr.Configuration
 {
     /// <summary>
@@ -22,7 +24,7 @@ namespace Lidarr.Plugin.Qobuzarr.Configuration
         /// </summary>
         public static class Download
         {
-            public const int MaxRetries = 5; // Increased for better resilience against network interruptions
+            public const int MaxRetries = QobuzarrConstants.Defaults.GlobalMaxRetryAttempts; // Unified retry attempts
             public const int RetryDelayMs = 2000; // Increased base delay for network recovery
             public const int LargeFileThresholdBytes = 50 * 1024 * 1024; // 50MB
             public const int BufferSize = 81920; // 80KB
