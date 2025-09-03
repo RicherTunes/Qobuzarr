@@ -224,19 +224,14 @@ namespace Lidarr.Plugin.Qobuzarr.API
                         currentSession.AppId, currentSession.AuthToken?.Substring(Math.Max(0, currentSession.AuthToken.Length - 4)) ?? "null");
                 }
 
-                // Add custom parameters with sanitization
+                // Add custom parameters (builder handles URL encoding)
                 if (parameters != null)
                 {
                     foreach (var param in parameters)
                     {
-                        // SECURITY: Sanitize parameter values to prevent injection
-                        var sanitizedValue = param.Value;
-                        if (!string.IsNullOrEmpty(sanitizedValue) && !Utilities.LidarrInputValidator.IsInputSafe(sanitizedValue))
-                        {
-                            _logger.Warn("Potentially unsafe parameter value detected for key {0}", param.Key);
-                            continue; // Skip unsafe parameters
-                        }
-                        allParameters[param.Key] = sanitizedValue;
+                        // Avoid over-sanitizing; rely on HttpRequestBuilder for URL encoding
+                        var value = param.Value?.Trim() ?? string.Empty;
+                        allParameters[param.Key] = value;
                     }
                     _logger.Trace("📋 Custom parameters added: {0}", 
                         string.Join(", ", parameters.Select(kv => $"{kv.Key}={kv.Value}")));

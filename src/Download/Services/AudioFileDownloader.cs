@@ -2,12 +2,14 @@ using System;
 using System.IO;
 using System.Linq;
 using System.Net.Http;
+using System.Net.Http.Headers;
 using System.Threading;
 using System.Threading.Tasks;
 using NzbDrone.Common.Http;
 using Lidarr.Plugin.Qobuzarr.Abstractions;
-using Lidarr.Plugin.Qobuzarr.Utilities;
+using Lidarr.Plugin.Common.Utilities;
 using Lidarr.Plugin.Qobuzarr.Configuration;
+using Lidarr.Plugin.Qobuzarr.Services.Http;
 
 namespace Lidarr.Plugin.Qobuzarr.Download.Services
 {
@@ -65,58 +67,77 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Services
                         await Task.Delay(delay, cancellationToken).ConfigureAwait(false);
                     }
 
-                    // Create HTTP request with streaming support and timeout
-                    var request = new HttpRequestBuilder(streamUrl)
-                        .SetHeader("User-Agent", QobuzPluginConstants.Http.UserAgent)
-                        .SetHeader("Connection", "keep-alive")
-                        .SetHeader("Accept", "*/*")
-                        .Build();
-                    
-                    // Set adaptive timeout based on typical FLAC file sizes
-                    // FLAC: ~30-80MB per album, high-res can be 150MB+
-                    var timeoutMinutes = 8; // Generous timeout for high-quality downloads
-                    request.RequestTimeout = TimeSpan.FromMinutes(timeoutMinutes);
-
-                    var response = await _httpClient.ExecuteAsync(request).ConfigureAwait(false);
-                    
-                    if (response.HasHttpError)
+                    // Resumable streaming via shared HttpClient
+                    var http = SharedSystemHttpClient.Instance;
+                    var partialPath = outputPath + ".partial";
+                    long existing = 0;
+                    if (File.Exists(partialPath))
                     {
-                        throw new HttpException(request, response);
+                        try { existing = new FileInfo(partialPath).Length; } catch { existing = 0; }
                     }
 
-                    var totalBytes = response.Headers.ContentLength ?? 0;
-                    var downloadedBytes = 0L;
-
-                    // Download with progress reporting
-                    using var fileStream = new FileStream(outputPath, FileMode.Create, FileAccess.Write, FileShare.None, bufferSize: BufferSize);
-
-                    // For large files, stream the download instead of loading into memory
-                    if (response.ResponseData.Length > LargeFileThresholdBytes)
+                    var httpRequest = new HttpRequestMessage(HttpMethod.Get, streamUrl);
+                    if (existing > 0)
                     {
-                        _logger.Debug("Large file detected ({0} bytes), using streaming download", response.ResponseData.Length);
-                        
-                        downloadedBytes = await StreamLargeFileAsync(response.ResponseData, fileStream, totalBytes, progress, cancellationToken);
-                    }
-                    else
-                    {
-                        // Small files - write directly
-                        await fileStream.WriteAsync(response.ResponseData, 0, response.ResponseData.Length, cancellationToken).ConfigureAwait(false);
-                        downloadedBytes = response.ResponseData.Length;
+                        httpRequest.Headers.Range = new RangeHeaderValue(existing, null);
                     }
 
-                    // Final progress report
-                    ReportFinalProgress(progress, downloadedBytes, totalBytes);
+                    using var httpResponse = await http.SendAsync(httpRequest, HttpCompletionOption.ResponseHeadersRead, cancellationToken).ConfigureAwait(false);
+                    httpResponse.EnsureSuccessStatusCode();
 
-                    await fileStream.FlushAsync(cancellationToken).ConfigureAwait(false);
-                    
-                    _logger.Debug("Successfully downloaded {0} bytes to: {1} (attempt {2})", downloadedBytes, outputPath, attempt);
+                    var isPartial = httpResponse.StatusCode == System.Net.HttpStatusCode.PartialContent;
+                    if (!isPartial && File.Exists(partialPath))
+                    {
+                        try { File.Delete(partialPath); } catch { }
+                        existing = 0;
+                    }
+
+                    var contentRange = httpResponse.Content.Headers.ContentRange;
+                    long expectedTotal = 0;
+                    if (contentRange != null && contentRange.HasLength)
+                    {
+                        expectedTotal = contentRange.Length!.Value;
+                    }
+
+                    await using (var network = await httpResponse.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false))
+                    await using (var fs = new FileStream(partialPath, FileMode.Append, FileAccess.Write, FileShare.None, bufferSize: BufferSize, useAsync: true))
+                    {
+                        var buffer = new byte[BufferSize];
+                        long written = existing;
+                        int read;
+                        while ((read = await network.ReadAsync(buffer.AsMemory(0, buffer.Length), cancellationToken).ConfigureAwait(false)) > 0)
+                        {
+                            await fs.WriteAsync(buffer.AsMemory(0, read), cancellationToken).ConfigureAwait(false);
+                            written += read;
+                            if (expectedTotal > 0)
+                            {
+                                var pct = (double)written / expectedTotal * 100d;
+                                progress?.Report(Math.Min(100, pct));
+                            }
+                        }
+                        fs.Flush(true);
+                    }
+
+                    // Atomic move
+                    File.Move(partialPath, outputPath, overwrite: true);
+
+                    // Validate
+                    if (!ValidateDownloadedFile(outputPath))
+                    {
+                        throw new InvalidOperationException($"Downloaded file failed validation: {Path.GetFileName(outputPath)}");
+                    }
+
+                    // Log final size for visibility
+                    var finalSize = 0L;
+                    try { finalSize = new FileInfo(outputPath).Length; } catch { }
+                    _logger.Debug("Successfully downloaded {0} bytes to: {1} (attempt {2})", finalSize, outputPath, attempt);
                     return; // Success - exit retry loop
                 }
                 catch (Exception ex)
                 {
                     lastException = ex;
                     
-                    await CleanupPartialFileAsync(outputPath);
+                    await CleanupPartialFileAsync(outputPath + ".partial");
 
                     // Determine if this is a retryable error
                     var isRetryable = IsRetryableNetworkError(ex) || _qualityFallbackProvider.IsRetryableException(ex);
@@ -154,7 +175,7 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Services
             try
             {
                 // Use centralized validation for basic file checks
-                if (!ValidationUtilities.ValidateDownloadedFile(filePath))
+                if (!Lidarr.Plugin.Common.Utilities.ValidationUtilities.ValidateDownloadedFile(filePath))
                 {
                     return false;
                 }
