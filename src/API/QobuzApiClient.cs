@@ -43,6 +43,8 @@ namespace Lidarr.Plugin.Qobuzarr.API
         private Lidarr.Plugin.Common.Services.Authentication.StreamingTokenManager<QobuzSession, QobuzCredentials>? _tokenManager;
         private Func<Task<QobuzCredentials>>? _credentialsProvider;
         private IPreRequestHandler? _preRequestHandler;
+        // Fallback session storage for managers that don't expose concrete Store/Clear
+        private QobuzSession? _fallbackSession;
 
         /// <summary>
         /// Initializes a new instance of the QobuzApiClient with the required dependencies.
@@ -158,9 +160,23 @@ namespace Lidarr.Plugin.Qobuzarr.API
         /// <param name="session">The authenticated Qobuz session containing user credentials and app information.</param>
         public void SetSession(QobuzSession session)
         {
-            // Use the existing StoreSession method from SessionManager implementation
-            ((SessionManager)_sessionManager).StoreSession(session);
-            _logger.Debug("Session set for API client");
+            try
+            {
+                if (_sessionManager is SessionManager concrete)
+                {
+                    concrete.StoreSession(session);
+                }
+                else
+                {
+                    _fallbackSession = session;
+                }
+                _logger.Debug("Session set for API client");
+            }
+            catch (Exception ex)
+            {
+                _fallbackSession = session;
+                _logger.Warn(ex, "Falling back to local session storage");
+            }
         }
 
         /// <summary>
@@ -169,8 +185,24 @@ namespace Lidarr.Plugin.Qobuzarr.API
         /// </summary>
         public void ClearSession()
         {
-            ((SessionManager)_sessionManager).ClearSession();
-            _logger.Debug("Session cleared from API client");
+            try
+            {
+                if (_sessionManager is SessionManager concrete)
+                {
+                    concrete.ClearSession();
+                }
+                else
+                {
+                    _sessionManager.InvalidateSessionAsync().GetAwaiter().GetResult();
+                    _fallbackSession = null;
+                }
+                _logger.Debug("Session cleared from API client");
+            }
+            catch (Exception ex)
+            {
+                _fallbackSession = null;
+                _logger.Warn(ex, "Error clearing session; cleared local fallback");
+            }
         }
 
         /// <summary>
@@ -179,7 +211,14 @@ namespace Lidarr.Plugin.Qobuzarr.API
         /// <returns>True if a valid session is available; false if no session or session is expired.</returns>
         public bool HasValidSession()
         {
-            return ((SessionManager)_sessionManager).HasValidSession();
+            try
+            {
+                return _sessionManager.HasValidSession() || (_fallbackSession?.IsValid() == true);
+            }
+            catch
+            {
+                return _fallbackSession?.IsValid() == true;
+            }
         }
 
         private async Task<T> ExecuteRequestAsync<T>(string method, string endpoint, Dictionary<string, string>? parameters = null, object? data = null) where T : class
@@ -198,12 +237,23 @@ namespace Lidarr.Plugin.Qobuzarr.API
                     var validSession = await _tokenManager.GetValidSessionAsync(fallbackCreds).ConfigureAwait(false);
                     if (validSession != null)
                     {
-                        ((SessionManager)_sessionManager).StoreSession(validSession);
+                        if (_sessionManager is SessionManager concrete)
+                        {
+                            concrete.StoreSession(validSession);
+                        }
+                        else
+                        {
+                            _fallbackSession = validSession;
+                        }
                     }
                 }
 
-                // Build request URL
-                var url = $"{QobuzConstants.Api.BaseUrl}{endpoint}";
+                // Build request URL ensuring exactly one '/'
+                var baseUrl = QobuzConstants.Api.BaseUrl?.TrimEnd('/') ?? string.Empty;
+                var ep = string.IsNullOrWhiteSpace(endpoint)
+                    ? string.Empty
+                    : (endpoint.StartsWith("/") ? endpoint : "/" + endpoint);
+                var url = $"{baseUrl}{ep}";
                 
                 _logger.Trace("🔗 API Client building request: {0} {1}", method, url);
                 
@@ -211,7 +261,9 @@ namespace Lidarr.Plugin.Qobuzarr.API
                 var allParameters = new Dictionary<string, string>();
                 
                 // Inject auth params via pre-handler if present
-                var currentSession = ((SessionManager)_sessionManager).GetCurrentSession();
+                var currentSession = _preRequestHandler == null
+                    ? (await _sessionManager.GetCurrentSessionAsync().ConfigureAwait(false) ?? _fallbackSession)
+                    : null;
                 if (_preRequestHandler != null)
                 {
                     _preRequestHandler.InjectAuthParameters(allParameters);
@@ -360,7 +412,8 @@ namespace Lidarr.Plugin.Qobuzarr.API
             var parameters = new Dictionary<string, string>
             {
                 ["track_id"] = trackId,
-                ["format_id"] = formatId.ToString()
+                ["format_id"] = formatId.ToString(),
+                ["intent"] = "stream"
             };
             
             var streamingInfo = await GetAsync<QobuzStreamResponse>("track/getFileUrl", parameters);
