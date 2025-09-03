@@ -29,6 +29,14 @@ namespace Lidarr.Plugin.Qobuzarr.API.Http
         private readonly System.Collections.Generic.Queue<DateTime> _fallbackRequestTimes = new System.Collections.Generic.Queue<DateTime>();
         private readonly TimeSpan _fallbackWindow = TimeSpan.FromMinutes(1);
 
+        // Per-host concurrency gates
+        private static readonly System.Collections.Concurrent.ConcurrentDictionary<string, SemaphoreSlim> _hostGates = new();
+        private static SemaphoreSlim GetHostGate(string? host, int maxConcurrencyPerHost)
+        {
+            host ??= "__unknown__";
+            return _hostGates.GetOrAdd(host, _ => new SemaphoreSlim(maxConcurrencyPerHost, maxConcurrencyPerHost));
+        }
+
         public QobuzHttpClient(
             IHttpClient httpClient,
             Logger logger,
@@ -81,27 +89,75 @@ namespace Lidarr.Plugin.Qobuzarr.API.Http
             var stopwatch = Stopwatch.StartNew();
             try
             {
-                // Execute with retry logic for transient failures
-                var response = await SharedRetryUtilities.ExecuteWithRetryAsync(
-                    () => ExecuteWithRateLimitHandling(request),
-                    QobuzConstants.Api.MaxRetries,
-                    1000,
-                    $"HTTP request to {request.Url}")
-                    .ConfigureAwait(false);
+                // Enhanced retry with Retry-After + per-host gate + budget
+                var maxRetries = QobuzConstants.Api.MaxRetries;
+                var retryBudget = TimeSpan.FromSeconds(60);
+                var deadline = DateTime.UtcNow + retryBudget;
+                var attempt = 0;
+                var host = request?.Url?.Host ?? "__unknown__";
+                var hostGate = GetHostGate(host, maxConcurrencyPerHost: 6);
 
-                stopwatch.Stop();
-                
-                // Record API call performance (not cached since this is direct HTTP)
-                _performanceMonitor?.RecordApiCall(request.Url.ToString(), stopwatch.Elapsed, false);
-
-                // Feed response into adaptive limiter if configured
-                if (_adaptiveRateLimiter != null)
+                await hostGate.WaitAsync(cancellationToken).ConfigureAwait(false);
+                try
                 {
-                    var msg = new HttpResponseMessage(response.StatusCode);
-                    _adaptiveRateLimiter.RecordResponse(QobuzarrConstants.ServiceName, endpoint, msg);
-                }
+                    while (true)
+                    {
+                        attempt++;
+                        var response = await ExecuteWithRateLimitHandling(request).ConfigureAwait(false);
 
-                return response;
+                        if (response.StatusCode != System.Net.HttpStatusCode.TooManyRequests && !response.HasHttpError)
+                        {
+                            stopwatch.Stop();
+                            _performanceMonitor?.RecordApiCall(request.Url.ToString(), stopwatch.Elapsed, false);
+                            if (_adaptiveRateLimiter != null)
+                            {
+                                var msgOk = new HttpResponseMessage(response.StatusCode);
+                                _adaptiveRateLimiter.RecordResponse(QobuzarrConstants.ServiceName, endpoint, msgOk);
+                            }
+                            return response;
+                        }
+
+                        // If not retryable or out of attempts, return immediately
+                        var status = (int)response.StatusCode;
+                        var retryable = status == 408 || status == 429 || (status >= 500 && status <= 599);
+                        if (!retryable || attempt >= maxRetries)
+                        {
+                            stopwatch.Stop();
+                            if (_adaptiveRateLimiter != null)
+                            {
+                                var msgFail = new HttpResponseMessage(response.StatusCode);
+                                _adaptiveRateLimiter.RecordResponse(QobuzarrConstants.ServiceName, endpoint, msgFail);
+                            }
+                            return response;
+                        }
+
+                        // Compute delay from Retry-After or exponential backoff with jitter
+                        var delay = GetRetryAfterDelay(response) ??
+                                    TimeSpan.FromSeconds(Math.Min(30, Math.Pow(2, attempt))) + GetJitter();
+
+                        // Respect retry budget
+                        var now = DateTime.UtcNow;
+                        if (now + delay > deadline)
+                        {
+                            _logger.Warn("Retry budget exceeded for {0}", request.Url);
+                            stopwatch.Stop();
+                            if (_adaptiveRateLimiter != null)
+                            {
+                                var msgBudget = new HttpResponseMessage(response.StatusCode);
+                                _adaptiveRateLimiter.RecordResponse(QobuzarrConstants.ServiceName, endpoint, msgBudget);
+                            }
+                            return response;
+                        }
+
+                        _logger.Warn("Transient HTTP error {0} for {1}; delaying {2}ms before retry {3}/{4}",
+                            status, request.Url, (int)delay.TotalMilliseconds, attempt, maxRetries);
+                        await Task.Delay(delay, cancellationToken).ConfigureAwait(false);
+                    }
+                }
+                finally
+                {
+                    hostGate.Release();
+                }
             }
             catch (Exception ex)
             {
@@ -132,27 +188,42 @@ namespace Lidarr.Plugin.Qobuzarr.API.Http
 
         private async Task<HttpResponse> ExecuteWithRateLimitHandling(HttpRequest request)
         {
+            // Execute raw request and return the response.
+            // Any retry/backoff handling (including 429 Retry-After) is performed by the caller loop
+            // in ExecuteAsync to ensure there's a single, consistent backoff policy.
             var response = await _httpClient.ExecuteAsync(request).ConfigureAwait(false);
+            return response;
+        }
 
-            // Handle rate limiting (429 Too Many Requests)
-            if (response.StatusCode == System.Net.HttpStatusCode.TooManyRequests)
+        private static TimeSpan? GetRetryAfterDelay(HttpResponse response)
+        {
+            try
             {
                 var retryAfterHeader = response.Headers.GetValues("Retry-After")?.FirstOrDefault();
-                var retryAfter = TimeSpan.FromSeconds(QobuzConstants.Api.RequestTimeoutSeconds);
-                
-                if (retryAfterHeader != null && int.TryParse(retryAfterHeader, out var seconds))
+                if (string.IsNullOrWhiteSpace(retryAfterHeader)) return null;
+
+                if (int.TryParse(retryAfterHeader, out var seconds))
                 {
-                    retryAfter = TimeSpan.FromSeconds(seconds);
+                    return TimeSpan.FromSeconds(Math.Max(0, seconds));
                 }
 
-                _logger.Warn("Rate limited by API, waiting {0} seconds before retry", retryAfter.TotalSeconds);
-                await Task.Delay(retryAfter).ConfigureAwait(false);
-
-                // Throw to trigger retry logic
-                throw new HttpRequestException($"Rate limited, retry after {retryAfter.TotalSeconds} seconds");
+                if (DateTimeOffset.TryParse(retryAfterHeader, out var when))
+                {
+                    var delta = when - DateTimeOffset.UtcNow;
+                    if (delta > TimeSpan.Zero) return delta;
+                }
             }
+            catch
+            {
+                // ignore parse issues
+            }
+            return null;
+        }
 
-            return response;
+        private static TimeSpan GetJitter()
+        {
+            var ms = Random.Shared.Next(50, 250);
+            return TimeSpan.FromMilliseconds(ms);
         }
     }
 }

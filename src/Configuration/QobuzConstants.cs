@@ -1,4 +1,5 @@
 using System;
+using Lidarr.Plugin.Qobuzarr.Constants;
 
 namespace Lidarr.Plugin.Qobuzarr.Configuration
 {
@@ -30,7 +31,7 @@ namespace Lidarr.Plugin.Qobuzarr.Configuration
             public const string BaseUrl = "https://www.qobuz.com/api.json/0.2";
             public const string UserAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:120.0) Gecko/20100101 Firefox/120.0";
             public const string DefaultAppId = "798273057";  // Will be fetched dynamically from web player
-            public const int MaxRetries = 3;
+            public const int MaxRetries = QobuzarrConstants.Defaults.GlobalMaxRetryAttempts;
             public const int RequestTimeoutSeconds = 60;
             public const int RateLimitPerMinute = 60;
             public const int DefaultRateLimitPerSecond = 10;
