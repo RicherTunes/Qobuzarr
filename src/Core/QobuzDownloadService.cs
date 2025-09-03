@@ -5,9 +5,12 @@ using System.Threading;
 using System.Threading.Tasks;
 using Lidarr.Plugin.Qobuzarr.Abstractions;
 using Lidarr.Plugin.Qobuzarr.Models;
-using Lidarr.Plugin.Qobuzarr.Utilities;
 using TagLib;
 using System.Net.Http;
+using System.Net.Http.Headers;
+using System.Text;
+using Lidarr.Plugin.Qobuzarr.Services.Http;
+using Lidarr.Plugin.Common.Utilities;
 
 namespace Lidarr.Plugin.Qobuzarr.Core
 {
@@ -61,7 +64,7 @@ namespace Lidarr.Plugin.Qobuzarr.Core
                     throw new InvalidOperationException("Could not obtain stream URL despite quality fallback");
                 }
 
-                // Generate filename
+                // Generate filename (normalize to NFC, guard reserved names)
                 var fileName = GenerateFileName(track, album, streamInfo.FormatId);
                 var filePath = Path.Combine(outputPath, fileName);
 
@@ -76,24 +79,59 @@ namespace Lidarr.Plugin.Qobuzarr.Core
                     try { System.IO.File.Delete(partialPath); } catch { /* best effort */ }
                 }
 
-                using var http = new HttpClient { Timeout = TimeSpan.FromMinutes(10) };
-                using var response = await http.GetAsync(streamInfo.Url, HttpCompletionOption.ResponseHeadersRead, cancellationToken).ConfigureAwait(false);
+                var http = SharedSystemHttpClient.Instance;
+                var request = new HttpRequestMessage(HttpMethod.Get, streamInfo.Url);
+
+                long existing = 0;
+                if (System.IO.File.Exists(partialPath))
+                {
+                    try { existing = new FileInfo(partialPath).Length; } catch { existing = 0; }
+                    if (existing > 0)
+                    {
+                        request.Headers.Range = new RangeHeaderValue(existing, null);
+                    }
+                }
+
+                using var response = await http.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cancellationToken).ConfigureAwait(false);
                 response.EnsureSuccessStatusCode();
 
-                var totalBytes = response.Content.Headers.ContentLength ?? 0;
+                var isPartial = response.StatusCode == System.Net.HttpStatusCode.PartialContent;
+                if (!isPartial)
+                {
+                    // Start fresh if server didn't honor range
+                    if (System.IO.File.Exists(partialPath))
+                    {
+                        try { System.IO.File.Delete(partialPath); } catch { /* best effort */ }
+                        existing = 0;
+                    }
+                }
+
+                var totalBytesHeader = response.Content.Headers.ContentLength;
+                long expectedTotal = 0;
+                if (isPartial)
+                {
+                    // Content-Range: bytes start-end/total
+                    var contentRange = response.Content.Headers.ContentRange;
+                    if (contentRange != null && contentRange.HasLength)
+                    {
+                        expectedTotal = contentRange.Length!.Value;
+                    }
+                }
+
                 await using (var network = await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false))
-                await using (var fs = new FileStream(partialPath, FileMode.Create, FileAccess.Write, FileShare.None, bufferSize: 1024 * 128, useAsync: true))
+                await using (var fs = new FileStream(partialPath, FileMode.Append, FileAccess.Write, FileShare.None, bufferSize: 1024 * 128, useAsync: true))
                 {
                     var buffer = new byte[1024 * 128];
-                    long written = 0;
+                    long written = existing;
                     int read;
                     while ((read = await network.ReadAsync(buffer.AsMemory(0, buffer.Length), cancellationToken).ConfigureAwait(false)) > 0)
                     {
                         await fs.WriteAsync(buffer.AsMemory(0, read), cancellationToken).ConfigureAwait(false);
                         written += read;
-                        if (totalBytes > 0 && progress != null)
+                        if ((totalBytesHeader.HasValue || expectedTotal > 0) && progress != null)
                         {
-                            var pct = (double)written / totalBytes * 100d;
+                            var denom = expectedTotal > 0 ? expectedTotal : (existing + totalBytesHeader.GetValueOrDefault());
+                            var pct = denom > 0 ? (double)written / denom * 100d : 0d;
                             progress.Report(Math.Min(100, pct));
                         }
                     }
@@ -102,6 +140,12 @@ namespace Lidarr.Plugin.Qobuzarr.Core
 
                 // Atomic move into place
                 System.IO.File.Move(partialPath, filePath, overwrite: true);
+
+                // Validate downloaded file (size/hash unknown; perform basic validation)
+                if (!Lidarr.Plugin.Common.Utilities.ValidationUtilities.ValidateDownloadedFile(filePath))
+                {
+                    throw new InvalidOperationException($"Downloaded file failed validation: {Path.GetFileName(filePath)}");
+                }
 
                 // Apply metadata
                 await ApplyMetadataAsync(filePath, track, album);
@@ -136,7 +180,9 @@ namespace Lidarr.Plugin.Qobuzarr.Core
 
         private string SanitizeFileName(string fileName)
         {
-            return Lidarr.Plugin.Common.Utilities.FileNameSanitizer.SanitizeFileName(fileName);
+            // Prefer context-specific helper; normalize to NFC, guard reserved names
+            var safe = Lidarr.Plugin.Common.Security.Sanitize.PathSegment(fileName);
+            return safe.Normalize(NormalizationForm.FormC);
         }
 
         private async Task ApplyMetadataAsync(string filePath, QobuzTrack track, QobuzAlbum album)

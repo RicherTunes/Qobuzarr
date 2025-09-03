@@ -8,7 +8,7 @@ using CliPlaylistDownloadResult = QobuzCLI.Models.CliPlaylistDownloadResult;
 using QobuzCLI.Services;
 using QobuzCLI.Services.Logging;
 using QobuzCLI.Services.Adapters;
-using Lidarr.Plugin.Qobuzarr.Utilities;
+using Lidarr.Plugin.Common.Security;
 using Spectre.Console;
 
 namespace QobuzCLI.Commands;
@@ -198,7 +198,8 @@ public class DownloadCommand
                 return;
             }
 
-            AnsiConsole.MarkupLine($"[blue]🔍 Searching for: '{options.Query}'[/]");
+            var safeQuery = Sanitize.DisplayText(options.Query);
+            AnsiConsole.MarkupLine($"[blue]🔍 Searching for: '{safeQuery}'[/]");
 
             // Parse search type and perform search
             var searchType = ParseSearchType(options.Type);
@@ -219,7 +220,7 @@ public class DownloadCommand
 
             if (!results.Any())
             {
-                AnsiConsole.MarkupLine($"[yellow]No results found for '{options.Query}'[/]");
+                AnsiConsole.MarkupLine($"[yellow]No results found for '{safeQuery}'[/]");
                 AnsiConsole.MarkupLine("[dim]Try a different search term or check your spelling.[/]");
                 return;
             }
@@ -302,7 +303,8 @@ public class DownloadCommand
         string query,
         List<Models.SearchResult> exactMatches)
     {
-        AnsiConsole.MarkupLine($"[blue]🎯 Found {results.Count} result{(results.Count > 1 ? "s" : "")} for '{query}':[/]");
+        var safeQuery = Sanitize.DisplayText(query);
+        AnsiConsole.MarkupLine($"[blue]🎯 Found {results.Count} result{(results.Count > 1 ? "s" : "")} for '{safeQuery}':[/]");
         AnsiConsole.WriteLine();
 
         // Display results table

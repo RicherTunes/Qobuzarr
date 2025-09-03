@@ -27,10 +27,15 @@ namespace Lidarr.Plugin.Qobuzarr.Constants
             // Concurrency
             public const int DefaultConcurrentDownloads = 3;
             public const int MaxConcurrentDownloads = 20;
+            // Per-host HTTP connection concurrency (SocketsHttpHandler.MaxConnectionsPerServer)
+            public const int DefaultMaxConcurrencyPerHost = 6;
 
             // Unified retry policy
             // Single source of truth for retry attempts across HTTP, stream URL acquisition, and file downloads
             public const int GlobalMaxRetryAttempts = 3;
+
+            // Retry budget (seconds) for transient HTTP failures before returning
+            public const int RetryBudgetSeconds = 60;
 
             // Token refresh (see TokenRefresher)
             public const int TokenRefreshBufferMinutes = 30;
