@@ -84,6 +84,13 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
                 {
                     concrete.SetAuthenticationService(authService);
                     concrete.SetCredentialsProvider(async () => await Task.FromResult(BuildFallbackCredentialsFromSettings()));
+                    // Wire pre-request pipeline: ensure session + auth params + signing
+                    var preHandler = new Lidarr.Plugin.Qobuzarr.API.PreRequest.QobuzPreRequestHandler(
+                        authService,
+                        new Lidarr.Plugin.Qobuzarr.API.Signing.QobuzRequestSigner(logger),
+                        async () => await Task.FromResult(BuildFallbackCredentialsFromSettings()),
+                        logger);
+                    concrete.SetPreRequestHandler(preHandler);
                 }
             }
             catch (Exception ex)

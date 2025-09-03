@@ -110,25 +110,21 @@ namespace QobuzCLI.Services
         /// </summary>
         private static string SanitizeFileName(string fileName)
         {
-            if (string.IsNullOrEmpty(fileName)) return "Unknown";
-            
-            var invalidChars = Path.GetInvalidFileNameChars();
-            var sanitized = fileName;
-            
-            foreach (var invalidChar in invalidChars)
-            {
-                sanitized = sanitized.Replace(invalidChar, '_');
-            }
-            
-            // Additional cleanup for common problematic characters
+            if (string.IsNullOrWhiteSpace(fileName)) return "Unknown";
+
+            // Prefer shared helper for cross-platform safe file segments
+            var sanitized = Lidarr.Plugin.Common.Security.Sanitize.PathSegment(fileName);
+            if (string.IsNullOrWhiteSpace(sanitized)) return "Unknown";
+
+            // Apply minor cosmetic replacements and collapse whitespace
             sanitized = sanitized
                 .Replace(":", " -")
-                .Replace("?", "")
-                .Replace("*", "")
                 .Replace("\"", "'")
-                .Replace("|", "-");
-            
-            return sanitized.Trim();
+                .Replace("|", "-")
+                .Trim();
+
+            sanitized = System.Text.RegularExpressions.Regex.Replace(sanitized, @"[\s\-]+", " ").Trim();
+            return string.IsNullOrWhiteSpace(sanitized) ? "Unknown" : sanitized;
         }
 
         /// <summary>
@@ -180,34 +176,104 @@ namespace QobuzCLI.Services
             IProgress<double> progress,
             CancellationToken cancellationToken)
         {
-            using var http = new HttpClient { Timeout = TimeSpan.FromMinutes(10) };
-            using var response = await http.GetAsync(url, HttpCompletionOption.ResponseHeadersRead, cancellationToken)
-                .ConfigureAwait(false);
-            response.EnsureSuccessStatusCode();
-
-            var total = response.Content.Headers.ContentLength;
-            await using var input = await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
+            // Use a temporary .partial file and atomic move on success.
             var directory = Path.GetDirectoryName(filePath);
             if (!string.IsNullOrEmpty(directory)) Directory.CreateDirectory(directory);
-            await using var output = new FileStream(filePath, FileMode.Create, FileAccess.Write, FileShare.None, 81920, true);
 
-            var buffer = new byte[81920];
-            long written = 0;
-            int read;
-            while ((read = await input.ReadAsync(buffer.AsMemory(0, buffer.Length), cancellationToken).ConfigureAwait(false)) > 0)
+            var tempPath = filePath + ".partial";
+            long resumeFrom = 0;
+            if (File.Exists(tempPath))
             {
-                await output.WriteAsync(buffer.AsMemory(0, read), cancellationToken).ConfigureAwait(false);
-                written += read;
-                if (progress != null && total.HasValue && total.Value > 0)
+                var info = new FileInfo(tempPath);
+                resumeFrom = info.Length;
+            }
+
+            using var http = new HttpClient { Timeout = TimeSpan.FromMinutes(10) };
+
+            // Build request to support range/resume when possible
+            var request = new HttpRequestMessage(HttpMethod.Get, url);
+            if (resumeFrom > 0)
+            {
+                request.Headers.Range = new System.Net.Http.Headers.RangeHeaderValue(resumeFrom, null);
+            }
+
+            // Execute with shared-library resilience helper (429-aware, jitter, gates)
+            var response = await Lidarr.Plugin.Common.Utilities.HttpClientExtensions
+                .ExecuteWithResilienceAsync(http, request, maxRetries: 5, retryBudget: TimeSpan.FromSeconds(60), maxConcurrencyPerHost: 6, cancellationToken)
+                .ConfigureAwait(false);
+
+            // If server didn't honor range, start from scratch
+            if (resumeFrom > 0 && response.StatusCode == System.Net.HttpStatusCode.OK)
+            {
+                // Discard partial and retry without range header
+                try { File.Delete(tempPath); } catch { /* ignore */ }
+                resumeFrom = 0;
+                request = new HttpRequestMessage(HttpMethod.Get, url);
+                // Dispose previous response and acquire a fresh one
+                response.Dispose();
+                response = await Lidarr.Plugin.Common.Utilities.HttpClientExtensions
+                    .ExecuteWithResilienceAsync(http, request, maxRetries: 5, retryBudget: TimeSpan.FromSeconds(60), maxConcurrencyPerHost: 6, cancellationToken)
+                    .ConfigureAwait(false);
+            }
+
+            try
+            {
+                response.EnsureSuccessStatusCode();
+
+                var contentLength = response.Content.Headers.ContentLength;
+                var total = contentLength.HasValue ? contentLength.Value + resumeFrom : (long?)null;
+
+                await using var input = await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
+
+                // Open output stream in append mode if resuming, else create new
+                await using var output = new FileStream(
+                    tempPath,
+                    resumeFrom > 0 ? FileMode.Append : FileMode.Create,
+                    FileAccess.Write,
+                    FileShare.None,
+                    bufferSize: 81920,
+                    useAsync: true);
+
+                var buffer = new byte[81920];
+                long written = resumeFrom;
+                int read;
+                while ((read = await input.ReadAsync(buffer.AsMemory(0, buffer.Length), cancellationToken).ConfigureAwait(false)) > 0)
                 {
-                    progress.Report(Math.Min(100.0, written * 100.0 / total.Value));
+                    await output.WriteAsync(buffer.AsMemory(0, read), cancellationToken).ConfigureAwait(false);
+                    written += read;
+                    if (progress != null && total.HasValue && total.Value > 0)
+                    {
+                        progress.Report(Math.Min(100.0, written * 100.0 / total.Value));
+                    }
                 }
+
+                // Finalize: atomic move to destination
+                try
+                {
+                    if (File.Exists(filePath))
+                    {
+                        // Best-effort overwrite-safe move: replace existing
+                        File.Delete(filePath);
+                    }
+                    File.Move(tempPath, filePath);
+                }
+                catch
+                {
+                    // If move fails, leave .partial file for manual recovery
+                    throw;
+                }
+
+                if (progress != null && total.HasValue)
+                {
+                    progress.Report(100.0);
+                }
+
+                return written - resumeFrom;
             }
-            if (progress != null && total.HasValue)
+            finally
             {
-                progress.Report(100.0);
+                response.Dispose();
             }
-            return written;
         }
     }
 }
