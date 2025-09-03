@@ -108,20 +108,41 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers.RequestGeneration
         {
             try
             {
-                var originalUri = originalRequest.HttpRequest.Url.ToString();
-                var uriBuilder = new UriBuilder(originalUri);
-                
-                // Parse existing query parameters
-                var queryParams = System.Web.HttpUtility.ParseQueryString(uriBuilder.Query);
-                
-                // Update offset parameter
-                queryParams["offset"] = offset.ToString();
-                
+                var originalUri = new Uri(originalRequest.HttpRequest.Url.ToString());
+                var baseUri = new Uri($"{originalUri.Scheme}://{originalUri.Host}{(originalUri.IsDefaultPort ? "" : ":" + originalUri.Port)}{originalUri.AbsolutePath}");
+
+                // Parse existing query into dictionary
+                var dict = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+                var rawQuery = originalUri.Query?.TrimStart('?') ?? string.Empty;
+                if (!string.IsNullOrEmpty(rawQuery))
+                {
+                    foreach (var part in rawQuery.Split('&'))
+                    {
+                        if (string.IsNullOrEmpty(part)) continue;
+                        var kv = part.Split('=');
+                        var key = Uri.UnescapeDataString(kv[0]);
+                        var val = kv.Length > 1 ? Uri.UnescapeDataString(kv[1]) : string.Empty;
+                        dict[key] = val;
+                    }
+                }
+
+                // Update offset
+                dict["offset"] = offset.ToString();
+
                 // Rebuild query string
-                uriBuilder.Query = queryParams.ToString();
+                var sb = new System.Text.StringBuilder();
+                foreach (var kv in dict)
+                {
+                    if (sb.Length > 0) sb.Append('&');
+                    sb.Append(Uri.EscapeDataString(kv.Key));
+                    sb.Append('=');
+                    sb.Append(Uri.EscapeDataString(kv.Value ?? string.Empty));
+                }
+
+                var newUri = new Uri(baseUri + (sb.Length > 0 ? "?" + sb.ToString() : string.Empty));
 
                 // Create new request with updated URI
-                var newHttpRequest = new HttpRequest(uriBuilder.Uri.ToString())
+                var newHttpRequest = new HttpRequest(newUri.ToString())
                 {
                     Method = originalRequest.HttpRequest.Method,
                     Headers = originalRequest.HttpRequest.Headers

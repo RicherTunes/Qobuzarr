@@ -4,7 +4,7 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
-using System.Web;
+using System.Net;
 using LimitConstants = Lidarr.Plugin.Qobuzarr.Constants.QobuzarrConstants;
 
 namespace Lidarr.Plugin.Qobuzarr.Security
@@ -472,9 +472,8 @@ namespace Lidarr.Plugin.Qobuzarr.Security
         public static string HtmlEncode(string text)
         {
             if (string.IsNullOrEmpty(text))
-                return "";
-                
-            return HttpUtility.HtmlEncode(text);
+                return string.Empty;
+            return WebUtility.HtmlEncode(text);
         }
 
         /// <summary>

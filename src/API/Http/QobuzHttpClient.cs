@@ -91,11 +91,11 @@ namespace Lidarr.Plugin.Qobuzarr.API.Http
             {
                 // Enhanced retry with Retry-After + per-host gate + budget
                 var maxRetries = QobuzConstants.Api.MaxRetries;
-                var retryBudget = TimeSpan.FromSeconds(60);
+                var retryBudget = TimeSpan.FromSeconds(QobuzarrConstants.Defaults.RetryBudgetSeconds);
                 var deadline = DateTime.UtcNow + retryBudget;
                 var attempt = 0;
                 var host = request?.Url?.Host ?? "__unknown__";
-                var hostGate = GetHostGate(host, maxConcurrencyPerHost: 6);
+                var hostGate = GetHostGate(host, maxConcurrencyPerHost: QobuzarrConstants.Defaults.DefaultMaxConcurrencyPerHost);
 
                 await hostGate.WaitAsync(cancellationToken).ConfigureAwait(false);
                 try

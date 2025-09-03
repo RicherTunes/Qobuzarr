@@ -7,7 +7,7 @@ using System.Threading.Tasks;
 using Lidarr.Plugin.Qobuzarr.Abstractions;
 using Lidarr.Plugin.Qobuzarr.Models;
 using Lidarr.Plugin.Qobuzarr.Services;
-using Lidarr.Plugin.Qobuzarr.Utilities;
+using Lidarr.Plugin.Common.Utilities;
 using NzbDrone.Common.Extensions;
 using NzbDrone.Common.Http;
 using TagLib;
@@ -207,6 +207,10 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Services
                     Album = trackDownload.Album,
                     TrackNumber = trackDownload.TrackNumber,
                     Duration = trackDownload.Duration,
+                    ExternalIds = new
+                    {
+                        qobuz = trackDownload.QobuzTrackId
+                    },
                     MusicBrainzIds = new
                     {
                         Track = trackDownload.MusicBrainzTrackId,

@@ -139,13 +139,24 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
             try
             {
                 var uri = new Uri(indexerResponse.Request.Url.ToString());
-                var queryParams = System.Web.HttpUtility.ParseQueryString(uri.Query);
-                return queryParams["query"] ?? "";
+                var query = uri.Query?.TrimStart('?') ?? string.Empty;
+                if (string.IsNullOrEmpty(query)) return string.Empty;
+                foreach (var part in query.Split('&'))
+                {
+                    if (string.IsNullOrEmpty(part)) continue;
+                    var kv = part.Split('=');
+                    if (kv.Length == 0) continue;
+                    var key = Uri.UnescapeDataString(kv[0]);
+                    if (!string.Equals(key, "query", StringComparison.OrdinalIgnoreCase)) continue;
+                    var value = kv.Length > 1 ? Uri.UnescapeDataString(kv[1]) : string.Empty;
+                    return value ?? string.Empty;
+                }
+                return string.Empty;
             }
             catch (Exception ex)
             {
                 _logger.Error(ex, "Error extracting original query from request");
-                return "";
+                return string.Empty;
             }
         }
 
