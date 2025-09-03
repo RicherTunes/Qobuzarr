@@ -36,8 +36,8 @@ namespace Lidarr.Plugin.Qobuzarr.Services
         /// </summary>
         public async Task<List<QobuzPlaylist>> SearchPlaylistsAsync(string query, int limit = 20)
         {
-            // Sanitize the search query
-            query = InputSanitizer.SanitizeSearchQuery(query);
+            // Use minimal normalization; rely on URL encoding when building requests
+            query = (query ?? string.Empty).Trim();
             
             var session = _authService.GetCachedSession();
             if (session == null)
@@ -166,8 +166,8 @@ namespace Lidarr.Plugin.Qobuzarr.Services
         /// </summary>
         public async Task<List<QobuzLabel>> SearchLabelsAsync(string query, int limit = 20)
         {
-            // Sanitize the search query
-            query = InputSanitizer.SanitizeSearchQuery(query);
+            // Use minimal normalization; rely on URL encoding when building requests
+            query = (query ?? string.Empty).Trim();
             
             var session = _authService.GetCachedSession();
             if (session == null)

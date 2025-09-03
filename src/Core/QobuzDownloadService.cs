@@ -7,6 +7,7 @@ using Lidarr.Plugin.Qobuzarr.Abstractions;
 using Lidarr.Plugin.Qobuzarr.Models;
 using Lidarr.Plugin.Qobuzarr.Utilities;
 using TagLib;
+using System.Net.Http;
 
 namespace Lidarr.Plugin.Qobuzarr.Core
 {
@@ -67,10 +68,40 @@ namespace Lidarr.Plugin.Qobuzarr.Core
                 // Ensure directory exists
                 Directory.CreateDirectory(Path.GetDirectoryName(filePath)!);
 
-                // Download file
+                // Download file (streaming) to .partial then atomic move
                 _logger.Info("Downloading track to: {0}", filePath);
-                var bytes = await _httpClient.GetBytesAsync(streamInfo.Url, progress);
-                await System.IO.File.WriteAllBytesAsync(filePath, bytes, cancellationToken);
+                var partialPath = filePath + ".partial";
+                if (System.IO.File.Exists(partialPath))
+                {
+                    try { System.IO.File.Delete(partialPath); } catch { /* best effort */ }
+                }
+
+                using var http = new HttpClient { Timeout = TimeSpan.FromMinutes(10) };
+                using var response = await http.GetAsync(streamInfo.Url, HttpCompletionOption.ResponseHeadersRead, cancellationToken).ConfigureAwait(false);
+                response.EnsureSuccessStatusCode();
+
+                var totalBytes = response.Content.Headers.ContentLength ?? 0;
+                await using (var network = await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false))
+                await using (var fs = new FileStream(partialPath, FileMode.Create, FileAccess.Write, FileShare.None, bufferSize: 1024 * 128, useAsync: true))
+                {
+                    var buffer = new byte[1024 * 128];
+                    long written = 0;
+                    int read;
+                    while ((read = await network.ReadAsync(buffer.AsMemory(0, buffer.Length), cancellationToken).ConfigureAwait(false)) > 0)
+                    {
+                        await fs.WriteAsync(buffer.AsMemory(0, read), cancellationToken).ConfigureAwait(false);
+                        written += read;
+                        if (totalBytes > 0 && progress != null)
+                        {
+                            var pct = (double)written / totalBytes * 100d;
+                            progress.Report(Math.Min(100, pct));
+                        }
+                    }
+                    fs.Flush(true);
+                }
+
+                // Atomic move into place
+                System.IO.File.Move(partialPath, filePath, overwrite: true);
 
                 // Apply metadata
                 await ApplyMetadataAsync(filePath, track, album);
