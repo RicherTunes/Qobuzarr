@@ -19,6 +19,7 @@ namespace Lidarr.Plugin.Qobuzarr.Services
         private readonly IQobuzHttpClient _httpClient;
         private readonly IQobuzLogger _logger;
         private readonly IQobuzAuthenticationService _authService;
+        private readonly Lidarr.Plugin.Qobuzarr.Indexers.QobuzIndexerSettings? _settings;
         private const string API_BASE = "https://www.qobuz.com/api.json/0.2";
 
         public QobuzSearchService(
@@ -29,6 +30,18 @@ namespace Lidarr.Plugin.Qobuzarr.Services
             _httpClient = httpClient ?? throw new ArgumentNullException(nameof(httpClient));
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
             _authService = authService ?? throw new ArgumentNullException(nameof(authService));
+            _settings = null;
+        }
+
+        // Overload to accept settings for locale/country threading
+        public QobuzSearchService(
+            IQobuzHttpClient httpClient,
+            IQobuzLogger logger,
+            IQobuzAuthenticationService authService,
+            Lidarr.Plugin.Qobuzarr.Indexers.QobuzIndexerSettings settings)
+            : this(httpClient, logger, authService)
+        {
+            _settings = settings;
         }
 
         /// <summary>
@@ -354,8 +367,10 @@ namespace Lidarr.Plugin.Qobuzarr.Services
                 throw new InvalidOperationException("Not authenticated");
             }
 
+            var ccA = _settings?.GetCountryCode() ?? "US";
+            var localeParamA = string.IsNullOrWhiteSpace(_settings?.Locale) ? string.Empty : $"&locale={Uri.EscapeDataString(_settings.Locale)}";
             var url = $"{API_BASE}/album/search?query={Uri.EscapeDataString(query)}&limit={limit}" +
-                     $"&app_id={session.AppId}&user_auth_token={session.AuthToken}&country_code=CA";
+                     $"&app_id={session.AppId}&user_auth_token={session.AuthToken}&country_code={ccA}{localeParamA}";
 
             try
             {
@@ -383,8 +398,10 @@ namespace Lidarr.Plugin.Qobuzarr.Services
                 throw new InvalidOperationException("Not authenticated");
             }
 
+            var ccT = _settings?.GetCountryCode() ?? "US";
+            var localeParamT = string.IsNullOrWhiteSpace(_settings?.Locale) ? string.Empty : $"&locale={Uri.EscapeDataString(_settings.Locale)}";
             var url = $"{API_BASE}/track/search?query={Uri.EscapeDataString(query)}&limit={limit}" +
-                     $"&app_id={session.AppId}&user_auth_token={session.AuthToken}&country_code=CA";
+                     $"&app_id={session.AppId}&user_auth_token={session.AuthToken}&country_code={ccT}{localeParamT}";
 
             try
             {
@@ -412,8 +429,10 @@ namespace Lidarr.Plugin.Qobuzarr.Services
                 throw new InvalidOperationException("Not authenticated");
             }
 
+            var cc = _settings?.GetCountryCode() ?? "US";
+            var localeParam = string.IsNullOrWhiteSpace(_settings?.Locale) ? string.Empty : $"&locale={Uri.EscapeDataString(_settings.Locale)}";
             var url = $"{API_BASE}/artist/search?query={Uri.EscapeDataString(query)}&limit={limit}" +
-                     $"&app_id={session.AppId}&user_auth_token={session.AuthToken}&country_code=CA";
+                     $"&app_id={session.AppId}&user_auth_token={session.AuthToken}&country_code={cc}{localeParam}";
 
             try
             {
@@ -438,8 +457,10 @@ namespace Lidarr.Plugin.Qobuzarr.Services
                 throw new InvalidOperationException("Not authenticated");
             }
 
+            var cc = _settings?.GetCountryCode() ?? "US";
+            var localeParam = string.IsNullOrWhiteSpace(_settings?.Locale) ? string.Empty : $"&locale={Uri.EscapeDataString(_settings.Locale)}";
             var url = $"{API_BASE}/album/get?album_id={albumId}" +
-                     $"&app_id={session.AppId}&user_auth_token={session.AuthToken}&country_code=CA";
+                     $"&app_id={session.AppId}&user_auth_token={session.AuthToken}&country_code={cc}{localeParam}";
 
             try
             {

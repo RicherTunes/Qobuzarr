@@ -1,6 +1,6 @@
 using Lidarr.Plugin.Qobuzarr.Models;
 using Lidarr.Plugin.Qobuzarr.Services;
-using Lidarr.Plugin.Qobuzarr.Utilities;
+using Lidarr.Plugin.Common.Utilities;
 using Lidarr.Plugin.Qobuzarr.Configuration;
 using NzbDrone.Common.Extensions;
 
@@ -18,7 +18,7 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Services
 
             // Generate safe filename: "01 - Track Title.flac"
             var trackNumber = track.TrackNumber.ToString(QobuzPluginConstants.FileNaming.TrackNumberFormat);
-            var title = Lidarr.Plugin.Common.Utilities.FileNameSanitizer.SanitizeFileName(track.GetFullTitle());
+            var title = Lidarr.Plugin.Common.Security.Sanitize.PathSegment(track.GetFullTitle()).Normalize(System.Text.NormalizationForm.FormC);
             var extension = GetFileExtension(formatId);
 
             return $"{trackNumber} - {title}{extension}";
@@ -29,8 +29,8 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Services
             Guard.NotNull(trackDownload, nameof(trackDownload));
 
             var extension = GetFileExtension(quality);
-            var sanitizedArtist = Lidarr.Plugin.Common.Utilities.FileNameSanitizer.SanitizeFileName(trackDownload.Artist ?? "Unknown Artist");
-            var sanitizedTitle = Lidarr.Plugin.Common.Utilities.FileNameSanitizer.SanitizeFileName(trackDownload.Title ?? "Unknown Track");
+            var sanitizedArtist = Lidarr.Plugin.Common.Security.Sanitize.PathSegment(trackDownload.Artist ?? "Unknown Artist").Normalize(System.Text.NormalizationForm.FormC);
+            var sanitizedTitle = Lidarr.Plugin.Common.Security.Sanitize.PathSegment(trackDownload.Title ?? "Unknown Track").Normalize(System.Text.NormalizationForm.FormC);
             var trackNumber = trackDownload.TrackNumber?.ToString(QobuzPluginConstants.FileNaming.TrackNumberFormat) ?? "00";
 
             return $"{trackNumber}. {sanitizedArtist} - {sanitizedTitle}{extension}";

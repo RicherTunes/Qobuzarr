@@ -390,9 +390,9 @@ namespace Lidarr.Plugin.Qobuzarr.Authentication
 
         private sealed class NoopLogger<T> : Microsoft.Extensions.Logging.ILogger<T>
         {
-            public IDisposable BeginScope<TState>(TState state) => NoopDisposable.Instance;
+            public IDisposable BeginScope<TState>(TState state) where TState : notnull => NoopDisposable.Instance;
             public bool IsEnabled(Microsoft.Extensions.Logging.LogLevel logLevel) => false;
-            public void Log<TState>(Microsoft.Extensions.Logging.LogLevel logLevel, Microsoft.Extensions.Logging.EventId eventId, TState state, Exception exception, Func<TState, Exception, string> formatter) { }
+            public void Log<TState>(Microsoft.Extensions.Logging.LogLevel logLevel, Microsoft.Extensions.Logging.EventId eventId, TState state, Exception? exception, Func<TState, Exception?, string> formatter) { }
 
             private sealed class NoopDisposable : IDisposable { public static readonly NoopDisposable Instance = new NoopDisposable(); public void Dispose() { } }
         }

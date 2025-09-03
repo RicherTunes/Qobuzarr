@@ -43,6 +43,13 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Services
         {
             try
             {
+                // Detect preview-only tracks via duration (29–32s common ranges)
+                if (track != null && track.DurationSeconds >= 29 && track.DurationSeconds <= 32)
+                {
+                    _logger.Warn("Skipping preview-only track by duration: {0}s - {1}", track.DurationSeconds, track.GetFullTitle());
+                    throw new TrackUnavailableException(trackId, "Preview-only track duration detected (29–32s)", TrackUnavailableReason.PreviewOnly);
+                }
+
                 // Try preferred quality first
                 var streamResponse = await TryGetStreamUrl(trackId, preferredQuality).ConfigureAwait(false);
                 
