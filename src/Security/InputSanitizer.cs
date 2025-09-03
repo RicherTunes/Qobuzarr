@@ -75,51 +75,19 @@ namespace Lidarr.Plugin.Qobuzarr.Security
         }
 
         /// <summary>
-        /// Sanitizes search query parameters
+        /// Sanitizes search query parameters for API usage.
+        /// Note: Do not HTML-encode here; rely on URL encoding at build time.
         /// </summary>
         public static string SanitizeSearchQuery(string query)
         {
             if (string.IsNullOrWhiteSpace(query))
                 return string.Empty;
 
-            // Trim and limit length
-            query = query.Trim();
-            if (query.Length > MaxQueryLength)
-                query = query.Substring(0, MaxQueryLength);
+            var trimmed = query.Trim();
+            if (trimmed.Length > MaxQueryLength)
+                trimmed = trimmed.Substring(0, MaxQueryLength);
 
-            // Remove potential SQL injection patterns
-            query = Regex.Replace(query, @"(\b(SELECT|INSERT|UPDATE|DELETE|DROP|CREATE|ALTER|EXEC|EXECUTE|UNION|FROM|WHERE|ORDER BY|GROUP BY|HAVING)\b)", "", RegexOptions.IgnoreCase);
-            
-            // Remove script injection attempts
-            query = Regex.Replace(query, @"<[^>]*>", ""); // Remove HTML tags
-            query = Regex.Replace(query, @"javascript:", "", RegexOptions.IgnoreCase);
-            // Remove inline event handlers and their assignments
-            query = Regex.Replace(query, "on\\w+\\s*=\\s*(['\"])?.*?\\1", "", RegexOptions.IgnoreCase);
-            // Remove common JS function calls often used in XSS
-            query = Regex.Replace(query, @"(alert|eval|prompt|confirm)\s*\(", "", RegexOptions.IgnoreCase);
-
-            // Remove command injection and shell control operators
-            var dangerousTokens = new[] { "&&", "||", "`", "|", ";", "$(", "${", "rm -rf", "del /", "format ", "shutdown", "reboot", "/bin/", "cmd.exe", "powershell", "nc -l", "wget", "curl", "xp_cmdshell" };
-            foreach (var token in dangerousTokens)
-            {
-                query = Regex.Replace(query, Regex.Escape(token), "", RegexOptions.IgnoreCase);
-            }
-
-            // Remove path traversal sequences
-            var traversalPatterns = new[] { "../", "..\\", "%2e%2e%2f", "%2e%2e%5c", "..%2f", "..%5c" };
-            foreach (var pattern in traversalPatterns)
-            {
-                query = query.Replace(pattern, string.Empty, StringComparison.OrdinalIgnoreCase);
-            }
-
-            // Remove Windows absolute path indicators and common system folders
-            query = Regex.Replace(query, @"[A-Za-z]:\\", "", RegexOptions.IgnoreCase);
-            query = query.Replace("\\Windows\\", string.Empty, StringComparison.OrdinalIgnoreCase);
-
-            // Escape special characters for API usage
-            query = HttpUtility.HtmlEncode(query);
-            
-            return query;
+            return trimmed;
         }
 
         /// <summary>
