@@ -64,7 +64,9 @@ namespace QobuzCLI.Services
             var parameters = new Dictionary<string, string>
             {
                 { "query", query },
-                { "limit", limit.ToString() }
+                { "type", "albums" },
+                { "limit", limit.ToString() },
+                { "offset", "0" }
             };
             try
             {
@@ -75,7 +77,8 @@ namespace QobuzCLI.Services
                     return response.Albums.Items;
                 }
                 // Fallback to legacy album/search
-                var legacy = await _apiClient.GetAsync<Lidarr.Plugin.Qobuzarr.Models.QobuzAlbumSearchResponse>("/album/search", parameters).ConfigureAwait(false);
+                var legacyParams = new Dictionary<string, string> { { "query", query }, { "limit", limit.ToString() } };
+                var legacy = await _apiClient.GetAsync<Lidarr.Plugin.Qobuzarr.Models.QobuzAlbumSearchResponse>("/album/search", legacyParams).ConfigureAwait(false);
                 return legacy?.Albums?.Items ?? new List<QobuzAlbum>();
             }
             catch
@@ -97,12 +100,21 @@ namespace QobuzCLI.Services
             var parameters = new Dictionary<string, string>
             {
                 { "query", query },
-                { "limit", limit.ToString() }
+                { "type", "tracks" },
+                { "limit", limit.ToString() },
+                { "offset", "0" }
             };
             try
             {
-                var response = await _apiClient.GetAsync<Lidarr.Plugin.Qobuzarr.Models.QobuzTrackSearchResponse>("/track/search", parameters).ConfigureAwait(false);
-                return response?.Tracks?.Items ?? new List<QobuzTrack>();
+                var response = await _apiClient.GetAsync<Lidarr.Plugin.Qobuzarr.Models.QobuzSearchResponse>("/catalog/search", parameters).ConfigureAwait(false);
+                if (response?.Tracks?.Items != null && response.Tracks.Items.Count > 0)
+                {
+                    return response.Tracks.Items;
+                }
+                // Fallback to legacy endpoint
+                var legacyParams = new Dictionary<string, string> { { "query", query }, { "limit", limit.ToString() } };
+                var legacy = await _apiClient.GetAsync<Lidarr.Plugin.Qobuzarr.Models.QobuzTrackSearchResponse>("/track/search", legacyParams).ConfigureAwait(false);
+                return legacy?.Tracks?.Items ?? new List<QobuzTrack>();
             }
             catch
             {
@@ -175,12 +187,21 @@ namespace QobuzCLI.Services
             var parameters = new Dictionary<string, string>
             {
                 { "query", query },
-                { "limit", limit.ToString() }
+                { "type", "artists" },
+                { "limit", limit.ToString() },
+                { "offset", "0" }
             };
             try
             {
-                var response = await _apiClient.GetAsync<Lidarr.Plugin.Qobuzarr.Models.QobuzArtistSearchResponse>("/artist/search", parameters).ConfigureAwait(false);
-                return response?.Artists?.Items ?? new List<QobuzArtist>();
+                var response = await _apiClient.GetAsync<Lidarr.Plugin.Qobuzarr.Models.QobuzSearchResponse>("/catalog/search", parameters).ConfigureAwait(false);
+                if (response?.Artists?.Items != null && response.Artists.Items.Count > 0)
+                {
+                    return response.Artists.Items;
+                }
+                // Fallback to legacy endpoint
+                var legacyParams = new Dictionary<string, string> { { "query", query }, { "limit", limit.ToString() } };
+                var legacy = await _apiClient.GetAsync<Lidarr.Plugin.Qobuzarr.Models.QobuzArtistSearchResponse>("/artist/search", legacyParams).ConfigureAwait(false);
+                return legacy?.Artists?.Items ?? new List<QobuzArtist>();
             }
             catch
             {
