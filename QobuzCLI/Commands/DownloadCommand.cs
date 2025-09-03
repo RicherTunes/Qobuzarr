@@ -19,6 +19,7 @@ public record DownloadOptions(
     bool Immediate,
     string? Output,
     string? Quality,
+    bool SkipExisting,
     bool Select,
     bool All,
     string? Type,
@@ -96,6 +97,7 @@ public class DownloadCommand
         var immediateOption = new Option<bool>("--immediate", "Download immediately without queuing");
         var outputOption = new Option<string?>("--output", "Output directory (overrides config)");
         var qualityOption = new Option<string?>("--quality", "Quality override: mp3-320, flac-cd, flac-hires, flac-max");
+        var skipExistingOption = new Option<bool>("--skip-existing", () => false, "Skip files that already exist (don’t create suffixes)");
         var selectOption = new Option<bool>("--select", "Show selection prompt if multiple results found");
         var allOption = new Option<bool>("--all", "Download all matching results");
         var typeOption = new Option<string?>("--type", "Search type: auto, album, artist, track, playlist, label");
@@ -111,6 +113,7 @@ public class DownloadCommand
         downloadCommand.AddOption(immediateOption);
         downloadCommand.AddOption(outputOption);
         downloadCommand.AddOption(qualityOption);
+        downloadCommand.AddOption(skipExistingOption);
         downloadCommand.AddOption(selectOption);
         downloadCommand.AddOption(allOption);
         downloadCommand.AddOption(typeOption);
@@ -129,6 +132,7 @@ public class DownloadCommand
                 context.ParseResult.GetValueForOption(immediateOption),
                 context.ParseResult.GetValueForOption(outputOption),
                 context.ParseResult.GetValueForOption(qualityOption),
+                context.ParseResult.GetValueForOption(skipExistingOption),
                 context.ParseResult.GetValueForOption(selectOption),
                 context.ParseResult.GetValueForOption(allOption),
                 context.ParseResult.GetValueForOption(typeOption),
@@ -152,6 +156,12 @@ public class DownloadCommand
         {
             var config = await InitializeAndValidateAsync(options).ConfigureAwait(false);
             if (config == null) return;
+
+            // Apply skip-existing override via environment for CLI downloader
+            if (options.SkipExisting)
+            {
+                Environment.SetEnvironmentVariable("QOBUZ_SKIP_EXISTING", "true");
+            }
 
             // Handle file input
             if (!string.IsNullOrEmpty(options.FromFile))
