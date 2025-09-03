@@ -773,8 +773,8 @@ public class QueueService : IQueueService
             _logger.LogDebug("📥 Downloading album: {Artist} - {Title}", artist, title);
             
             // Create output directory structure
-            var artistDir = Path.Combine(outputDir, FileSystemUtilities.SanitizeFileName(artist));
-            var albumDir = Path.Combine(artistDir, FileSystemUtilities.SanitizeFileName(title));
+            var artistDir = Path.Combine(outputDir, Lidarr.Plugin.Common.Utilities.FileSystemUtilities.SanitizeFileName(artist));
+            var albumDir = Path.Combine(artistDir, Lidarr.Plugin.Common.Utilities.FileSystemUtilities.SanitizeFileName(title));
             
             Directory.CreateDirectory(albumDir);
             

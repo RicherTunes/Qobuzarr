@@ -177,11 +177,8 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
                     {
                         try
                         {
-                            // Apply shared-library pacing in addition to local manager (low-risk incremental adoption)
-                            if (Settings?.ApiRateLimit > 0)
-                            {
-                                await _mixin.ApplyRateLimitAsync(Settings.ApiRateLimit).ConfigureAwait(false);
-                            }
+                            // Rate limiting is handled centrally by the HTTP layer's adaptive limiter.
+                            // Avoid stacking per-indexer pacing to reduce over-throttling.
 
                             var response = await _httpClient.ExecuteAsync(request.HttpRequest).ConfigureAwait(false);
                             var indexerResponse = new IndexerResponse(request, response);
@@ -229,14 +226,11 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
                 // Test API connectivity with rate limiting
                 await _rateLimitManager.ApplyRateLimitAsync().ConfigureAwait(false);
                 
-                // Simple search test
+                // Use recent requests generator to validate request pipeline without relying on read-only criteria
                 var testGenerator = GetRequestGenerator();
-                var albumCriteria = new AlbumSearchCriteria();
-                // Note: Cannot set read-only properties - using reflection or constructor approach would be needed
-                // For now, skip the property assignment and test with default values
-                var testRequests = testGenerator.GetSearchRequests(albumCriteria);
+                var testRequests = testGenerator.GetRecentRequests();
 
-                if (!testRequests.GetAllTiers().Any())
+                if (testRequests == null || !testRequests.GetAllTiers().Any())
                 {
                     failures.Add(new ValidationFailure("Search", "No search requests generated"));
                     return;

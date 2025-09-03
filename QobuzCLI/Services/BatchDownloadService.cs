@@ -347,8 +347,8 @@ public class BatchDownloadService : IBatchDownloadService
         var bestResult = results.First();
         
         // Create output directory
-        var artistDir = Path.Combine(config.OutputDirectory, FileSystemUtilities.SanitizeFileName(bestResult.Artist));
-        var albumDir = Path.Combine(artistDir, FileSystemUtilities.CreateAlbumDirectoryName(bestResult.Title, bestResult.Year));
+        var artistDir = Path.Combine(config.OutputDirectory, Lidarr.Plugin.Common.Utilities.FileSystemUtilities.SanitizeFileName(bestResult.Artist));
+        var albumDir = Path.Combine(artistDir, Lidarr.Plugin.Common.Utilities.FileSystemUtilities.CreateAlbumDirectoryName(bestResult.Title, bestResult.Year));
 
         // Download using plugin host
         var downloadResult = await _pluginHost.DownloadAlbumAsync(bestResult.Id, albumDir, config.Quality);

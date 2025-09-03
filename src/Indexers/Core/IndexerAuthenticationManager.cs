@@ -4,6 +4,7 @@ using NLog;
 using Lidarr.Plugin.Qobuzarr.Authentication;
 using Lidarr.Plugin.Qobuzarr.Models.Authentication;
 using Lidarr.Plugin.Qobuzarr.Indexers;
+using Lidarr.Plugin.Qobuzarr.Utilities;
 
 namespace Lidarr.Plugin.Qobuzarr.Indexers.Core
 {
@@ -115,7 +116,16 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers.Core
             if (!string.IsNullOrWhiteSpace(_settings.Email) && !string.IsNullOrWhiteSpace(_settings.Password))
             {
                 credentials.Email = _settings.Email.Trim();
-                credentials.MD5Password = _settings.Password; // Assuming this is already MD5 hashed
+                // Auto-detect plain vs MD5-hashed password
+                var pwd = _settings.Password.Trim();
+                if (IsMd5Hash(pwd))
+                {
+                    credentials.MD5Password = pwd;
+                }
+                else
+                {
+                    credentials.MD5Password = HashingUtility.ComputePasswordMD5Hash(pwd);
+                }
                 _logger.Debug("📧 Using email/password authentication");
             }
             // Secondary: Token authentication  
@@ -141,6 +151,20 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers.Core
             }
 
             return credentials;
+        }
+
+        private static bool IsMd5Hash(string value)
+        {
+            if (string.IsNullOrWhiteSpace(value) || value.Length != 32) return false;
+            for (int i = 0; i < value.Length; i++)
+            {
+                char c = value[i];
+                bool isHex = (c >= '0' && c <= '9') ||
+                             (c >= 'a' && c <= 'f') ||
+                             (c >= 'A' && c <= 'F');
+                if (!isHex) return false;
+            }
+            return true;
         }
     }
 }
