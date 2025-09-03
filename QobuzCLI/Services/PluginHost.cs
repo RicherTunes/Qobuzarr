@@ -1129,6 +1129,13 @@ public class PluginHost : IPluginHost, IDisposable
         var pluginApiClient = new Lidarr.Plugin.Qobuzarr.API.QobuzApiClient(_pluginHttpClient!, sessionManager, signer, responseCache, nlogLogger);
         pluginApiClient.SetAuthenticationService(_authService);
         pluginApiClient.SetCredentialsProvider(async () => BuildCredentialsFromConfig(_config!));
+        // Wire a unified pre-request handler so every call validates session and injects auth/signature
+        var preHandler = new Lidarr.Plugin.Qobuzarr.API.PreRequest.QobuzPreRequestHandler(
+            _authService,
+            signer,
+            async () => BuildCredentialsFromConfig(_config!),
+            nlogLogger);
+        pluginApiClient.SetPreRequestHandler(preHandler);
         
         // Create unified quality service and adapter
         var memoryCache = new Microsoft.Extensions.Caching.Memory.MemoryCache(new Microsoft.Extensions.Caching.Memory.MemoryCacheOptions());
