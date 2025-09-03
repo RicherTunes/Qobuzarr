@@ -68,13 +68,24 @@ namespace QobuzCLI.Services
             };
             try
             {
-                var response = await _apiClient.GetAsync<Lidarr.Plugin.Qobuzarr.Models.QobuzAlbumSearchResponse>("/album/search", parameters).ConfigureAwait(false);
-                return response?.Albums?.Items ?? new List<QobuzAlbum>();
+                // Prefer unified catalog search for better relevance
+                var response = await _apiClient.GetAsync<Lidarr.Plugin.Qobuzarr.Models.QobuzSearchResponse>("/catalog/search", parameters).ConfigureAwait(false);
+                if (response?.Albums?.Items != null && response.Albums.Items.Count > 0)
+                {
+                    return response.Albums.Items;
+                }
+                // Fallback to legacy album/search
+                var legacy = await _apiClient.GetAsync<Lidarr.Plugin.Qobuzarr.Models.QobuzAlbumSearchResponse>("/album/search", parameters).ConfigureAwait(false);
+                return legacy?.Albums?.Items ?? new List<QobuzAlbum>();
             }
             catch
             {
-                // Fall back to legacy CLI search service on error
-                return await _searchService.SearchAlbumsAsync(query, limit);
+                // Fall back to legacy CLI search service on error (if available)
+                if (_searchService != null)
+                {
+                    return await _searchService.SearchAlbumsAsync(query, limit);
+                }
+                return new List<QobuzAlbum>();
             }
         }
 
@@ -95,7 +106,11 @@ namespace QobuzCLI.Services
             }
             catch
             {
-                return await _searchService.SearchTracksAsync(query, limit);
+                if (_searchService != null)
+                {
+                    return await _searchService.SearchTracksAsync(query, limit);
+                }
+                return new List<QobuzTrack>();
             }
         }
 
@@ -111,7 +126,11 @@ namespace QobuzCLI.Services
             }
             catch
             {
-                return await _searchService.GetAlbumAsync(albumId);
+                if (_searchService != null)
+                {
+                    return await _searchService.GetAlbumAsync(albumId);
+                }
+                return null;
             }
         }
 

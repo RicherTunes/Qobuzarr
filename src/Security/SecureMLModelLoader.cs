@@ -262,7 +262,8 @@ namespace Lidarr.Plugin.Qobuzarr.Security
                 {
                     currentDirectory,
                     Path.Combine(currentDirectory, "plugins"),
-                    Path.Combine(currentDirectory, "plugins", Lidarr.Plugin.Qobuzarr.Constants.QobuzarrConstants.PluginFolderName),
+                    // Compose vendor/name safely for plugin path
+                    Path.Combine(currentDirectory, "plugins", Lidarr.Plugin.Qobuzarr.Constants.QobuzarrConstants.PluginVendor, Lidarr.Plugin.Qobuzarr.Constants.QobuzarrConstants.PluginName),
                     Path.Combine(currentDirectory, "ML"),
                     Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location)
                 };
