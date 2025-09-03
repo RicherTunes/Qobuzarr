@@ -4,6 +4,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using NLog;
+using Lidarr.Plugin.Qobuzarr.Constants;
 using Lidarr.Plugin.Qobuzarr.API;
 using Lidarr.Plugin.Qobuzarr.Models;
 using Lidarr.Plugin.Qobuzarr.Indexers;
@@ -39,7 +40,7 @@ namespace Lidarr.Plugin.Qobuzarr.Services
         private const int MAX_BATCH_SIZE = 15; // Never exceed to prevent rate limiting
         private const int MIN_BATCH_SIZE = 3; // Minimum for efficiency gains
         private const int DEFAULT_TIMEOUT_MS = 30000; // 30 second timeout per request
-        private const int MAX_RETRY_ATTEMPTS = 3;
+        private const int MAX_RETRY_ATTEMPTS = QobuzarrConstants.Defaults.GlobalMaxRetryAttempts;
         private const int RETRY_DELAY_BASE_MS = 1000; // Base delay for exponential backoff
 
         public BatchStreamingUrlProvider(

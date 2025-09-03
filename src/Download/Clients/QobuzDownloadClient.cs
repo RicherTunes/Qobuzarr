@@ -568,12 +568,8 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Clients
 
         private async Task<long> DownloadToFileAsync(string url, string filePath, CancellationToken cancellationToken)
         {
-            // Prefer streaming via System.Net.Http to avoid buffering entire file in memory
-            using var httpClient = new System.Net.Http.HttpClient
-            {
-                Timeout = TimeSpan.FromMinutes(10)
-            };
-
+            // Stream to a temporary .partial file, then atomic move to final
+            using var httpClient = new System.Net.Http.HttpClient { Timeout = TimeSpan.FromMinutes(10) };
             using var response = await httpClient.GetAsync(url, System.Net.Http.HttpCompletionOption.ResponseHeadersRead, cancellationToken)
                 .ConfigureAwait(false);
             response.EnsureSuccessStatusCode();
@@ -581,10 +577,16 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Clients
             var directory = Path.GetDirectoryName(filePath);
             if (!string.IsNullOrEmpty(directory)) Directory.CreateDirectory(directory);
 
-            await using var responseStream = await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
-            await using var fileStream = new FileStream(filePath, FileMode.Create, FileAccess.Write, FileShare.None, 81920, useAsync: true);
+            var partialPath = filePath + ".partial";
+            if (File.Exists(partialPath))
+            {
+                try { File.Delete(partialPath); } catch { /* best effort */ }
+            }
 
-            var buffer = new byte[81920];
+            await using var responseStream = await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
+            await using var fileStream = new FileStream(partialPath, FileMode.Create, FileAccess.Write, FileShare.None, 131072, useAsync: true);
+
+            var buffer = new byte[131072];
             long totalWritten = 0;
             int read;
             while ((read = await responseStream.ReadAsync(buffer.AsMemory(0, buffer.Length), cancellationToken).ConfigureAwait(false)) > 0)
@@ -592,7 +594,9 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Clients
                 await fileStream.WriteAsync(buffer.AsMemory(0, read), cancellationToken).ConfigureAwait(false);
                 totalWritten += read;
             }
+            fileStream.Flush(true);
 
+            File.Move(partialPath, filePath, overwrite: true);
             return totalWritten;
         }
 
