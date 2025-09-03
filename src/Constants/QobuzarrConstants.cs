@@ -5,8 +5,10 @@ namespace Lidarr.Plugin.Qobuzarr.Constants
         // General identifiers used across the plugin
         public const string PluginName = "Qobuzarr";
         public const string ServiceName = "Qobuz";
-        // Matches default deploy path used in csproj (plugins\\RicherTunes\\Qobuzarr)
-        public const string PluginFolderName = "RicherTunes\\Qobuzarr";
+        // Plugin vendor and folder naming (use to compose cross-platform path)
+        public const string PluginVendor = "RicherTunes";
+        // Backward-compat alias kept for any legacy path joins
+        public const string PluginFolderName = PluginVendor + "/" + PluginName;
         public const string DownloadCategory = "qobuz";
 
         internal static class Limits

@@ -55,8 +55,8 @@ namespace QobuzCLI.Services
             _logger.LogToDashboard($"📥 Starting download: {result.Title} by {result.Artist}", LogLevel.Information);
             
             // Create output directory structure
-            var artistDir = Path.Combine(outputDir, FileSystemUtilities.SanitizeFileName(result.Artist));
-            var albumDir = Path.Combine(artistDir, FileSystemUtilities.CreateAlbumDirectoryName(result.Title, result.Year));
+            var artistDir = Path.Combine(outputDir, Lidarr.Plugin.Common.Utilities.FileSystemUtilities.SanitizeFileName(result.Artist));
+            var albumDir = Path.Combine(artistDir, Lidarr.Plugin.Common.Utilities.FileSystemUtilities.CreateAlbumDirectoryName(result.Title, result.Year));
             
             // Check if album already exists with adequate quality
             var config = await _configService.LoadConfigAsync().ConfigureAwait(false);

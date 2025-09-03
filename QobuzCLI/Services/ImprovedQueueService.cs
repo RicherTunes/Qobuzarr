@@ -511,8 +511,8 @@ namespace QobuzCLI.Services
                         var artist = item.Metadata?.GetValueOrDefault("artist") ?? "Unknown";
                         var title = item.Metadata?.GetValueOrDefault("title") ?? item.SearchQuery;
                         
-                        var artistDir = Path.Combine(outputDir, FileSystemUtilities.SanitizeFileName(artist));
-                        var albumDir = Path.Combine(artistDir, FileSystemUtilities.SanitizeFileName(title));
+                        var artistDir = Path.Combine(outputDir, Lidarr.Plugin.Common.Utilities.FileSystemUtilities.SanitizeFileName(artist));
+                        var albumDir = Path.Combine(artistDir, Lidarr.Plugin.Common.Utilities.FileSystemUtilities.SanitizeFileName(title));
                         Directory.CreateDirectory(albumDir);
                         
                         var result = await _service._pluginHost.DownloadAlbumAsync(qobuzId, albumDir, null).ConfigureAwait(false);

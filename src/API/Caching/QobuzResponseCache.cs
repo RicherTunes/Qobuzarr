@@ -5,6 +5,7 @@ using NLog;
 using Lidarr.Plugin.Qobuzarr.Configuration;
 using Lidarr.Plugin.Qobuzarr.Constants;
 using Lidarr.Plugin.Qobuzarr.Services;
+using Lidarr.Plugin.Qobuzarr.Utilities;
 using Lidarr.Plugin.Common.Services.Caching;
 using Microsoft.Extensions.Logging;
 
@@ -63,14 +64,21 @@ namespace Lidarr.Plugin.Qobuzarr.API.Caching
                 .OrderBy(p => p.Key)
                 .Select(p => $"{p.Key}={p.Value}");
             var key = $"qobuz_api_{endpoint}_{string.Join("&", filtered)}";
-            return Math.Abs(key.GetHashCode()).ToString();
+            // Use stable hashing for deterministic cache keys across processes
+            return HashingUtility.ComputeMD5Hash(key);
         }
 
-        private static Microsoft.Extensions.Logging.ILogger CreateMsLogger(Logger nlog)
+        private static readonly Lazy<Microsoft.Extensions.Logging.ILogger> _sharedMsLogger
+            = new Lazy<Microsoft.Extensions.Logging.ILogger>(() =>
         {
-            // Best-effort: create a basic console logger if no factory is provided; avoid hard coupling
-            using var factory = LoggerFactory.Create(builder => builder.AddConsole());
+            var factory = LoggerFactory.Create(builder => builder.AddConsole());
             return factory.CreateLogger("QobuzResponseCache");
+        });
+
+        private static Microsoft.Extensions.Logging.ILogger CreateMsLogger(Logger _)
+        {
+            // Reuse a single logger instance to avoid repeated factory creation
+            return _sharedMsLogger.Value;
         }
     }
 }
