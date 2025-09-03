@@ -55,11 +55,20 @@ public class PluginHost : IPluginHost, IDisposable
     
     public IQobuzAuthenticationService Auth => _authAdapter ?? throw new InvalidOperationException("Plugin host not initialized");
 
-    public async Task InitializeAsync(QobuzConfig config)
-    {
-        try
+        public async Task InitializeAsync(QobuzConfig config)
         {
-            _config = config;
+            try
+            {
+                _config = config;
+                // Propagate existing-file behavior to environment for CLI downloader
+                try
+                {
+                    if (!string.IsNullOrWhiteSpace(config.ExistingFileBehavior))
+                    {
+                        Environment.SetEnvironmentVariable("QOBUZ_EXISTING_FILE_BEHAVIOR", config.ExistingFileBehavior);
+                    }
+                }
+                catch { /* non-fatal */ }
             
             // Check if we have valid credentials - if not, initialize in mock mode for testing
             if (!config.HasValidAuth())

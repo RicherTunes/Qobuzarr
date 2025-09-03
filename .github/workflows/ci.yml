@@ -324,14 +324,21 @@ jobs:
     - name: Verify plugin output
       run: |
         echo "🔍 Checking plugin output..."
-        ls -la bin/
+        ls -la bin/ || true
         
         if [ -f "bin/Lidarr.Plugin.Qobuzarr.dll" ]; then
           echo "[OK] Plugin DLL created successfully"
           echo "📦 Size: $(stat -c%s bin/Lidarr.Plugin.Qobuzarr.dll) bytes"
         else
-          echo "[ERROR] Plugin DLL not found!"
-          exit 1
+          echo "[WARN] Plugin DLL not found at bin/. Searching recursively..."
+          CAND=$(find bin -name "Lidarr.Plugin.Qobuzarr.dll" | head -n 1)
+          if [ -n "$CAND" ]; then
+            echo "[OK] Plugin DLL found at $CAND"
+            echo "📦 Size: $(stat -c%s "$CAND") bytes"
+          else
+            echo "[ERROR] Plugin DLL not found under bin/. Build may have failed."
+            exit 1
+          fi
         fi
 
     - name: Security audit
