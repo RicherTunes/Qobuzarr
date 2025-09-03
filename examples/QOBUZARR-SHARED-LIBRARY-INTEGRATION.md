@@ -199,6 +199,31 @@ Additional Optimization Opportunities: 300+ LOC
 
 **Qobuzarr + Lidarr.Plugin.Common integration proves:**
 
+### What’s New in This Integration Round
+- HTTP resilience: Central retry budget + Retry-After handling and per-host gating
+- Shared HttpClient: Single `SocketsHttpHandler`-backed instance for all streaming downloads
+- Resumable downloads: Range-aware resume to .partial + fsync + atomic move
+- Validation: Consolidated to `Lidarr.Plugin.Common.Utilities.ValidationUtilities`
+- Sanitization: Context-specific helpers (`Sanitize.PathSegment`, `Sanitize.DisplayText`), NFC normalization, reserved-name guards
+- Locale support: Thread `country_code` + optional `locale` for localized results
+- Request signing: Adapter to common `IRequestSigner` to simplify future signer swaps
+
+These changes reduce tech debt, cut duplication, and standardize cross-plugin behavior while preserving current functionality.
+
+### 🔁 Verifying Resumable Downloads
+Qobuzarr resumes downloads using HTTP Range (206): writes to `*.partial`, fsyncs, then atomically moves to the final file.
+
+- Manual test:
+  - Start a large Hi‑Res download, interrupt after ~10s (disconnect or kill process), then start the same download again.
+  - Expect logs indicating `Range: bytes=<offset>-` and `206 Partial Content (Content-Range)`; file completes without corruption.
+- Quick script (PowerShell):
+  - `qobuz download "Artist - Album" --output .\Downloads --quality flac-hires`
+  - After ~10s: `Stop-Process -Name "qobuz" -Force` (or Ctrl+C)
+  - Resume with the same command; verify completion and no leftover `.partial`.
+- Integration sketch (C#):
+  - First call throws/cancels after a short timeout; check `*.partial` size.
+  - Second call completes; assert final size > partial size and validate with `ValidationUtilities.ValidateDownloadedFile`.
+
 🏆 **Shared library delivers promised value** (170+ LOC already saved)  
 🏆 **Professional architecture works** in production environment  
 🏆 **Ecosystem expansion enabled** through reference implementation  

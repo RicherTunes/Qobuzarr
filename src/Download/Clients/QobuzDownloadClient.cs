@@ -32,6 +32,10 @@ using Lidarr.Plugin.Qobuzarr.Exceptions;
 using Lidarr.Plugin.Qobuzarr.Download.Services;
 using Lidarr.Plugin.Qobuzarr.Download.Orchestration;
 using Lidarr.Plugin.Qobuzarr.Constants;
+using Lidarr.Plugin.Qobuzarr.Services.Http;
+using Lidarr.Plugin.Common.Utilities;
+using System.Net.Http;
+using System.Net.Http.Headers;
 
 namespace Lidarr.Plugin.Qobuzarr.Download.Clients
 {
@@ -569,25 +573,39 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Clients
         private async Task<long> DownloadToFileAsync(string url, string filePath, CancellationToken cancellationToken)
         {
             // Stream to a temporary .partial file, then atomic move to final
-            using var httpClient = new System.Net.Http.HttpClient { Timeout = TimeSpan.FromMinutes(10) };
-            using var response = await httpClient.GetAsync(url, System.Net.Http.HttpCompletionOption.ResponseHeadersRead, cancellationToken)
-                .ConfigureAwait(false);
+            var httpClient = SharedSystemHttpClient.Instance;
+            var partialPath = filePath + ".partial";
+            long existing = 0;
+            if (File.Exists(partialPath))
+            {
+                try { existing = new FileInfo(partialPath).Length; } catch { existing = 0; }
+            }
+
+            var request = new HttpRequestMessage(HttpMethod.Get, url);
+            if (existing > 0)
+            {
+                request.Headers.Range = new RangeHeaderValue(existing, null);
+            }
+
+            using var response = await httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cancellationToken).ConfigureAwait(false);
             response.EnsureSuccessStatusCode();
 
             var directory = Path.GetDirectoryName(filePath);
             if (!string.IsNullOrEmpty(directory)) Directory.CreateDirectory(directory);
 
-            var partialPath = filePath + ".partial";
-            if (File.Exists(partialPath))
+            var isPartial = response.StatusCode == System.Net.HttpStatusCode.PartialContent;
+            if (!isPartial && File.Exists(partialPath))
             {
-                try { File.Delete(partialPath); } catch { /* best effort */ }
+                // Server didn't honor range; start fresh
+                try { File.Delete(partialPath); } catch { }
+                existing = 0;
             }
 
             await using var responseStream = await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
-            await using var fileStream = new FileStream(partialPath, FileMode.Create, FileAccess.Write, FileShare.None, 131072, useAsync: true);
+            await using var fileStream = new FileStream(partialPath, FileMode.Append, FileAccess.Write, FileShare.None, 131072, useAsync: true);
 
             var buffer = new byte[131072];
-            long totalWritten = 0;
+            long totalWritten = existing;
             int read;
             while ((read = await responseStream.ReadAsync(buffer.AsMemory(0, buffer.Length), cancellationToken).ConfigureAwait(false)) > 0)
             {
@@ -597,6 +615,12 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Clients
             fileStream.Flush(true);
 
             File.Move(partialPath, filePath, overwrite: true);
+
+            // Validate file (basic; no size/hash guarantees from server)
+            if (!Lidarr.Plugin.Common.Utilities.ValidationUtilities.ValidateDownloadedFile(filePath))
+            {
+                throw new InvalidOperationException($"Downloaded file failed validation: {Path.GetFileName(filePath)}");
+            }
             return totalWritten;
         }
 
@@ -651,7 +675,7 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Clients
             });
         }
 
-        private string ExtractAlbumIdFromRelease(ReleaseInfo release)
+        private string? ExtractAlbumIdFromRelease(ReleaseInfo release)
         {
             // Parse album ID from custom Qobuz URL format: "qobuz://album/{albumId}/{quality}"
             if (release.DownloadUrl?.StartsWith("qobuz://album/") == true)

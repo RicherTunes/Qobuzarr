@@ -10,6 +10,8 @@ using NzbDrone.Core.Parser.Model;
 using NzbDrone.Core.RemotePathMappings;
 using Lidarr.Plugin.Qobuzarr.Configuration;
 using Lidarr.Plugin.Qobuzarr.Download.Clients;
+using Lidarr.Plugin.Common.Security;
+using System.Text;
 
 namespace Lidarr.Plugin.Qobuzarr.Download.Services
 {
@@ -46,7 +48,7 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Services
                 var artist = album.Artist?.Value?.Name ?? "Unknown Artist";
                 var albumTitle = album.Title ?? "Unknown Album";
 
-                // Sanitize names for filesystem
+                // Sanitize names for filesystem (NFC + reserved names guard)
                 artist = SanitizeFileName(artist);
                 albumTitle = SanitizeFileName(albumTitle);
 
@@ -253,17 +255,8 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Services
             if (string.IsNullOrWhiteSpace(fileName))
                 return "Unknown";
 
-            // Remove invalid characters
-            var invalidChars = Path.GetInvalidFileNameChars().Concat(Path.GetInvalidPathChars()).ToArray();
-            var sanitized = string.Join("_", fileName.Split(invalidChars, StringSplitOptions.RemoveEmptyEntries));
-
-            // Remove multiple consecutive underscores and trim
-            while (sanitized.Contains("__"))
-            {
-                sanitized = sanitized.Replace("__", "_");
-            }
-
-            return sanitized.Trim('_', ' ');
+            var sanitized = Sanitize.PathSegment(fileName);
+            return sanitized.Normalize(NormalizationForm.FormC);
         }
 
         private string TruncateToLength(string input, int maxLength)

@@ -50,6 +50,7 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
             AppId = string.Empty;
             AppSecret = string.Empty;
             CountryCode = "US";
+            Locale = string.Empty;
             QueryOptimizationMode = (int)Qobuzarr.Indexers.QueryOptimizationMode.QueryIntelligence; // Default to Query Intelligence
             ConcurrencyMode = (int)Lidarr.Plugin.Qobuzarr.Indexers.ConcurrencyMode.Adaptive; // Initialize in constructor
             FixedConcurrencyLevel = 4;
@@ -86,6 +87,9 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
 
         [FieldDefinition(8, Label = "Country/Region", Type = FieldType.Textbox, Section = "Authentication", HelpText = "Your country code (e.g., US, CA, GB, FR, DE, JP). This determines content availability and pricing. Must match your Qobuz account region.")]
         public string CountryCode { get; set; }
+
+        [FieldDefinition(9, Label = "Locale (optional)", Type = FieldType.Textbox, Section = "Authentication", Advanced = true, HelpText = "Locale for localized search/results where supported by Qobuz (e.g., en_US, fr_FR). Leave blank to use service defaults.")]
+        public string Locale { get; set; }
 
         // === SEARCH SETTINGS ===
         [FieldDefinition(10, Label = "Maximum Search Results", Type = FieldType.Number, Section = "Search", HelpText = "How many results to fetch per search query. Higher values may find more obscure releases but use more API calls. Range: 10-500, Default: 100")]
