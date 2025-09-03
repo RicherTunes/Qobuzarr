@@ -537,31 +537,15 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Clients
                 // 2. Create output directory
                 Directory.CreateDirectory(Path.GetDirectoryName(outputPath));
                 
-                // 3. Download actual audio file using Lidarr's HTTP client
-                var requestBuilder = new HttpRequestBuilder(streamUrl);
-                var request = requestBuilder.Build();
-                request.SuppressHttpError = true;
-                request.RequestTimeout = TimeSpan.FromMinutes(10);
-                
+                // 3. Download actual audio file (stream to disk to avoid large memory usage)
                 _logger.Debug("📥 Starting HTTP download for track {0}", track.Title);
-                var response = await _httpClient.ExecuteAsync(request);
-                
-                if (response.HasHttpError)
-                {
-                    throw new InvalidOperationException($"HTTP error downloading track: {response.StatusCode}");
-                }
-                
-                var audioBytes = response.ResponseData;
-                
-                // 4. Write audio data to file
-                await File.WriteAllBytesAsync(outputPath, audioBytes, downloadItem.CancellationTokenSource.Token);
-                
-                _logger.Debug("💾 Audio file written: {0} bytes", audioBytes.Length);
+                var bytesWritten = await DownloadToFileAsync(streamUrl, outputPath, downloadItem.CancellationTokenSource.Token);
+                _logger.Debug("💾 Audio file written: {0} bytes", bytesWritten);
                 
                 // 5. Apply metadata tags using TagLibSharp
                 await ApplyMetadataTagsAsync(outputPath, track, album);
                 
-                _logger.Info("✅ Downloaded: {0} ({1:F1} MB)", track.Title, audioBytes.Length / 1024.0 / 1024.0);
+                _logger.Info("✅ Downloaded: {0} ({1:F1} MB)", track.Title, bytesWritten / 1024.0 / 1024.0);
             }
             catch (Exception ex)
             {
@@ -580,6 +564,36 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Clients
             {
                 throw new InvalidOperationException($"Downloaded file validation failed: {track.Title}");
             }
+        }
+
+        private async Task<long> DownloadToFileAsync(string url, string filePath, CancellationToken cancellationToken)
+        {
+            // Prefer streaming via System.Net.Http to avoid buffering entire file in memory
+            using var httpClient = new System.Net.Http.HttpClient
+            {
+                Timeout = TimeSpan.FromMinutes(10)
+            };
+
+            using var response = await httpClient.GetAsync(url, System.Net.Http.HttpCompletionOption.ResponseHeadersRead, cancellationToken)
+                .ConfigureAwait(false);
+            response.EnsureSuccessStatusCode();
+
+            var directory = Path.GetDirectoryName(filePath);
+            if (!string.IsNullOrEmpty(directory)) Directory.CreateDirectory(directory);
+
+            await using var responseStream = await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
+            await using var fileStream = new FileStream(filePath, FileMode.Create, FileAccess.Write, FileShare.None, 81920, useAsync: true);
+
+            var buffer = new byte[81920];
+            long totalWritten = 0;
+            int read;
+            while ((read = await responseStream.ReadAsync(buffer.AsMemory(0, buffer.Length), cancellationToken).ConfigureAwait(false)) > 0)
+            {
+                await fileStream.WriteAsync(buffer.AsMemory(0, read), cancellationToken).ConfigureAwait(false);
+                totalWritten += read;
+            }
+
+            return totalWritten;
         }
 
         private async Task ApplyMetadataTagsAsync(string filePath, QobuzTrack track, QobuzAlbum album)

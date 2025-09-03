@@ -306,7 +306,8 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers.Core
                 {
                     System.IO.Path.Combine(baseDir, "PersonalizedMLQueryOptimizer.dll"),
                     System.IO.Path.Combine(baseDir, "PersonalMLQueryOptimizer.dll"),
-                    System.IO.Path.Combine(baseDir, "plugins", QobuzarrConstants.PluginFolderName, "PersonalizedMLQueryOptimizer.dll"),
+                    // Compose plugin path in a cross-platform safe way
+                    System.IO.Path.Combine(baseDir, "plugins", QobuzarrConstants.PluginVendor, QobuzarrConstants.PluginName, "PersonalizedMLQueryOptimizer.dll"),
                     System.IO.Path.Combine(baseDir, "ML", "PersonalizedMLQueryOptimizer.dll")
                 };
 

@@ -22,10 +22,6 @@ public record DownloadOptions(
     bool Select,
     bool All,
     string? Type,
-    int Priority,
-    string? QueueId,
-    string? ReportFormat,
-    string? ReportOutput,
     string? AlbumId,
     int Priority,
     string? QueueId,
@@ -174,6 +170,24 @@ public class DownloadCommand
                 };
                 
                 await _batchDownloadService.ProcessBatchDownloadAsync(batchOptions).ConfigureAwait(false);
+                return;
+            }
+
+            // Direct album-id path (bypasses search)
+            if (!string.IsNullOrEmpty(options.AlbumId))
+            {
+                var outDir = options.Output ?? config.OutputDirectory ?? "./Downloads";
+                Directory.CreateDirectory(outDir);
+                _logger.LogInformation("Downloading album by ID: {AlbumId}", options.AlbumId);
+                var directResult = await _pluginHost.DownloadAlbumAsync(options.AlbumId!, outDir, options.Quality).ConfigureAwait(false);
+                if (directResult.IsSuccessful)
+                {
+                    _logger.LogInformation("✅ Album {AlbumId} downloaded to {Dir}", options.AlbumId, outDir);
+                }
+                else
+                {
+                    _logger.LogWarning("❌ Album {AlbumId} failed: {Message}", options.AlbumId, directResult.Message);
+                }
                 return;
             }
 
@@ -912,4 +926,5 @@ public class DownloadCommand
         return config;
     }
 }
+
 

@@ -57,21 +57,14 @@ namespace QobuzCLI.Services
                 // Ensure directory exists
                 Directory.CreateDirectory(outputPath);
                 
-                // Download the actual audio file
-                using var httpClient = new HttpClient();
-                httpClient.Timeout = TimeSpan.FromMinutes(10);
-                
+                // Download the actual audio file (stream to disk to avoid high memory usage)
                 _logger.Info("Downloading audio file from: {0}", streamInfo.Url);
-                
-                var audioBytes = await httpClient.GetByteArrayAsync(streamInfo.Url, cancellationToken);
-                
-                // Write file
-                await System.IO.File.WriteAllBytesAsync(filePath, audioBytes, cancellationToken);
+                var bytesWritten = await DownloadToFileAsync(streamInfo.Url, filePath, progress, cancellationToken);
                 
                 // Apply basic metadata
                 await ApplyMetadataAsync(filePath, track, album);
                 
-                _logger.Info("Track download completed: {0} ({1:N0} bytes)", filePath, audioBytes.Length);
+                _logger.Info("Track download completed: {0} ({1:N0} bytes)", filePath, bytesWritten);
                 return filePath;
             }
             catch (Exception ex)
@@ -179,6 +172,42 @@ namespace QobuzCLI.Services
                 // Don't fail download for metadata issues
                 _logger.Warn(ex, "Failed to apply metadata to {0}", filePath);
             }
+        }
+
+        private static async Task<long> DownloadToFileAsync(
+            string url,
+            string filePath,
+            IProgress<double> progress,
+            CancellationToken cancellationToken)
+        {
+            using var http = new HttpClient { Timeout = TimeSpan.FromMinutes(10) };
+            using var response = await http.GetAsync(url, HttpCompletionOption.ResponseHeadersRead, cancellationToken)
+                .ConfigureAwait(false);
+            response.EnsureSuccessStatusCode();
+
+            var total = response.Content.Headers.ContentLength;
+            await using var input = await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
+            var directory = Path.GetDirectoryName(filePath);
+            if (!string.IsNullOrEmpty(directory)) Directory.CreateDirectory(directory);
+            await using var output = new FileStream(filePath, FileMode.Create, FileAccess.Write, FileShare.None, 81920, true);
+
+            var buffer = new byte[81920];
+            long written = 0;
+            int read;
+            while ((read = await input.ReadAsync(buffer.AsMemory(0, buffer.Length), cancellationToken).ConfigureAwait(false)) > 0)
+            {
+                await output.WriteAsync(buffer.AsMemory(0, read), cancellationToken).ConfigureAwait(false);
+                written += read;
+                if (progress != null && total.HasValue && total.Value > 0)
+                {
+                    progress.Report(Math.Min(100.0, written * 100.0 / total.Value));
+                }
+            }
+            if (progress != null && total.HasValue)
+            {
+                progress.Report(100.0);
+            }
+            return written;
         }
     }
 }
