@@ -16,6 +16,7 @@ using Lidarr.Plugin.Qobuzarr.API.Http;
 using Lidarr.Plugin.Qobuzarr.Services.Interfaces;
 using Lidarr.Plugin.Qobuzarr.API.Signing;
 using Lidarr.Plugin.Qobuzarr.API.Caching;
+using Lidarr.Plugin.Common.Services.Http;
 
 namespace Lidarr.Plugin.Qobuzarr.API
 {
@@ -40,6 +41,7 @@ namespace Lidarr.Plugin.Qobuzarr.API
         private IQobuzAuthenticationService? _authService;
         private Lidarr.Plugin.Common.Services.Authentication.StreamingTokenManager<QobuzSession, QobuzCredentials>? _tokenManager;
         private Func<Task<QobuzCredentials>>? _credentialsProvider;
+        private IPreRequestHandler? _preRequestHandler;
 
         /// <summary>
         /// Initializes a new instance of the QobuzApiClient with the required dependencies.
@@ -114,6 +116,15 @@ namespace Lidarr.Plugin.Qobuzarr.API
         }
 
         /// <summary>
+        /// Optionally provide a pre-request handler that centralizes session checks and
+        /// auth/signature injection before each API call.
+        /// </summary>
+        public void SetPreRequestHandler(IPreRequestHandler preRequestHandler)
+        {
+            _preRequestHandler = preRequestHandler;
+        }
+
+        /// <summary>
         /// Executes a GET request to the specified Qobuz API endpoint with automatic rate limiting and caching.
         /// </summary>
         /// <typeparam name="T">The expected response type for JSON deserialization.</typeparam>
@@ -174,17 +185,18 @@ namespace Lidarr.Plugin.Qobuzarr.API
         {
             try
             {
-                // Validate and renew session if needed
-                // SessionManager handles validation internally through GetCurrentSession
-
-                // Ensure we have a valid session (use token manager if available)
-                if (_tokenManager != null)
+                // Ensure valid session prior to request
+                if (_preRequestHandler != null)
                 {
+                    await _preRequestHandler.EnsureValidSessionAsync().ConfigureAwait(false);
+                }
+                else if (_tokenManager != null)
+                {
+                    // Fallback to built-in token manager if pre-handler not provided
                     var fallbackCreds = _credentialsProvider != null ? await _credentialsProvider().ConfigureAwait(false) : null;
                     var validSession = await _tokenManager.GetValidSessionAsync(fallbackCreds).ConfigureAwait(false);
                     if (validSession != null)
                     {
-                        // Sync with existing session manager so downstream remains consistent
                         ((SessionManager)_sessionManager).StoreSession(validSession);
                     }
                 }
@@ -197,13 +209,17 @@ namespace Lidarr.Plugin.Qobuzarr.API
                 // Prepare parameters
                 var allParameters = new Dictionary<string, string>();
                 
-                // Add session parameters if authenticated
+                // Inject auth params via pre-handler if present
                 var currentSession = ((SessionManager)_sessionManager).GetCurrentSession();
-                if (currentSession != null)
+                if (_preRequestHandler != null)
+                {
+                    _preRequestHandler.InjectAuthParameters(allParameters);
+                }
+                else if (currentSession != null)
                 {
                     allParameters["app_id"] = currentSession.AppId;
                     allParameters["user_auth_token"] = currentSession.AuthToken;
-                    _logger.Trace("🔐 Added authentication: app_id={0}, token=***{1}", 
+                    _logger.Trace("🔐 Added authentication: app_id={0}, token=***{1}",
                         currentSession.AppId, currentSession.AuthToken?.Substring(Math.Max(0, currentSession.AuthToken.Length - 4)) ?? "null");
                 }
 
@@ -226,7 +242,11 @@ namespace Lidarr.Plugin.Qobuzarr.API
                 }
 
                 // Handle request signing for protected endpoints
-                if (_requestSigner.RequiresSigning(endpoint) && currentSession != null)
+                if (_preRequestHandler != null)
+                {
+                    _preRequestHandler.SignIfRequired(endpoint, allParameters);
+                }
+                else if (_requestSigner.RequiresSigning(endpoint) && currentSession != null)
                 {
                     _requestSigner.SignRequest(endpoint, allParameters, currentSession.AppId, currentSession.AppSecret);
                 }
