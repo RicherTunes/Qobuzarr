@@ -20,7 +20,8 @@
     <MaxParallelThreads>0</MaxParallelThreads>
   </xunit>
   <RunConfiguration>
-    <TestCaseFilter>Category!=LiveIntegration</TestCaseFilter>
+    <!-- Exclude long-running categories by default -->
+    <TestCaseFilter>Category!=LiveIntegration&amp;Category!=Integration&amp;Category!=Performance&amp;Category!=Simulations</TestCaseFilter>
   </RunConfiguration>
 </RunSettings>
 
