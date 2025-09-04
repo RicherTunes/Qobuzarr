@@ -4,7 +4,8 @@
 param(
     [string]$Configuration = "Debug",
     [switch]$Coverage = $false,
-    [switch]$Verbose = $false
+    [switch]$Verbose = $false,
+    [string]$RunSettings = ""
 )
 
 Write-Host "[TEST] Qobuzzarr Unit Test Runner" -ForegroundColor Cyan
@@ -61,6 +62,15 @@ $testArgs = @(
     "--logger", "trx;LogFileName=TestResults.trx"
     "--results-directory", $OutputDir
 )
+
+# Always apply default runsettings unless explicitly overridden
+if (-not $RunSettings -or [string]::IsNullOrWhiteSpace($RunSettings)) {
+    $RunSettings = Join-Path $PSScriptRoot "Default.runsettings"
+}
+if (Test-Path $RunSettings) {
+    $testArgs += "--settings", $RunSettings
+    Write-Host "[INFO] Using runsettings: $RunSettings" -ForegroundColor Gray
+}
 
 if ($Coverage) {
     Write-Host "📊 Running tests with coverage analysis..." -ForegroundColor Yellow

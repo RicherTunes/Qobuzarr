@@ -12,6 +12,7 @@ namespace Qobuzarr.Tests.Simulations
     /// Simulation tests to validate Query Intelligence optimization potential
     /// These tests analyze query patterns to predict performance gains before implementation
     /// </summary>
+    [Trait("Category", "Simulations")]
     public class QueryIntelligenceSimulationTests
     {
         private readonly ITestOutputHelper _output;
