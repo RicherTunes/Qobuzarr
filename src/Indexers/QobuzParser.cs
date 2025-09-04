@@ -47,6 +47,37 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
             _responseParser = new ResponseParser(settings, logger, _albumMatcher, _releaseInfoFactory);
         }
 
+        // Backwards-compatibility helpers for unit tests that reflect private methods
+        private string GenerateQualitySpecificTitle(QobuzAlbum album, QobuzAudioQuality quality, int year)
+        {
+            return _titleGenerator.GenerateQualitySpecificTitle(album, quality, year);
+        }
+
+        private long CalculateSizeForQuality(QobuzAlbum album, QobuzAudioQuality quality)
+        {
+            // Calculate based on total duration and expected bitrate
+            try
+            {
+                var totalSeconds = 0;
+                if (album?.TracksContainer?.Items != null && album.TracksContainer.Items.Count > 0)
+                {
+                    totalSeconds = album.TracksContainer.Items.Sum(t => Math.Max(0, t.DurationSeconds));
+                }
+                if (totalSeconds <= 0)
+                {
+                    totalSeconds = Math.Max(0, album?.DurationSeconds ?? 0);
+                }
+
+                var bitrate = quality.GetEstimatedBitrate(); // bits per second
+                var bytes = (long)(totalSeconds * (bitrate / 8.0));
+                return bytes;
+            }
+            catch
+            {
+                return 0;
+            }
+        }
+
         public void SetSearchContext(SearchCriteriaBase searchCriteria)
         {
             _searchCriteria = searchCriteria;
