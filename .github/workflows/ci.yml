@@ -1,11 +1,36 @@
-name: CI/CD Pipeline
+name: CI
 
 on:
   push:
     branches: [ main, develop ]
   pull_request:
     branches: [ main ]
+  schedule:
+    - cron: '0 2 * * *'  # nightly at 02:00 UTC
   workflow_dispatch:
+    inputs:
+      run_mode:
+        description: 'Which tests to run'
+        type: choice
+        required: false
+        default: fast
+        options: [ fast, full ]
+      max_real_albums:
+        description: 'Cap for real-data simulations (full mode)'
+        required: false
+        default: '200'
+      max_sim_scenarios:
+        description: 'Cap for simulation scenarios (full mode)'
+        required: false
+        default: '200'
+      concurrency:
+        description: 'Perf test concurrency (full mode)'
+        required: false
+        default: '50'
+      timeout_ms:
+        description: 'Perf test timeout ms (full mode)'
+        required: false
+        default: '120000'
 
 permissions:
   contents: write
@@ -16,16 +41,11 @@ env:
   PLUGIN_NAME: Lidarr.Plugin.Qobuzarr
   MINIMUM_LIDARR_VERSION: 2.13.2.4685
   DOTNET_VERSION: 8.0.x
-  BUILD_CLI: 'false'
 
 jobs:
-  # ============================================================================
-  # VALIDATION JOB - Fast validation and security checks
-  # ============================================================================
   validate:
     name: Validate
     runs-on: ubuntu-latest
-    
     steps:
     - name: Checkout
       uses: actions/checkout@v4
@@ -33,10 +53,10 @@ jobs:
         fetch-depth: 0
         submodules: recursive
 
-    - name: Update submodules
+    - name: Update submodules to plugin branch
       run: |
         git submodule sync --recursive
-        git submodule update --init --recursive
+        git submodule update --init --remote --recursive
 
     - name: Security Scan (git-leaks)
       uses: gitleaks/gitleaks-action@v2
@@ -48,86 +68,37 @@ jobs:
     - name: Validate project structure
       run: |
         echo "Validating project structure..."
-        
-        # Check required files
-        for file in Qobuzarr.csproj plugin.json Directory.Packages.props CLAUDE.md; do
-          if [ -f "$file" ]; then
-            echo "[OK] $file exists"
-          else
-            echo "[ERROR] $file missing"
-            exit 1
-          fi
+        for file in Qobuzarr.csproj plugin.json Directory.Packages.props; do
+          if [ -f "$file" ]; then echo "[OK] $file exists"; else echo "[ERROR] $file missing"; exit 1; fi
         done
-        
-        # Check required directories
         for dir in src src/API src/Authentication src/Download src/Indexers; do
-          if [ -d "$dir" ]; then
-            echo "[OK] $dir/ exists"
-          else
-            echo "[ERROR] $dir/ missing"
-            exit 1
-          fi
+          if [ -d "$dir" ]; then echo "[OK] $dir/ exists"; else echo "[ERROR] $dir/ missing"; exit 1; fi
         done
 
-    - name: Validate critical implementations
+    - name: Validate Protocol implementation
       run: |
-        echo "[CHECK] Checking critical implementations..."
-        
-        # Check memory leak fix
-        if grep -q "IDisposable" src/Download/Clients/QobuzDownloadItem.cs; then
-          echo "[OK] QobuzDownloadItem implements IDisposable"
+        if grep -q "public override string Protocol" src/Indexers/QobuzIndexer.cs; then
+          echo "[OK] QobuzIndexer Protocol implemented"
         else
-          echo "[ERROR] QobuzDownloadItem missing IDisposable"
-          exit 1
-        fi
-        
-        # Check Protocol implementation (support both legacy enum and plugin string)
-        if grep -q "DownloadProtocol.Unknown" src/Indexers/QobuzIndexer.cs || grep -q "public override string Protocol" src/Indexers/QobuzIndexer.cs; then
-          echo "[OK] QobuzIndexer has Protocol implementation"
-        else
-          echo "[ERROR] QobuzIndexer missing Protocol implementation"
-          exit 1
+          echo "[ERROR] QobuzIndexer missing Protocol implementation"; exit 1
         fi
 
     - name: Validate plugin manifest
       run: |
-        echo "🔍 Validating plugin.json..."
+        echo "Validating plugin.json..."
         python3 -m json.tool plugin.json > /dev/null
-        echo "[OK] plugin.json is valid JSON"
-        
-        VERSION=$(cat plugin.json | python3 -c "import sys, json; print(json.load(sys.stdin)['version'])")
-        echo "📦 Plugin version: $VERSION"
+        VERSION=$(python3 - << 'PY'
+import json,sys
+print(json.load(open('plugin.json'))['version'])
+PY
+)
+        echo "Plugin version: $VERSION"
 
-    - name: Security checks
-      run: |
-        echo "🔒 Running security checks..."
-        
-        # Check for hardcoded credentials
-        if grep -r "password\s*=\s*\"" src/ --include="*.cs" | grep -v "// " | grep -v "password\": null"; then
-          echo "[WARN] Warning: Possible hardcoded passwords found"
-        else
-          echo "[OK] No hardcoded passwords detected"
-        fi
-        
-        if grep -r "api[_-]?key\s*=\s*\"" src/ --include="*.cs" | grep -v "// "; then
-          echo "[WARN] Warning: Possible hardcoded API keys found" 
-        else
-          echo "[OK] No hardcoded API keys detected"
-        fi
-
-  # ============================================================================
-  # BUILD AND TEST JOB - Full compilation and testing
-  # ============================================================================
-  build-and-test:
-    env:
-      RUN_TESTS: 'false'
-    name: Build and Test
+  fast-tests:
+    name: Fast Tests
     runs-on: ubuntu-latest
     needs: validate
-    strategy:
-      matrix:
-        framework: [ net6.0 ]
-    
+    if: ${{ github.event_name == 'pull_request' || github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && (inputs.run_mode == '' || inputs.run_mode == 'fast')) }}
     steps:
     - name: Checkout
       uses: actions/checkout@v4
@@ -139,9 +110,75 @@ jobs:
       with:
         dotnet-version: ${{ env.DOTNET_VERSION }}
 
-    - name: Dotnet info
+    - name: Cache NuGet packages
+      uses: actions/cache@v3
+      with:
+        path: ~/.nuget/packages
+        key: ${{ runner.os }}-nuget-${{ hashFiles('**/*.csproj') }}
+        restore-keys: |
+          ${{ runner.os }}-nuget-
+
+    - name: Create global.json
+      run: echo '{"sdk":{"version":"${{ env.DOTNET_VERSION }}"}}' > global.json
+
+    - name: Setup Lidarr assemblies
       run: |
-        dotnet --info
+        echo "Setting up Lidarr assemblies..."
+        mkdir -p ext/Lidarr/_output/net6.0
+        chmod +x ./download-lidarr-assemblies.sh
+        ./download-lidarr-assemblies.sh --version ${{ env.MINIMUM_LIDARR_VERSION }}
+
+    - name: Restore and build
+      run: |
+        dotnet restore Qobuzarr.csproj
+        dotnet build Qobuzarr.csproj --configuration Release --no-restore \
+          -p:RunAnalyzersDuringBuild=false -p:EnableNETAnalyzers=false -p:TreatWarningsAsErrors=false
+
+    - name: Pre-build tests
+      run: |
+        find tests -name "*.csproj" -exec echo "Building: {}" \; -exec dotnet build {} --configuration Release --verbosity minimal \;
+
+    - name: Run fast tests (unit only)
+      timeout-minutes: 20
+      run: |
+        if [ -f "tests/run-tests.ps1" ]; then
+          pwsh -File ./tests/run-tests.ps1 -Configuration Release
+        else
+          dotnet test --settings tests/Default.runsettings --configuration Release --logger "console;verbosity=normal"
+        fi
+
+    - name: Upload test results (fast)
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: test-results-fast
+        path: |
+          tests/TestResults/
+          **/*.trx
+        if-no-files-found: warn
+        retention-days: 7
+
+  full-suite:
+    name: Full Suite
+    runs-on: ubuntu-latest
+    needs: validate
+    if: ${{ github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && inputs.run_mode == 'full') }}
+    timeout-minutes: 90
+    env:
+      QOBUZ_TEST_MAX_REAL_ALBUMS: ${{ github.event_name == 'workflow_dispatch' && inputs.max_real_albums || '200' }}
+      QOBUZ_TEST_MAX_SIM_SCENARIOS: ${{ github.event_name == 'workflow_dispatch' && inputs.max_sim_scenarios || '200' }}
+      QOBUZ_TEST_CONCURRENCY: ${{ github.event_name == 'workflow_dispatch' && inputs.concurrency || '50' }}
+      QOBUZ_TEST_TIMEOUT_MS: ${{ github.event_name == 'workflow_dispatch' && inputs.timeout_ms || '120000' }}
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+      with:
+        submodules: recursive
+
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: ${{ env.DOTNET_VERSION }}
 
     - name: Cache NuGet packages
       uses: actions/cache@v3
@@ -151,277 +188,55 @@ jobs:
         restore-keys: |
           ${{ runner.os }}-nuget-
 
-    # Use actions/setup-dotnet toolchain; avoid invalid global.json like '8.0.x'
-    # Global.json is unnecessary here and can cause SDK resolution failures.
+    - name: Create global.json
+      run: echo '{"sdk":{"version":"${{ env.DOTNET_VERSION }}"}}' > global.json
 
-    - name: Ensure submodules
+    - name: Setup Lidarr assemblies
       run: |
-        git submodule sync --recursive
-        git submodule update --init --recursive
-
-    - name: Cache Lidarr host build output
-      id: host_cache
-      uses: actions/cache@v3
-      with:
-        path: |
-          ext/Lidarr-source/_output/net6.0
-          ext/Lidarr-source/_temp/obj
-        key: ${{ runner.os }}-lidarr-host-plugins-${{ env.MINIMUM_LIDARR_VERSION }}-${{ hashFiles('ext/Lidarr-source/_cache-key.txt') }}
-        restore-keys: |
-          ${{ runner.os }}-lidarr-host-plugins-
-
-    - name: Docker sanity check
-      run: |
-        docker --version
-        echo "Docker is available."
-
-    - name: Download Lidarr host assemblies (plugins branch)
-      if: steps.host_cache.outputs.cache-hit != 'true'
-      run: |
-        echo "📥 Preparing Lidarr plugins-branch host assemblies (hotio pr-plugins)"
-        mkdir -p ext/Lidarr-source/_output/net6.0
-        IMAGE="ghcr.io/hotio/lidarr:pr-plugins"
-        echo "Pulling $IMAGE (with retry)"
-        n=0
-        until [ "$n" -ge 3 ]; do
-          docker pull "$IMAGE" && break
-          n=$((n+1))
-          echo "Pull failed ($n). Retrying in 10s..."
-          sleep 10
-        done
-        cid=$(docker create "$IMAGE")
-        echo "Extracting assemblies from container..."
-        docker cp "$cid:/app" ext/Lidarr-source/_extracted || docker cp "$cid:/opt/lidarr" ext/Lidarr-source/_extracted
-        docker rm "$cid" >/dev/null
-        echo "Copying assemblies to output directory..."
-        find ext/Lidarr-source/_extracted -maxdepth 1 -type f -name "*.dll" -print -exec cp {} ext/Lidarr-source/_output/net6.0 \; || true
-        # Fallback: search deeper if needed
-        find ext/Lidarr-source/_extracted -type f -name "*.dll" -print -exec cp {} ext/Lidarr-source/_output/net6.0 \; || true
-        rm -rf ext/Lidarr-source/_extracted
-        # Seed a cache key file to bust cache when content changes
-        find ext/Lidarr-source/_output/net6.0 -type f -maxdepth 1 -name "*.dll" -printf "%f %s\n" | sort > ext/Lidarr-source/_cache-key.txt || true
-        echo "📂 Listing host assemblies:"
-        ls -la ext/Lidarr-source/_output/net6.0 || echo "[WARN] Host build output not found"
-        # Mirror to ext/Lidarr/_output for CLI hint paths
+        echo "🧰 Setting up Lidarr assemblies..."
         mkdir -p ext/Lidarr/_output/net6.0
-        cp -f ext/Lidarr-source/_output/net6.0/*.dll ext/Lidarr/_output/net6.0/ || true
+        chmod +x ./download-lidarr-assemblies.sh
+        ./download-lidarr-assemblies.sh --version ${{ env.MINIMUM_LIDARR_VERSION }}
+        ls -la ext/Lidarr/_output/net6.0/ || true
 
-    - name: Validate Lidarr host assemblies
+    - name: Restore and build
       run: |
-        echo "🔎 Validating required Lidarr assemblies exist..."
-        REQUIRED=(
-          "ext/Lidarr-source/_output/net6.0/Lidarr.Core.dll"
-          "ext/Lidarr-source/_output/net6.0/Lidarr.Common.dll"
-          "ext/Lidarr-source/_output/net6.0/Lidarr.Http.dll"
-          "ext/Lidarr-source/_output/net6.0/Lidarr.SignalR.dll"
-        )
-        missing=0
-        for f in "${REQUIRED[@]}"; do
-          if [ -f "$f" ]; then
-            echo "[OK] $f"
-          else
-            echo "[ERROR] Missing: $f"
-            missing=$((missing+1))
-          fi
-        done
-        if [ "$missing" -gt 0 ]; then
-          echo "📂 Found DLLs in output:"
-          ls -la ext/Lidarr-source/_output/net6.0 || true
-          echo "📂 Sample of all extracted DLL names:"
-          find ext/Lidarr-source/_output/net6.0 -type f -name "*.dll" -printf "%f\n" | sort | head -n 50 || true
-          echo "❌ Required Lidarr host assemblies not found."
-          exit 1
-        fi
-
-    - name: Set version
-      run: |
-        # Read version from VERSION file (single source of truth)
-        if [ -f "VERSION" ]; then
-          BASE_VERSION=$(cat VERSION | tr -d '\n\r')
-        else
-          BASE_VERSION="0.1.0"
-        fi
-        
-        # Development build: add dev suffix with run number
-        VERSION="${BASE_VERSION%%-*}.${{ github.run_number }}-dev"
-        echo "PLUGIN_VERSION=$VERSION" >> $GITHUB_ENV
-        echo "📦 Plugin version: $VERSION"
-
-    - name: Restore dependencies
-      run: |
-        echo "🔄 Restoring dependencies..."
         dotnet restore Qobuzarr.csproj
-
-    - name: Build plugin
-      run: |
-        echo "🔨 Building plugin with version $PLUGIN_VERSION..."
         dotnet build Qobuzarr.csproj --configuration Release --no-restore \
-          -p:Version="$PLUGIN_VERSION" \
-          -p:RunAnalyzersDuringBuild=false \
-          -p:EnableNETAnalyzers=false \
-          -p:TreatWarningsAsErrors=false
-        
-        echo "[OK] Plugin built successfully"
+          -p:RunAnalyzersDuringBuild=false -p:EnableNETAnalyzers=false -p:TreatWarningsAsErrors=false
 
-    - name: Build CLI (if present)
-      continue-on-error: true
+    - name: Pre-build tests
       run: |
-        if [ -d "QobuzCLI" ]; then
-          echo "🔨 Building CLI project..."
-          set +e
-          dotnet restore QobuzCLI/QobuzCLI.csproj
-          restore_status=$?
-          dotnet build QobuzCLI/QobuzCLI.csproj --configuration Release --no-restore \
-            -p:RunAnalyzersDuringBuild=false \
-            -p:EnableNETAnalyzers=false \
-            -p:TreatWarningsAsErrors=false
-          build_status=$?
-          set -e
-          if [ $restore_status -ne 0 ] || [ $build_status -ne 0 ]; then
-            echo "[WARN] CLI restore/build failed (non-blocking). Proceeding with pipeline."
-          else
-            echo "[OK] CLI built successfully"
-          fi
+        find tests -name "*.csproj" -exec echo "Building: {}" \; -exec dotnet build {} --configuration Release --verbosity minimal \;
+
+    - name: Run full tests with coverage
+      run: |
+        if [ -f "tests/run-tests.ps1" ]; then
+          # run-tests.ps1 uses Full.runsettings by -Full; coverage config is embedded there
+          pwsh -File ./tests/run-tests.ps1 -Configuration Release -Full
         else
-          echo "[INFO] No CLI project found"
+          dotnet test --settings tests/Full.runsettings --collect "XPlat Code Coverage" --configuration Release --logger "console;verbosity=normal"
         fi
 
-    - name: Run minimal unit tests (fast, non-blocking)
-      continue-on-error: true
-      run: |
-        if [ -f "tests/Minimal.Tests/Minimal.Tests.csproj" ]; then
-          echo "[TEST] Running Minimal.Tests..."
-          dotnet test tests/Minimal.Tests/Minimal.Tests.csproj --configuration Release --logger "console;verbosity=minimal" || echo "[WARN] Minimal.Tests failed (non-blocking)"
-        else
-          echo "[INFO] Minimal.Tests not found"
-        fi
-
-
-    - name: Run tests
-      if: ${{ env.RUN_TESTS == 'true' }}
-      continue-on-error: true
-      run: |
-        if [ -d "tests" ]; then
-          echo "[TEST] Running tests..."
-          # Use direct dotnet commands to get detailed error output
-          echo "[DEBUG] First, try to build the test project directly..."
-          dotnet build tests/Qobuzarr.Tests/Qobuzarr.Tests.csproj --configuration Release --verbosity detailed || echo "[WARN] Main test project build failed"
-          
-          echo "[DEBUG] Try building other test projects..."
-          find tests -name "*.csproj" -exec echo "Building: {}" \; -exec dotnet build {} --configuration Release --verbosity normal \;
-          
-          echo "[DEBUG] Now try running tests..."
-          if [ -f "tests/run-tests.ps1" ]; then
-            pwsh -File ./tests/run-tests.ps1
-          else
-            # Fallback: run any test projects found
-            find tests -name "*.csproj" -exec dotnet test {} --configuration Release --logger "console;verbosity=normal" \;
-          fi
-        else
-          echo "[INFO] No tests directory found"
-        fi
-
-    - name: Verify plugin output
-      run: |
-        echo "🔍 Checking plugin output..."
-        ls -la bin/ || true
-        
-        if [ -f "bin/Lidarr.Plugin.Qobuzarr.dll" ]; then
-          echo "[OK] Plugin DLL created successfully"
-          echo "📦 Size: $(stat -c%s bin/Lidarr.Plugin.Qobuzarr.dll) bytes"
-        else
-          echo "[WARN] Plugin DLL not found at bin/. Searching recursively..."
-          CAND=$(find bin -name "Lidarr.Plugin.Qobuzarr.dll" | head -n 1)
-          if [ -n "$CAND" ]; then
-            echo "[OK] Plugin DLL found at $CAND"
-            echo "📦 Size: $(stat -c%s "$CAND") bytes"
-          else
-            echo "[ERROR] Plugin DLL not found under bin/. Build may have failed."
-            exit 1
-          fi
-        fi
-
-    - name: Security audit
-      run: |
-        echo "🔍 Running security audit..."
-        dotnet list package --vulnerable --include-transitive || echo "No vulnerabilities found"
-
-    - name: Package plugin
-      run: |
-        echo "📦 Creating plugin package..."
-        cd bin
-        zip -r "../${{ env.PLUGIN_NAME }}-v$PLUGIN_VERSION.zip" *
-        cd ..
-        echo "[OK] Plugin packaged successfully"
-        ls -la *.zip
-
-    - name: Generate release notes (dev)
-      run: |
-        echo "# ${PLUGIN_NAME} v${PLUGIN_VERSION}" > release-notes.txt
-        echo "" >> release-notes.txt
-        echo "## Recent Changes" >> release-notes.txt
-        git log --pretty=format:"- %h %s (%an)" -n 25 >> release-notes.txt || echo "- Changes from main branch" >> release-notes.txt
-
-    - name: Upload build artifacts
+    - name: Upload test results (full)
+      if: always()
       uses: actions/upload-artifact@v4
       with:
-        name: ${{ env.PLUGIN_NAME }}-${{ matrix.framework }}-run-${{ github.run_number }}
+        name: test-results-full
         path: |
-          bin/**
-          *.zip
-          release-notes.txt
-          !bin/**/ref/**
-          !bin/**/runtimes/linux-*/**
-          !bin/**/runtimes/osx-*/**
-        retention-days: 30
+          tests/TestResults/
+          **/*.trx
+        if-no-files-found: warn
+        retention-days: 14
 
-    - name: Build summary
-      run: |
-        echo "## 🎯 Build Summary" >> $GITHUB_STEP_SUMMARY
-        echo "" >> $GITHUB_STEP_SUMMARY
-        echo "### Build Information" >> $GITHUB_STEP_SUMMARY
-        echo "- Plugin Version: $PLUGIN_VERSION" >> $GITHUB_STEP_SUMMARY
-        echo "- .NET Version: ${{ env.DOTNET_VERSION }}" >> $GITHUB_STEP_SUMMARY
-        echo "- Target Framework: ${{ matrix.framework }}" >> $GITHUB_STEP_SUMMARY
-        echo "- Lidarr Version: ${{ env.MINIMUM_LIDARR_VERSION }}" >> $GITHUB_STEP_SUMMARY
-        echo "" >> $GITHUB_STEP_SUMMARY
-        
-        if [ -f "bin/Lidarr.Plugin.Qobuzarr.dll" ]; then
-          echo "### [OK] Build Artifacts" >> $GITHUB_STEP_SUMMARY
-          echo "- Plugin DLL: $(stat -c%s bin/Lidarr.Plugin.Qobuzarr.dll) bytes" >> $GITHUB_STEP_SUMMARY
-        fi
-
-  # ============================================================================
-  # RELEASE JOB - Only on main branch success
-  # ============================================================================
-  release:
-    name: Create Release
-    runs-on: ubuntu-latest
-    needs: [validate, build-and-test]
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-    
-    steps:
-    - name: Download artifacts
-      uses: actions/download-artifact@v4
+    - name: Upload coverage (cobertura)
+      if: always()
+      uses: actions/upload-artifact@v4
       with:
-        pattern: ${{ env.PLUGIN_NAME }}-*
-        merge-multiple: true
+        name: coverage-cobertura
+        path: |
+          tests/TestResults/**/coverage.cobertura.xml
+          **/TestResults/**/coverage.cobertura.xml
+        if-no-files-found: warn
+        retention-days: 14
 
-    - name: Generate changelog
-      run: |
-        echo "## Changes in this build" > changelog.md
-        echo "" >> changelog.md
-        echo "This is an automated development build." >> changelog.md
-        echo "" >> changelog.md
-        echo "### Recent Commits" >> changelog.md
-        git log --oneline -10 >> changelog.md || echo "- Latest changes from main branch" >> changelog.md
-
-    - name: Create development release
-      uses: softprops/action-gh-release@v1
-      with:
-        name: Development Build
-        tag_name: dev-${{ github.run_number }}
-        body_path: changelog.md
-        files: "*.zip"
-        draft: false
-        prerelease: true

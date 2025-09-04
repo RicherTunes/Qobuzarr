@@ -35,6 +35,13 @@
     <ProjectReference Include="..\..\Qobuzarr.csproj" />
   </ItemGroup>
 
+  <!-- xUnit runner settings for long-running test reporting -->
+  <ItemGroup>
+    <None Include="xunit.runner.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+
   <!-- Lidarr assemblies for test compilation - USE CORRECT PATHS MATCHING MAIN PROJECT -->
   <ItemGroup>
     <Reference Include="Lidarr">
