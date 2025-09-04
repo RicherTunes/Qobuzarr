@@ -160,7 +160,7 @@ namespace QobuzCLI.Services
                     if (track.TrackNumber > 0)
                         file.Tag.Track = (uint)track.TrackNumber;
                         
-                    if (album.ReleaseDate != null)
+                    if (album.ReleaseDate != default)
                         file.Tag.Year = (uint)album.ReleaseDate.Year;
                     
                     if (!string.IsNullOrEmpty(album.Genre?.Name))
@@ -193,7 +193,7 @@ namespace QobuzCLI.Services
             var ext = Path.GetExtension(desiredPath);
             string finalPath = desiredPath;
             string tempPath = finalPath + ".partial";
-            FileStream output = null;
+            FileStream? output = null;
             long resumeFrom = 0;
 
             for (int i = 0; i < 1000; i++)
@@ -258,7 +258,7 @@ namespace QobuzCLI.Services
             if (resumeFrom > 0 && response.StatusCode == System.Net.HttpStatusCode.OK)
             {
                 // Discard partial and retry without range header
-                try { await output.DisposeAsync().ConfigureAwait(false); } catch { }
+                try { await output!.DisposeAsync().ConfigureAwait(false); } catch { }
                 try { File.Delete(tempPath); } catch { /* ignore */ }
                 // Recreate reservation from scratch (same finalPath)
                 output = new FileStream(
@@ -291,7 +291,7 @@ namespace QobuzCLI.Services
                 int read;
                 while ((read = await input.ReadAsync(buffer.AsMemory(0, buffer.Length), cancellationToken).ConfigureAwait(false)) > 0)
                 {
-                    await output.WriteAsync(buffer.AsMemory(0, read), cancellationToken).ConfigureAwait(false);
+                    await output!.WriteAsync(buffer.AsMemory(0, read), cancellationToken).ConfigureAwait(false);
                     written += read;
                     if (progress != null && total.HasValue && total.Value > 0)
                     {
@@ -300,8 +300,8 @@ namespace QobuzCLI.Services
                 }
 
                 // Ensure data is flushed and stream closed before finalize
-                await output.FlushAsync(cancellationToken).ConfigureAwait(false);
-                await output.DisposeAsync().ConfigureAwait(false);
+                await output!.FlushAsync(cancellationToken).ConfigureAwait(false);
+                await output!.DisposeAsync().ConfigureAwait(false);
 
                 // Finalize: atomic move to destination
                 try

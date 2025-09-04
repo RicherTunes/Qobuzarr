@@ -220,7 +220,9 @@ namespace QobuzCLI.Services
             }
             catch
             {
-                return await _searchService.SearchArtistsAsync(query, limit);
+                return _searchService != null
+                    ? await _searchService.SearchArtistsAsync(query, limit)
+                    : new List<QobuzArtist>();
             }
         }
 
@@ -242,7 +244,9 @@ namespace QobuzCLI.Services
             }
             catch
             {
-                return await _searchService.SearchPlaylistsAsync(query, limit);
+                return _searchService != null
+                    ? await _searchService.SearchPlaylistsAsync(query, limit)
+                    : new List<QobuzPlaylist>();
             }
         }
 
@@ -290,7 +294,9 @@ namespace QobuzCLI.Services
         /// </summary>
         public async Task<QobuzArtist?> GetArtistAsync(string artistId)
         {
-            return await _searchService.GetArtistAsync(artistId);
+            return _searchService != null
+                ? await _searchService.GetArtistAsync(artistId)
+                : null;
         }
 
         /// <summary>
@@ -298,7 +304,9 @@ namespace QobuzCLI.Services
         /// </summary>
         public async Task<List<QobuzAlbum>> GetArtistAlbumsAsync(string artistId, int limit = 25)
         {
-            return await _searchService.GetArtistAlbumsAsync(artistId);
+            return _searchService != null
+                ? await _searchService.GetArtistAlbumsAsync(artistId)
+                : new List<QobuzAlbum>();
         }
 
         /// <summary>
@@ -313,7 +321,9 @@ namespace QobuzCLI.Services
             }
             catch
             {
-                return await _searchService.GetPlaylistAsync(playlistId);
+                return _searchService != null
+                    ? await _searchService.GetPlaylistAsync(playlistId)
+                    : null;
             }
         }
 
