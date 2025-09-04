@@ -339,19 +339,19 @@ namespace QobuzCLI.Services
         /// <summary>
         /// Get label details (simplified)
         /// </summary>
-        public async Task<QobuzLabel?> GetLabelAsync(string labelId)
+        public Task<QobuzLabel?> GetLabelAsync(string labelId)
         {
             // Simplified implementation for CLI
-            return null;
+            return Task.FromResult<QobuzLabel?>(null);
         }
 
         /// <summary>
         /// Get label albums (simplified)
         /// </summary>
-        public async Task<List<QobuzAlbum>> GetLabelAlbumsAsync(string labelId, int limit = 100)
+        public Task<List<QobuzAlbum>> GetLabelAlbumsAsync(string labelId, int limit = 100)
         {
             // Simplified implementation for CLI
-            return new List<QobuzAlbum>();
+            return Task.FromResult(new List<QobuzAlbum>());
         }
     }
 }
