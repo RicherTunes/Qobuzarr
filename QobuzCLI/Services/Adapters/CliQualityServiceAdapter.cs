@@ -38,8 +38,8 @@ namespace QobuzCLI.Services.Adapters
         public int GetBestAvailableFormatId(QobuzTrack track, int maxFormatId = 27) 
             => _pluginQualityService.GetBestAvailableFormatId(track, maxFormatId);
 
-        public Task<QualityDetectionResult> DetectQualityAsync(QobuzTrack track, QobuzAlbum album = null) 
-            => _pluginQualityService.DetectQualityAsync(track, album);
+        public Task<QualityDetectionResult> DetectQualityAsync(QobuzTrack track, QobuzAlbum? album = null) 
+            => _pluginQualityService.DetectQualityAsync(track, album ?? new QobuzAlbum());
 
         public string GetQualityLabel(int formatId) 
             => _pluginQualityService.GetQualityLabel(formatId);
@@ -78,12 +78,13 @@ namespace QobuzCLI.Services.Adapters
                 }
                 
                 // Convert dynamic to QobuzTrack
+                var trackObj = response!.track!;
                 var track = new QobuzTrack
                 {
                     Id = trackId,
-                    Streamable = response.track.streamable ?? false,
-                    MaximumBitDepth = response.track.maximum_bit_depth,
-                    MaximumSampleRate = response.track.maximum_sampling_rate
+                    Streamable = trackObj.streamable ?? false,
+                    MaximumBitDepth = trackObj.maximum_bit_depth,
+                    MaximumSampleRate = trackObj.maximum_sampling_rate
                 };
 
                 // Detect available qualities
