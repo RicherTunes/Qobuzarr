@@ -13,9 +13,9 @@ namespace QobuzCLI.Models
     {
         // Core properties from plugin's DownloadResult
         public bool Success { get; set; }
-        public string TrackId { get; set; }
-        public string Message { get; set; }
-        public string FilePath { get; set; }
+        public string TrackId { get; set; } = string.Empty;
+        public string Message { get; set; } = string.Empty;
+        public string FilePath { get; set; } = string.Empty;
         public long FileSize { get; set; }
         public DateTime StartedAt { get; set; }
         public DateTime CompletedAt { get; set; }
@@ -114,7 +114,7 @@ namespace QobuzCLI.Models
     public class CliPlaylistDownloadResult : PlaylistDownloadResult
     {
         // Additional CLI-specific properties
-        public string M3u8FilePath { get; set; }
+        public string M3u8FilePath { get; set; } = string.Empty;
         public bool IsSuccessful => Success;
         public DateTime StartTime => StartedAt;
         public DateTime EndTime => CompletedAt;
@@ -145,10 +145,10 @@ namespace QobuzCLI.Models
     /// </summary>
     public class TrackDownloadInfo
     {
-        public string TrackId { get; set; }
-        public string StreamingUrl { get; set; }
+        public string TrackId { get; set; } = string.Empty;
+        public string StreamingUrl { get; set; } = string.Empty;
         public bool Success { get; set; }
-        public string Message { get; set; }
+        public string Message { get; set; } = string.Empty;
         public int Position { get; set; }
         public bool Skipped { get; set; }
     }

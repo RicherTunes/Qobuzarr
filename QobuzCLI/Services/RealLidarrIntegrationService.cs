@@ -95,7 +95,7 @@ public class RealLidarrIntegrationService : ILidarrIntegrationService
         return await _pluginService!.GetFilteredWantedAlbumsAsync(
             filterOptions ?? new LidarrFilterOptions(),
             maxAlbums,
-            progress,
+            progress ?? new Progress<ProgressReport>(_ => { }),
             cancellationToken);
     }
 
@@ -113,7 +113,7 @@ public class RealLidarrIntegrationService : ILidarrIntegrationService
         return await _pluginService!.SearchQobuzParallelAsync(
             lidarrAlbums,
             maxConcurrency,
-            progress,
+            progress ?? new Progress<ProgressReport>(_ => { }),
             cancellationToken);
     }
 
@@ -149,7 +149,7 @@ public class RealLidarrIntegrationService : ILidarrIntegrationService
             downloadItems,
             outputPath,
             maxConcurrency,
-            progress,
+            progress ?? new Progress<DownloadProgressReport>(_ => { }),
             cancellationToken);
     }
 
