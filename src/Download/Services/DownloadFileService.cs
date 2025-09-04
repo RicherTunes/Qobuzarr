@@ -45,8 +45,9 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Services
                     throw new ArgumentException("Remote album must contain at least one album", nameof(remoteAlbum));
                 }
 
-                var artist = album.Artist?.Value?.Name ?? "Unknown Artist";
-                var albumTitle = album.Title ?? "Unknown Album";
+                // Prefer top-level RemoteAlbum artist if available (more reliable in tests)
+                var artist = remoteAlbum.Artist?.Name ?? album.Artist?.Value?.Name ?? "Unknown Artist";
+                var albumTitle = album.Title ?? remoteAlbum.Albums.FirstOrDefault()?.Title ?? "Unknown Album";
 
                 // Sanitize names for filesystem (NFC + reserved names guard)
                 artist = SanitizeFileName(artist);
