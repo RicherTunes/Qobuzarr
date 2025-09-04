@@ -71,7 +71,7 @@ namespace QobuzCLI.Services.Adapters
                 // Get track details from API
                 var parameters = new Dictionary<string, string> { { "track_id", trackId } };
                 var response = await _apiClient.GetAsync<dynamic>("/track/get", parameters);
-                if (response == null || response.track == null)
+                if (response == null || response?.track == null)
                 {
                     _logger.Warn($"Track {trackId} not found");
                     return new List<int>();
@@ -114,7 +114,7 @@ namespace QobuzCLI.Services.Adapters
                 // Get track details from API
                 var parameters = new Dictionary<string, string> { { "track_id", trackId } };
                 var response = await _apiClient.GetAsync<dynamic>("/track/get", parameters);
-                if (response == null || response.track == null)
+                if (response == null || response?.track == null)
                 {
                     throw new Exception($"Track {trackId} not found");
                 }
@@ -123,9 +123,9 @@ namespace QobuzCLI.Services.Adapters
                 var track = new QobuzTrack
                 {
                     Id = trackId,
-                    Streamable = response.track.streamable ?? false,
-                    MaximumBitDepth = response.track.maximum_bit_depth,
-                    MaximumSampleRate = response.track.maximum_sampling_rate
+                    Streamable = response!.track!.streamable ?? false,
+                    MaximumBitDepth = response!.track!.maximum_bit_depth,
+                    MaximumSampleRate = response!.track!.maximum_sampling_rate
                 };
 
                 // Get best available format
