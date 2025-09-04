@@ -5,6 +5,7 @@ param(
     [string]$Configuration = "Debug",
     [switch]$Coverage = $false,
     [switch]$Verbose = $false,
+    [switch]$Full = $false,
     [string]$RunSettings = ""
 )
 
@@ -63,10 +64,15 @@ $testArgs = @(
     "--results-directory", $OutputDir
 )
 
-# Always apply default runsettings unless explicitly overridden
+# Determine runsettings to use
 if (-not $RunSettings -or [string]::IsNullOrWhiteSpace($RunSettings)) {
-    $RunSettings = Join-Path $PSScriptRoot "Default.runsettings"
+    if ($Full) {
+        $RunSettings = Join-Path $PSScriptRoot "Full.runsettings"
+    } else {
+        $RunSettings = Join-Path $PSScriptRoot "Default.runsettings"
+    }
 }
+
 if (Test-Path $RunSettings) {
     $testArgs += "--settings", $RunSettings
     Write-Host "[INFO] Using runsettings: $RunSettings" -ForegroundColor Gray
