@@ -6,10 +6,8 @@
     <TargetPlatform>x64</TargetPlatform>
     <TargetFrameworkVersion>.NETCoreApp,Version=v6.0</TargetFrameworkVersion>
     <CollectSources>false</CollectSources>
-    <TestSessionTimeout>900000</TestSessionTimeout>
+    <TestSessionTimeout>3600000</TestSessionTimeout>
     <BatchSize>0</BatchSize>
-    <BlameHangTimeout>00:00:10</BlameHangTimeout>
-    <TestCaseFilter>Category!=LiveIntegration</TestCaseFilter>
   </RunConfiguration>
   <MSTest>
     <Parallelize>
@@ -20,5 +18,5 @@
   <xunit>
     <MaxParallelThreads>0</MaxParallelThreads>
   </xunit>
+  <!-- No TestCaseFilter here: full suite. Live tests still require ENABLE_LIVE_INTEGRATION_TESTS=true. -->
 </RunSettings>
-
