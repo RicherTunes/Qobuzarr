@@ -134,8 +134,7 @@ PY
         restore-keys: |
           ${{ runner.os }}-nuget-
 
-    - name: Create global.json
-      run: echo '{"sdk":{"version":"${{ env.DOTNET_VERSION }}"}}' > global.json
+    # Use actions/setup-dotnet. Avoid creating global.json with wildcard versions.
 
     - name: Setup Lidarr assemblies
       run: |
@@ -204,8 +203,7 @@ PY
         restore-keys: |
           ${{ runner.os }}-nuget-
 
-    - name: Create global.json
-      run: echo '{"sdk":{"version":"${{ env.DOTNET_VERSION }}"}}' > global.json
+    # Use actions/setup-dotnet. Avoid creating global.json with wildcard versions.
 
     - name: Setup Lidarr assemblies
       run: |
