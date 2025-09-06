@@ -165,6 +165,7 @@ public class ConflictService : IConflictService
 
     private async Task<ConflictResolution> ResolveConflictAsync(SearchConflict conflict)
     {
+        await Task.Yield();
         AnsiConsole.MarkupLine($"[yellow]⚠️  Conflict #{conflict.Id[..8]}[/]: [white]{conflict.Query}[/]");
         AnsiConsole.MarkupLine($"[dim]Reason: {GetConflictReasonDescription(conflict.Reason)}[/]");
         AnsiConsole.WriteLine();

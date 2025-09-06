@@ -38,8 +38,8 @@ namespace QobuzCLI.Services.Adapters
         public int GetBestAvailableFormatId(QobuzTrack track, int maxFormatId = 27) 
             => _pluginQualityService.GetBestAvailableFormatId(track, maxFormatId);
 
-        public Task<QualityDetectionResult> DetectQualityAsync(QobuzTrack track, QobuzAlbum album = null) 
-            => _pluginQualityService.DetectQualityAsync(track, album);
+        public Task<QualityDetectionResult> DetectQualityAsync(QobuzTrack track, QobuzAlbum? album = null) 
+            => _pluginQualityService.DetectQualityAsync(track, album ?? new QobuzAlbum());
 
         public string GetQualityLabel(int formatId) 
             => _pluginQualityService.GetQualityLabel(formatId);
@@ -71,19 +71,20 @@ namespace QobuzCLI.Services.Adapters
                 // Get track details from API
                 var parameters = new Dictionary<string, string> { { "track_id", trackId } };
                 var response = await _apiClient.GetAsync<dynamic>("/track/get", parameters);
-                if (response == null || response.track == null)
+                if (response == null || response?.track == null)
                 {
                     _logger.Warn($"Track {trackId} not found");
                     return new List<int>();
                 }
                 
                 // Convert dynamic to QobuzTrack
+                var trackObj = response!.track!;
                 var track = new QobuzTrack
                 {
                     Id = trackId,
-                    Streamable = response.track.streamable ?? false,
-                    MaximumBitDepth = response.track.maximum_bit_depth,
-                    MaximumSampleRate = response.track.maximum_sampling_rate
+                    Streamable = trackObj.streamable ?? false,
+                    MaximumBitDepth = trackObj.maximum_bit_depth,
+                    MaximumSampleRate = trackObj.maximum_sampling_rate
                 };
 
                 // Detect available qualities
@@ -113,7 +114,7 @@ namespace QobuzCLI.Services.Adapters
                 // Get track details from API
                 var parameters = new Dictionary<string, string> { { "track_id", trackId } };
                 var response = await _apiClient.GetAsync<dynamic>("/track/get", parameters);
-                if (response == null || response.track == null)
+                if (response == null || response?.track == null)
                 {
                     throw new Exception($"Track {trackId} not found");
                 }
@@ -122,9 +123,9 @@ namespace QobuzCLI.Services.Adapters
                 var track = new QobuzTrack
                 {
                     Id = trackId,
-                    Streamable = response.track.streamable ?? false,
-                    MaximumBitDepth = response.track.maximum_bit_depth,
-                    MaximumSampleRate = response.track.maximum_sampling_rate
+                    Streamable = response!.track!.streamable ?? false,
+                    MaximumBitDepth = response!.track!.maximum_bit_depth,
+                    MaximumSampleRate = response!.track!.maximum_sampling_rate
                 };
 
                 // Get best available format
