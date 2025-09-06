@@ -2,9 +2,20 @@ name: CI
 
 on:
   push:
-    branches: [ main, develop ]
+    branches:
+      - main
+      - develop
+      - merge/**
+      - feature/**
+      - feat/**
+      - chore/**
+      - ci/**
+      - terragon/**
+      - pr-**
   pull_request:
-    branches: [ main ]
+    branches:
+      - main
+      - develop
   schedule:
     - cron: '0 2 * * *'  # nightly at 02:00 UTC
   workflow_dispatch:
