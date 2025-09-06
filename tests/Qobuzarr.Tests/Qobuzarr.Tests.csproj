@@ -35,7 +35,14 @@
     <ProjectReference Include="..\..\Qobuzarr.csproj" />
   </ItemGroup>
 
-  <!-- Lidarr assemblies for test compilation - USE CORRECT PATHS MATCHING MAIN PROJECT -->
+  <!-- xUnit runner settings for long-running test reporting -->
+  <ItemGroup>
+    <None Include="xunit.runner.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+
+  <!-- Lidarr host assemblies for test compilation (plugins branch) -->
   <ItemGroup>
     <Reference Include="Lidarr">
       <HintPath>..\..\ext\Lidarr\_output\net6.0\Lidarr.dll</HintPath>
@@ -69,6 +76,27 @@
     </Reference>
     <Reference Include="Lidarr.SignalR">
       <HintPath>..\..\ext\Lidarr\_output\net6.0\Lidarr.SignalR.dll</HintPath>
+      <Private>true</Private>
+      <CopyLocal>true</CopyLocal>
+    </Reference>
+    <!-- Some tests use legacy NzbDrone namespaces; include these host assemblies -->
+    <Reference Include="NzbDrone.Core">
+      <HintPath>..\..\ext\Lidarr\_output\net6.0\NzbDrone.Core.dll</HintPath>
+      <Private>true</Private>
+      <CopyLocal>true</CopyLocal>
+    </Reference>
+    <Reference Include="NzbDrone.Common">
+      <HintPath>..\..\ext\Lidarr\_output\net6.0\NzbDrone.Common.dll</HintPath>
+      <Private>true</Private>
+      <CopyLocal>true</CopyLocal>
+    </Reference>
+    <Reference Include="NzbDrone.Host">
+      <HintPath>..\..\ext\Lidarr\_output\net6.0\NzbDrone.Host.dll</HintPath>
+      <Private>true</Private>
+      <CopyLocal>true</CopyLocal>
+    </Reference>
+    <Reference Include="NzbDrone.Api">
+      <HintPath>..\..\ext\Lidarr\_output\net6.0\NzbDrone.Api.dll</HintPath>
       <Private>true</Private>
       <CopyLocal>true</CopyLocal>
     </Reference>

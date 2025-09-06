@@ -95,7 +95,7 @@ public class RealLidarrIntegrationService : ILidarrIntegrationService
         return await _pluginService!.GetFilteredWantedAlbumsAsync(
             filterOptions ?? new LidarrFilterOptions(),
             maxAlbums,
-            progress,
+            progress ?? new Progress<ProgressReport>(_ => { }),
             cancellationToken);
     }
 
@@ -113,7 +113,7 @@ public class RealLidarrIntegrationService : ILidarrIntegrationService
         return await _pluginService!.SearchQobuzParallelAsync(
             lidarrAlbums,
             maxConcurrency,
-            progress,
+            progress ?? new Progress<ProgressReport>(_ => { }),
             cancellationToken);
     }
 
@@ -149,7 +149,7 @@ public class RealLidarrIntegrationService : ILidarrIntegrationService
             downloadItems,
             outputPath,
             maxConcurrency,
-            progress,
+            progress ?? new Progress<DownloadProgressReport>(_ => { }),
             cancellationToken);
     }
 
@@ -277,7 +277,7 @@ public class RealLidarrIntegrationService : ILidarrIntegrationService
         // Delegate to plugin service or throw NotImplementedException
         if (_pluginService != null)
         {
-            return _pluginService.CreateProgressTracker(totalItems, operationType, progress);
+            return _pluginService.CreateProgressTracker(totalItems, operationType, progress ?? new Progress<ProgressReport>(_ => { }));
         }
         
         // Return a basic no-op progress tracker if plugin service is not available
@@ -289,7 +289,7 @@ public class RealLidarrIntegrationService : ILidarrIntegrationService
         // Delegate to plugin service or throw NotImplementedException
         if (_pluginService != null)
         {
-            return _pluginService.CreateDownloadProgressTracker(totalItems, operationType, progress);
+            return _pluginService.CreateDownloadProgressTracker(totalItems, operationType, progress ?? new Progress<DownloadProgressReport>(_ => { }));
         }
         
         // Return a basic no-op download progress tracker if plugin service is not available

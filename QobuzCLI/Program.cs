@@ -102,8 +102,22 @@ class Program
                     Microsoft.Extensions.Options.Options.Create(new ConsoleLoggerOptions()), 
                     dashboardState);
             });
-            
-            builder.SetMinimumLevel(Microsoft.Extensions.Logging.LogLevel.Information);
+            // Configure minimum level from env: LOG_LEVEL=Debug/Information/Warn/Error or DEBUG_MODE=true
+            var dbg = Environment.GetEnvironmentVariable("DEBUG_MODE");
+            var lvl = Environment.GetEnvironmentVariable("LOG_LEVEL");
+            var min = Microsoft.Extensions.Logging.LogLevel.Information;
+            if (!string.IsNullOrWhiteSpace(lvl))
+            {
+                if (Enum.TryParse<Microsoft.Extensions.Logging.LogLevel>(lvl, true, out var parsed))
+                {
+                    min = parsed;
+                }
+            }
+            else if (string.Equals(dbg, "true", StringComparison.OrdinalIgnoreCase))
+            {
+                min = Microsoft.Extensions.Logging.LogLevel.Debug;
+            }
+            builder.SetMinimumLevel(min);
         });
 
         // Dashboard service - register after logging to avoid circular dependency
@@ -290,4 +304,3 @@ class Program
         return null;
     }
 }
-

@@ -14,8 +14,8 @@ public class ConfigParameter
     public bool IsSensitive { get; set; } = false;
 }
 
-public class QobuzConfig
-{
+    public class QobuzConfig
+    {
     // Authentication
     [JsonProperty("email")]
     public string? Email { get; set; }
@@ -157,8 +157,12 @@ public class QobuzConfig
     [JsonProperty("partialSizeTolerancePercent")]
     public double PartialSizeTolerancePercent { get; set; } = 5.0;
     
-    [JsonProperty("preferredFormats")]
-    public List<string>? PreferredFormats { get; set; } = QobuzCLI.Models.Configuration.QualityConfig.DefaultPreferredFormats;
+        [JsonProperty("preferredFormats")]
+        public List<string>? PreferredFormats { get; set; } = QobuzCLI.Models.Configuration.QualityConfig.DefaultPreferredFormats;
+
+        // Existing file handling strategy: suffix, skip, overwrite
+        [JsonProperty("existingFileBehavior")]
+        public string ExistingFileBehavior { get; set; } = "overwrite";
 
     // Lidarr Integration Settings
     [JsonProperty("lidarrUrl")]
