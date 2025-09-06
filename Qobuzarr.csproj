@@ -60,6 +60,11 @@
     <IncludeCLIFramework>true</IncludeCLIFramework>
     
     <!-- Build against Lidarr plugins-branch host API (string Protocol + IDownloadProtocol) -->
+    <!-- Opt-in via -p:UsePluginsBranch=true; default targets release branch API (enum Protocol) for tests -->
+    <UsePluginsBranch Condition="'$(UsePluginsBranch)' == ''">true</UsePluginsBranch>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(UsePluginsBranch)' == 'true'">
     <DefineConstants>$(DefineConstants);PLUGIN_PROTOCOL</DefineConstants>
   </PropertyGroup>
 
@@ -131,23 +136,23 @@
   <!-- ✅ SOURCE-BUILT ASSEMBLIES: Use complete assemblies with DownloadProtocol support -->
   <ItemGroup>
     <Reference Include="Lidarr">
-      <HintPath>ext\Lidarr\_output\net6.0\Lidarr.dll</HintPath>
+      <HintPath>ext\Lidarr-source\_output\net6.0\win-x64\Lidarr.dll</HintPath>
       <Private>false</Private>
     </Reference>
     <Reference Include="Lidarr.Core">
-      <HintPath>ext\Lidarr\_output\net6.0\Lidarr.Core.dll</HintPath>
+      <HintPath>ext\Lidarr-source\_output\net6.0\win-x64\Lidarr.Core.dll</HintPath>
       <Private>false</Private>
     </Reference>
     <Reference Include="Lidarr.Common">
-      <HintPath>ext\Lidarr\_output\net6.0\Lidarr.Common.dll</HintPath>
+      <HintPath>ext\Lidarr-source\_output\net6.0\win-x64\Lidarr.Common.dll</HintPath>
       <Private>false</Private>
     </Reference>
     <Reference Include="Lidarr.Http">
-      <HintPath>ext\Lidarr\_output\net6.0\Lidarr.Http.dll</HintPath>
+      <HintPath>ext\Lidarr-source\_output\net6.0\win-x64\Lidarr.Http.dll</HintPath>
       <Private>false</Private>
     </Reference>
     <Reference Include="Lidarr.SignalR">
-      <HintPath>ext\Lidarr\_output\net6.0\Lidarr.SignalR.dll</HintPath>
+      <HintPath>ext\Lidarr-source\_output\net6.0\win-x64\Lidarr.SignalR.dll</HintPath>
       <Private>false</Private>
     </Reference>
     <!-- Shared library reference - using submodule for development -->

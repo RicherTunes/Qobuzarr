@@ -340,6 +340,15 @@ public class ConfigService : IConfigService
                 DefaultValue = "./Downloads", 
                 Category = "Downloads"
             },
+            ["existing-file-behavior"] = new()
+            {
+                Key = "existing-file-behavior",
+                Description = "Behavior when a file already exists (suffix, skip, overwrite)",
+                Type = typeof(string),
+                DefaultValue = "overwrite",
+                AllowedValues = new List<string> { "suffix", "skip", "overwrite" },
+                Category = "Downloads"
+            },
             ["max-concurrent-downloads"] = new() 
             { 
                 Key = "max-concurrent-downloads", 
@@ -648,6 +657,20 @@ public class ConfigService : IConfigService
         {
             configuration.Download.OutputDirectory = downloadPath;
             _logger.LogDebug("Loaded QOBUZ_DOWNLOAD_PATH from environment: {Path}", downloadPath);
+        }
+
+        // Existing file behavior: prefer explicit behavior; support simple skip flag
+        var existingBehavior = Environment.GetEnvironmentVariable("QOBUZ_EXISTING_FILE_BEHAVIOR");
+        var skipExisting = Environment.GetEnvironmentVariable("QOBUZ_SKIP_EXISTING");
+        if (!string.IsNullOrEmpty(skipExisting) && bool.TryParse(skipExisting, out var skip) && skip)
+        {
+            configuration.Download.ExistingFileBehavior = "skip";
+            _logger.LogDebug("Loaded QOBUZ_SKIP_EXISTING=true from environment (behavior=skip)");
+        }
+        else if (!string.IsNullOrEmpty(existingBehavior))
+        {
+            configuration.Download.ExistingFileBehavior = existingBehavior.ToLowerInvariant();
+            _logger.LogDebug("Loaded QOBUZ_EXISTING_FILE_BEHAVIOR from environment: {Behavior}", configuration.Download.ExistingFileBehavior);
         }
     }
 

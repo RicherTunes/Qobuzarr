@@ -61,6 +61,22 @@ namespace QobuzCLI.Services
         /// </summary>
         public async Task<List<QobuzAlbum>> SearchAlbumsAsync(string query, int limit = 25)
         {
+            // Try legacy first (most stable), then /catalog/search
+            var legacyParams = new Dictionary<string, string> { { "query", query }, { "limit", limit.ToString() } };
+            AddLocaleAndCountry(legacyParams);
+            try
+            {
+                var legacy = await _apiClient.GetAsync<Lidarr.Plugin.Qobuzarr.Models.QobuzAlbumSearchResponse>("/album/search", legacyParams).ConfigureAwait(false);
+                if (legacy?.Albums?.Items != null && legacy.Albums.Items.Count > 0)
+                {
+                    return legacy.Albums.Items;
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.Warn($"album/search failed: {ex.Message}");
+            }
+
             var parameters = new Dictionary<string, string>
             {
                 { "query", query },
@@ -68,26 +84,15 @@ namespace QobuzCLI.Services
                 { "limit", limit.ToString() },
                 { "offset", "0" }
             };
+            AddLocaleAndCountry(parameters);
             try
             {
-                // Prefer unified catalog search for better relevance
                 var response = await _apiClient.GetAsync<Lidarr.Plugin.Qobuzarr.Models.QobuzSearchResponse>("/catalog/search", parameters).ConfigureAwait(false);
-                if (response?.Albums?.Items != null && response.Albums.Items.Count > 0)
-                {
-                    return response.Albums.Items;
-                }
-                // Fallback to legacy album/search
-                var legacyParams = new Dictionary<string, string> { { "query", query }, { "limit", limit.ToString() } };
-                var legacy = await _apiClient.GetAsync<Lidarr.Plugin.Qobuzarr.Models.QobuzAlbumSearchResponse>("/album/search", legacyParams).ConfigureAwait(false);
-                return legacy?.Albums?.Items ?? new List<QobuzAlbum>();
+                return response?.Albums?.Items ?? new List<QobuzAlbum>();
             }
-            catch
+            catch (Exception ex)
             {
-                // Fall back to legacy CLI search service on error (if available)
-                if (_searchService != null)
-                {
-                    return await _searchService.SearchAlbumsAsync(query, limit);
-                }
+                _logger.Error($"catalog/search(albums) failed: {ex.Message}");
                 return new List<QobuzAlbum>();
             }
         }
@@ -97,6 +102,21 @@ namespace QobuzCLI.Services
         /// </summary>
         public async Task<List<QobuzTrack>> SearchTracksAsync(string query, int limit = 25)
         {
+            var legacyParams = new Dictionary<string, string> { { "query", query }, { "limit", limit.ToString() } };
+            AddLocaleAndCountry(legacyParams);
+            try
+            {
+                var legacy = await _apiClient.GetAsync<Lidarr.Plugin.Qobuzarr.Models.QobuzTrackSearchResponse>("/track/search", legacyParams).ConfigureAwait(false);
+                if (legacy?.Tracks?.Items != null && legacy.Tracks.Items.Count > 0)
+                {
+                    return legacy.Tracks.Items;
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.Warn($"track/search failed: {ex.Message}");
+            }
+
             var parameters = new Dictionary<string, string>
             {
                 { "query", query },
@@ -104,24 +124,15 @@ namespace QobuzCLI.Services
                 { "limit", limit.ToString() },
                 { "offset", "0" }
             };
+            AddLocaleAndCountry(parameters);
             try
             {
                 var response = await _apiClient.GetAsync<Lidarr.Plugin.Qobuzarr.Models.QobuzSearchResponse>("/catalog/search", parameters).ConfigureAwait(false);
-                if (response?.Tracks?.Items != null && response.Tracks.Items.Count > 0)
-                {
-                    return response.Tracks.Items;
-                }
-                // Fallback to legacy endpoint
-                var legacyParams = new Dictionary<string, string> { { "query", query }, { "limit", limit.ToString() } };
-                var legacy = await _apiClient.GetAsync<Lidarr.Plugin.Qobuzarr.Models.QobuzTrackSearchResponse>("/track/search", legacyParams).ConfigureAwait(false);
-                return legacy?.Tracks?.Items ?? new List<QobuzTrack>();
+                return response?.Tracks?.Items ?? new List<QobuzTrack>();
             }
-            catch
+            catch (Exception ex)
             {
-                if (_searchService != null)
-                {
-                    return await _searchService.SearchTracksAsync(query, limit);
-                }
+                _logger.Error($"catalog/search(tracks) failed: {ex.Message}");
                 return new List<QobuzTrack>();
             }
         }
@@ -132,6 +143,8 @@ namespace QobuzCLI.Services
         public async Task<QobuzAlbum?> GetAlbumAsync(string albumId)
         {
             var parameters = new Dictionary<string, string> { { "album_id", albumId } };
+            AddLocaleAndCountry(parameters);
+            AddLocaleAndCountry(parameters);
             try
             {
                 return await _apiClient.GetAsync<QobuzAlbum>("/album/get", parameters).ConfigureAwait(false);
@@ -191,6 +204,7 @@ namespace QobuzCLI.Services
                 { "limit", limit.ToString() },
                 { "offset", "0" }
             };
+            AddLocaleAndCountry(parameters);
             try
             {
                 var response = await _apiClient.GetAsync<Lidarr.Plugin.Qobuzarr.Models.QobuzSearchResponse>("/catalog/search", parameters).ConfigureAwait(false);
@@ -200,12 +214,15 @@ namespace QobuzCLI.Services
                 }
                 // Fallback to legacy endpoint
                 var legacyParams = new Dictionary<string, string> { { "query", query }, { "limit", limit.ToString() } };
+                AddLocaleAndCountry(legacyParams);
                 var legacy = await _apiClient.GetAsync<Lidarr.Plugin.Qobuzarr.Models.QobuzArtistSearchResponse>("/artist/search", legacyParams).ConfigureAwait(false);
                 return legacy?.Artists?.Items ?? new List<QobuzArtist>();
             }
             catch
             {
-                return await _searchService.SearchArtistsAsync(query, limit);
+                return _searchService != null
+                    ? await _searchService.SearchArtistsAsync(query, limit)
+                    : new List<QobuzArtist>();
             }
         }
 
@@ -219,6 +236,7 @@ namespace QobuzCLI.Services
                 { "query", query },
                 { "limit", limit.ToString() }
             };
+            AddLocaleAndCountry(parameters);
             try
             {
                 var response = await _apiClient.GetAsync<Lidarr.Plugin.Qobuzarr.Models.QobuzPlaylistSearchResponse>("/playlist/search", parameters).ConfigureAwait(false);
@@ -226,7 +244,9 @@ namespace QobuzCLI.Services
             }
             catch
             {
-                return await _searchService.SearchPlaylistsAsync(query, limit);
+                return _searchService != null
+                    ? await _searchService.SearchPlaylistsAsync(query, limit)
+                    : new List<QobuzPlaylist>();
             }
         }
 
@@ -240,6 +260,7 @@ namespace QobuzCLI.Services
                 { "query", query },
                 { "limit", limit.ToString() }
             };
+            AddLocaleAndCountry(parameters);
             try
             {
                 var response = await _apiClient.GetAsync<Lidarr.Plugin.Qobuzarr.Models.QobuzLabelSearchResponse>("/label/search", parameters).ConfigureAwait(false);
@@ -260,12 +281,22 @@ namespace QobuzCLI.Services
             return album?.GetTracks() ?? new List<QobuzTrack>();
         }
 
+        private static void AddLocaleAndCountry(Dictionary<string, string> parameters)
+        {
+            var cc = Environment.GetEnvironmentVariable("QOBUZ_COUNTRY_CODE") ?? Environment.GetEnvironmentVariable("QOBUZ_COUNTRY") ?? "US";
+            if (!string.IsNullOrWhiteSpace(cc)) parameters["country_code"] = cc;
+            var locale = Environment.GetEnvironmentVariable("QOBUZ_LOCALE");
+            if (!string.IsNullOrWhiteSpace(locale)) parameters["locale"] = locale;
+        }
+
         /// <summary>
         /// Get artist details
         /// </summary>
         public async Task<QobuzArtist?> GetArtistAsync(string artistId)
         {
-            return await _searchService.GetArtistAsync(artistId);
+            return _searchService != null
+                ? await _searchService.GetArtistAsync(artistId)
+                : null;
         }
 
         /// <summary>
@@ -273,7 +304,9 @@ namespace QobuzCLI.Services
         /// </summary>
         public async Task<List<QobuzAlbum>> GetArtistAlbumsAsync(string artistId, int limit = 25)
         {
-            return await _searchService.GetArtistAlbumsAsync(artistId);
+            return _searchService != null
+                ? await _searchService.GetArtistAlbumsAsync(artistId)
+                : new List<QobuzAlbum>();
         }
 
         /// <summary>
@@ -288,7 +321,9 @@ namespace QobuzCLI.Services
             }
             catch
             {
-                return await _searchService.GetPlaylistAsync(playlistId);
+                return _searchService != null
+                    ? await _searchService.GetPlaylistAsync(playlistId)
+                    : null;
             }
         }
 
@@ -304,19 +339,19 @@ namespace QobuzCLI.Services
         /// <summary>
         /// Get label details (simplified)
         /// </summary>
-        public async Task<QobuzLabel?> GetLabelAsync(string labelId)
+        public Task<QobuzLabel?> GetLabelAsync(string labelId)
         {
             // Simplified implementation for CLI
-            return null;
+            return Task.FromResult<QobuzLabel?>(null);
         }
 
         /// <summary>
         /// Get label albums (simplified)
         /// </summary>
-        public async Task<List<QobuzAlbum>> GetLabelAlbumsAsync(string labelId, int limit = 100)
+        public Task<List<QobuzAlbum>> GetLabelAlbumsAsync(string labelId, int limit = 100)
         {
             // Simplified implementation for CLI
-            return new List<QobuzAlbum>();
+            return Task.FromResult(new List<QobuzAlbum>());
         }
     }
 }

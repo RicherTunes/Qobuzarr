@@ -43,6 +43,10 @@ namespace QobuzCLI.Models.Configuration
         [JsonProperty("partialSizeTolerancePercent")]
         public double PartialSizeTolerancePercent { get; set; } = 5.0;
 
+        // Existing file handling strategy: suffix, skip, overwrite
+        [JsonProperty("existingFileBehavior")]
+        public string ExistingFileBehavior { get; set; } = "overwrite";
+
         /// <summary>
         /// Validates that the output directory is accessible
         /// </summary>
