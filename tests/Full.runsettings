@@ -10,7 +10,6 @@
     <TestSessionTimeout>3600000</TestSessionTimeout>
     <!-- Consider a hang if no output for 60s -->
     <BlameHangTimeout>00:01:00</BlameHangTimeout>
-    <BatchSize>0</BatchSize>
   </RunConfiguration>
   <MSTest>
     <Parallelize>
