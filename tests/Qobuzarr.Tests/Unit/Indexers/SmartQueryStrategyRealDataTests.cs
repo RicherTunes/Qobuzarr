@@ -188,6 +188,8 @@ namespace Qobuzarr.Tests.Unit.Indexers
         /// Test performance at production scale
         /// </summary>
         [Fact]
+        [Trait("Category", "Slow")]
+        [Trait("Category", "Performance")]
         public void BuildOptimizedQueries_PerformanceTest_ShouldBeEfficient()
         {
             // Arrange
