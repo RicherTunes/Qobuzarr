@@ -64,10 +64,11 @@ jobs:
         fetch-depth: 0
         submodules: recursive
 
-    - name: Update submodules to plugin branch
+    - name: Ensure submodules
       run: |
+        echo "Syncing and updating submodules (no remote fetch)"
         git submodule sync --recursive
-        git submodule update --init --remote --recursive
+        git submodule update --init --recursive
 
     - name: Security Scan (git-leaks)
       uses: gitleaks/gitleaks-action@v2
