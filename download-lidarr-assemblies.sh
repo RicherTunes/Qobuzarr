@@ -95,14 +95,21 @@ tar -xzf "$archive_path"
 # Copy required assemblies
 source_dir="Lidarr"
 required_assemblies=(
+    # Lidarr host assemblies used by the plugin project
+    "Lidarr.dll"
     "Lidarr.Core.dll"
-    "Lidarr.Common.dll" 
+    "Lidarr.Common.dll"
     "Lidarr.Http.dll"
+    "Lidarr.SignalR.dll"
     "Lidarr.Api.V1.dll"
+
+    # Legacy NzbDrone assemblies (optional in some builds)
     "NzbDrone.Core.dll"
     "NzbDrone.Common.dll"
     "NzbDrone.Host.dll"
     "NzbDrone.Api.dll"
+
+    # Common dependencies sometimes needed for compilation
     "Microsoft.AspNetCore.Authorization.dll"
     "Microsoft.AspNetCore.Mvc.Core.dll"
     "TagLibSharp.dll"
