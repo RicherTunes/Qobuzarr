@@ -247,6 +247,7 @@ namespace Qobuzarr.Tests.Unit.Download.Services
         #region Stress Tests
 
         [Fact]
+        [Trait("Category", "Slow")]
         public async Task HighVolumeOperations_StressTest_MaintainsPerformance()
         {
             // Arrange
@@ -546,6 +547,8 @@ namespace Qobuzarr.Tests.Unit.Download.Services
         #region Performance Benchmarks
 
         [Fact]
+        [Trait("Category", "Benchmark")]
+        [Trait("Category", "Slow")]
         public void AddDownload_PerformanceBenchmark_MeetsTargets()
         {
             // Arrange
@@ -578,6 +581,8 @@ namespace Qobuzarr.Tests.Unit.Download.Services
         }
 
         [Fact]
+        [Trait("Category", "Benchmark")]
+        [Trait("Category", "Slow")]
         public void TryGetDownload_PerformanceBenchmark_MeetsTargets()
         {
             // Arrange
