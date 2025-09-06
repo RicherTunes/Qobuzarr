@@ -253,14 +253,14 @@ public class QueueCommand
         return cmd;
     }
 
-    private async Task HandleListAsync()
+    private Task HandleListAsync()
     {
         var queues = _queueService.GetQueues();
         
         if (!queues.Any())
         {
             AnsiConsole.MarkupLine("[yellow]No download queues found.[/]");
-            return;
+            return Task.CompletedTask;
         }
 
         var table = new Table();
@@ -290,12 +290,13 @@ public class QueueCommand
         }
 
         AnsiConsole.Write(table);
+        return Task.CompletedTask;
     }
 
-    private async Task HandleShowAsync(string? queueId)
+    private Task HandleShowAsync(string? queueId)
     {
         var queue = GetQueueOrDefault(queueId);
-        if (queue == null) return;
+        if (queue == null) return Task.CompletedTask;
 
         var stats = _queueService.GetQueueStatistics(queue.Id);
         
@@ -365,6 +366,7 @@ public class QueueCommand
         {
             AnsiConsole.MarkupLine("[dim]Queue is empty[/]");
         }
+        return Task.CompletedTask;
     }
 
     private async Task HandleAddAsync(string[] queries, string? queueId, int priority, string? type)
@@ -648,5 +650,6 @@ public class QueueCommand
                 break;
             }
         }
+        return;
     }
 }

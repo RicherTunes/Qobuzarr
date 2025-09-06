@@ -98,8 +98,7 @@ public class SearchService : ISearchService
             var queryWords = cleanQuery.Split(' ', StringSplitOptions.RemoveEmptyEntries);
             var artistPatterns = new[]
             {
-                @"^the\s+\w+$",     // "The Beatles", "The Who"
-                @"^\w+\s+\w+$"      // Simple two-word artist names
+                @"^the\s+\w+$"      // Strong indicator: "The Beatles", "The Who"
             };
 
             // Check if it's a simple artist name pattern before checking other indicators
@@ -133,6 +132,17 @@ public class SearchService : ISearchService
             {
                 _logger.LogDebug("Ambiguous short query, returning Auto search type for: {Query}", query);
                 return SearchType.Auto;
+            }
+
+            // Heuristic: multi-word queries (>=3) without explicit album/track markers are likely track searches
+            var wordCount = cleanQuery.Split(' ', StringSplitOptions.RemoveEmptyEntries).Length;
+            if (wordCount >= 3
+                && !cleanQuery.Contains(" - ")
+                && !Regex.IsMatch(cleanQuery, @"\s+by\s+")
+                && !albumIndicators.Any(i => cleanQuery.Contains(i)))
+            {
+                _logger.LogDebug("Detected likely track pattern by word count for query: {Query}", query);
+                return SearchType.Track;
             }
 
             // Default to album for multi-word queries that have clear intent
@@ -171,6 +181,8 @@ public class SearchService : ISearchService
             var queryLower = query.Trim().ToLower();
             var titleLower = result.Title.ToLower();
             var artistLower = result.Artist.ToLower();
+            // Normalize common artist prefixes to improve exact match detection
+            var normArtistLower = artistLower.StartsWith("the ") ? artistLower.Substring(4) : artistLower;
 
             double score = 0;
 
@@ -186,14 +198,28 @@ public class SearchService : ISearchService
                 score += 95;
             }
             // Combined exact match (for "artist album" or "album artist" queries)
-            else if ($"{artistLower} {titleLower}" == queryLower || $"{titleLower} {artistLower}" == queryLower)
+            else if ($"{artistLower} {titleLower}" == queryLower || $"{titleLower} {artistLower}" == queryLower
+                  || $"{normArtistLower} {titleLower}" == queryLower || $"{titleLower} {normArtistLower}" == queryLower)
             {
                 score += 95;
             }
             // Combined artist + title match (for "artist - album" queries)
-            else if ($"{artistLower} - {titleLower}" == queryLower || $"{titleLower} - {artistLower}" == queryLower)
+            else if ($"{artistLower} - {titleLower}" == queryLower || $"{titleLower} - {artistLower}" == queryLower
+                  || $"{normArtistLower} - {titleLower}" == queryLower || $"{titleLower} - {normArtistLower}" == queryLower)
             {
                 score += 95;
+            }
+            // Token-exact match (order-insensitive) for queries like "abbey road beatles"
+            else
+            {
+                var qTokens = queryLower.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+                var tTokens = titleLower.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+                var aTokens = artistLower.Split(' ', StringSplitOptions.RemoveEmptyEntries).Where(t => t != "the");
+                var expected = tTokens.Concat(aTokens).ToArray();
+                if (qTokens.Length == expected.Length && expected.All(tok => qTokens.Contains(tok)))
+                {
+                    score += 95;
+                }
             }
             // Partial matches get lower scores
             else if (titleLower.Contains(queryLower))
@@ -233,10 +259,14 @@ public class SearchService : ISearchService
             // Fuzzy matching bonus (simple Levenshtein-like)
             score += CalculateFuzzyBonus(titleLower, queryLower);
 
-            // Quality bonus
-            if (result.Quality.Contains("Hi-Res"))
+            // Cap core score before applying quality to ensure quality differentiates top results
+            score = Math.Min(95, score);
+
+            // Quality bonus (case-insensitive, null-safe)
+            var quality = result.Quality ?? string.Empty;
+            if (quality.Contains("Hi-Res", StringComparison.OrdinalIgnoreCase))
                 score += 5;
-            else if (result.Quality.Contains("FLAC"))
+            else if (quality.Contains("FLAC", StringComparison.OrdinalIgnoreCase))
                 score += 3;
 
             // Artist popularity boost - this significantly improves scoring for known artists
