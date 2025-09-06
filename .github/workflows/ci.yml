@@ -192,9 +192,17 @@ jobs:
         dotnet build Qobuzarr.csproj --configuration Release --no-restore \
           -p:RunAnalyzersDuringBuild=false -p:EnableNETAnalyzers=false -p:TreatWarningsAsErrors=false
 
-    - name: Pre-build tests
+    - name: Pre-build fast tests only
       run: |
-        find tests -name "*.csproj" -exec echo "Building: {}" \; -exec dotnet build {} --configuration Release --verbosity minimal \;
+        set -e
+        if [ -f "tests/Minimal.Tests/Minimal.Tests.csproj" ]; then
+          echo "Building: tests/Minimal.Tests/Minimal.Tests.csproj"
+          dotnet build tests/Minimal.Tests/Minimal.Tests.csproj --configuration Release --verbosity minimal
+        fi
+        if [ -f "tests/QobuzCLI.Tests/QobuzCLI.Tests.csproj" ]; then
+          echo "Building: tests/QobuzCLI.Tests/QobuzCLI.Tests.csproj"
+          dotnet build tests/QobuzCLI.Tests/QobuzCLI.Tests.csproj --configuration Release --verbosity minimal
+        fi
 
     - name: Run fast tests (unit only)
       timeout-minutes: 20
@@ -297,7 +305,7 @@ jobs:
         dotnet build Qobuzarr.csproj --configuration Release --no-restore \
           -p:RunAnalyzersDuringBuild=false -p:EnableNETAnalyzers=false -p:TreatWarningsAsErrors=false
 
-    - name: Pre-build tests
+    - name: Pre-build all tests
       run: |
         find tests -name "*.csproj" -exec echo "Building: {}" \; -exec dotnet build {} --configuration Release --verbosity minimal \;
 
