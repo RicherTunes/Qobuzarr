@@ -12,6 +12,7 @@ namespace Qobuzarr.Tests.Simulations
     /// Simulation tests to validate Query Intelligence optimization potential
     /// These tests analyze query patterns to predict performance gains before implementation
     /// </summary>
+    [Trait("Category", "Simulations")]
     public class QueryIntelligenceSimulationTests
     {
         private readonly ITestOutputHelper _output;
@@ -26,6 +27,12 @@ namespace Qobuzarr.Tests.Simulations
         {
             // Arrange - Real world search patterns from typical user behavior
             var searchScenarios = GetRealWorldSearchScenarios();
+            var maxSimEnv = Environment.GetEnvironmentVariable("QOBUZ_TEST_MAX_SIM_SCENARIOS");
+            if (int.TryParse(maxSimEnv, out var maxSim) && maxSim > 0)
+            {
+                searchScenarios = searchScenarios.Take(maxSim).ToList();
+                _output.WriteLine($"Limiting simulation scenarios to: {maxSim}");
+            }
             
             var currentStrategy = new CurrentQueryStrategy();
             var smartStrategy = new SmartQueryStrategy();

@@ -34,6 +34,13 @@ namespace Qobuzarr.IntegrationTests
         public LiveLidarrIntegrationFramework(ITestOutputHelper output)
         {
             _output = output;
+            // Require explicit opt-in for live integration tests to avoid accidental long-running builds
+            var enableLive = Environment.GetEnvironmentVariable("ENABLE_LIVE_INTEGRATION_TESTS");
+            if (!string.Equals(enableLive, "true", StringComparison.OrdinalIgnoreCase))
+            {
+                // Throwing here will be caught by callers that translate to SkipException
+                throw new InvalidOperationException("Live integration tests are disabled (set ENABLE_LIVE_INTEGRATION_TESTS=true to enable)");
+            }
             _httpClient = new HttpClient();
             
             // Load configuration from environment and .env file

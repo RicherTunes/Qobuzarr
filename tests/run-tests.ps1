@@ -4,14 +4,18 @@
 param(
     [string]$Configuration = "Debug",
     [switch]$Coverage = $false,
-    [switch]$Verbose = $false
+    [switch]$Verbose = $false,
+    [switch]$Full = $false,
+    [string]$RunSettings = "",
+    [switch]$Live = $false
 )
 
 Write-Host "[TEST] Qobuzzarr Unit Test Runner" -ForegroundColor Cyan
 Write-Host "================================" -ForegroundColor Cyan
 
 $ProjectRoot = Split-Path -Parent $PSScriptRoot
-$TestProject = Join-Path $PSScriptRoot "Qobuzarr.Tests\Qobuzarr.Tests.csproj"
+$MinimalProject = Join-Path $PSScriptRoot "Minimal.Tests\Minimal.Tests.csproj"
+$DefaultProject = Join-Path $PSScriptRoot "Qobuzarr.Tests\Qobuzarr.Tests.csproj"
 $OutputDir = Join-Path $PSScriptRoot "TestResults"
 
 # Ensure output directory exists
@@ -20,94 +24,90 @@ if (!(Test-Path $OutputDir)) {
 }
 
 Write-Host "[INFO] Project Root: $ProjectRoot" -ForegroundColor Gray
-Write-Host "[INFO] Test Project: $TestProject" -ForegroundColor Gray
+if ($Full -or $Live) {
+    $TestProjects = Get-ChildItem -Path $PSScriptRoot -Filter "*.csproj" -Recurse | Select-Object -ExpandProperty FullName
+} else {
+    if (Test-Path $MinimalProject) { $TestProjects = @($MinimalProject) } else { $TestProjects = @($DefaultProject) }
+}
+Write-Host "[INFO] Test Projects:" -ForegroundColor Gray
+foreach ($p in $TestProjects) { Write-Host " - $p" -ForegroundColor Gray }
 Write-Host "[INFO] Output Directory: $OutputDir" -ForegroundColor Gray
 Write-Host ""
 
-# Check if test project exists
-if (!(Test-Path $TestProject)) {
-    Write-Host "[ERROR] Test project not found: $TestProject" -ForegroundColor Red
+# Check if test projects exist
+if ($TestProjects.Count -eq 0) {
+    Write-Host "[ERROR] No test projects found" -ForegroundColor Red
     exit 1
 }
 
-# Build the test project
-Write-Host "[BUILD] Building test project..." -ForegroundColor Yellow
-$buildArgs = @(
-    "build"
-    $TestProject
-    "--configuration", $Configuration
-    "--verbosity", "minimal"
-)
-
-if ($Verbose) {
-    $buildArgs += "--verbosity", "detailed"
+# Build the selected test projects
+Write-Host "[BUILD] Building selected test projects..." -ForegroundColor Yellow
+foreach ($proj in $TestProjects) {
+    $verbosity = if ($Verbose) { "detailed" } else { "minimal" }
+    & dotnet build $proj --configuration $Configuration --verbosity $verbosity
+    if ($LASTEXITCODE -ne 0) {
+        Write-Host "[ERROR] Build failed: $proj" -ForegroundColor Red
+        exit 1
+    }
 }
-
-$buildResult = & dotnet @buildArgs
-if ($LASTEXITCODE -ne 0) {
-    Write-Host "[ERROR] Build failed!" -ForegroundColor Red
-    exit 1
-}
-
 Write-Host "[OK] Build successful!" -ForegroundColor Green
 Write-Host ""
 
-# Prepare test arguments
-$testArgs = @(
-    "test"
-    $TestProject
-    "--configuration", $Configuration
-    "--no-build"
-    "--logger", "trx;LogFileName=TestResults.trx"
-    "--results-directory", $OutputDir
-)
+Write-Host "🧪 Running tests..." -ForegroundColor Yellow
 
-if ($Coverage) {
-    Write-Host "📊 Running tests with coverage analysis..." -ForegroundColor Yellow
-    $testArgs += @(
-        "--collect", "XPlat Code Coverage"
-        "--settings", (Join-Path $PSScriptRoot "coverlet.runsettings")
+# Determine runsettings to use (Default for fast; Full for -Full)
+if (-not $RunSettings -or [string]::IsNullOrWhiteSpace($RunSettings)) {
+    $RunSettings = Join-Path $PSScriptRoot ($Full ? "Full.runsettings" : "Default.runsettings")
+}
+if (Test-Path $RunSettings) {
+    Write-Host "[INFO] Using runsettings: $RunSettings" -ForegroundColor Gray
+}
+
+# Lower log volume during tests to speed runs
+$env:LOG_LEVEL = "Error"
+
+$overallExit = 0
+foreach ($proj in $TestProjects) {
+    $logName = ([IO.Path]::GetFileNameWithoutExtension($proj)) + ".trx"
+    $args = @(
+        "test", $proj,
+        "--configuration", $Configuration,
+        "--no-build",
+        "--logger", "trx;LogFileName=$logName",
+        "--results-directory", $OutputDir
     )
-} else {
-    Write-Host "🧪 Running tests..." -ForegroundColor Yellow
+    if (Test-Path $RunSettings) { $args += @("--settings", $RunSettings) }
+    if (-not $Full -and -not $Live) { $args += @("--filter", "Category!=LiveIntegration") }
+    if ($Live) { $env:ENABLE_LIVE_INTEGRATION_TESTS = "true" }
+    if ($Coverage) { $args += @("--collect", "XPlat Code Coverage", "--settings", (Join-Path $PSScriptRoot "coverlet.runsettings")) }
+    $args += @("--verbosity", $(if ($Verbose) { "detailed" } else { "normal" }))
+
+    & dotnet @args
+    if ($LASTEXITCODE -ne 0) { $overallExit = 1 }
 }
 
-if ($Verbose) {
-    $testArgs += "--verbosity", "detailed"
-} else {
-    $testArgs += "--verbosity", "normal"
-}
-
-# Run tests
-$testResult = & dotnet @testArgs
-$testExitCode = $LASTEXITCODE
+$testExitCode = $overallExit
 
 Write-Host ""
 
-# Parse test results
-$trxFile = Join-Path $OutputDir "TestResults.trx"
-if (Test-Path $trxFile) {
+# Parse summary from the most recent TRX
+$trx = Get-ChildItem -Path $OutputDir -Filter *.trx -Recurse | Sort-Object LastWriteTime -Descending | Select-Object -First 1
+if ($trx) {
     try {
-        [xml]$trxXml = Get-Content $trxFile
+        [xml]$trxXml = Get-Content $trx.FullName
         $counters = $trxXml.TestRun.ResultSummary.Counters
-        
         $total = [int]$counters.total
         $passed = [int]$counters.passed
         $failed = [int]$counters.failed
         $skipped = [int]$counters.inconclusive
-        
         Write-Host "📊 Test Results Summary:" -ForegroundColor Cyan
         Write-Host "   Total: $total" -ForegroundColor White
         Write-Host "   Passed: $passed" -ForegroundColor Green
         Write-Host "   Failed: $failed" -ForegroundColor $(if ($failed -gt 0) { "Red" } else { "Gray" })
         Write-Host "   Skipped: $skipped" -ForegroundColor Yellow
-        
         $passRate = if ($total -gt 0) { [math]::Round(($passed / $total) * 100, 2) } else { 0 }
         Write-Host "   Pass Rate: $passRate%" -ForegroundColor $(if ($passRate -ge 80) { "Green" } elseif ($passRate -ge 60) { "Yellow" } else { "Red" })
-        
-    } catch {
-        Write-Host "⚠️ Could not parse test results" -ForegroundColor Yellow
-    }
+    } catch { Write-Host "⚠️ Could not parse test results" -ForegroundColor Yellow }
 }
 
 # Process coverage results

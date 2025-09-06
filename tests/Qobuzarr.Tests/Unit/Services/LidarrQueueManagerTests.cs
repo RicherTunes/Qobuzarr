@@ -453,6 +453,7 @@ namespace Qobuzarr.Tests.Unit.Services
         #region Concurrency Stress Tests
 
         [Fact]
+        [Trait("Category", "Slow")]
         public async Task ConcurrentSlotOperations_StressTest_MaintainsConsistency()
         {
             // Arrange
@@ -577,6 +578,7 @@ namespace Qobuzarr.Tests.Unit.Services
         #region Performance Tests
 
         [Fact]
+        [Trait("Category", "Slow")]
         public async Task SlotAcquisition_PerformanceTest_CompletesWithinReasonableTime()
         {
             // Arrange
@@ -599,6 +601,7 @@ namespace Qobuzarr.Tests.Unit.Services
         }
 
         [Fact]
+        [Trait("Category", "Slow")]
         public void GetQueueStatus_PerformanceTest_CompletesQuickly()
         {
             // Arrange

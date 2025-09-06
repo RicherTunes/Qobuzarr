@@ -30,7 +30,7 @@ namespace QobuzCLI.Services
             _logger = logger;
         }
 
-        public async Task<QobuzSession> AuthenticateAsync(QobuzCredentials credentials)
+        public Task<QobuzSession> AuthenticateAsync(QobuzCredentials credentials)
         {
             if (_httpClient == null || _logger == null)
             {
@@ -41,16 +41,16 @@ namespace QobuzCLI.Services
             // The actual authentication will be handled by the API client when making requests
             var session = new QobuzSession
             {
-                AuthToken = credentials.MD5Password ?? credentials.AuthToken, // Use MD5Password or AuthToken
-                AppId = credentials.AppId,
-                AppSecret = credentials.AppSecret, // CRITICAL FIX: Must include AppSecret for signature generation!
-                UserId = credentials.Email ?? credentials.UserId,
+                AuthToken = credentials.MD5Password ?? credentials.AuthToken ?? string.Empty, // Use MD5Password or AuthToken
+                AppId = credentials.AppId ?? string.Empty,
+                AppSecret = credentials.AppSecret ?? string.Empty, // CRITICAL FIX: Must include AppSecret for signature generation!
+                UserId = credentials.Email ?? credentials.UserId ?? string.Empty,
                 ExpiresAt = DateTime.UtcNow.AddHours(24),
                 CreatedAt = DateTime.UtcNow
             };
             
             _cachedSession = session;
-            return session;
+            return Task.FromResult(session);
         }
 
         public Task<QobuzSession> RefreshSessionAsync(string refreshToken)
@@ -59,24 +59,32 @@ namespace QobuzCLI.Services
             throw new NotSupportedException("Qobuz does not support refresh tokens. Re-authentication is required after session expiry.");
         }
 
-        public async Task<bool> ValidateSessionAsync(QobuzSession session)
+        public Task<bool> ValidateSessionAsync(QobuzSession session)
         {
             // The core auth service doesn't have session validation, so we implement a basic check
             if (session == null || string.IsNullOrEmpty(session.AuthToken))
-                return false;
+                return Task.FromResult(false);
                 
             // Check if session has expired (Qobuz sessions are typically valid for 24 hours)
             if (session.ExpiresAt < DateTime.UtcNow)
-                return false;
+                return Task.FromResult(false);
                 
             // For now, assume session is valid if it has required fields and hasn't expired
             // In a more robust implementation, we could make a test API call
-            return true;
+            return Task.FromResult(true);
         }
 
-        public QobuzSession? GetCachedSession()
+        public QobuzSession GetCachedSession()
         {
-            return _cachedSession;
+            return _cachedSession ?? new QobuzSession
+            {
+                UserId = string.Empty,
+                AuthToken = string.Empty,
+                AppId = string.Empty,
+                AppSecret = string.Empty,
+                ExpiresAt = DateTime.UtcNow.AddMinutes(-1),
+                CreatedAt = DateTime.UtcNow
+            };
         }
 
         public void ClearSession()
