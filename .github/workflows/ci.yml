@@ -144,6 +144,14 @@ jobs:
           pwsh -File ./download-lidarr-assemblies.ps1 -LidarrVersion "${{ env.MINIMUM_LIDARR_VERSION }}" -Force
         fi
 
+    - name: Dotnet info
+      run: dotnet --info
+
+    - name: List Lidarr assemblies
+      run: |
+        echo "Listing ext/Lidarr/_output/net6.0 contents"
+        ls -la ext/Lidarr/_output/net6.0/ || true
+
     - name: Restore and build
       run: |
         dotnet restore Qobuzarr.csproj
@@ -217,6 +225,14 @@ jobs:
           echo "Primary download failed or incomplete. Trying PowerShell script..."
           pwsh -File ./download-lidarr-assemblies.ps1 -LidarrVersion "${{ env.MINIMUM_LIDARR_VERSION }}" -Force
         fi
+        ls -la ext/Lidarr/_output/net6.0/ || true
+
+    - name: Dotnet info
+      run: dotnet --info
+
+    - name: List Lidarr assemblies
+      run: |
+        echo "Listing ext/Lidarr/_output/net6.0 contents"
         ls -la ext/Lidarr/_output/net6.0/ || true
 
     - name: Restore and build
