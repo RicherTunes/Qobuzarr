@@ -87,11 +87,7 @@ jobs:
       run: |
         echo "Validating plugin.json..."
         python3 -m json.tool plugin.json > /dev/null
-        VERSION=$(python3 - << 'PY'
-import json,sys
-print(json.load(open('plugin.json'))['version'])
-PY
-)
+        VERSION=$(python3 -c "import json; print(json.load(open('plugin.json'))['version'])")
         echo "Plugin version: $VERSION"
     - name: Security checks
       run: |
