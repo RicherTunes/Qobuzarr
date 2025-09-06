@@ -324,7 +324,7 @@ jobs:
           dotnet test tests/Qobuzarr.Tests/Qobuzarr.Tests.csproj \
             --configuration Release \
             --no-build \
-            --filter "Category!=Integration&Category!=LiveIntegration&Category!=Slow&Category!=Stress&Category!=Benchmark" \
+            --filter "Category!=Integration&Category!=LiveIntegration&Category!=Slow&Category!=Stress&Category!=Benchmark&Category!=Performance" \
             --blame-hang-timeout 2m \
             --logger "trx;LogFileName=QobuzarrFast.trx" \
             --results-directory tests/TestResults \
