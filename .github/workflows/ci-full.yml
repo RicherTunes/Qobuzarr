@@ -1,0 +1,105 @@
+name: CI Full
+
+on:
+  schedule:
+    - cron: '0 2 * * *'
+  workflow_dispatch:
+    inputs:
+      enable_live:
+        description: 'Run live integration tests (requires secrets/env)'
+        type: boolean
+        required: false
+        default: false
+
+permissions:
+  contents: read
+
+env:
+  DOTNET_SKIP_FIRST_TIME_EXPERIENCE: true
+  DOTNET_CLI_TELEMETRY_OPTOUT: true
+  DOTNET_VERSION: 8.0.x
+
+jobs:
+  full-suite:
+    name: Full Test Suite
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          submodules: recursive
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: Restore
+        run: dotnet restore Qobuzarr.sln
+
+      - name: Build
+        run: dotnet build Qobuzarr.sln --configuration Release --no-restore -p:RunAnalyzersDuringBuild=false -p:EnableNETAnalyzers=false -p:TreatWarningsAsErrors=false
+
+      - name: Run Minimal.Tests (full)
+        run: |
+          if [ -f "tests/Minimal.Tests/Minimal.Tests.csproj" ]; then
+            dotnet test tests/Minimal.Tests/Minimal.Tests.csproj \
+              --configuration Release \
+              --no-build \
+              --collect "XPlat Code Coverage" \
+              --logger "trx;LogFileName=Minimal.trx" \
+              --results-directory tests/TestResults \
+              --verbosity normal
+          fi
+
+      - name: Run QobuzCLI.Tests (full)
+        run: |
+          if [ -f "tests/QobuzCLI.Tests/QobuzCLI.Tests.csproj" ]; then
+            dotnet test tests/QobuzCLI.Tests/QobuzCLI.Tests.csproj \
+              --configuration Release \
+              --no-build \
+              --collect "XPlat Code Coverage" \
+              --logger "trx;LogFileName=QobuzCLI.trx" \
+              --results-directory tests/TestResults \
+              --verbosity normal
+          fi
+
+      - name: Run Qobuzarr.Tests (full)
+        run: |
+          if [ -f "tests/Qobuzarr.Tests/Qobuzarr.Tests.csproj" ]; then
+            dotnet test tests/Qobuzarr.Tests/Qobuzarr.Tests.csproj \
+              --configuration Release \
+              --no-build \
+              --collect "XPlat Code Coverage" \
+              --logger "trx;LogFileName=Qobuzarr.trx" \
+              --results-directory tests/TestResults \
+              --verbosity normal
+          fi
+
+      - name: Run Integration Tests project
+        env:
+          ENABLE_LIVE_INTEGRATION_TESTS: ${{ inputs.enable_live && 'true' || 'false' }}
+        run: |
+          if [ -f "tests/Integration/Qobuzarr.IntegrationTests.csproj" ]; then
+            dotnet test tests/Integration/Qobuzarr.IntegrationTests.csproj \
+              --configuration Release \
+              --no-build \
+              --collect "XPlat Code Coverage" \
+              --logger "trx;LogFileName=Integration.trx" \
+              --results-directory tests/TestResults \
+              --verbosity normal || true
+          fi
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: full-test-results
+          path: |
+            tests/TestResults/**/*.trx
+            tests/TestResults/**/coverage.cobertura.xml
+          if-no-files-found: warn
+          retention-days: 30
+

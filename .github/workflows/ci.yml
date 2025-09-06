@@ -119,6 +119,7 @@ jobs:
   # BUILD AND TEST JOB - Full compilation and testing
   # ============================================================================
   build-and-test:
+    timeout-minutes: 10
     env:
       RUN_TESTS: 'false'
     name: Build and Test
@@ -286,40 +287,61 @@ jobs:
           echo "[INFO] No CLI project found"
         fi
 
-    - name: Run minimal unit tests (fast, non-blocking)
-      continue-on-error: true
+    - name: Run Minimal.Tests (fast)
       run: |
         if [ -f "tests/Minimal.Tests/Minimal.Tests.csproj" ]; then
-          echo "[TEST] Running Minimal.Tests..."
-          dotnet test tests/Minimal.Tests/Minimal.Tests.csproj --configuration Release --logger "console;verbosity=minimal" || echo "[WARN] Minimal.Tests failed (non-blocking)"
+          echo "[TEST] Minimal.Tests"
+          dotnet test tests/Minimal.Tests/Minimal.Tests.csproj \
+            --configuration Release \
+            --no-build \
+            --logger "trx;LogFileName=Minimal.trx" \
+            --results-directory tests/TestResults \
+            --verbosity minimal
         else
           echo "[INFO] Minimal.Tests not found"
         fi
 
-
-    - name: Run tests
-      if: ${{ env.RUN_TESTS == 'true' }}
-      continue-on-error: true
+    - name: Run QobuzCLI.Tests (fast)
       run: |
-        if [ -d "tests" ]; then
-          echo "[TEST] Running tests..."
-          # Use direct dotnet commands to get detailed error output
-          echo "[DEBUG] First, try to build the test project directly..."
-          dotnet build tests/Qobuzarr.Tests/Qobuzarr.Tests.csproj --configuration Release --verbosity detailed || echo "[WARN] Main test project build failed"
-          
-          echo "[DEBUG] Try building other test projects..."
-          find tests -name "*.csproj" -exec echo "Building: {}" \; -exec dotnet build {} --configuration Release --verbosity normal \;
-          
-          echo "[DEBUG] Now try running tests..."
-          if [ -f "tests/run-tests.ps1" ]; then
-            pwsh -File ./tests/run-tests.ps1
-          else
-            # Fallback: run any test projects found
-            find tests -name "*.csproj" -exec dotnet test {} --configuration Release --logger "console;verbosity=normal" \;
-          fi
+        if [ -f "tests/QobuzCLI.Tests/QobuzCLI.Tests.csproj" ]; then
+          echo "[TEST] QobuzCLI.Tests"
+          dotnet test tests/QobuzCLI.Tests/QobuzCLI.Tests.csproj \
+            --configuration Release \
+            --no-build \
+            --filter "Category!=LiveIntegration" \
+            --blame-hang-timeout 2m \
+            --logger "trx;LogFileName=QobuzCLI.trx" \
+            --results-directory tests/TestResults \
+            --verbosity minimal
         else
-          echo "[INFO] No tests directory found"
+          echo "[INFO] QobuzCLI.Tests not found"
         fi
+
+    - name: Run Qobuzarr.Tests (fast filtered)
+      run: |
+        if [ -f "tests/Qobuzarr.Tests/Qobuzarr.Tests.csproj" ]; then
+          echo "[TEST] Qobuzarr.Tests (filtered)"
+          dotnet test tests/Qobuzarr.Tests/Qobuzarr.Tests.csproj \
+            --configuration Release \
+            --no-build \
+            --filter "Category!=Integration&Category!=LiveIntegration&Category!=Slow&Category!=Stress&Category!=Benchmark" \
+            --blame-hang-timeout 2m \
+            --logger "trx;LogFileName=QobuzarrFast.trx" \
+            --results-directory tests/TestResults \
+            --verbosity minimal
+        else
+          echo "[INFO] Qobuzarr.Tests not found"
+        fi
+
+    - name: Upload fast test results
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: fast-test-results
+        path: |
+          tests/TestResults/**/*.trx
+        if-no-files-found: warn
+        retention-days: 14
 
     - name: Verify plugin output
       run: |
