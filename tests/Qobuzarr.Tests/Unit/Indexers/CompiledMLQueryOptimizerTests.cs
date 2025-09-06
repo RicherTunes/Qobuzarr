@@ -154,6 +154,7 @@ namespace Qobuzarr.Tests.Unit.Indexers
         }
 
         [Fact]
+        [Trait("Category", "Slow")]
         public void Performance_ProcessesPredictionsQuickly()
         {
             // Arrange

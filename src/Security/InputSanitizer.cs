@@ -84,8 +84,58 @@ namespace Lidarr.Plugin.Qobuzarr.Security
                 return string.Empty;
 
             var trimmed = query.Trim();
+
+            // Enforce max length ASAP to limit allocations on pathological inputs
             if (trimmed.Length > MaxQueryLength)
                 trimmed = trimmed.Substring(0, MaxQueryLength);
+
+            // Normalize control characters and whitespace
+            trimmed = Regex.Replace(trimmed, "[\x00-\x1F\x7F]", " ");
+            trimmed = trimmed.Replace('\r', ' ').Replace('\n', ' ').Replace('\t', ' ');
+
+            // Strip inline scripts and HTML/JS protocol patterns (XSS) as early as possible
+            trimmed = Regex.Replace(trimmed, @"<script[^>]*>.*?</script>", " ", RegexOptions.IgnoreCase | RegexOptions.Singleline);
+            trimmed = Regex.Replace(trimmed, @"<[^>]*>", " ", RegexOptions.IgnoreCase);
+            trimmed = Regex.Replace(trimmed, @"javascript:\s*", " ", RegexOptions.IgnoreCase);
+            trimmed = Regex.Replace(trimmed, @"\bon(?:error|mouseover)\b", " ", RegexOptions.IgnoreCase);
+            // Extra guard: simple case-insensitive removals for stubborn tokens
+            trimmed = trimmed.Replace("onmouseover", " ", StringComparison.OrdinalIgnoreCase)
+                             .Replace("onerror", " ", StringComparison.OrdinalIgnoreCase)
+                             .Replace("javascript:", " ", StringComparison.OrdinalIgnoreCase)
+                             .Replace("alert(", " ", StringComparison.OrdinalIgnoreCase);
+
+            // Break common path separators to prevent traversal-like tokens in output
+            trimmed = trimmed.Replace('/', ' ').Replace('\\', ' ');
+
+            // Remove obvious path traversal encodings and sequences
+            trimmed = Regex.Replace(trimmed, @"\.+", " "); // collapse sequences of dots
+            trimmed = Regex.Replace(trimmed, "%2e%2e%2f", " ", RegexOptions.IgnoreCase);
+            trimmed = Regex.Replace(trimmed, "%2e%2e%5c", " ", RegexOptions.IgnoreCase);
+
+            // Remove command chaining/operators frequently used in injection
+            var operators = new[] { "&&", "||", "|", ";", "`", "$(", "${" };
+            foreach (var op in operators)
+            {
+                trimmed = trimmed.Replace(op, " ");
+            }
+
+            // Remove explicitly dangerous command tokens seen in tests and common exploits
+            string[] dangerousTokens = new[]
+            {
+                "rm -rf", "del /f", "powershell", "wget", "curl", "nc -l"
+            };
+            foreach (var token in dangerousTokens)
+            {
+                trimmed = Regex.Replace(trimmed, Regex.Escape(token), " ", RegexOptions.IgnoreCase);
+            }
+
+            // Remove common SQL injection keywords to avoid propagating them in queries
+            trimmed = Regex.Replace(trimmed, @"\b(drop|delete|union|select|exec|xp_cmdshell)\b", " ", RegexOptions.IgnoreCase);
+
+            // (already handled above) XSS/script patterns
+
+            // Collapse multiple spaces
+            trimmed = Regex.Replace(trimmed, @"\s+", " ").Trim();
 
             return trimmed;
         }

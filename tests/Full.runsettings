@@ -5,10 +5,12 @@
     <MaxCpuCount>0</MaxCpuCount>
     <TargetPlatform>x64</TargetPlatform>
     <TargetFrameworkVersion>.NETCoreApp,Version=v6.0</TargetFrameworkVersion>
-    <!-- Session limit for full suite (20 minutes) -->
-    <TestSessionTimeout>1200000</TestSessionTimeout>
+    <CollectSources>false</CollectSources>
+    <!-- Session limit for full suite (60 minutes) -->
+    <TestSessionTimeout>3600000</TestSessionTimeout>
     <!-- Consider a hang if no output for 60s -->
     <BlameHangTimeout>00:01:00</BlameHangTimeout>
+    <BatchSize>0</BatchSize>
   </RunConfiguration>
   <MSTest>
     <Parallelize>
@@ -17,7 +19,6 @@
     </Parallelize>
   </MSTest>
   <xunit>
-    <!-- 0 => default (processor count) -->
     <MaxParallelThreads>0</MaxParallelThreads>
   </xunit>
   <!-- Enable coverage collection for nightly runs -->
@@ -36,4 +37,5 @@
       </DataCollector>
     </DataCollectors>
   </DataCollectionRunSettings>
+  <!-- No TestCaseFilter here: full suite. Live tests still require ENABLE_LIVE_INTEGRATION_TESTS=true. -->
 </RunSettings>

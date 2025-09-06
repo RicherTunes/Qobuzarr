@@ -93,6 +93,22 @@ print(json.load(open('plugin.json'))['version'])
 PY
 )
         echo "Plugin version: $VERSION"
+    - name: Security checks
+      run: |
+        echo "🔒 Running security checks..."
+        
+        # Check for hardcoded credentials
+        if grep -r "password\s*=\s*\"" src/ --include="*.cs" | grep -v "// " | grep -v "password\": null"; then
+          echo "[WARN] Warning: Possible hardcoded passwords found"
+        else
+          echo "[OK] No hardcoded passwords detected"
+        fi
+        
+        if grep -r "api[_-]?key\s*=\s*\"" src/ --include="*.cs" | grep -v "// "; then
+          echo "[WARN] Warning: Possible hardcoded API keys found" 
+        else
+          echo "[OK] No hardcoded API keys detected"
+        fi
 
   fast-tests:
     name: Fast Tests
@@ -217,6 +233,25 @@ PY
         else
           dotnet test --settings tests/Full.runsettings --collect "XPlat Code Coverage" --configuration Release --logger "console;verbosity=normal"
         fi
+    - name: Verify plugin output
+      run: |
+        echo "🔍 Checking plugin output..."
+        ls -la bin/ || true
+        
+        if [ -f "bin/Lidarr.Plugin.Qobuzarr.dll" ]; then
+          echo "[OK] Plugin DLL created successfully"
+          echo "📦 Size: $(stat -c%s bin/Lidarr.Plugin.Qobuzarr.dll) bytes"
+        else
+          echo "[WARN] Plugin DLL not found at bin/. Searching recursively..."
+          CAND=$(find bin -name "Lidarr.Plugin.Qobuzarr.dll" | head -n 1)
+          if [ -n "$CAND" ]; then
+            echo "[OK] Plugin DLL found at $CAND"
+            echo "📦 Size: $(stat -c%s "$CAND") bytes"
+          else
+            echo "[ERROR] Plugin DLL not found under bin/. Build may have failed."
+            exit 1
+          fi
+        fi
 
     - name: Upload test results (full)
       if: always()
@@ -239,4 +274,3 @@ PY
           **/TestResults/**/coverage.cobertura.xml
         if-no-files-found: warn
         retention-days: 14
-

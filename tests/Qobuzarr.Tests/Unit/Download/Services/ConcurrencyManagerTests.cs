@@ -299,6 +299,8 @@ namespace Qobuzarr.Tests.Unit.Download.Services
         }
 
         [Fact]
+        [Trait("Category", "Slow")]
+        [Trait("Category", "Stress")]
         public async Task StressTest_HighConcurrencyWithFrequentUpdates_RemainsStable()
         {
             // Arrange
