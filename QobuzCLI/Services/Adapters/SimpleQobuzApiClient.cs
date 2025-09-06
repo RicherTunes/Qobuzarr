@@ -89,10 +89,11 @@ namespace QobuzCLI.Services.Adapters
             // Deserialize the response
             if (response.Content != null)
             {
-                return JsonConvert.DeserializeObject<T>(response.Content);
+                var obj = JsonConvert.DeserializeObject<T>(response.Content);
+                return obj ?? default!;
             }
             
-            return default(T);
+            return default!;
         }
 
         public async Task<T> PostAsync<T>(string endpoint, object? data = null) where T : class
@@ -119,10 +120,11 @@ namespace QobuzCLI.Services.Adapters
             // Deserialize the response
             if (response.Content != null)
             {
-                return JsonConvert.DeserializeObject<T>(response.Content);
+                var obj = JsonConvert.DeserializeObject<T>(response.Content);
+                return obj ?? default!;
             }
             
-            return default(T);
+            return default!;
         }
 
         public void SetSession(QobuzSession session)

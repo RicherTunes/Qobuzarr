@@ -16,7 +16,7 @@ namespace QobuzCLI.Services.Adapters
     public class PluginHttpClientAdapter : IQobuzHttpClient
     {
         private readonly HttpClient _httpClient;
-        private readonly string _baseUrl = "https://www.qobuz.com/api.json/0.2";
+        // Base URL is configured upstream in request builders (not needed here)
 
         public PluginHttpClientAdapter(HttpClient httpClient)
         {

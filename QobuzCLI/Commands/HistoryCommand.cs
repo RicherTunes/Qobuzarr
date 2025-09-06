@@ -80,6 +80,7 @@ public class HistoryCommand
 
     private async Task ShowHistoryAsync(int limit, string? statusFilter, string? searchQuery)
     {
+        await Task.Yield();
         try
         {
             var history = _stateService.GetDownloadHistory(limit * 2); // Get more for filtering
@@ -170,6 +171,7 @@ public class HistoryCommand
 
     private async Task HandleStatsAsync()
     {
+        await Task.Yield();
         try
         {
             var stats = _stateService.GetStatistics();
