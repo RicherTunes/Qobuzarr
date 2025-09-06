@@ -317,7 +317,7 @@ namespace Qobuzarr.Tests.Performance
         public async Task ConcurrentPredictions_MaintainPerformance()
         {
             // Arrange
-            var concurrentTasks = 100;
+            var concurrentTasks = GetEnvInt("QOBUZ_TEST_CONCURRENCY", 100);
             var tasks = new Task<double>[concurrentTasks];
             var stopwatch = new Stopwatch();
 
@@ -336,7 +336,15 @@ namespace Qobuzarr.Tests.Performance
                 });
             }
             
-            var latencies = await Task.WhenAll(tasks);
+            // Safety timeout for stress runs (non-destructive)
+            var timeoutMs = GetEnvInt("QOBUZ_TEST_TIMEOUT_MS", 15000);
+            var allTasks = Task.WhenAll(tasks);
+            var finished = await Task.WhenAny(allTasks, Task.Delay(timeoutMs));
+            if (finished != allTasks)
+            {
+                Assert.True(false, $"Concurrent prediction test exceeded timeout of {timeoutMs}ms. Adjust QOBUZ_TEST_TIMEOUT_MS or run Full suite.");
+            }
+            var latencies = await allTasks;
             stopwatch.Stop();
 
             // Assert
@@ -358,6 +366,18 @@ namespace Qobuzarr.Tests.Performance
             _output.WriteLine($"  Max latency: {maxLatency:F1}ms");
             _output.WriteLine($"  Throughput: {throughput:F1} req/s");
             _output.WriteLine($"  Status: {(avgLatency <= TARGET_PREDICTION_TIME_MS * 2 ? "PASS ✓" : "FAIL ✗")}");
+        }
+
+        private static int GetEnvInt(string name, int defaultValue)
+        {
+            try
+            {
+                var val = Environment.GetEnvironmentVariable(name);
+                if (int.TryParse(val, out var parsed) && parsed > 0)
+                    return parsed;
+            }
+            catch { }
+            return defaultValue;
         }
 
         [Fact]

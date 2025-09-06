@@ -1,4 +1,5 @@
 using Microsoft.Extensions.Logging;
+using System;
 using QobuzCLI.Models;
 using QobuzCLI.Services.Logging;
 using QobuzCLI.Services.UI;
@@ -70,72 +71,155 @@ public class InteractiveSelectionService : IInteractiveSelectionService
         List<SearchResult> exactMatches)
     {
         _console.MarkupLine($"[blue]🎯 Found {results.Count} result{(results.Count > 1 ? "s" : "")} for '{query}':[/]");
+        _console.MarkupLine("[dim]Use ↑/↓ to move, Enter to select, A = all, N/Esc = none[/]");
         _console.WriteLine();
 
-        // Display results table
-        var table = _console.CreateTable();
-        table.AddColumn("Option");
-        table.AddColumn("Title");
-        table.AddColumn("Artist");
-        table.AddColumn("Details");
-        table.AddColumn("Quality");
-        table.AddColumn("Match");
+        // Limit results for display
+        var displayCount = Math.Min(results.Count, 10);
 
-        var options = new List<string>();
-        for (int i = 0; i < Math.Min(results.Count, 10); i++) // Limit to top 10
+        // Try interactive in-table selection; fallback to prompt if not supported
+        try
         {
-            var result = results[i];
-            var option = $"{i + 1}";
-            options.Add(option);
+            var selected = await RunInteractiveTableSelectionAsync(results, displayCount).ConfigureAwait(false);
 
-            var title = result.Title.Length > 25 ? result.Title.Substring(0, 22) + "..." : result.Title;
-            var artist = result.Artist.Length > 20 ? result.Artist.Substring(0, 17) + "..." : result.Artist;
-            var details = FormatDetails(result);
-            var quality = FormatQuality(result);
-            var match = FormatMatchScore(result);
+            if (selected.All)
+            {
+                return results.Take(displayCount).ToList();
+            }
 
-            table.AddRow(option, title, artist, details, quality, match);
+            if (selected.None)
+            {
+                return new List<SearchResult>();
+            }
+
+            if (selected.Index.HasValue && selected.Index.Value >= 0 && selected.Index.Value < displayCount)
+            {
+                return new List<SearchResult> { results[selected.Index.Value] };
+            }
+
+            // If nothing selected, choose best match without extra prompt
+            return new List<SearchResult> { results.First() };
+        }
+        catch
+        {
+            // Non-interactive terminal; avoid duplicate menu under table
+            _console.MarkupLine("[yellow]⚠️  Terminal not fully interactive; auto-selecting best match[/]");
+            return new List<SearchResult> { results.First() };
+        }
+    }
+
+    private async Task<(int? Index, bool All, bool None)> RunInteractiveTableSelectionAsync(List<SearchResult> results, int displayCount)
+    {
+        // Use Spectre.Console live rendering to allow in-table cursor movement
+        if (!Spectre.Console.AnsiConsole.Profile.Capabilities.Interactive)
+            throw new NotSupportedException("Terminal is not interactive");
+        var selectedIndex = 0;
+
+        Table BuildTable(int sel)
+        {
+            var t = _console.CreateTable();
+            t.AddColumn("");
+            t.AddColumn("Option");
+            t.AddColumn("Title");
+            t.AddColumn("Artist");
+            t.AddColumn("Details");
+            t.AddColumn("Quality");
+            t.AddColumn("Match");
+
+            for (int i = 0; i < displayCount; i++)
+            {
+                var r = results[i];
+                var option = $"{i + 1}";
+                var title = r.Title.Length > 25 ? r.Title.Substring(0, 22) + "..." : r.Title;
+                var artist = r.Artist.Length > 20 ? r.Artist.Substring(0, 17) + "..." : r.Artist;
+                var details = FormatDetails(r);
+                var quality = FormatQuality(r);
+                var match = FormatMatchScore(r);
+
+                var pointer = i == sel ? "[green]>[/]" : " ";
+                if (i == sel)
+                {
+                    option = $"[bold]{option}[/]";
+                    title = $"[white]{title}[/]";
+                }
+
+                t.AddRow(pointer, option, title, artist, details, quality, match);
+            }
+
+            return t;
         }
 
-        _console.Write(table);
-        _console.WriteLine();
+        var modeAll = false;
+        var modeNone = false;
+        int? picked = null;
 
-        // Selection prompt
-        var choices = new List<string>(options);
-        choices.Add("all");
-        choices.Add("none");
+        var initial = BuildTable(selectedIndex);
+        await Spectre.Console.AnsiConsole.Live(initial)
+            .StartAsync(async ctx =>
+            {
+                // Replace content with updated table on each move
+                void Refresh()
+                {
+                    ctx.UpdateTarget(BuildTable(selectedIndex));
+                }
 
-        var prompt = _console.CreateSelectionPrompt()
-            .Title("Select what to download:");
+                Refresh();
 
-        // Add numbered choices
-        foreach (var choice in choices.Take(options.Count))
-        {
-            prompt.AddChoice(choice);
-        }
-        
-        // Add action choices
-        prompt.AddChoice("all (Download all results)");
-        prompt.AddChoice("none (Cancel download)");
+                while (true)
+                {
+                    var keyInfo = Spectre.Console.AnsiConsole.Console.Input.ReadKey(true);
+                    if (keyInfo == null) { await Task.Delay(10); continue; }
+                    var key = keyInfo.Value;
+                    if (key.Key == ConsoleKey.UpArrow)
+                    {
+                        selectedIndex = (selectedIndex - 1 + displayCount) % displayCount;
+                        Refresh();
+                    }
+                    else if (key.Key == ConsoleKey.DownArrow)
+                    {
+                        selectedIndex = (selectedIndex + 1) % displayCount;
+                        Refresh();
+                    }
+                    else if (key.Key == ConsoleKey.Home)
+                    {
+                        selectedIndex = 0; Refresh();
+                    }
+                    else if (key.Key == ConsoleKey.End)
+                    {
+                        selectedIndex = displayCount - 1; Refresh();
+                    }
+                    else if (key.Key == ConsoleKey.Enter)
+                    {
+                        picked = selectedIndex;
+                        break;
+                    }
+                    else if (key.KeyChar == 'a' || key.KeyChar == 'A')
+                    {
+                        modeAll = true;
+                        break;
+                    }
+                    else if (key.KeyChar == 'n' || key.KeyChar == 'N' || key.Key == ConsoleKey.Escape)
+                    {
+                        modeNone = true;
+                        break;
+                    }
+                    else if (char.IsDigit(key.KeyChar))
+                    {
+                        var d = key.KeyChar - '0';
+                        // Map 1..9, 0 -> 10 (if exists)
+                        var idx = d == 0 ? 9 : d - 1;
+                        if (idx >= 0 && idx < displayCount)
+                        {
+                            selectedIndex = idx; Refresh();
+                        }
+                    }
 
-        var selection = _console.Prompt(prompt);
+                    await Task.Yield();
+                }
+            })
+            .ConfigureAwait(false);
 
-        if (selection == "none")
-        {
-            return new List<SearchResult>();
-        }
-        
-        if (selection == "all")
-        {
-            return results.Take(10).ToList(); // Limit to top 10 for safety
-        }
-
-        if (int.TryParse(selection, out int selectedIndex) && selectedIndex <= results.Count)
-        {
-            return new List<SearchResult> { results[selectedIndex - 1] };
-        }
-
-        return new List<SearchResult>();
+        return (picked, modeAll, modeNone);
     }
 
     public string FormatDetails(SearchResult result)

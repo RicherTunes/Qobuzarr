@@ -72,6 +72,29 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers.Parsing
 
             // Generate quality-specific title
             release.Title = _titleGenerator.GenerateQualitySpecificTitle(album, quality, year);
+
+            // For edition albums, prefer hyphen format to align with Lidarr parser expectations
+            try
+            {
+                if (!string.IsNullOrWhiteSpace(album.Version) && new TitleGenerator(_logger).ContainsEditionKeywords(album.Version))
+                {
+                    var artist = album.GetArtistName();
+                    var albumBaseTitle = album.Title;
+                    var formatStr = quality switch
+                    {
+                        QobuzAudioQuality.MP3320 => "MP3 320kbps",
+                        QobuzAudioQuality.FLACLossless => "FLAC",
+                        QobuzAudioQuality.FLACHiRes24Bit96kHz => "FLAC 24bit 96kHz",
+                        QobuzAudioQuality.FLACHiRes24Bit192Khz => "FLAC 24bit 192kHz",
+                        _ => "Unknown"
+                    };
+                    var versionWithQuality = string.IsNullOrWhiteSpace(album.Version)
+                        ? formatStr
+                        : $"{album.Version} {formatStr}";
+                    release.Title = $"{artist}-{albumBaseTitle}-{versionWithQuality}-WEB-{year}";
+                }
+            }
+            catch { /* best effort */ }
             
             // Critical debugging for album mapping (only during troubleshooting)
             _logger.Debug("🔍 ALBUM MAPPING: Qobuz '{0}' ({1}) → Title '{2}' → Album '{3}'", 

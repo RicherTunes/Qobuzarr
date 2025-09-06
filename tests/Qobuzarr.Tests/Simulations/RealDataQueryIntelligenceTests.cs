@@ -14,6 +14,7 @@ namespace Qobuzarr.Tests.Simulations
     /// Comprehensive simulation tests using real Lidarr album data
     /// Tests Query Intelligence optimization against actual user libraries
     /// </summary>
+    [Trait("Category", "Simulations")]
     public class RealDataQueryIntelligenceTests
     {
         private readonly ITestOutputHelper _output;
@@ -28,6 +29,13 @@ namespace Qobuzarr.Tests.Simulations
         {
             // Arrange - Load real album data from JSON files
             var realAlbums = LoadRealAlbumData();
+            // Apply an optional cap to limit stress in CI/local runs
+            var maxSamplesEnv = Environment.GetEnvironmentVariable("QOBUZ_TEST_MAX_REAL_ALBUMS");
+            if (int.TryParse(maxSamplesEnv, out var maxSamples) && maxSamples > 0)
+            {
+                realAlbums = realAlbums.Take(maxSamples).ToList();
+                _output.WriteLine($"Limiting real album samples to: {maxSamples}");
+            }
             
             if (realAlbums.Count == 0)
             {

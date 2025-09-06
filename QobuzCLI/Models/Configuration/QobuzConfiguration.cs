@@ -93,6 +93,7 @@ namespace QobuzCLI.Models.Configuration
                 EnableMetadataTagging = Download.EnableMetadataTagging,
                 ValidateDownloads = Download.ValidateDownloads,
                 PartialSizeTolerancePercent = Download.PartialSizeTolerancePercent,
+                ExistingFileBehavior = Download.ExistingFileBehavior,
 
                 // Search
                 SearchResultLimit = Search.SearchResultLimit,
@@ -159,7 +160,8 @@ namespace QobuzCLI.Models.Configuration
                     AlbumFolderPattern = legacy.AlbumFolderPattern,
                     EnableMetadataTagging = legacy.EnableMetadataTagging,
                     ValidateDownloads = legacy.ValidateDownloads,
-                    PartialSizeTolerancePercent = legacy.PartialSizeTolerancePercent
+                    PartialSizeTolerancePercent = legacy.PartialSizeTolerancePercent,
+                    ExistingFileBehavior = legacy.ExistingFileBehavior
                 },
 
                 Search = new SearchConfig

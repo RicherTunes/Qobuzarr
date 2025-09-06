@@ -174,6 +174,7 @@ namespace QobuzCLI.Services
 
         public async Task StartQueueProcessingAsync(string queueId)
         {
+            await Task.Yield();
             if (!_queues.TryGetValue(queueId, out var queue))
             {
                 throw new ArgumentException($"Queue {queueId} not found");
@@ -327,7 +328,7 @@ namespace QobuzCLI.Services
             return retryCount;
         }
 
-        private async Task SaveQueuesAsync()
+        private Task SaveQueuesAsync()
         {
             try
             {
@@ -341,6 +342,7 @@ namespace QobuzCLI.Services
             {
                 _logger.LogError(ex, "Failed to save queues");
             }
+            return Task.CompletedTask;
         }
 
         // Inner class for queue processing

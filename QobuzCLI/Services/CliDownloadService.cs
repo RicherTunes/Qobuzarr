@@ -52,20 +52,28 @@ namespace QobuzCLI.Services
 
                 // REAL download implementation using stream URL
                 var fileName = SanitizeFileName($"{track.TrackNumber:D2} - {track.Performer?.Name ?? track.Album?.Artist?.Name} - {track.Title}.flac");
-                var filePath = Path.Combine(outputPath, fileName);
+                var desiredPath = Path.Combine(outputPath, fileName);
+
+                // Existing file behavior (suffix | skip | overwrite)
+                var existingBehavior = GetExistingFileBehavior();
+                if (existingBehavior == "skip" && File.Exists(desiredPath))
+                {
+                    _logger.Info("Skipping existing file due to configuration: {0}", desiredPath);
+                    return desiredPath;
+                }
                 
                 // Ensure directory exists
                 Directory.CreateDirectory(outputPath);
-                
+
                 // Download the actual audio file (stream to disk to avoid high memory usage)
                 _logger.Info("Downloading audio file from: {0}", streamInfo.Url);
-                var bytesWritten = await DownloadToFileAsync(streamInfo.Url, filePath, progress, cancellationToken);
-                
+                var result = await DownloadToFileAsync(streamInfo.Url, desiredPath, progress, cancellationToken);
+
                 // Apply basic metadata
-                await ApplyMetadataAsync(filePath, track, album);
-                
-                _logger.Info("Track download completed: {0} ({1:N0} bytes)", filePath, bytesWritten);
-                return filePath;
+                await ApplyMetadataAsync(result.FinalPath, track, album);
+
+                _logger.Info("Track download completed: {0} ({1:N0} bytes)", result.FinalPath, result.BytesWritten);
+                return result.FinalPath;
             }
             catch (Exception ex)
             {
@@ -152,7 +160,7 @@ namespace QobuzCLI.Services
                     if (track.TrackNumber > 0)
                         file.Tag.Track = (uint)track.TrackNumber;
                         
-                    if (album.ReleaseDate != null)
+                    if (album.ReleaseDate != default)
                         file.Tag.Year = (uint)album.ReleaseDate.Year;
                     
                     if (!string.IsNullOrEmpty(album.Genre?.Name))
@@ -170,22 +178,66 @@ namespace QobuzCLI.Services
             }
         }
 
-        private static async Task<long> DownloadToFileAsync(
+        private static async Task<(string FinalPath, long BytesWritten)> DownloadToFileAsync(
             string url,
-            string filePath,
+            string desiredPath,
             IProgress<double> progress,
             CancellationToken cancellationToken)
         {
             // Use a temporary .partial file and atomic move on success.
-            var directory = Path.GetDirectoryName(filePath);
+            var directory = Path.GetDirectoryName(desiredPath);
             if (!string.IsNullOrEmpty(directory)) Directory.CreateDirectory(directory);
 
-            var tempPath = filePath + ".partial";
+            // Resolve a non-colliding final path and reserve its .partial exclusively
+            var baseName = Path.GetFileNameWithoutExtension(desiredPath);
+            var ext = Path.GetExtension(desiredPath);
+            string finalPath = desiredPath;
+            string tempPath = finalPath + ".partial";
+            FileStream? output = null;
             long resumeFrom = 0;
-            if (File.Exists(tempPath))
+
+            for (int i = 0; i < 1000; i++)
             {
-                var info = new FileInfo(tempPath);
-                resumeFrom = info.Length;
+                finalPath = i == 0 ? desiredPath : Path.Combine(directory!, $"{baseName} ({i}){ext}");
+                tempPath = finalPath + ".partial";
+                try
+                {
+                    if (File.Exists(tempPath))
+                    {
+                        // Try to take exclusive ownership and resume
+                        output = new FileStream(
+                            tempPath,
+                            FileMode.Open,
+                            FileAccess.Write,
+                            FileShare.None,
+                            bufferSize: 81920,
+                            useAsync: true);
+                        resumeFrom = output.Length;
+                        output.Position = resumeFrom;
+                    }
+                    else
+                    {
+                        output = new FileStream(
+                            tempPath,
+                            FileMode.CreateNew,
+                            FileAccess.Write,
+                            FileShare.None,
+                            bufferSize: 81920,
+                            useAsync: true);
+                        resumeFrom = 0;
+                    }
+                    break; // reserved
+                }
+                catch (IOException)
+                {
+                    // Partial file is in use or path collision; try next suffix
+                    continue;
+                }
+            }
+
+            if (output == null)
+            {
+                throw new IOException("Could not reserve a unique temp path for download.");
             }
 
             using var http = new HttpClient { Timeout = TimeSpan.FromMinutes(10) };
@@ -206,7 +258,16 @@ namespace QobuzCLI.Services
             if (resumeFrom > 0 && response.StatusCode == System.Net.HttpStatusCode.OK)
             {
                 // Discard partial and retry without range header
+                try { await output!.DisposeAsync().ConfigureAwait(false); } catch { }
                 try { File.Delete(tempPath); } catch { /* ignore */ }
+                // Recreate reservation from scratch (same finalPath)
+                output = new FileStream(
+                    tempPath,
+                    FileMode.CreateNew,
+                    FileAccess.Write,
+                    FileShare.None,
+                    bufferSize: 81920,
+                    useAsync: true);
                 resumeFrom = 0;
                 request = new HttpRequestMessage(HttpMethod.Get, url);
                 // Dispose previous response and acquire a fresh one
@@ -225,21 +286,12 @@ namespace QobuzCLI.Services
 
                 await using var input = await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
 
-                // Open output stream in append mode if resuming, else create new
-                await using var output = new FileStream(
-                    tempPath,
-                    resumeFrom > 0 ? FileMode.Append : FileMode.Create,
-                    FileAccess.Write,
-                    FileShare.None,
-                    bufferSize: 81920,
-                    useAsync: true);
-
                 var buffer = new byte[81920];
                 long written = resumeFrom;
                 int read;
                 while ((read = await input.ReadAsync(buffer.AsMemory(0, buffer.Length), cancellationToken).ConfigureAwait(false)) > 0)
                 {
-                    await output.WriteAsync(buffer.AsMemory(0, read), cancellationToken).ConfigureAwait(false);
+                    await output!.WriteAsync(buffer.AsMemory(0, read), cancellationToken).ConfigureAwait(false);
                     written += read;
                     if (progress != null && total.HasValue && total.Value > 0)
                     {
@@ -247,15 +299,53 @@ namespace QobuzCLI.Services
                     }
                 }
 
+                // Ensure data is flushed and stream closed before finalize
+                await output!.FlushAsync(cancellationToken).ConfigureAwait(false);
+                await output!.DisposeAsync().ConfigureAwait(false);
+
                 // Finalize: atomic move to destination
                 try
                 {
-                    if (File.Exists(filePath))
+                    var existingBehavior = GetExistingFileBehavior();
+                    if (File.Exists(finalPath))
                     {
-                        // Best-effort overwrite-safe move: replace existing
-                        File.Delete(filePath);
+                        if (existingBehavior == "overwrite")
+                        {
+                            // Replace existing file
+                            File.Delete(finalPath);
+                            File.Move(tempPath, finalPath);
+                        }
+                        else if (existingBehavior == "skip")
+                        {
+                            // Skip finalization, leave existing file untouched
+                            try { File.Delete(tempPath); } catch { }
+                            if (progress != null && total.HasValue) progress.Report(100.0);
+                            return (finalPath, 0);
+                        }
+                        else // suffix
+                        {
+                            // Compute a new non-colliding final path
+                            var idx = 1;
+                            var dir = Path.GetDirectoryName(finalPath)!;
+                            var stem = Path.GetFileNameWithoutExtension(finalPath);
+                            var extension = Path.GetExtension(finalPath);
+                            while (true)
+                            {
+                                var candidate = Path.Combine(dir, $"{stem} ({idx}){extension}");
+                                if (!File.Exists(candidate))
+                                {
+                                    File.Move(tempPath, candidate);
+                                    finalPath = candidate;
+                                    break;
+                                }
+                                idx++;
+                            }
+                        }
                     }
-                    File.Move(tempPath, filePath);
+                    else
+                    {
+                        File.Move(tempPath, finalPath);
+                    }
                 }
                 catch
                 {
@@ -268,12 +358,25 @@ namespace QobuzCLI.Services
                     progress.Report(100.0);
                 }
 
-                return written - resumeFrom;
+                return (finalPath, written - resumeFrom);
             }
             finally
             {
                 response.Dispose();
             }
+        }
+        private static string GetExistingFileBehavior()
+        {
+            var skipFlag = Environment.GetEnvironmentVariable("QOBUZ_SKIP_EXISTING");
+            if (!string.IsNullOrEmpty(skipFlag) && bool.TryParse(skipFlag, out var skip) && skip)
+            {
+                return "skip";
+            }
+
+            var behavior = Environment.GetEnvironmentVariable("QOBUZ_EXISTING_FILE_BEHAVIOR");
+            if (string.IsNullOrWhiteSpace(behavior)) return "overwrite";
+            behavior = behavior.Trim().ToLowerInvariant();
+            return behavior is "skip" or "overwrite" or "suffix" ? behavior : "suffix";
         }
     }
 }

@@ -13,17 +13,19 @@ using Spectre.Console;
 
 namespace QobuzCLI.Commands;
 
-public record DownloadOptions(
-    string? Query,
-    string? FromFile,
-    bool Immediate,
-    string? Output,
-    string? Quality,
-    bool Select,
-    bool All,
-    string? Type,
-    string? AlbumId,
-    int Priority,
+    public record DownloadOptions(
+        string? Query,
+        string? FromFile,
+        bool Immediate,
+        string? Output,
+        string? Quality,
+        bool SkipExisting,
+        string? ExistingBehavior,
+        bool Select,
+        bool All,
+        string? Type,
+        string? AlbumId,
+        int Priority,
     string? QueueId,
     string? ReportFormat,
     string? ReportOutput,
@@ -96,7 +98,9 @@ public class DownloadCommand
         var immediateOption = new Option<bool>("--immediate", "Download immediately without queuing");
         var outputOption = new Option<string?>("--output", "Output directory (overrides config)");
         var qualityOption = new Option<string?>("--quality", "Quality override: mp3-320, flac-cd, flac-hires, flac-max");
+        var skipExistingOption = new Option<bool>("--skip-existing", () => false, "Skip files that already exist (don’t create suffixes)");
         var selectOption = new Option<bool>("--select", "Show selection prompt if multiple results found");
+        var existingBehaviorOption = new Option<string?>("--existing-file-behavior", () => null, "Behavior when a file exists: overwrite | suffix | skip");
         var allOption = new Option<bool>("--all", "Download all matching results");
         var typeOption = new Option<string?>("--type", "Search type: auto, album, artist, track, playlist, label");
         var albumIdOption = new Option<string?>("--album-id", "Download a specific album by Qobuz album ID (bypasses search)");
@@ -111,6 +115,8 @@ public class DownloadCommand
         downloadCommand.AddOption(immediateOption);
         downloadCommand.AddOption(outputOption);
         downloadCommand.AddOption(qualityOption);
+        downloadCommand.AddOption(skipExistingOption);
+        downloadCommand.AddOption(existingBehaviorOption);
         downloadCommand.AddOption(selectOption);
         downloadCommand.AddOption(allOption);
         downloadCommand.AddOption(typeOption);
@@ -129,6 +135,8 @@ public class DownloadCommand
                 context.ParseResult.GetValueForOption(immediateOption),
                 context.ParseResult.GetValueForOption(outputOption),
                 context.ParseResult.GetValueForOption(qualityOption),
+                context.ParseResult.GetValueForOption(skipExistingOption),
+                context.ParseResult.GetValueForOption(existingBehaviorOption),
                 context.ParseResult.GetValueForOption(selectOption),
                 context.ParseResult.GetValueForOption(allOption),
                 context.ParseResult.GetValueForOption(typeOption),
@@ -152,6 +160,15 @@ public class DownloadCommand
         {
             var config = await InitializeAndValidateAsync(options).ConfigureAwait(false);
             if (config == null) return;
+
+            // Apply skip-existing override via environment for CLI downloader
+            if (options.SkipExisting) Environment.SetEnvironmentVariable("QOBUZ_SKIP_EXISTING", "true");
+            if (!string.IsNullOrWhiteSpace(options.ExistingBehavior))
+            {
+                var eb = options.ExistingBehavior!.Trim().ToLowerInvariant();
+                if (eb is "overwrite" or "suffix" or "skip")
+                    Environment.SetEnvironmentVariable("QOBUZ_EXISTING_FILE_BEHAVIOR", eb);
+            }
 
             // Handle file input
             if (!string.IsNullOrEmpty(options.FromFile))
@@ -298,7 +315,7 @@ public class DownloadCommand
         }
     }
 
-    private async Task<List<Models.SearchResult>> ShowSelectionUIAsync(
+    private Task<List<Models.SearchResult>> ShowSelectionUIAsync(
         List<Models.SearchResult> results, 
         string query,
         List<Models.SearchResult> exactMatches)
@@ -359,20 +376,20 @@ public class DownloadCommand
 
         if (selection == "none")
         {
-            return new List<Models.SearchResult>();
+            return Task.FromResult(new List<Models.SearchResult>());
         }
         
         if (selection == "all")
         {
-            return results.Take(10).ToList(); // Limit to top 10 for safety
+            return Task.FromResult(results.Take(10).ToList()); // Limit to top 10 for safety
         }
 
         if (int.TryParse(selection, out int selectedIndex) && selectedIndex <= results.Count)
         {
-            return new List<Models.SearchResult> { results[selectedIndex - 1] };
+            return Task.FromResult(new List<Models.SearchResult> { results[selectedIndex - 1] });
         }
 
-        return new List<Models.SearchResult>();
+        return Task.FromResult(new List<Models.SearchResult>());
     }
 
     private async Task ExecuteDownloadsAsync(List<Models.SearchResult> results, QobuzConfig config)
