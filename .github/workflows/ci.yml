@@ -140,8 +140,13 @@ PY
       run: |
         echo "Setting up Lidarr assemblies..."
         mkdir -p ext/Lidarr/_output/net6.0
-        chmod +x ./download-lidarr-assemblies.sh
-        ./download-lidarr-assemblies.sh --version ${{ env.MINIMUM_LIDARR_VERSION }}
+        set +e
+        chmod +x ./download-lidarr-assemblies.sh || true
+        ./download-lidarr-assemblies.sh --version ${{ env.MINIMUM_LIDARR_VERSION }} || DL_FAIL=1
+        if [ "$DL_FAIL" = "1" ] || [ ! -f ext/Lidarr/_output/net6.0/Lidarr.dll ]; then
+          echo "Primary download failed or incomplete. Trying PowerShell script..."
+          pwsh -File ./download-lidarr-assemblies.ps1 -LidarrVersion "${{ env.MINIMUM_LIDARR_VERSION }}" -Force
+        fi
 
     - name: Restore and build
       run: |
@@ -209,8 +214,13 @@ PY
       run: |
         echo "🧰 Setting up Lidarr assemblies..."
         mkdir -p ext/Lidarr/_output/net6.0
-        chmod +x ./download-lidarr-assemblies.sh
-        ./download-lidarr-assemblies.sh --version ${{ env.MINIMUM_LIDARR_VERSION }}
+        set +e
+        chmod +x ./download-lidarr-assemblies.sh || true
+        ./download-lidarr-assemblies.sh --version ${{ env.MINIMUM_LIDARR_VERSION }} || DL_FAIL=1
+        if [ "$DL_FAIL" = "1" ] || [ ! -f ext/Lidarr/_output/net6.0/Lidarr.dll ]; then
+          echo "Primary download failed or incomplete. Trying PowerShell script..."
+          pwsh -File ./download-lidarr-assemblies.ps1 -LidarrVersion "${{ env.MINIMUM_LIDARR_VERSION }}" -Force
+        fi
         ls -la ext/Lidarr/_output/net6.0/ || true
 
     - name: Restore and build
