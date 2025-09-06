@@ -113,6 +113,7 @@ namespace Qobuzarr.Tests.Unit.Indexers
         }
 
         [Fact]
+        [Trait("Category", "Slow")]
         public void QueryIntelligence_PerformanceUnderLoad_ShouldBeEfficient()
         {
             // Arrange - Generate a large number of test cases
@@ -153,6 +154,7 @@ namespace Qobuzarr.Tests.Unit.Indexers
         }
 
         [Fact]
+        [Trait("Category", "Slow")]
         public void QueryIntelligence_ThreadSafety_ShouldBeThreadSafe()
         {
             // Arrange - Test concurrent access
