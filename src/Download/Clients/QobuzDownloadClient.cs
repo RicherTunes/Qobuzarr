@@ -50,6 +50,7 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Clients
         private readonly IDownloadOrchestrator _orchestrator;
         private readonly IDownloadSummary _downloadSummary;
         private readonly IBatchProcessor _batchProcessor;
+        private readonly Lidarr.Plugin.Qobuzarr.Download.Services.ITrackDownloadService _trackDownloadService;
         // Removed dependency on IQobuzTrackDownloaderFactory - consolidated into this class
         private readonly ConcurrentDictionary<string, QobuzDownloadItem> _activeDownloads;
         private QobuzDownloadItem _lastQueuedItem;
@@ -73,6 +74,7 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Clients
                                   IDownloadOrchestrator orchestrator,
                                   IDownloadSummary downloadSummary,
                                   IBatchProcessor batchProcessor,
+                                  Lidarr.Plugin.Qobuzarr.Download.Services.ITrackDownloadService trackDownloadService,
                                   IConfigService configService,
                                   IDiskProvider diskProvider,
                                   IRemotePathMappingService remotePathMappingService,
@@ -89,6 +91,7 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Clients
             _orchestrator = orchestrator ?? throw new ArgumentNullException(nameof(orchestrator));
             _downloadSummary = downloadSummary ?? throw new ArgumentNullException(nameof(downloadSummary));
             _batchProcessor = batchProcessor ?? throw new ArgumentNullException(nameof(batchProcessor));
+            _trackDownloadService = trackDownloadService ?? throw new ArgumentNullException(nameof(trackDownloadService));
             // Track downloader functionality consolidated into this class
             
             _activeDownloads = new ConcurrentDictionary<string, QobuzDownloadItem>();
@@ -382,8 +385,8 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Clients
                 // Create output directory using file service
                 _fileService.EnsureOutputDirectory(downloadItem.OutputPath);
 
-                // Download tracks
-                await DownloadAlbumTracksAsync(downloadItem, album).ConfigureAwait(false);
+                // Download tracks (delegated to service)
+                await _trackDownloadService.DownloadAlbumAsync(downloadItem, album, Settings, downloadItem.CancellationTokenSource.Token).ConfigureAwait(false);
 
                 // Mark as completed
                 downloadItem.Status = DownloadItemStatus.Completed;

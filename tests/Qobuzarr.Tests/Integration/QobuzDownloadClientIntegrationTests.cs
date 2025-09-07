@@ -77,6 +77,7 @@ namespace Qobuzarr.Tests.Integration
             services.AddScoped<IDownloadQueueService, DownloadQueueService>();
             services.AddScoped<IDownloadFileService, DownloadFileService>();
             services.AddScoped<IConcurrencyManager, ConcurrencyManager>();
+            services.AddScoped<ITrackDownloadService, TrackDownloadService>();
             services.AddScoped<IDownloadOrchestrator, DownloadOrchestrator>();
             services.AddScoped<IStreamUrlProvider, StreamUrlProvider>();
             services.AddScoped<IMetadataProcessor, MetadataProcessor>();

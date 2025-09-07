@@ -44,6 +44,7 @@ namespace Qobuzarr.Tests.Unit.Download
                 IDownloadFileService fileService,
                 IConcurrencyManager concurrencyManager,
                 IDownloadOrchestrator orchestrator,
+                ITrackDownloadService trackDownloadService,
                 IDownloadSummary downloadSummary,
                 IBatchProcessor batchProcessor,
                 NzbDrone.Core.Configuration.IConfigService configService,
@@ -52,7 +53,7 @@ namespace Qobuzarr.Tests.Unit.Download
                 NzbDrone.Core.Localization.ILocalizationService localizationService,
                 NLog.Logger logger) 
                 : base(authService, apiClient, httpClient, queueService, fileService, concurrencyManager, 
-                      orchestrator, downloadSummary, batchProcessor,
+                      orchestrator, downloadSummary, batchProcessor, trackDownloadService,
                       configService, diskProvider, remotePathMappingService, localizationService, logger)
             {
                 _testSettings = new QobuzDownloadSettings
@@ -79,6 +80,7 @@ namespace Qobuzarr.Tests.Unit.Download
         private readonly IConcurrencyManager _mockConcurrencyManager;
         private readonly IDownloadOrchestrator _mockOrchestrator;
         private readonly IDownloadSummary _mockDownloadSummary;
+        private readonly ITrackDownloadService _mockTrackDownloadService;
         private readonly IBatchProcessor _mockBatchProcessor;
         // REMOVED: IQobuzTrackDownloaderFactory has been deleted
         private readonly TestableQobuzDownloadClient _downloadClient;
@@ -93,6 +95,7 @@ namespace Qobuzarr.Tests.Unit.Download
             _mockConcurrencyManager = Substitute.For<IConcurrencyManager>();
             _mockOrchestrator = Substitute.For<IDownloadOrchestrator>();
             _mockDownloadSummary = Substitute.For<IDownloadSummary>();
+            _mockTrackDownloadService = Substitute.For<ITrackDownloadService>();
             _mockBatchProcessor = Substitute.For<IBatchProcessor>();
             // REMOVED: IQobuzTrackDownloaderFactory mock creation
             
@@ -104,6 +107,7 @@ namespace Qobuzarr.Tests.Unit.Download
                 _mockFileService,
                 _mockConcurrencyManager,
                 _mockOrchestrator,
+                _mockTrackDownloadService,
                 _mockDownloadSummary,
                 _mockBatchProcessor,
                 MockConfigService.Object,
