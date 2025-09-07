@@ -42,7 +42,7 @@ namespace QobuzCLI.Commands;
 /// - Adds CLI-specific features: progress display, batch management, UI
 /// - Maintains separation: plugin = core logic, CLI = user interface
 /// </remarks>
-public class DownloadCommand
+public partial class DownloadCommand
 {
     private readonly IConfigService _configService;
     private readonly IPluginHost _pluginHost;
@@ -243,7 +243,7 @@ public class DownloadCommand
             }
 
             // Determine what to download
-            var selectedResults = await SelectDownloadTargetsAsync(results, options.Query, options.Select, options.All).ConfigureAwait(false);
+            var selectedResults = await SelectDownloadTargetsCoreAsync(results, options.Query, options.Select, options.All).ConfigureAwait(false);
             if (!selectedResults.Any())
             {
                 AnsiConsole.MarkupLine("[yellow]No items selected for download.[/]");
@@ -272,48 +272,7 @@ public class DownloadCommand
         }
     }
 
-    private async Task<List<Models.SearchResult>> SelectDownloadTargetsAsync(
-        List<Models.SearchResult> results, 
-        string query, 
-        bool forceSelect, 
-        bool downloadAll)
-    {
-        if (downloadAll)
-        {
-            AnsiConsole.MarkupLine($"[cyan]📥 Will download all {results.Count} results[/]");
-            return results;
-        }
-
-        // Check for exact matches
-        var exactMatches = results.Where(r => r.Score >= 95).ToList();
-        
-        if (exactMatches.Count == 1 && !forceSelect)
-        {
-            var match = exactMatches.First();
-            AnsiConsole.MarkupLine($"[green]✨ Found exact match: {match.Title} - {match.Artist}[/]");
-            return new List<Models.SearchResult> { match };
-        }
-
-        // Check for high-quality single match
-        var topResult = results.First();
-        if (results.Count == 1 || (topResult.Score >= 85 && !forceSelect))
-        {
-            AnsiConsole.MarkupLine($"[green]🎯 Auto-selecting best match: {topResult.Title} - {topResult.Artist}[/]");
-            return new List<Models.SearchResult> { topResult };
-        }
-
-        // Multiple results - try to show selection UI, fallback to top result if not interactive
-        try 
-        {
-            return await ShowSelectionUIAsync(results, query, exactMatches).ConfigureAwait(false);
-        }
-        catch (NotSupportedException)
-        {
-            // Terminal not interactive - auto-select best match
-            AnsiConsole.MarkupLine($"[yellow]⚠️  Terminal not interactive, auto-selecting best match: {topResult.Title} - {topResult.Artist}[/]");
-            return new List<Models.SearchResult> { topResult };
-        }
-    }
+    // Moved to partial: DownloadCommand.Execution.cs
 
     private Task<List<Models.SearchResult>> ShowSelectionUIAsync(
         List<Models.SearchResult> results, 
@@ -945,5 +904,3 @@ public class DownloadCommand
         return config;
     }
 }
-
-

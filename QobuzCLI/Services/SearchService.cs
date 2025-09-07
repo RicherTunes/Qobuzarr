@@ -134,15 +134,21 @@ public class SearchService : ISearchService
                 return SearchType.Auto;
             }
 
-            // Heuristic: multi-word queries (>=3) without explicit album/track markers are likely track searches
-            var wordCount = cleanQuery.Split(' ', StringSplitOptions.RemoveEmptyEntries).Length;
-            if (wordCount >= 3
-                && !cleanQuery.Contains(" - ")
-                && !Regex.IsMatch(cleanQuery, @"\s+by\s+")
-                && !albumIndicators.Any(i => cleanQuery.Contains(i)))
+            // Heuristic: multi-word queries
+            // - If exactly 3 words and ends with a long token (likely artist), treat as track (e.g., "come together beatles")
+            // - Otherwise default multi-word to album unless explicit track markers exist
+            var tokens = cleanQuery.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+            var wordCount = tokens.Length;
+            if (wordCount >= 3 && !cleanQuery.Contains(" - ") && !Regex.IsMatch(cleanQuery, @"\s+by\s+") && !albumIndicators.Any(i => cleanQuery.Contains(i)))
             {
-                _logger.LogDebug("Detected likely track pattern by word count for query: {Query}", query);
-                return SearchType.Track;
+                var lastToken = tokens[^1];
+                if (wordCount == 3 && lastToken.Length >= 6 && !trackIndicators.Any(i => cleanQuery.Contains(i)))
+                {
+                    _logger.LogDebug("Detected likely track pattern (3 words, artist suffix): {Query}", query);
+                    return SearchType.Track;
+                }
+                _logger.LogDebug("Defaulting multi-word query to album: {Query}", query);
+                return SearchType.Album;
             }
 
             // Default to album for multi-word queries that have clear intent
@@ -210,16 +216,9 @@ public class SearchService : ISearchService
                 score += 95;
             }
             // Token-exact match (order-insensitive) for queries like "abbey road beatles"
-            else
+            else if (IsTokenExactMatch(queryLower, titleLower, artistLower))
             {
-                var qTokens = queryLower.Split(' ', StringSplitOptions.RemoveEmptyEntries);
-                var tTokens = titleLower.Split(' ', StringSplitOptions.RemoveEmptyEntries);
-                var aTokens = artistLower.Split(' ', StringSplitOptions.RemoveEmptyEntries).Where(t => t != "the");
-                var expected = tTokens.Concat(aTokens).ToArray();
-                if (qTokens.Length == expected.Length && expected.All(tok => qTokens.Contains(tok)))
-                {
-                    score += 95;
-                }
+                score += 95;
             }
             // Partial matches get lower scores
             else if (titleLower.Contains(queryLower))
@@ -393,5 +392,14 @@ public class SearchService : ISearchService
                 yield return scoredResult;
             }
         }
+    }
+
+    private static bool IsTokenExactMatch(string queryLower, string titleLower, string artistLower)
+    {
+        var qTokens = queryLower.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        var tTokens = titleLower.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        var aTokens = artistLower.Split(' ', StringSplitOptions.RemoveEmptyEntries).Where(t => t != "the");
+        var expected = tTokens.Concat(aTokens).ToArray();
+        return qTokens.Length == expected.Length && expected.All(tok => qTokens.Contains(tok));
     }
 }

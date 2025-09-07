@@ -29,6 +29,12 @@
     <RunCodeAnalysis>false</RunCodeAnalysis>
     
   </PropertyGroup>
+
+  <!-- Ensure Lidarr.Plugin.Common submodule is present before restore -->
+  <Target Name="CheckCommonSubmodule" BeforeTargets="Restore">
+    <Error Condition="!Exists('ext/Lidarr.Plugin.Common/src/Lidarr.Plugin.Common.csproj')"
+           Text="Lidarr.Plugin.Common submodule missing. Run: git submodule update --init --recursive" />
+  </Target>
   
   
   <PropertyGroup>
