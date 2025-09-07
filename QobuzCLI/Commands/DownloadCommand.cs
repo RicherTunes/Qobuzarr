@@ -755,32 +755,6 @@ public partial class DownloadCommand
     /// <summary>
     /// Validate downloadability using plugin's validation logic.
     /// </summary>
-    private async Task<bool> ValidateAlbumDownloadabilityAsync(string albumId, int preferredQuality)
-    {
-        try
-        {
-            // Use the plugin host's validation method directly
-            return await _pluginHost.ValidateAlbumDownloadabilityAsync(albumId, preferredQuality);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Validation failed for album {AlbumId}", albumId);
-            // If validation fails, assume downloadable to avoid false negatives
-            return true;
-        }
-    }
-
-    private int GetQualityId(string quality)
-    {
-        return quality.ToLower() switch
-        {
-            "mp3-320" => 5,
-            "flac-cd" => 6,
-            "flac-hires" => 7,
-            "flac-max" => 27,
-            _ => 27 // Default to highest quality
-        };
-    }
 
     // Removed complex error categorization - this functionality should be in a separate service if needed
     // CLI should focus on UI/UX, not business logic
