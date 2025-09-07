@@ -97,9 +97,11 @@ namespace Lidarr.Plugin.Qobuzarr.Security
             trimmed = Regex.Replace(trimmed, @"<script[^>]*>.*?</script>", " ", RegexOptions.IgnoreCase | RegexOptions.Singleline);
             trimmed = Regex.Replace(trimmed, @"<[^>]*>", " ", RegexOptions.IgnoreCase);
             trimmed = Regex.Replace(trimmed, @"javascript:\s*", " ", RegexOptions.IgnoreCase);
-            trimmed = Regex.Replace(trimmed, @"\bon(?:error|mouseover)\b", " ", RegexOptions.IgnoreCase);
+            // Strip common DOM event handlers like onclick, onerror, onmouseover
+            trimmed = Regex.Replace(trimmed, @"\bon(?:click|error|mouseover)\b", " ", RegexOptions.IgnoreCase);
             // Extra guard: simple case-insensitive removals for stubborn tokens
-            trimmed = trimmed.Replace("onmouseover", " ", StringComparison.OrdinalIgnoreCase)
+            trimmed = trimmed.Replace("onclick", " ", StringComparison.OrdinalIgnoreCase)
+                             .Replace("onmouseover", " ", StringComparison.OrdinalIgnoreCase)
                              .Replace("onerror", " ", StringComparison.OrdinalIgnoreCase)
                              .Replace("javascript:", " ", StringComparison.OrdinalIgnoreCase)
                              .Replace("alert(", " ", StringComparison.OrdinalIgnoreCase);

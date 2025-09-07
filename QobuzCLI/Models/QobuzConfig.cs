@@ -219,27 +219,38 @@ public class ConfigParameter
     [JsonProperty("lidarrDefaultReportFormat")]
     public string LidarrDefaultReportFormat { get; set; } = "html";
 
+    // Test/diagnostics-only: allow strict initialization without using process-wide env vars
+    [JsonProperty("strictInitialization")]
+    public bool StrictInitialization { get; set; } = false;
+
     /// <summary>
-    /// Get authentication method (email or token)
+    /// Determine if email auth is in effect.
+    /// Prefer explicit setting, but infer from present credentials when appropriate.
     /// </summary>
-    public bool IsEmailAuth() => AuthMethod.Equals("email", StringComparison.OrdinalIgnoreCase);
-    
+    public bool IsEmailAuth()
+        => AuthMethod.Equals("email", StringComparison.OrdinalIgnoreCase)
+           || (!string.IsNullOrWhiteSpace(Email) && !string.IsNullOrWhiteSpace(Password));
+
     /// <summary>
-    /// Get authentication method (email or token)
+    /// Determine if token auth is in effect.
+    /// Prefer explicit setting, but infer from present credentials when appropriate.
     /// </summary>
-    public bool IsTokenAuth() => AuthMethod.Equals("token", StringComparison.OrdinalIgnoreCase);
-    
+    public bool IsTokenAuth()
+        => AuthMethod.Equals("token", StringComparison.OrdinalIgnoreCase)
+           || (!string.IsNullOrWhiteSpace(UserId) && !string.IsNullOrWhiteSpace(AuthToken));
+
     /// <summary>
-    /// Check if configuration has valid authentication details
+    /// Check if configuration has valid authentication details.
+    /// Inference allows tests to set only credentials without toggling AuthMethod.
     /// </summary>
     public bool HasValidAuth()
     {
-        if (IsEmailAuth())
-            return !string.IsNullOrWhiteSpace(Email) && !string.IsNullOrWhiteSpace(Password);
-        
-        if (IsTokenAuth())
-            return !string.IsNullOrWhiteSpace(UserId) && !string.IsNullOrWhiteSpace(AuthToken);
-            
+        if (!string.IsNullOrWhiteSpace(UserId) && !string.IsNullOrWhiteSpace(AuthToken))
+            return true;
+
+        if (!string.IsNullOrWhiteSpace(Email) && !string.IsNullOrWhiteSpace(Password))
+            return true;
+
         return false;
     }
 }

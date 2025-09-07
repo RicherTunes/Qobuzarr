@@ -53,13 +53,19 @@ try {
     # Copy required assemblies
     $sourceDir = "Lidarr"
     $requiredAssemblies = @(
+        # Lidarr host assemblies
         "Lidarr.Core.dll",
         "Lidarr.Common.dll",
         "Lidarr.Http.dll",
         "Lidarr.Api.V1.dll",
         "Lidarr.dll",
         "Lidarr.Host.dll",
-        "Lidarr.SignalR.dll"
+        "Lidarr.SignalR.dll",
+        # Legacy/host assemblies some tests reference via NzbDrone namespaces
+        "NzbDrone.Core.dll",
+        "NzbDrone.Common.dll",
+        "NzbDrone.Host.dll",
+        "NzbDrone.Api.dll"
     )
     
     foreach ($assembly in $requiredAssemblies) {
