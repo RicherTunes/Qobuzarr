@@ -103,14 +103,9 @@ public partial class DownloadCommand
         return Task.FromResult(new List<Models.SearchResult>());
     }
 
-    // Thin wrappers moved from main file to reduce file size and keep behavior
-    private Task<List<Models.SearchResult>> ShowSelectionUIAsync(
-        List<Models.SearchResult> results,
-        string query,
-        List<Models.SearchResult> exactMatches)
-        => ShowSelectionUIAsyncCore(results, query, exactMatches);
+    // Thin wrappers moved from main file are below; selection UI core exists above
 
-    private async Task ExecuteDownloadsAsync(List<Models.SearchResult> results, QobuzConfig config)
+    private async Task ExecuteDownloadsCoreAsync(List<Models.SearchResult> results, QobuzConfig config)
     {
         foreach (var r in results)
         {
@@ -123,7 +118,7 @@ public partial class DownloadCommand
         }
     }
 
-    private async Task<CliDownloadResult> ExecutePluginDownloadAsync(Models.SearchResult result, string outputDir, string? quality)
+    private async Task<CliDownloadResult> ExecutePluginDownloadCoreAsync(Models.SearchResult result, string outputDir, string? quality)
     {
         if (string.Equals(result.Type, "album", StringComparison.OrdinalIgnoreCase) && !string.IsNullOrWhiteSpace(result.Id))
         {
@@ -134,12 +129,12 @@ public partial class DownloadCommand
         return CliDownloadResult.Failure("Unsupported type in test-mode");
     }
 
-    private void DisplayDownloadSummary(CliDownloadResult[] downloadResults, string outputDirectory)
+    private void DisplayDownloadSummaryCore(CliDownloadResult[] downloadResults, string outputDirectory)
     {
         // Minimal, non-interactive summary for tests (no-op)
     }
 
-    private string FormatDetails(Models.SearchResult result)
+    private string FormatDetailsCore(Models.SearchResult result)
     {
         var parts = new List<string>();
         if (!string.IsNullOrWhiteSpace(result.Type)) parts.Add(result.Type);
@@ -148,18 +143,18 @@ public partial class DownloadCommand
         return string.Join(" • ", parts);
     }
 
-    private string FormatQuality(Models.SearchResult result)
+    private string FormatQualityCore(Models.SearchResult result)
         => string.IsNullOrWhiteSpace(result.Quality) ? string.Empty : result.Quality;
 
-    private string FormatMatchScore(Models.SearchResult result)
+    private string FormatMatchScoreCore(Models.SearchResult result)
         => result.Score >= 95 ? "exact" : result.Score >= 85 ? "high" : result.Score >= 70 ? "medium" : "low";
 
-    private async Task AddToQueueAsync(List<Models.SearchResult> results, QobuzConfig config, int priority, string? queueId)
+    private async Task AddToQueueCoreAsync(List<Models.SearchResult> results, QobuzConfig config, int priority, string? queueId)
     {
         await Task.CompletedTask;
     }
 
-    private CliDownloadResult ConvertPlaylistResultToCliResult(CliPlaylistDownloadResult playlistResult)
+    private CliDownloadResult ConvertPlaylistResultToCliResultCore(CliPlaylistDownloadResult playlistResult)
     {
         return new CliDownloadResult
         {
@@ -174,7 +169,7 @@ public partial class DownloadCommand
         };
     }
 
-    private CliDownloadResult ConvertLabelResultToCliResult(Lidarr.Plugin.Qobuzarr.Download.Services.LabelDownloadResult labelResult)
+    private CliDownloadResult ConvertLabelResultToCliResultCore(Lidarr.Plugin.Qobuzarr.Download.Services.LabelDownloadResult labelResult)
     {
         return new CliDownloadResult
         {
@@ -188,4 +183,20 @@ public partial class DownloadCommand
             AdditionalApiCalls = labelResult.TotalAlbums
         };
     }
+
+    private async Task<bool> ValidateAlbumDownloadabilityAsync(string albumId, int preferredQuality)
+    {
+        try { return await _pluginHost.ValidateAlbumDownloadabilityAsync(albumId, preferredQuality).ConfigureAwait(false); }
+        catch { return true; }
+    }
+
+    private int GetQualityId(string quality)
+        => (quality?.ToLower()) switch
+        {
+            "mp3-320" => 5,
+            "flac-cd" => 6,
+            "flac-hires" => 7,
+            "flac-max" => 27,
+            _ => 27
+        };
 }

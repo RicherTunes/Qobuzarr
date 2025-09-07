@@ -103,9 +103,8 @@ public class CodeQualityTests
             Path.Combine(GetSourceRoot(), "QobuzCLI", "Commands", "DownloadCommand.cs"));
         
         var lineCount = downloadCommandSource.Split('\n').Length;
-        // Temporary threshold while ongoing extraction to partial classes completes
-        lineCount.Should().BeLessOrEqualTo(1000,
-            "DownloadCommand should be maintainable size after refactoring (target ≤800 pending final extraction)");
+        lineCount.Should().BeLessOrEqualTo(800,
+            "DownloadCommand should be maintainable size after refactoring");
     }
 
     [Fact]
