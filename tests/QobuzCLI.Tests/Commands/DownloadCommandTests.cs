@@ -76,7 +76,8 @@ public class DownloadCommandTests
         var command = _downloadCommand.Command;
 
         // Assert
-        var optionNames = command.Options.Select(o => o.Name).ToList();
+        // System.CommandLine's Option.Name may not include dashes; check aliases instead
+        var optionNames = command.Options.SelectMany(o => o.Aliases).ToList();
         
         optionNames.Should().Contain("--from-file");
         optionNames.Should().Contain("--immediate");

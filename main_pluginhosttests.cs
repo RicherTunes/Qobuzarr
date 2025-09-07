@@ -42,7 +42,6 @@ public class PluginHostTests
         var invalidConfig = new QobuzConfig(); // No credentials
 
         // Act & Assert
-        invalidConfig.StrictInitialization = true;
         await _pluginHost.Invoking(p => p.InitializeAsync(invalidConfig))
             .Should().ThrowAsync<InvalidOperationException>()
             .WithMessage("*credentials*");
