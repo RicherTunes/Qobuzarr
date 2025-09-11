@@ -1,4 +1,4 @@
-global using PreviewDetectionUtility = Lidarr.Plugin.Common.Utilities.PreviewDetectionUtility;
-global using HashingUtility = Lidarr.Plugin.Common.Utilities.HashingUtility;
-global using StringSimilarity = Lidarr.Plugin.Common.Utilities.StringSimilarity;
-global using Lidarr.Plugin.Common.Services.Intelligence.ML;
+// Local test shims to avoid tight coupling to ext/Lidarr.Plugin.Common commit
+global using PreviewDetectionUtility = Qobuzarr.Tests.Utilities.PreviewDetectionUtility;
+global using StringSimilarity = Qobuzarr.Tests.Utilities.StringSimilarity;
+// Note: avoid importing Common ML namespace globally to prevent type name collisions
