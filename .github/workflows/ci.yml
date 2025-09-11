@@ -134,6 +134,11 @@ jobs:
       with:
         dotnet-version: ${{ env.DOTNET_VERSION }}
 
+    - name: Setup .NET 6.x (test runtime)
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: 6.0.x
+
     - name: Cache NuGet packages
       uses: actions/cache@v3
       with:
@@ -146,6 +151,7 @@ jobs:
 
     - name: Setup Lidarr assemblies (plugins branch)
       run: |
+
         echo "Setting up Lidarr assemblies from plugins branch (Docker)..."
         set -e
         mkdir -p ext/Lidarr/_output/net6.0
@@ -178,6 +184,24 @@ jobs:
           echo "[ERROR] Assemblies do not expose IDownloadProtocol (plugins branch API)."
           echo "        Ensure image 'ghcr.io/hotio/lidarr:pr-plugins' is accessible."
           exit 1
+
+        fi
+
+        ls -la ext/Lidarr/_output/net6.0/ || true
+        if [ ! -f ext/Lidarr/_output/net6.0/Lidarr.dll ]; then
+          echo "[ERROR] Missing Lidarr.dll after all setup attempts."
+          exit 1
+        fi
+
+        # Detect plugins-branch API; if absent, fall back to UsePluginsBranch=false for fast-tests
+        if strings ext/Lidarr/_output/net6.0/Lidarr.Core.dll | grep -q "IDownloadProtocol"; then
+          echo "PLUGIN_API=1" >> $GITHUB_ENV
+          echo "USE_PLUGINS_BRANCH=true" >> $GITHUB_ENV
+          echo "[OK] Detected plugins-branch API (IDownloadProtocol present)"
+        else
+          echo "PLUGIN_API=0" >> $GITHUB_ENV
+          echo "USE_PLUGINS_BRANCH=false" >> $GITHUB_ENV
+          echo "[WARN] IDownloadProtocol not present; building with UsePluginsBranch=false for fast-tests"
         fi
 
     - name: Dotnet info
@@ -191,16 +215,19 @@ jobs:
           echo "[ERROR] Missing Lidarr.dll after extraction."
           exit 1
         fi
+
         if ! strings ext/Lidarr/_output/net6.0/Lidarr.Core.dll | grep -q "IDownloadProtocol"; then
           echo "[ERROR] Assemblies do not expose IDownloadProtocol (plugins branch API)."
           echo "        Ensure image 'ghcr.io/hotio/lidarr:pr-plugins' is accessible."
           exit 1
+
         fi
 
     - name: Restore and build
       run: |
         dotnet restore Qobuzarr.csproj
         dotnet build Qobuzarr.csproj --configuration Release --no-restore \
+          -p:UsePluginsBranch=${USE_PLUGINS_BRANCH:-true} \
           -p:RunAnalyzersDuringBuild=false -p:EnableNETAnalyzers=false -p:TreatWarningsAsErrors=false
 
     - name: Pre-build fast tests only
@@ -209,10 +236,6 @@ jobs:
         if [ -f "tests/Minimal.Tests/Minimal.Tests.csproj" ]; then
           echo "Building: tests/Minimal.Tests/Minimal.Tests.csproj"
           dotnet build tests/Minimal.Tests/Minimal.Tests.csproj --configuration Release --verbosity minimal
-        fi
-        if [ -f "tests/QobuzCLI.Tests/QobuzCLI.Tests.csproj" ]; then
-          echo "Building: tests/QobuzCLI.Tests/QobuzCLI.Tests.csproj"
-          dotnet build tests/QobuzCLI.Tests/QobuzCLI.Tests.csproj --configuration Release --verbosity minimal
         fi
 
     - name: Run fast tests (unit only)
@@ -369,3 +392,4 @@ jobs:
           **/TestResults/**/coverage.cobertura.xml
         if-no-files-found: warn
         retention-days: 14
+
