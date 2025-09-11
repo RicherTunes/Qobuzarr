@@ -151,38 +151,40 @@ jobs:
 
     - name: Setup Lidarr assemblies (plugins branch)
       run: |
-        echo "Setting up Lidarr assemblies from plugins branch (Docker or fallback)..."
+
+        echo "Setting up Lidarr assemblies from plugins branch (Docker)..."
         set -e
         mkdir -p ext/Lidarr/_output/net6.0
-        DOCKER_OK=1
         if ! docker --version >/dev/null 2>&1; then
-          echo "Docker not available on runner. Will use fallback downloader."
-          DOCKER_OK=0
+          echo "[ERROR] Docker is required to fetch plugins-branch assemblies."
+          echo "        Install Docker or populate ext/Lidarr/_output/net6.0 via a trusted cache."
+          exit 1
         fi
-        if [ "$DOCKER_OK" = "1" ]; then
-          IMAGE="ghcr.io/hotio/lidarr:pr-plugins"
-          echo "Pulling $IMAGE (with retry)"
-          n=0
-          until [ "$n" -ge 3 ]; do
-            docker pull "$IMAGE" && break
-            n=$((n+1))
-            echo "Pull failed ($n). Retrying in 10s..." && sleep 10
-          done
-          cid=$(docker create "$IMAGE")
-          echo "Extracting assemblies from container..."
-          docker cp "$cid:/app" ext/Lidarr/_extracted || docker cp "$cid:/opt/lidarr" ext/Lidarr/_extracted
-          docker rm "$cid" >/dev/null
-          find ext/Lidarr/_extracted -type f -name "*.dll" -print -exec cp {} ext/Lidarr/_output/net6.0 \; || true
-        fi
+        IMAGE="ghcr.io/hotio/lidarr:pr-plugins"
+        echo "Pulling $IMAGE (with retry)"
+        n=0
+        until [ "$n" -ge 3 ]; do
+          docker pull "$IMAGE" && break
+          n=$((n+1))
+          echo "Pull failed ($n). Retrying in 10s..." && sleep 10
+        done
+        cid=$(docker create "$IMAGE")
+        echo "Extracting assemblies from container..."
+        docker cp "$cid:/app" ext/Lidarr/_extracted || docker cp "$cid:/opt/lidarr" ext/Lidarr/_extracted
+        docker rm "$cid" >/dev/null
+        find ext/Lidarr/_extracted -type f -name "*.dll" -print -exec cp {} ext/Lidarr/_output/net6.0 \;
 
         if [ ! -f ext/Lidarr/_output/net6.0/Lidarr.dll ]; then
-          echo "Docker path did not yield Lidarr.dll. Using downloader fallback..."
-          chmod +x ./download-lidarr-assemblies.sh || true
-          ./download-lidarr-assemblies.sh --version "${{ env.MINIMUM_LIDARR_VERSION }}" || DL_FAIL=1
-          if [ "$DL_FAIL" = "1" ] || [ ! -f ext/Lidarr/_output/net6.0/Lidarr.dll ]; then
-            echo "Fallback failed or incomplete. Trying PowerShell script..."
-            pwsh -File ./download-lidarr-assemblies.ps1 -LidarrVersion "${{ env.MINIMUM_LIDARR_VERSION }}" -Force || true
-          fi
+          echo "[ERROR] Missing Lidarr.dll after extraction."
+          exit 1
+        fi
+
+        # Guard: ensure plugins-branch API is present
+        if ! strings ext/Lidarr/_output/net6.0/Lidarr.Core.dll | grep -q "IDownloadProtocol"; then
+          echo "[ERROR] Assemblies do not expose IDownloadProtocol (plugins branch API)."
+          echo "        Ensure image 'ghcr.io/hotio/lidarr:pr-plugins' is accessible."
+          exit 1
+
         fi
 
         ls -la ext/Lidarr/_output/net6.0/ || true
@@ -213,8 +215,12 @@ jobs:
           echo "[ERROR] Missing Lidarr.dll after extraction."
           exit 1
         fi
-        if [ "${PLUGIN_API:-0}" != "1" ]; then
-          echo "[WARN] Proceeding without plugins-branch API; fast-tests will build with UsePluginsBranch=false"
+
+        if ! strings ext/Lidarr/_output/net6.0/Lidarr.Core.dll | grep -q "IDownloadProtocol"; then
+          echo "[ERROR] Assemblies do not expose IDownloadProtocol (plugins branch API)."
+          echo "        Ensure image 'ghcr.io/hotio/lidarr:pr-plugins' is accessible."
+          exit 1
+
         fi
 
     - name: Restore and build
@@ -386,3 +392,4 @@ jobs:
           **/TestResults/**/coverage.cobertura.xml
         if-no-files-found: warn
         retention-days: 14
+
