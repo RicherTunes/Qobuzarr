@@ -8,7 +8,8 @@ using NzbDrone.Core.Indexers;
 using NzbDrone.Core.Parser.Model;
 using NzbDrone.Common.Extensions;
 using NzbDrone.Common.Http;
-using Lidarr.Plugin.Qobuzarr.Security;`r`nusing Lidarr.Plugin.Qobuzarr.Download;
+using Lidarr.Plugin.Qobuzarr.Security;
+using Lidarr.Plugin.Qobuzarr.Download;
 using NLog;
 using NzbDrone.Core.Qualities;
 using Lidarr.Plugin.Qobuzarr.Models;
@@ -820,5 +821,9 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
         }
     }
 }
+
+
+
+
 
 
