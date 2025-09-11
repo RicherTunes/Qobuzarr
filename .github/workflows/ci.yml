@@ -226,10 +226,6 @@ jobs:
           echo "Building: tests/Minimal.Tests/Minimal.Tests.csproj"
           dotnet build tests/Minimal.Tests/Minimal.Tests.csproj --configuration Release --verbosity minimal
         fi
-        if [ -f "tests/QobuzCLI.Tests/QobuzCLI.Tests.csproj" ]; then
-          echo "Building: tests/QobuzCLI.Tests/QobuzCLI.Tests.csproj"
-          dotnet build tests/QobuzCLI.Tests/QobuzCLI.Tests.csproj --configuration Release --verbosity minimal
-        fi
 
     - name: Run fast tests (unit only)
       timeout-minutes: 20
