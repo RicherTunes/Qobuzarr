@@ -8,7 +8,7 @@ using NzbDrone.Core.Indexers;
 using NzbDrone.Core.Parser.Model;
 using NzbDrone.Common.Extensions;
 using NzbDrone.Common.Http;
-using Lidarr.Plugin.Qobuzarr.Security;
+using Lidarr.Plugin.Qobuzarr.Security;`r`nusing Lidarr.Plugin.Qobuzarr.Download;
 using NLog;
 using NzbDrone.Core.Qualities;
 using Lidarr.Plugin.Qobuzarr.Models;
@@ -340,7 +340,7 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
                 };
                 
                 // For now, use the first (bracket) format - most elegant and likely to work
-                var yearStrEd = year > 0 ? $" ({year})" : string.Empty; var sanitizedVersion = (versionToUse ?? string.Empty).Replace("[", "(").Replace("]", ")"); var chosenFormat = $"{artist} - {cleanAlbumTitle}{yearStrEd} [{sanitizedVersion}] [{bracketQuality} WEB]";
+                var yearStrEd = year > 0 ? $" ({year})" : string.Empty; var sanitizedVersion = (versionToUse ?? string.Empty).Replace("[", "(").Replace("]", ")"); var chosenFormat = $"{artist} - {cleanAlbumTitle}{yearStrEd} [{sanitizedVersion}] [" + (formatStr.StartsWith("MP3") ? "MP3" : "FLAC") + " WEB]";
                 _logger.Debug("≡ƒÄ» EDITION ALBUM: Using elegant format for '{0}'", albumTitle);
                 return chosenFormat;
             }
@@ -820,4 +820,5 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
         }
     }
 }
+
 
