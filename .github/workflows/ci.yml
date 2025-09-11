@@ -134,6 +134,11 @@ jobs:
       with:
         dotnet-version: ${{ env.DOTNET_VERSION }}
 
+    - name: Setup .NET 6.x (test runtime)
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: 6.0.x
+
     - name: Cache NuGet packages
       uses: actions/cache@v3
       with:
