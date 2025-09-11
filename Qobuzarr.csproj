@@ -65,8 +65,11 @@
     <!-- External consumers get production-ready build unless they explicitly enable this -->
     <IncludeCLIFramework>true</IncludeCLIFramework>
     
-    <!-- Build against Lidarr plugins-branch host API (string Protocol + IDownloadProtocol) -->
-    <!-- Opt-in via -p:UsePluginsBranch=true; default targets release branch API (enum Protocol) for tests -->
+    <!-- Build against Lidarr host API
+         - Plugins branch (string Protocol + IDownloadProtocol) when UsePluginsBranch=true
+         - Release branch (enum DownloadProtocol) when UsePluginsBranch=false
+       Default locally is false to match commonly available release assemblies;
+       CI can set -p:UsePluginsBranch=true when plugins-branch assemblies are present. -->
     <UsePluginsBranch Condition="'$(UsePluginsBranch)' == ''">true</UsePluginsBranch>
   </PropertyGroup>
 
@@ -139,27 +142,34 @@
     </PackageReference> -->
   </ItemGroup>
 
+  <!-- Prefer prebuilt assemblies prepared by CI at ext/Lidarr/_output/net6.0; fallback to source-built output if present -->
+  <PropertyGroup>
+    <LidarrAssembliesPath>ext\Lidarr\_output\net6.0</LidarrAssembliesPath>
+    <LidarrAssembliesPath Condition="!Exists('$(LidarrAssembliesPath)\\Lidarr.dll') and Exists('ext\\Lidarr-source\\_output\\net6.0\\$(RuntimeIdentifier)\\Lidarr.dll')">ext\Lidarr-source\_output\net6.0\$(RuntimeIdentifier)</LidarrAssembliesPath>
+    <LidarrAssembliesPath Condition="!Exists('$(LidarrAssembliesPath)\\Lidarr.dll') and Exists('ext\\Lidarr-source\\_output\\net6.0\\Lidarr.dll')">ext\Lidarr-source\_output\net6.0</LidarrAssembliesPath>
+  </PropertyGroup>
+
   <!-- ✅ SOURCE-BUILT ASSEMBLIES: Use complete assemblies with DownloadProtocol support -->
   <ItemGroup>
     <Reference Include="Lidarr">
-      <HintPath>ext\Lidarr-source\_output\net6.0\win-x64\Lidarr.dll</HintPath>
-      <Private>false</Private>
+      <HintPath>$(LidarrAssembliesPath)\Lidarr.dll</HintPath>
+      <Private>true</Private>
     </Reference>
     <Reference Include="Lidarr.Core">
-      <HintPath>ext\Lidarr-source\_output\net6.0\win-x64\Lidarr.Core.dll</HintPath>
-      <Private>false</Private>
+      <HintPath>$(LidarrAssembliesPath)\Lidarr.Core.dll</HintPath>
+      <Private>true</Private>
     </Reference>
     <Reference Include="Lidarr.Common">
-      <HintPath>ext\Lidarr-source\_output\net6.0\win-x64\Lidarr.Common.dll</HintPath>
-      <Private>false</Private>
+      <HintPath>$(LidarrAssembliesPath)\Lidarr.Common.dll</HintPath>
+      <Private>true</Private>
     </Reference>
     <Reference Include="Lidarr.Http">
-      <HintPath>ext\Lidarr-source\_output\net6.0\win-x64\Lidarr.Http.dll</HintPath>
-      <Private>false</Private>
+      <HintPath>$(LidarrAssembliesPath)\Lidarr.Http.dll</HintPath>
+      <Private>true</Private>
     </Reference>
     <Reference Include="Lidarr.SignalR">
-      <HintPath>ext\Lidarr-source\_output\net6.0\win-x64\Lidarr.SignalR.dll</HintPath>
-      <Private>false</Private>
+      <HintPath>$(LidarrAssembliesPath)\Lidarr.SignalR.dll</HintPath>
+      <Private>true</Private>
     </Reference>
     <!-- Shared library reference - using submodule for development -->
     <ProjectReference Include="ext\Lidarr.Plugin.Common\src\Lidarr.Plugin.Common.csproj">
@@ -244,19 +254,16 @@
     <Delete Files="@(TempFiles)" ContinueOnError="true" />
   </Target>
 
-  <!-- Plugin deployment configuration -->
+  <!-- Plugin deployment configuration (opt-in for local dev) -->
   <PropertyGroup>
-    <!-- Default test deployment path - can be overridden via environment variable or MSBuild property -->
+    <!-- Only deploy when an explicit path is provided via MSBuild property or environment variable -->
     <LidarrPluginDeployPath Condition="'$(LidarrPluginDeployPath)' == '' AND '$(LIDARR_PLUGIN_DEPLOY_PATH)' != ''">$(LIDARR_PLUGIN_DEPLOY_PATH)</LidarrPluginDeployPath>
-    <LidarrPluginDeployPath Condition="'$(LidarrPluginDeployPath)' == ''">X:\lidarr-hotio-test2\plugins\RicherTunes\Qobuzarr</LidarrPluginDeployPath>
-    
-    <!-- Enable deployment by default for Debug builds, disable for Release unless explicitly set -->
-    <EnablePluginDeployment Condition="'$(EnablePluginDeployment)' == '' AND '$(Configuration)' == 'Debug'">true</EnablePluginDeployment>
-    <EnablePluginDeployment Condition="'$(EnablePluginDeployment)' == '' AND '$(Configuration)' == 'Release'">false</EnablePluginDeployment>
+    <!-- Default to disabled; CI should not attempt to deploy to a local path -->
+    <EnablePluginDeployment Condition="'$(EnablePluginDeployment)' == ''">false</EnablePluginDeployment>
   </PropertyGroup>
 
   <!-- Deploy plugin to test Lidarr instance after successful build -->
-  <Target Name="DeployPlugin" AfterTargets="Build" Condition="'$(EnablePluginDeployment)' == 'true'">
+  <Target Name="DeployPlugin" AfterTargets="Build" Condition="'$(EnablePluginDeployment)' == 'true' AND '$(LidarrPluginDeployPath)' != '' AND '$(OS)' == 'Windows_NT'">
     <PropertyGroup>
       <PluginTargetDir>$(LidarrPluginDeployPath)</PluginTargetDir>
     </PropertyGroup>
@@ -279,7 +286,7 @@
       <PluginFiles Remove="$(OutputPath)FluentValidation.dll" />
     </ItemGroup>
     
-    <Copy SourceFiles="@(PluginFiles)" DestinationFolder="$(PluginTargetDir)" SkipUnchangedFiles="false" ContinueOnError="false" />
+    <Copy SourceFiles="@(PluginFiles)" DestinationFolder="$(PluginTargetDir)" SkipUnchangedFiles="false" ContinueOnError="true" />
     
     <!-- Verify deployment worked -->
     <Message Text="   Copied: %(PluginFiles.Filename)%(PluginFiles.Extension) ($(PluginTargetDir))" Importance="normal" Condition="Exists('$(PluginTargetDir)\%(PluginFiles.Filename)%(PluginFiles.Extension)')" />
