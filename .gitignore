@@ -281,4 +281,13 @@ nul
 specs/
 submission/
 
-# Claude (keep .claude/ for agent configurations and CLAUDE.md for development guidance)research/
+# Development agent artifacts
+.code/
+
+# Large temp outputs and scratch files
+tmp_full.txt
+pluginhost.tmp
+methods.tmp
+
+# Keep .claude/ (agent configs) and CLAUDE.md
+!.claude/

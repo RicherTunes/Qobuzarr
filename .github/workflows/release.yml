@@ -51,18 +51,43 @@ jobs:
         fi
         
         echo "RELEASE_VERSION=$VERSION" >> $GITHUB_ENV
-        echo "🏷️ Release version: $VERSION"
+        echo "✅ Release version: $VERSION"
 
     - name: Setup Lidarr assemblies
       run: |
-        echo "📦 Setting up Lidarr assemblies for release build..."
+        echo "Setting up Lidarr assemblies for release build (plugins branch)..."
+        set -e
         mkdir -p ext/Lidarr/_output/net6.0
-        chmod +x ./download-lidarr-assemblies.sh
-        ./download-lidarr-assemblies.sh --version ${{ env.MINIMUM_LIDARR_VERSION }}
+        if ! docker --version >/dev/null 2>&1; then
+          echo "[ERROR] Docker is required to fetch plugins-branch assemblies for release."
+          exit 1
+        fi
+        IMAGE="ghcr.io/hotio/lidarr:pr-plugins"
+        echo "Pulling $IMAGE (with retry)"
+        n=0
+        until [ "$n" -ge 3 ]; do
+          docker pull "$IMAGE" && break
+          n=$((n+1))
+          echo "Pull failed ($n). Retrying in 10s..." && sleep 10
+        done
+        cid=$(docker create "$IMAGE")
+        echo "Extracting assemblies from container..."
+        docker cp "$cid:/app" ext/Lidarr/_extracted || docker cp "$cid:/opt/lidarr" ext/Lidarr/_extracted
+        docker rm "$cid" >/dev/null
+        find ext/Lidarr/_extracted -type f -name "*.dll" -print -exec cp {} ext/Lidarr/_output/net6.0 \;
+        ls -la ext/Lidarr/_output/net6.0/ || true
+        if [ ! -f ext/Lidarr/_output/net6.0/Lidarr.dll ]; then
+          echo "[ERROR] Missing Lidarr.dll after extraction."
+          exit 1
+        fi
+        if ! strings ext/Lidarr/_output/net6.0/Lidarr.Core.dll | grep -q "IDownloadProtocol"; then
+          echo "[ERROR] Assemblies do not expose IDownloadProtocol (plugins branch API)."
+          exit 1
+        fi
 
     - name: Build release
       run: |
-        echo "🔨 Building release version $RELEASE_VERSION..."
+        echo "🚀 Building release version $RELEASE_VERSION..."
         dotnet restore Qobuzarr.csproj
         dotnet build Qobuzarr.csproj --configuration Release --no-restore \
           -p:Version="$RELEASE_VERSION" \
@@ -104,3 +129,4 @@ jobs:
         files: ${{ env.PLUGIN_NAME }}-v${{ env.RELEASE_VERSION }}.zip
         draft: false
         prerelease: false
+
