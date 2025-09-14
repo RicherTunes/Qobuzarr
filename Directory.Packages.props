@@ -23,8 +23,7 @@
     <!-- Audio Processing -->
     <PackageVersion Include="TagLibSharp-Lidarr" Version="2.2.0.27" />
     
-    <!-- Machine Learning -->
-    <PackageVersion Include="Microsoft.ML" Version="4.0.2" />
+    <!-- Machine Learning (removed: not used in code) -->
     
     <!-- Build Tools -->
     <!-- ILRepack disabled - causes assembly resolution issues in plugin builds -->

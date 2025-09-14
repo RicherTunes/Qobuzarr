@@ -126,7 +126,6 @@
     
     <!-- Plugin-specific dependencies - must be bundled -->
     <PackageReference Include="TagLibSharp-Lidarr" />
-    <PackageReference Include="Microsoft.ML" />
     <PackageReference Include="System.Resources.Extensions" />
     
     <!-- Performance Monitoring now uses NLog (Lidarr's built-in logging) -->

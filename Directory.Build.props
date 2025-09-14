@@ -1,28 +1,27 @@
 <Project>
+  <!-- Default: analyzers ON for our code -->
   <PropertyGroup>
-    <!-- Disable all StyleCop analyzers globally to prevent issues with external Lidarr source -->
+    <RunAnalyzersDuringBuild>true</RunAnalyzersDuringBuild>
+    <RunCodeAnalysis>true</RunCodeAnalysis>
+    <EnableNETAnalyzers>true</EnableNETAnalyzers>
+    <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
+    <WarningsAsErrors />
+    <!-- Keep only minimal doc warnings suppressed globally -->
+    <NoWarn>CS1591</NoWarn>
+    <!-- Until we align packages and TFMs, suppress TFM support warnings to avoid noise -->
+    <SuppressTfmSupportBuildWarnings>true</SuppressTfmSupportBuildWarnings>
+  </PropertyGroup>
+
+  <!-- Scope: external Lidarr sources under ext/ keep analyzers OFF and broader NoWarn -->
+  <PropertyGroup Condition="$(MSBuildProjectDirectory.Contains('ext\\')) OR $(MSBuildProjectDirectory.Contains('ext/'))">
     <RunAnalyzersDuringBuild>false</RunAnalyzersDuringBuild>
     <RunCodeAnalysis>false</RunCodeAnalysis>
     <EnableNETAnalyzers>false</EnableNETAnalyzers>
-    <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
-    <WarningsAsErrors />
-    
-    <!-- Suppress all common warnings including StyleCop rules from Lidarr dependencies -->
-    <!-- StyleCop rules that commonly fail on Lidarr source -->
-    <NoWarn>SA1200;SA1633;SA1101;SA1309;SA1413;SA1516;SA1600;SA1602;SA1623;SA1629;SA1652;SA1003;SA1005;SA1028;SA1515;SA1518</NoWarn>
-    <!-- Common C# compiler warnings -->
-    <NoWarn>$(NoWarn);CS1591;CS8618;CS8625;CS8620;CS8622;CS8767;CS8601;CS8602;CS8604;CS8600;CS8603;CS0168;CS0414;CS0618;CS1998;CS8629</NoWarn>
-    <!-- Nullable reference type warnings -->
-    <NoWarn>$(NoWarn);CS8019;CS8073;CS8632;CS8714;CS8765;CS8766;CS8769</NoWarn>
-  </PropertyGroup>
-  
-  <!-- Additional properties to ensure builds work even with external dependencies -->
-  <PropertyGroup>
     <!-- Prevent analyzer packages from being automatically included in external projects -->
     <SkipAnalyzers>true</SkipAnalyzers>
-    <!-- Disable design-time builds for faster compilation -->
-    <DisableFastUpToDateCheck>true</DisableFastUpToDateCheck>
-    <!-- Suppress framework support build warnings for .NET 9 packages on .NET 6 -->
-    <SuppressTfmSupportBuildWarnings>true</SuppressTfmSupportBuildWarnings>
+    <!-- StyleCop and common rules that often fail in external sources -->
+    <NoWarn>SA1200;SA1633;SA1101;SA1309;SA1413;SA1516;SA1600;SA1602;SA1623;SA1629;SA1652;SA1003;SA1005;SA1028;SA1515;SA1518</NoWarn>
+    <NoWarn>$(NoWarn);CS1591;CS8618;CS8625;CS8620;CS8622;CS8767;CS8601;CS8602;CS8604;CS8600;CS8603;CS0168;CS0414;CS0618;CS1998;CS8629</NoWarn>
+    <NoWarn>$(NoWarn);CS8019;CS8073;CS8632;CS8714;CS8765;CS8766;CS8769</NoWarn>
   </PropertyGroup>
 </Project>

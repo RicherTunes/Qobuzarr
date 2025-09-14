@@ -148,6 +148,9 @@ QobuzCLI/dashboard-test.txt
 QobuzCLI/metadata-test.txt
 QobuzCLI/bach-test.txt
 
+# Generated plugin manifest (created from plugin.json.template)
+plugin.json
+
 # CLI scripts and commands
 QobuzCLI/*.ps1
 QobuzCLI/run_*.bat
