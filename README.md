@@ -216,16 +216,19 @@ chmod +x setup.sh && ./setup.sh
 git clone https://github.com/RicherTunes/qobuzarr.git
 cd qobuzarr
 
-# 2. Get Lidarr dependencies (REQUIRED)
+# 2. Initialize submodules (Common library)
+git submodule update --init --recursive
+
+# 3. Get Lidarr dependencies (REQUIRED)
 git clone --depth 1 --branch develop https://github.com/Lidarr/Lidarr.git ext/Lidarr-source
 
-# 3. Restore dependencies
+# 4. Restore dependencies
 dotnet restore
 
-# 4. Build the solution
+# 5. Build the solution
 dotnet build
 
-# 5. Run tests
+# 6. Run tests
 dotnet test
 ```
 
@@ -237,6 +240,12 @@ dotnet test
 **🆘 Troubleshooting:**
 - If you see "Skipping project... because it was not found" warnings, this is normal before running setup
 - For complete setup help, see [GETTING_STARTED.md](GETTING_STARTED.md)
+
+## Framework + SDK Policy
+
+- Plugin targets `net6.0` for Lidarr compatibility; CLI currently targets `net6.0`.
+- SDK is pinned to .NET 8 via `global.json` so we build with the latest tooling while targeting `net6.0`.
+- CI installs the .NET 8 SDK and also the .NET 6 runtime for test execution.
 
 ## 📄 License
 
