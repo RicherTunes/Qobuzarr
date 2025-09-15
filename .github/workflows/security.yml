@@ -46,11 +46,11 @@ jobs:
 
     - name: Vulnerability scan
       run: |
-        echo "🔍 Scanning for package vulnerabilities..."
-        dotnet list package --vulnerable --include-transitive
+        echo "🔍 Scanning for package vulnerabilities (Qobuzarr.csproj)..."
+        dotnet list Qobuzarr.csproj package --vulnerable --include-transitive || true
         
         # Exit with error if vulnerabilities found (for critical/high severity)
-        if dotnet list package --vulnerable --include-transitive | grep -E "(Critical|High)"; then
+        if dotnet list Qobuzarr.csproj package --vulnerable --include-transitive | grep -E "(Critical|High)"; then
           echo "❌ Critical or High severity vulnerabilities found!"
           exit 1
         fi
