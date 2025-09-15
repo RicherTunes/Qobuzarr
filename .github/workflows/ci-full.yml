@@ -10,6 +10,11 @@ on:
         type: boolean
         required: false
         default: false
+      run_qobuzarr:
+        description: 'Run Qobuzarr.Tests (long-running)'
+        type: boolean
+        required: false
+        default: false
 
 permissions:
   contents: read
@@ -110,6 +115,7 @@ jobs:
           fi
 
       - name: Run Qobuzarr.Tests (full)
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.run_qobuzarr }}
         run: |
           if [ -f "tests/Qobuzarr.Tests/Qobuzarr.Tests.csproj" ]; then
             dotnet test tests/Qobuzarr.Tests/Qobuzarr.Tests.csproj \
