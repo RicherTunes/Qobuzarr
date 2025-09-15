@@ -120,11 +120,20 @@ jobs:
     needs: validate
     if: ${{ github.event_name == 'pull_request' || github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && (inputs.run_mode == '' || inputs.run_mode == 'fast')) }}
     steps:
-    - name: Checkout
+    - name: Checkout (no submodules)
       uses: actions/checkout@v4
       with:
-        token: ${{ secrets.CI_PAT }}
-        submodules: recursive
+        persist-credentials: false
+        fetch-depth: 0
+        submodules: false
+
+    - name: Configure git auth for private submodules
+      env:
+        CI_PAT: ${{ secrets.CI_PAT }}
+      run: |
+        git config --global url.https://x-access-token:${CI_PAT}@github.com/.insteadOf https://github.com/
+        git submodule sync --recursive
+        git submodule update --init --recursive
 
     - name: Setup .NET
       uses: actions/setup-dotnet@v4
@@ -271,11 +280,20 @@ jobs:
       QOBUZ_TEST_CONCURRENCY: ${{ github.event_name == 'workflow_dispatch' && inputs.concurrency || '50' }}
       QOBUZ_TEST_TIMEOUT_MS: ${{ github.event_name == 'workflow_dispatch' && inputs.timeout_ms || '120000' }}
     steps:
-    - name: Checkout
+    - name: Checkout (no submodules)
       uses: actions/checkout@v4
       with:
-        token: ${{ secrets.CI_PAT }}
-        submodules: recursive
+        persist-credentials: false
+        fetch-depth: 0
+        submodules: false
+
+    - name: Configure git auth for private submodules
+      env:
+        CI_PAT: ${{ secrets.CI_PAT }}
+      run: |
+        git config --global url.https://x-access-token:${CI_PAT}@github.com/.insteadOf https://github.com/
+        git submodule sync --recursive
+        git submodule update --init --recursive
 
     - name: Setup .NET
       uses: actions/setup-dotnet@v4
