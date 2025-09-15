@@ -37,6 +37,11 @@ jobs:
         with:
           dotnet-version: ${{ env.DOTNET_VERSION }}
 
+      - name: Setup .NET 6 runtime (tests)
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '6.0.x'
+
       - name: Setup Lidarr assemblies (plugins branch)
         run: |
           echo "🧰 Setting up Lidarr assemblies from plugins branch (Docker)..."
