@@ -64,11 +64,7 @@ jobs:
         fetch-depth: 0
         submodules: false
 
-    - name: Ensure submodules
-      run: |
-        echo "Syncing and updating submodules (no remote fetch)"
-        git submodule sync --recursive
-        git submodule update --init --recursive
+    # Skip submodule init in Validate; fast/full jobs handle it with proper token
 
     - name: Security Scan (git-leaks)
       uses: gitleaks/gitleaks-action@v2
