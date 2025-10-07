@@ -291,3 +291,8 @@ methods.tmp
 
 # Keep .claude/ (agent configs) and CLAUDE.md
 !.claude/
+
+# Release artifacts
+Qobuzarr.zip
+Qobuzarr-*.zip
+
