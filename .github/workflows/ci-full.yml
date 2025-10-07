@@ -35,7 +35,17 @@ jobs:
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           fetch-depth: 0
-          submodules: recursive
+          submodules: false
+
+      - name: Configure git auth for private submodules
+        env:
+          CI_PAT: ${{ secrets.CI_PAT }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TOKEN=${CI_PAT:-$GITHUB_TOKEN}
+          git config --global url.https://x-access-token:${TOKEN}@github.com/.insteadOf https://github.com/
+          git submodule sync --recursive
+          git submodule update --init --recursive
 
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
