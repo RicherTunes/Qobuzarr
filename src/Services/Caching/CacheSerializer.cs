@@ -4,6 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Text.Json;
 using Lidarr.Plugin.Qobuzarr.Utilities;
+using Lidarr.Plugin.Common.Services.Caching;
 using NLog;
 
 namespace Lidarr.Plugin.Qobuzarr.Services.Caching

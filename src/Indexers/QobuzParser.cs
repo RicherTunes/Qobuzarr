@@ -222,8 +222,7 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
                 // CRITICAL: Include quality in GUID to differentiate releases
                 Guid = $"qobuz-{album.Id}-{(int)quality}",
                 
-                // CRITICAL: Set the download protocol to fix frontend display
-                DownloadProtocol = nameof(QobuzarrDownloadProtocol),
+                // Protocol assignment happens via reflection for compatibility (see TrySetDownloadProtocol)
                 
                 // Basic metadata - ENSURE NON-EMPTY NAMES
                 Artist = artistName,
@@ -231,7 +230,7 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
                 DownloadUrl = GenerateDownloadUrl(album, quality),
                 InfoUrl = GenerateInfoUrl(album),
                 PublishDate = album.ReleaseDate,
-                Indexer = nameof(QobuzarrDownloadProtocol),
+                Indexer = QobuzarrConstants.PluginName,
                 
                 // Note: Codec and Container properties are ignored by Lidarr's quality detection
                 // Quality is determined solely from the Title using regex patterns
@@ -239,6 +238,9 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
                 // CRITICAL: Quality-specific size calculation
                 Size = CalculateSizeForQuality(album, quality)
             };
+
+            // Ensure protocol is set without binding to specific Lidarr API shape
+            TrySetDownloadProtocol(release);
 
             // Generate quality-specific title
             release.Title = GenerateQualitySpecificTitle(album, quality, year);
@@ -341,7 +343,7 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
                 };
                 
                 // For now, use the first (bracket) format - most elegant and likely to work
-                var yearStrEd = year > 0 ? $" ({year})" : string.Empty; var sanitizedVersion = (versionToUse ?? string.Empty).Replace("[", "(").Replace("]", ")"); var chosenFormat = $"{artist} - {cleanAlbumTitle}{yearStrEd} [{sanitizedVersion}] [" + (formatStr.StartsWith("MP3") ? "MP3" : "FLAC") + " WEB]";
+                var yearStrEd = year > 0 ? $" ({year})" : string.Empty; var sanitizedVersion = (versionToUse ?? string.Empty).Replace("[", "(").Replace("]", ")"); var chosenFormat = $"{artist} - {cleanAlbumTitle}{yearStrEd} [{sanitizedVersion}] [{formatStr}] [WEB]";
                 _logger.Debug("≡ƒÄ» EDITION ALBUM: Using elegant format for '{0}'", albumTitle);
                 return chosenFormat;
             }
@@ -351,7 +353,7 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
             var explicitStr = album.ParentalWarning ? " [Explicit]" : "";
             var liveIndicator = IsLiveAlbum(albumTitle) ? " [LIVE]" : "";
             
-            var standardTitle = $"{artist} - {albumTitle}{yearStr}{explicitStr}{liveIndicator} [" + (formatStr.StartsWith("MP3") ? "MP3" : "FLAC") + " WEB]";
+            var standardTitle = $"{artist} - {albumTitle}{yearStr}{explicitStr}{liveIndicator} [{formatStr}] [WEB]";
             _logger.Trace("Standard album format: '{0}'", standardTitle);
             return standardTitle;
         }
@@ -819,11 +821,29 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
 
             return score;
         }
+
+        private void TrySetDownloadProtocol(ReleaseInfo release)
+        {
+            try
+            {
+                var prop = typeof(ReleaseInfo).GetProperty("DownloadProtocol");
+                if (prop == null || !prop.CanWrite) return;
+
+                if (prop.PropertyType == typeof(string))
+                {
+                    prop.SetValue(release, nameof(QobuzarrDownloadProtocol));
+                }
+                else if (prop.PropertyType.IsEnum)
+                {
+                    // Legacy enum-based protocol property
+                    var unknown = Enum.Parse(prop.PropertyType, "Unknown");
+                    prop.SetValue(release, unknown);
+                }
+            }
+            catch
+            {
+                // no-op: be resilient to API differences across Lidarr versions
+            }
+        }
     }
 }
-
-
-
-
-
-

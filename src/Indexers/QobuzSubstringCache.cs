@@ -4,6 +4,7 @@ using System.Linq;
 using NLog;
 using Lidarr.Plugin.Qobuzarr.Configuration;
 using Lidarr.Plugin.Qobuzarr.Services.Caching;
+using Lidarr.Plugin.Common.Services.Caching;
 using Lidarr.Plugin.Qobuzarr.Utilities;
 
 namespace Lidarr.Plugin.Qobuzarr.Indexers

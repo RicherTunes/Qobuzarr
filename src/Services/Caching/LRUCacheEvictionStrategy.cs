@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using Lidarr.Plugin.Qobuzarr.Services.Caching;
 using Lidarr.Plugin.Qobuzarr.Utilities;
+using Lidarr.Plugin.Common.Services.Caching;
 
 namespace Lidarr.Plugin.Qobuzarr.Services.Caching
 {

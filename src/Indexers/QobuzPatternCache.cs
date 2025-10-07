@@ -6,6 +6,7 @@ using System.Text.RegularExpressions;
 using NLog;
 using Lidarr.Plugin.Qobuzarr.Configuration;
 using Lidarr.Plugin.Qobuzarr.Services.Caching;
+using Lidarr.Plugin.Common.Services.Caching;
 
 namespace Lidarr.Plugin.Qobuzarr.Indexers
 {

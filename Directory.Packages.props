@@ -6,7 +6,12 @@
   </PropertyGroup>
   
   <!-- Disable central package management for Lidarr source projects -->
-  <PropertyGroup Condition="$(MSBuildProjectDirectory.Contains('ext\Lidarr-source')) OR $(MSBuildProjectDirectory.Contains('ext/Lidarr-source'))">
+  <PropertyGroup Condition="$(MSBuildProjectDirectory.Contains('ext\\Lidarr-source')) OR $(MSBuildProjectDirectory.Contains('ext/Lidarr-source'))">
+    <ManagePackageVersionsCentrally>false</ManagePackageVersionsCentrally>
+  </PropertyGroup>
+
+  <!-- Disable central package management for external Lidarr Plugin Common submodule -->
+  <PropertyGroup Condition="$(MSBuildProjectDirectory.Contains('ext\\Lidarr.Plugin.Common')) OR $(MSBuildProjectDirectory.Contains('ext/Lidarr.Plugin.Common'))">
     <ManagePackageVersionsCentrally>false</ManagePackageVersionsCentrally>
   </PropertyGroup>
 
@@ -88,3 +93,4 @@
   </ItemGroup>
 
 </Project>
+

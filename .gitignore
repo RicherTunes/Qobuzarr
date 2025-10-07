@@ -19,6 +19,18 @@ build/
 _output/
 _temp/
 
+# Local dotnet installs and plugin build outputs
+.dotnet/
+.dotnet6/
+_plugins/
+
+# Test result folders (custom)
+TestResultsFull/
+
+# External artifacts from Lidarr plugins branch and Lidarr builds
+ext/Lidarr-plugins-branch/_output/
+ext/Lidarr/_output/
+
 # Visual Studio cache/options directory
 .vs/
 .vscode/

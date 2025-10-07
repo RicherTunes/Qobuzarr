@@ -4,7 +4,7 @@ using System.Globalization;
 using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
-using Lidarr.Plugin.Qobuzarr.Services.Caching;
+using Lidarr.Plugin.Common.Services.Caching;
 using Lidarr.Plugin.Qobuzarr.Utilities;
 
 namespace Lidarr.Plugin.Qobuzarr.Services.Caching
