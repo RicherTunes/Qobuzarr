@@ -29,5 +29,27 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Services
         /// Determines if a URL is a preview/sample (not full track)
         /// </summary>
         bool IsPreviewOrSampleUrl(string url);
+
+        /// <summary>
+        /// Probes a set of qualities and returns the first playable URL or a categorized reason.
+        /// Does not throw for rights/availability outcomes; callers can decide on alternates.
+        /// </summary>
+        /// <param name="trackId">Qobuz track id</param>
+        /// <param name="qualityChain">Ordered quality ids to try</param>
+        /// <param name="cancellationToken">Cancellation token</param>
+        /// <returns>Probe result with url or unavailability reason</returns>
+        Task<StreamProbeResult> TryGetStreamUrlAsync(string trackId, IReadOnlyList<int> qualityChain, System.Threading.CancellationToken cancellationToken);
+    }
+
+    /// <summary>
+    /// Non-throwing probe result for stream URL resolution.
+    /// </summary>
+    public sealed class StreamProbeResult
+    {
+        public bool Success { get; set; }
+        public string? Url { get; set; }
+        public int? FormatId { get; set; }
+        public Lidarr.Plugin.Qobuzarr.Download.TrackUnavailableReason Reason { get; set; } = Lidarr.Plugin.Qobuzarr.Download.TrackUnavailableReason.Unknown;
+        public string? Detail { get; set; }
     }
 }

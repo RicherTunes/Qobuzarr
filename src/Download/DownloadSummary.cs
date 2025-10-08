@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using Lidarr.Plugin.Qobuzarr.Abstractions;
 
 namespace Lidarr.Plugin.Qobuzarr.Download
 {
@@ -11,13 +12,14 @@ namespace Lidarr.Plugin.Qobuzarr.Download
     public class DownloadSummary : IDownloadSummary
     {
         private readonly DateTime _startTime;
+        private readonly IClock _clock = new SystemClock();
         private readonly List<AlbumDownloadResult> _albumResults;
         private long _totalBytesDownloaded;
         private readonly List<double> _downloadSpeeds;
 
         public DownloadSummary()
         {
-            _startTime = DateTime.UtcNow;
+            _startTime = _clock.UtcNow;
             _albumResults = new List<AlbumDownloadResult>();
             _downloadSpeeds = new List<double>();
         }
@@ -37,7 +39,7 @@ namespace Lidarr.Plugin.Qobuzarr.Download
                 FailedTracks = failedTracks,
                 TotalTracks = totalTracks,
                 BytesDownloaded = bytesDownloaded,
-                CompletedAt = DateTime.UtcNow
+                CompletedAt = _clock.UtcNow
             });
 
             _totalBytesDownloaded += bytesDownloaded;
@@ -56,7 +58,7 @@ namespace Lidarr.Plugin.Qobuzarr.Download
         /// </summary>
         public string GenerateReport()
         {
-            var elapsed = DateTime.UtcNow - _startTime;
+            var elapsed = _clock.UtcNow - _startTime;
             var sb = new StringBuilder();
 
             // Header
@@ -155,7 +157,7 @@ namespace Lidarr.Plugin.Qobuzarr.Download
         /// </summary>
         public string GetBriefSummary()
         {
-            var elapsed = DateTime.UtcNow - _startTime;
+            var elapsed = _clock.UtcNow - _startTime;
             var completedAlbums = _albumResults.Count(a => a.FailedTracks == 0);
             var totalAlbums = _albumResults.Count;
             

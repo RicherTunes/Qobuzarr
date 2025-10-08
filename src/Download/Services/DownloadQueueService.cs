@@ -7,6 +7,7 @@ using NLog;
 using NzbDrone.Core.Download;
 using Lidarr.Plugin.Qobuzarr.Configuration;
 using Lidarr.Plugin.Qobuzarr.Download.Clients;
+using Lidarr.Plugin.Qobuzarr.Services.Interfaces;
 
 namespace Lidarr.Plugin.Qobuzarr.Download.Services
 {
@@ -19,14 +20,20 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Services
         private readonly ConcurrentDictionary<string, QobuzDownloadItem> _activeDownloads;
         private readonly IDownloadFileService _fileService;
         private readonly Logger _logger;
+        private readonly IMetricsCollector? _metrics;
         private readonly object _statsLock = new object();
 
-        public DownloadQueueService(IDownloadFileService fileService, Logger logger)
+        public DownloadQueueService(IDownloadFileService fileService, Logger logger, IMetricsCollector? metrics = null)
         {
             _activeDownloads = new ConcurrentDictionary<string, QobuzDownloadItem>();
             _fileService = fileService ?? throw new ArgumentNullException(nameof(fileService));
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+            _metrics = metrics; // optional
         }
+        // Backward-compatible constructor for existing DI wiring
+        public DownloadQueueService(IDownloadFileService fileService, Logger logger)
+            : this(fileService, logger, null)
+        { }
 
         public void AddDownload(QobuzDownloadItem item)
         {
@@ -39,6 +46,7 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Services
             if (_activeDownloads.TryAdd(item.DownloadId, item))
             {
                 _logger.Debug("Added download to queue: {0} - {1}", item.DownloadId, item.Title);
+                try { _metrics?.IncrementCounter("qobuz_album_queued_total", 1); _metrics?.SetGauge("qobuz_queue_active", ActiveDownloadCount); } catch { }
             }
             else
             {
@@ -75,6 +83,7 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Services
             }
 
             _logger.Debug("Removed download from queue: {0}", downloadId);
+            try { _metrics?.SetGauge("qobuz_queue_active", ActiveDownloadCount); } catch { }
 
             if (deleteData && !string.IsNullOrWhiteSpace(removedItem.OutputPath))
             {
@@ -148,6 +157,7 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Services
 
             _logger.Debug("Updated download status: {0} - {1} -> {2}", 
                 downloadId, previousStatus, status);
+            try { _metrics?.SetGauge("qobuz_queue_active", ActiveDownloadCount); } catch { }
 
             // Log significant status changes
             if (status == DownloadItemStatus.Completed)
@@ -180,3 +190,6 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Services
         }
     }
 }
+
+
+

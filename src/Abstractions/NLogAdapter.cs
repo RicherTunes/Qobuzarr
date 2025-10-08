@@ -101,5 +101,37 @@ namespace Lidarr.Plugin.Qobuzarr.Abstractions
         public bool IsWarnEnabled => _logger.IsWarnEnabled;
         public bool IsErrorEnabled => _logger.IsErrorEnabled;
         public bool IsFatalEnabled => _logger.IsFatalEnabled;
+
+        // Structured event helper for internal/ext callers
+        public void LogWithEvent(LogLevel level, string eventId, string message, params object[] args)
+        {
+            var logEvent = new LogEventInfo(level, _logger.Name, null, message, args);
+            try
+            {
+                logEvent.Properties["eventId"] = eventId;
+                logEvent.Properties["plugin"] = "qobuzarr";
+            }
+            catch { }
+            _logger.Log(logEvent);
+        }
+
+        public void LogWithEventProps(LogLevel level, string eventId, System.Collections.Generic.IDictionary<string, object>? props, string message, params object[] args)
+        {
+            var logEvent = new LogEventInfo(level, _logger.Name, null, message, args);
+            try
+            {
+                logEvent.Properties["eventId"] = eventId;
+                logEvent.Properties["plugin"] = "qobuzarr";
+                if (props != null)
+                {
+                    foreach (var kv in props)
+                    {
+                        logEvent.Properties[kv.Key] = kv.Value;
+                    }
+                }
+            }
+            catch { }
+            _logger.Log(logEvent);
+        }
     }
 }

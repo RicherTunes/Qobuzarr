@@ -36,6 +36,9 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Clients
         [FieldDefinition(3, Label = "Audio Quality", Type = FieldType.Select, SelectOptions = typeof(QobuzAudioQuality), Section = "Quality", HelpText = "Preferred audio quality. The plugin will automatically fall back to lower qualities if your selection is unavailable. Note: Your Qobuz subscription determines maximum available quality.")]
         public int PreferredQuality { get; set; }
 
+        [FieldDefinition(3.5, Label = "Preferred Formats (CSV)", Type = FieldType.Text, Section = "Quality", Advanced = true, HelpText = "Optional ordered list of format IDs to try (comma-separated). Example: 7,6,5. Leave blank to use automatic fallback from the selected Audio Quality.")]
+        public string PreferredFormatsCsv { get; set; } = "";
+
         // === CONCURRENCY SETTINGS ===
         [FieldDefinition(4, Label = "Concurrency Mode", Type = FieldType.Select, SelectOptions = typeof(DownloadConcurrencyMode), Section = "Performance", HelpText = "How to manage parallel track downloads. 'Adaptive' automatically adjusts based on server speed (recommended). 'Fixed' uses a constant number of parallel downloads.")]
         public int ConcurrencyMode { get; set; } = (int)DownloadConcurrencyMode.Adaptive;
@@ -61,6 +64,15 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Clients
 
         [FieldDefinition(11, Label = "Count Previews as Failures", Type = FieldType.Checkbox, Section = "Reliability", Advanced = true, HelpText = "When calculating success rate, count skipped preview tracks as failures. Enable this for stricter quality control.")]
         public bool TreatPreviewAsFailure { get; set; } = false;
+
+        [FieldDefinition(12, Label = "Resolve Alternate Releases", Type = FieldType.Checkbox, Section = "Reliability", HelpText = "When a track is preview-only or not licensed for your store, try to find the same ISRC on alternate releases/compilations.")]
+        public bool ResolveAlternates { get; set; } = true;
+
+        [FieldDefinition(13, Label = "Alternate Probe Limit", Type = FieldType.Number, Section = "Reliability", Advanced = true, HelpText = "Maximum number of alternate candidates (by ISRC/title) to probe before giving up. Default: 6")]
+        public int AlternateProbeLimit { get; set; } = 6;
+
+        [FieldDefinition(14, Label = "Negative Cache TTL (hours)", Type = FieldType.Number, Section = "Reliability", Advanced = true, HelpText = "How long to remember rights/territory failures to avoid re-probing the same track/ISRC repeatedly. Default: 36h")]
+        public int NegativeCacheTtlHours { get; set; } = 36;
 
         public NzbDroneValidationResult Validate()
         {
@@ -209,6 +221,26 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Clients
                 .InclusiveBetween(0, 100)
                 .WithMessage("Minimum success rate must be between 0 and 100");
 
+            RuleFor(c => c.AlternateProbeLimit)
+                .InclusiveBetween(1, 20)
+                .WithMessage("Alternate Probe Limit must be between 1 and 20");
+
+            RuleFor(c => c.NegativeCacheTtlHours)
+                .InclusiveBetween(1, 240)
+                .WithMessage("Negative Cache TTL must be between 1 and 240 hours");
+
+            RuleFor(c => c.PreferredFormatsCsv)
+                .Must(IsValidFormatsCsv)
+                .WithMessage("Preferred Formats must be a comma-separated list of 5,6,7,27");
+
+            RuleFor(c => c.AlternateProbeLimit)
+                .InclusiveBetween(1, 20)
+                .WithMessage("Alternate Probe Limit must be between 1 and 20");
+
+            RuleFor(c => c.NegativeCacheTtlHours)
+                .InclusiveBetween(1, 240)
+                .WithMessage("Negative Cache TTL must be between 1 and 240 hours");
+
             // Validate that download path is accessible (if provided)
             RuleFor(c => c.DownloadPath)
                 .Must(path => string.IsNullOrWhiteSpace(path) || IsValidPath(path))
@@ -227,6 +259,18 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Clients
             {
                 return false;
             }
+        }
+
+        private static bool IsValidFormatsCsv(string csv)
+        {
+            if (string.IsNullOrWhiteSpace(csv)) return true;
+            var parts = csv.Split(new[] { ',', ';', ' ' }, StringSplitOptions.RemoveEmptyEntries);
+            foreach (var p in parts)
+            {
+                if (!int.TryParse(p, out var id)) return false;
+                if (id != 5 && id != 6 && id != 7 && id != 27) return false;
+            }
+            return true;
         }
     }
 }

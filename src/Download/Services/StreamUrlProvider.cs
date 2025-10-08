@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using Lidarr.Plugin.Qobuzarr.API;
 using Lidarr.Plugin.Qobuzarr.Abstractions;
@@ -8,6 +9,8 @@ using Lidarr.Plugin.Qobuzarr.Indexers;
 using Lidarr.Plugin.Qobuzarr.Models;
 using Lidarr.Plugin.Qobuzarr.Utilities;
 using NzbDrone.Common.Extensions;
+using NzbDrone.Common.Cache;
+using Lidarr.Plugin.Qobuzarr.Services.Interfaces;
 
 namespace Lidarr.Plugin.Qobuzarr.Download.Services
 {
@@ -20,13 +23,38 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Services
         private readonly IQobuzLogger _logger;
         private readonly IQualityFallbackProvider _qualityFallbackProvider;
         private readonly QobuzIndexerSettings _settings;
+        private readonly IMetricsCollector? _metrics;
+        private readonly ICached<string>? _urlCache;
+        private readonly ICached<TrackUnavailableReason>? _negativeCache;
+        private readonly System.Collections.Concurrent.ConcurrentDictionary<string, string> _urlMem = new();
+        private readonly System.Collections.Concurrent.ConcurrentDictionary<string, TrackUnavailableReason> _negMem = new();
+        private static readonly SemaphoreSlim _getFileUrlGate = new SemaphoreSlim(3, 3);
 
-        public StreamUrlProvider(IQobuzApiClient apiClient, IQobuzLogger logger, IQualityFallbackProvider qualityFallbackProvider, QobuzIndexerSettings settings = null)
+        public StreamUrlProvider(
+            IQobuzApiClient apiClient,
+            IQobuzLogger logger,
+            IQualityFallbackProvider qualityFallbackProvider,
+            QobuzIndexerSettings settings = null,
+            IMetricsCollector? metrics = null)
         {
             _apiClient = Guard.NotNull(apiClient, nameof(apiClient));
             _logger = Guard.NotNull(logger, nameof(logger));
             _qualityFallbackProvider = Guard.NotNull(qualityFallbackProvider, nameof(qualityFallbackProvider));
             _settings = settings; // Optional - may be null in some contexts
+            _metrics = metrics;
+
+            // Try to obtain ICacheManager when hosted under Lidarr, but fall back to local memory caches.
+            try
+            {
+                var containerType = Type.GetType("NzbDrone.Common.Composition.ContainerBuilder, NzbDrone.Common");
+                var containerProp = containerType?.GetProperty("Container", System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static);
+                var container = containerProp?.GetValue(null);
+                var resolveMethod = container?.GetType().GetMethod("Resolve", Type.EmptyTypes);
+                var cacheManager = container != null ? (NzbDrone.Common.Cache.ICacheManager)container.GetType().GetMethod("Resolve", new Type[] { typeof(Type) })!.Invoke(container, new object[] { typeof(NzbDrone.Common.Cache.ICacheManager) }) : null;
+                _urlCache = cacheManager?.GetCache<string>(GetType(), "stream_urls");
+                _negativeCache = cacheManager?.GetCache<TrackUnavailableReason>(GetType(), "stream_neg");
+            }
+            catch { /* no host cache available */ }
         }
 
         public async Task<string> GetStreamUrlAsync(string trackId, int preferredQuality)
@@ -69,12 +97,12 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Services
                 {
                     // Sublime users can't get Hi-Res, cap at CD quality
                     fallbackQualities = fallbackQualities.Where(q => q <= 6).ToList();
-                    _logger.Debug("💿 Sublime subscription detected, limiting to CD quality");
+                    _logger.Debug("💿 Subscription tier caps at CD quality; limiting fallback candidates.");
                 }
                 else if (_settings?.SubscriptionTier == (int)QobuzSubscriptionTier.Free)
                 {
                     // Free users only get samples, no point trying any quality
-                    _logger.Warn("🆓 Free tier detected - only samples available");
+                    _logger.Warn("🆓 Account allows preview-only; skipping full-track probing.");
                     var reason = GetFailureReason(streamResponse);
                     throw new TrackUnavailableException(trackId, "Free tier - only 30-second samples available", TrackUnavailableReason.SubscriptionRestriction);
                 }
@@ -82,7 +110,7 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Services
                 {
                     // Unknown tier but subscription issue detected, try CD quality
                     fallbackQualities = fallbackQualities.Where(q => q <= 6).ToList();
-                    _logger.Debug("🔽 High-res subscription issue detected, trying CD quality and below");
+                    _logger.Debug("🔽 High-res not permitted by subscription; trying CD quality and below.");
                 }
                 
                 foreach (var fallbackQuality in fallbackQualities)
@@ -124,14 +152,48 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Services
 
         private async Task<QobuzStreamResponse> TryGetStreamUrl(string trackId, int quality)
         {
-            var parameters = new Dictionary<string, string>
+            // Short-lived success cache to avoid probing the same (track,quality) in album bursts
+            var cacheKey = $"{trackId}:{quality}";
+            var cached = _urlCache?.Get(cacheKey) ?? (_urlMem.TryGetValue(cacheKey, out var v) ? v : null);
+            if (cached.IsNotNullOrWhiteSpace())
             {
-                {"track_id", trackId},
-                {"format_id", quality.ToString()},
-                {"intent", "stream"}
-            };
+                return new QobuzStreamResponse { Url = cached, FormatId = quality };
+            }
 
-            return await _apiClient.GetAsync<QobuzStreamResponse>("/track/getFileUrl", parameters).ConfigureAwait(false);
+            await _getFileUrlGate.WaitAsync().ConfigureAwait(false);
+            try
+            {
+                var sw = System.Diagnostics.Stopwatch.StartNew();
+                var parameters = new Dictionary<string, string>
+                {
+                    {"track_id", trackId},
+                    {"format_id", quality.ToString()},
+                    {"intent", "stream"}
+                };
+
+                var resp = await _apiClient.GetAsync<QobuzStreamResponse>("/track/getFileUrl", parameters).ConfigureAwait(false);
+                sw.Stop();
+                try
+                {
+                    _metrics?.RecordHistogram("qobuz_getfileurl_latency_seconds", sw.Elapsed.TotalSeconds,
+                        new System.Collections.Generic.Dictionary<string, string>
+                        {
+                            ["format"] = quality.ToString(),
+                            ["success"] = (resp != null && resp.IsSuccess && !string.IsNullOrWhiteSpace(resp.Url)).ToString().ToLowerInvariant()
+                        });
+                }
+                catch { }
+                if (resp != null && resp.IsSuccess && !resp.Url.IsNullOrWhiteSpace())
+                {
+                    if (_urlCache != null) _urlCache.Set(cacheKey, resp.Url, TimeSpan.FromMinutes(5));
+                    _urlMem[cacheKey] = resp.Url;
+                }
+                return resp;
+            }
+            finally
+            {
+                _getFileUrlGate.Release();
+            }
         }
 
         private bool IsValidStreamUrl(QobuzStreamResponse response)
@@ -289,6 +351,73 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Services
             return Lidarr.Plugin.Common.Utilities.PreviewDetectionUtility.IsPreviewOrSampleUrl(url);
         }
 
+        public async Task<StreamProbeResult> TryGetStreamUrlAsync(string trackId, IReadOnlyList<int> qualityChain, CancellationToken cancellationToken)
+        {
+            // Negative cache: if we already determined rights/territory, don't re-probe for a while
+            var negKey = $"neg:{trackId}";
+            var neg = _negativeCache?.Get(negKey) ?? (_negMem.TryGetValue(negKey, out var n) ? n : TrackUnavailableReason.Unknown);
+            if (neg != default && neg != TrackUnavailableReason.Unknown)
+            {
+                return new StreamProbeResult { Success = false, Reason = neg, Detail = "Cached negative result" };
+            }
+
+            foreach (var fmt in qualityChain)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                var resp = await TryGetStreamUrl(trackId, fmt).ConfigureAwait(false);
+                if (resp != null && IsValidStreamUrl(resp))
+                {
+                    return new StreamProbeResult { Success = true, Url = resp.Url, FormatId = fmt };
+                }
+
+                var (reason, detail) = MapGetFileUrlFailure(resp);
+                if (reason == TrackUnavailableReason.PreviewOnly ||
+                    reason == TrackUnavailableReason.RegionalRestriction ||
+                    reason == TrackUnavailableReason.NotStreamable)
+                {
+                    // Cache rights/territory as negative to avoid hammering
+                    if (_negativeCache != null) _negativeCache.Set(negKey, reason, TimeSpan.FromHours(36));
+                    _negMem[negKey] = reason;
+                    return new StreamProbeResult { Success = false, Reason = reason, Detail = detail };
+                }
+            }
+
+            return new StreamProbeResult
+            {
+                Success = false,
+                Reason = TrackUnavailableReason.NoQualityAvailable,
+                Detail = "No playable formats returned"
+            };
+        }
+
+        private static (TrackUnavailableReason reason, string detail) MapGetFileUrlFailure(QobuzStreamResponse? response)
+        {
+            if (response == null)
+                return (TrackUnavailableReason.Unknown, "No response");
+
+            if (response.Sample == true)
+                return (TrackUnavailableReason.PreviewOnly, response.Message ?? "Preview-only");
+
+            var text = (response.Message ?? response.GetRestrictionMessage() ?? response.Status ?? string.Empty).ToLowerInvariant();
+
+            if (text.Contains("sample") || text.Contains("preview"))
+                return (TrackUnavailableReason.PreviewOnly, response.Message ?? "Preview-only");
+
+            if (text.Contains("territor") || text.Contains("licensed") || text.Contains("not available") || text.Contains("geo"))
+                return (TrackUnavailableReason.RegionalRestriction, response.Message ?? "Not licensed in this store");
+
+            if (text.Contains("format") && text.Contains("not available"))
+                return (TrackUnavailableReason.NoQualityAvailable, response.Message ?? "Format not available");
+
+            if (text.Contains("device") && text.Contains("limit"))
+                return (TrackUnavailableReason.Restricted, response.Message ?? "Device limit");
+
+            if (text.Contains("auth") || text.Contains("token"))
+                return (TrackUnavailableReason.ApiError, response.Message ?? "Authentication error");
+
+            return (TrackUnavailableReason.Unknown, response.Message ?? string.Empty);
+        }
+
         /// <summary>
         /// Extracts detailed error information from a failed Qobuz stream response
         /// </summary>
@@ -360,3 +489,4 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Services
         }
     }
 }
+

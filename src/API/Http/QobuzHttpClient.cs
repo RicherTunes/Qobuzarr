@@ -12,6 +12,7 @@ using Lidarr.Plugin.Qobuzarr.Utilities;
 using Lidarr.Plugin.Common.Services.Performance;
 using Lidarr.Plugin.Qobuzarr.Constants;
 using SharedRetryUtilities = Lidarr.Plugin.Common.Utilities.RetryUtilities;
+using Lidarr.Plugin.Qobuzarr.Observability;
 
 namespace Lidarr.Plugin.Qobuzarr.API.Http
 {
@@ -139,7 +140,15 @@ namespace Lidarr.Plugin.Qobuzarr.API.Http
                         var now = DateTime.UtcNow;
                         if (now + delay > deadline)
                         {
-                            _logger.Warn("Retry budget exceeded for {0}", request.Url);
+                            WarnEventWithProps(
+                                LoggingEvents.QobuzGetFileUrlRetry,
+                                new System.Collections.Generic.Dictionary<string, object>
+                                {
+                                    ["budget_ms"] = (int)retryBudget.TotalMilliseconds,
+                                    ["attempt"] = attempt,
+                                    ["url"] = request.Url?.ToString() ?? ""
+                                },
+                                "Retry budget exceeded for {0}", request.Url);
                             stopwatch.Stop();
                             if (_adaptiveRateLimiter != null)
                             {
@@ -149,7 +158,17 @@ namespace Lidarr.Plugin.Qobuzarr.API.Http
                             return response;
                         }
 
-                        _logger.Warn("Transient HTTP error {0} for {1}; delaying {2}ms before retry {3}/{4}",
+                        WarnEventWithProps(
+                            LoggingEvents.QobuzGetFileUrlRetry,
+                            new System.Collections.Generic.Dictionary<string, object>
+                            {
+                                ["status"] = (int)status,
+                                ["delay_ms"] = (int)delay.TotalMilliseconds,
+                                ["attempt"] = attempt,
+                                ["max_retries"] = maxRetries,
+                                ["url"] = request.Url?.ToString() ?? ""
+                            },
+                            "Transient HTTP error {0} for {1}; delaying {2}ms before retry {3}/{4}",
                             status, request.Url, (int)delay.TotalMilliseconds, attempt, maxRetries);
                         await Task.Delay(delay, cancellationToken).ConfigureAwait(false);
                     }
@@ -220,6 +239,40 @@ namespace Lidarr.Plugin.Qobuzarr.API.Http
             return null;
         }
 
+        private void WarnEvent(string eventId, string message, params object[] args)
+        {
+            try
+            {
+                var evt = new LogEventInfo(LogLevel.Warn, _logger.Name, null, message, args);
+                evt.Properties["eventId"] = eventId;
+                evt.Properties["plugin"] = QobuzarrConstants.ServiceName;
+                _logger.Log(evt);
+            }
+            catch
+            {
+                _logger.Warn("[" + eventId + "] " + message, args);
+            }
+        }
+
+        private void WarnEventWithProps(string eventId, System.Collections.Generic.Dictionary<string, object> props, string message, params object[] args)
+        {
+            try
+            {
+                var evt = new LogEventInfo(LogLevel.Warn, _logger.Name, null, message, args);
+                evt.Properties["eventId"] = eventId;
+                evt.Properties["plugin"] = QobuzarrConstants.ServiceName;
+                if (props != null)
+                {
+                    foreach (var kv in props) evt.Properties[kv.Key] = kv.Value;
+                }
+                _logger.Log(evt);
+            }
+            catch
+            {
+                _logger.Warn("[" + eventId + "] " + message, args);
+            }
+        }
+
         private static TimeSpan GetJitter()
         {
             var ms = Random.Shared.Next(50, 250);
@@ -227,3 +280,4 @@ namespace Lidarr.Plugin.Qobuzarr.API.Http
         }
     }
 }
+
