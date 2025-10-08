@@ -125,7 +125,7 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Services
             }
             catch (Exception ex)
             {
-                _logger.Debug(ex, "track/search failed for query: {0}", query);
+                _logger.Debug("track/search failed for query: {0} ({1})", query, ex.Message);
                 return new List<QobuzTrack>();
             }
         }

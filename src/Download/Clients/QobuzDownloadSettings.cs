@@ -36,7 +36,7 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Clients
         [FieldDefinition(3, Label = "Audio Quality", Type = FieldType.Select, SelectOptions = typeof(QobuzAudioQuality), Section = "Quality", HelpText = "Preferred audio quality. The plugin will automatically fall back to lower qualities if your selection is unavailable. Note: Your Qobuz subscription determines maximum available quality.")]
         public int PreferredQuality { get; set; }
 
-        [FieldDefinition(3.5, Label = "Preferred Formats (CSV)", Type = FieldType.Text, Section = "Quality", Advanced = true, HelpText = "Optional ordered list of format IDs to try (comma-separated). Example: 7,6,5. Leave blank to use automatic fallback from the selected Audio Quality.")]
+        [FieldDefinition(3, Label = "Preferred Formats (CSV)", Type = FieldType.Textbox, Section = "Quality", Advanced = true, HelpText = "Optional ordered list of format IDs to try (comma-separated). Example: 7,6,5. Leave blank to use automatic fallback from the selected Audio Quality.")]
         public string PreferredFormatsCsv { get; set; } = "";
 
         // === CONCURRENCY SETTINGS ===

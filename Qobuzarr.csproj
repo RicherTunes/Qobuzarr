@@ -91,14 +91,14 @@
     <None Include="plugin.json.template" />
   </ItemGroup>
   
-  <!-- Generate plugin.json from template with version from csproj -->
-  <Target Name="GeneratePluginJson" BeforeTargets="BeforeBuild">
+  <!-- Generate plugin.json from template only for packaging/publish to avoid dotnet-watch test loops -->
+  <Target Name="GeneratePluginJson" BeforeTargets="Pack;Publish">
     <PropertyGroup>
       <PluginJsonContent>$([System.IO.File]::ReadAllText('$(MSBuildProjectDirectory)\plugin.json.template'))</PluginJsonContent>
       <PluginJsonContent>$(PluginJsonContent.Replace('{VERSION}', '$(AssemblyInformationalVersion)'))</PluginJsonContent>
     </PropertyGroup>
     <WriteLinesToFile File="$(MSBuildProjectDirectory)\plugin.json" Lines="$(PluginJsonContent)" Overwrite="true" />
-    <Message Text="Generated plugin.json with version $(AssemblyInformationalVersion)" Importance="high" />
+    <Message Text="Generated plugin.json with version $(AssemblyInformationalVersion) (Pack/Publish only)" Importance="high" />
   </Target>
   
   <!-- Copy generated plugin.json to output -->

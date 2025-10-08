@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.Threading.Tasks;
 using Lidarr.Plugin.Qobuzarr.Models;
 

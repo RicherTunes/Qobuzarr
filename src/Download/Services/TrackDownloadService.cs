@@ -33,7 +33,7 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Services
         private readonly IConcurrencyManager _concurrencyManager;
         private readonly IDownloadSummary _downloadSummary;
         private readonly IDownloadQueueService _queueService;
-        private readonly Logger _logger;
+        private readonly IQobuzLogger _logger;
         private readonly IMetricsCollector? _metrics;
         private readonly IDiskProvider _diskProvider;
 
@@ -56,7 +56,7 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Services
             _concurrencyManager = concurrencyManager ?? throw new ArgumentNullException(nameof(concurrencyManager));
             _downloadSummary = downloadSummary ?? throw new ArgumentNullException(nameof(downloadSummary));
             _queueService = queueService ?? throw new ArgumentNullException(nameof(queueService));
-            _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+            _logger = new NLogAdapter(logger ?? throw new ArgumentNullException(nameof(logger)));
             _metrics = metrics;
             _diskProvider = diskProvider ?? throw new ArgumentNullException(nameof(diskProvider));
         }
@@ -138,7 +138,7 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Services
                 {
                     var completed = Interlocked.Increment(ref completedTracks);
                     Interlocked.Increment(ref failedTracks);
-                    _logger.Error(ex, "Failed to download track: {0}", track.GetFullTitle());
+                _logger.Error(ex, "Failed to download track: {0}", track.GetFullTitle());
                     var progress = (double)completed / totalTracks * 100;
                     downloadItem.UpdateProgress(progress);
                     return new TrackDownloadResult { Success = false, TrackId = track.Id, Message = ex.Message };
@@ -298,18 +298,23 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Services
             catch (Exception ex)
             {
                 _logger.Error(ex, "Download failed for track: {0}", track.Title);
-                if (FileExistsHelper(outputPath))
+                if (_diskProvider.FileExists(outputPath))
                 {
-                    try { DeleteFileHelper(outputPath); } catch { }
+                    try { _diskProvider.DeleteFile(outputPath); } catch { }
                 }
                 throw;
             }
 
             // Basic file presence validation
-            if (!FileExistsHelper(outputPath) || GetFileLengthHelper(outputPath) < 1024)
+            if (!_diskProvider.FileExists(outputPath) || SafeGetFileLength(outputPath) < 1024)
             {
                 throw new InvalidOperationException($"Downloaded file validation failed: {track.Title}");
             }
+        }
+
+        private long SafeGetFileLength(string path)
+        {
+            try { return new FileInfo(path).Length; } catch { return 0; }
         }
 
         private async Task<long> DownloadToFileAsync(string url, string filePath, CancellationToken cancellationToken)
@@ -322,7 +327,7 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Services
             long existing = 0;
             if (_diskProvider.FileExists(partialPath))
             {
-                try { existing = _diskProvider.GetFileInfo(partialPath).Length; } catch { existing = 0; }
+                try { existing = new FileInfo(partialPath).Length; } catch { existing = 0; }
             }
 
             // Resilient download with Retry-After and jittered backoff
@@ -492,7 +497,7 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Services
             }
             catch (Exception ex)
             {
-                _logger.Debug(ex, "Error logging album download summary");
+                _logger.Debug("Error logging album download summary: {0}", ex.Message);
             }
         }
 

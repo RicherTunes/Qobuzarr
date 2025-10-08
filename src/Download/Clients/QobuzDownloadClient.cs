@@ -50,6 +50,7 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Clients
         private readonly IDownloadOrchestrator _orchestrator;
         private readonly IDownloadSummary _downloadSummary;
         private readonly IBatchProcessor _batchProcessor;
+        private readonly Lidarr.Plugin.Qobuzarr.Download.Services.ITrackDownloadService _trackDownloadService;
         // Removed dependency on IQobuzTrackDownloaderFactory - consolidated into this class
         private readonly ConcurrentDictionary<string, QobuzDownloadItem> _activeDownloads;
         private QobuzDownloadItem _lastQueuedItem;
@@ -65,19 +66,20 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Clients
 #endif
 
         public QobuzDownloadClient(IQobuzAuthenticationService authService,
-                                  IQobuzApiClient apiClient,
-                                  IHttpClient httpClient,
-                                  IDownloadQueueService queueService,
-                                  IDownloadFileService fileService,
-                                  IConcurrencyManager concurrencyManager,
-                                  IDownloadOrchestrator orchestrator,
-                                  IDownloadSummary downloadSummary,
-                                  IBatchProcessor batchProcessor,
-                                  IConfigService configService,
-                                  IDiskProvider diskProvider,
-                                  IRemotePathMappingService remotePathMappingService,
-                                  ILocalizationService localizationService,
-                                  Logger logger)
+                                   IQobuzApiClient apiClient,
+                                   IHttpClient httpClient,
+                                   IDownloadQueueService queueService,
+                                   IDownloadFileService fileService,
+                                   IConcurrencyManager concurrencyManager,
+                                   IDownloadOrchestrator orchestrator,
+                                   IDownloadSummary downloadSummary,
+                                   IBatchProcessor batchProcessor,
+                                   Lidarr.Plugin.Qobuzarr.Download.Services.ITrackDownloadService trackDownloadService,
+                                   IConfigService configService,
+                                   IDiskProvider diskProvider,
+                                   IRemotePathMappingService remotePathMappingService,
+                                   ILocalizationService localizationService,
+                                   Logger logger)
             : base(configService, diskProvider, remotePathMappingService, localizationService, logger)
         {
             _authService = authService ?? throw new ArgumentNullException(nameof(authService));
@@ -89,9 +91,29 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Clients
             _orchestrator = orchestrator ?? throw new ArgumentNullException(nameof(orchestrator));
             _downloadSummary = downloadSummary ?? throw new ArgumentNullException(nameof(downloadSummary));
             _batchProcessor = batchProcessor ?? throw new ArgumentNullException(nameof(batchProcessor));
+            _trackDownloadService = trackDownloadService ?? throw new ArgumentNullException(nameof(trackDownloadService));
             // Track downloader functionality consolidated into this class
             
             _activeDownloads = new ConcurrentDictionary<string, QobuzDownloadItem>();
+        }
+
+        // Backward-compatible constructor (older tests without ITrackDownloadService)
+        public QobuzDownloadClient(IQobuzAuthenticationService authService,
+                                   IQobuzApiClient apiClient,
+                                   IHttpClient httpClient,
+                                   IDownloadQueueService queueService,
+                                   IDownloadFileService fileService,
+                                   IConcurrencyManager concurrencyManager,
+                                   IDownloadOrchestrator orchestrator,
+                                   IDownloadSummary downloadSummary,
+                                   IBatchProcessor batchProcessor,
+                                   IConfigService configService,
+                                   IDiskProvider diskProvider,
+                                   IRemotePathMappingService remotePathMappingService,
+                                   ILocalizationService localizationService,
+                                   Logger logger)
+            : this(authService, apiClient, httpClient, queueService, fileService, concurrencyManager, orchestrator, downloadSummary, batchProcessor, /* trackDownloadService: */ new DummyTrackDownloadService(), configService, diskProvider, remotePathMappingService, localizationService, logger)
+        {
         }
 
         /// <summary>
@@ -984,6 +1006,15 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Clients
             {
                 _logger.Error(ex, "Error during QobuzDownloadClient disposal");
             }
+        }
+    }
+
+    internal sealed class DummyTrackDownloadService : Lidarr.Plugin.Qobuzarr.Download.Services.ITrackDownloadService
+    {
+        public System.Threading.Tasks.Task DownloadAlbumAsync(QobuzDownloadItem downloadItem, Lidarr.Plugin.Qobuzarr.Models.QobuzAlbum album, QobuzDownloadSettings settings, System.Threading.CancellationToken cancellationToken)
+        {
+            // No-op placeholder for legacy constructor; not used in production paths
+            return System.Threading.Tasks.Task.CompletedTask;
         }
     }
 }

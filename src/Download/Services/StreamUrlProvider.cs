@@ -93,13 +93,13 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Services
                 var fallbackQualities = _qualityFallbackProvider.GetFallbackQualities(preferredQuality);
                 
                 // Optimize fallback based on known subscription tier
-                if (_settings?.SubscriptionTier == (int)QobuzSubscriptionTier.Sublime)
+                if (_settings?.SubscriptionTier == (int)Lidarr.Plugin.Qobuzarr.Indexers.QobuzSubscriptionTier.Sublime)
                 {
                     // Sublime users can't get Hi-Res, cap at CD quality
                     fallbackQualities = fallbackQualities.Where(q => q <= 6).ToList();
                     _logger.Debug("💿 Subscription tier caps at CD quality; limiting fallback candidates.");
                 }
-                else if (_settings?.SubscriptionTier == (int)QobuzSubscriptionTier.Free)
+                else if (_settings?.SubscriptionTier == (int)Lidarr.Plugin.Qobuzarr.Indexers.QobuzSubscriptionTier.Free)
                 {
                     // Free users only get samples, no point trying any quality
                     _logger.Warn("🆓 Account allows preview-only; skipping full-track probing.");
@@ -154,7 +154,7 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Services
         {
             // Short-lived success cache to avoid probing the same (track,quality) in album bursts
             var cacheKey = $"{trackId}:{quality}";
-            var cached = _urlCache?.Get(cacheKey) ?? (_urlMem.TryGetValue(cacheKey, out var v) ? v : null);
+            var cached = _urlCache?.Find(cacheKey) ?? (_urlMem.TryGetValue(cacheKey, out var v) ? v : null);
             if (cached.IsNotNullOrWhiteSpace())
             {
                 return new QobuzStreamResponse { Url = cached, FormatId = quality };
@@ -355,7 +355,7 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Services
         {
             // Negative cache: if we already determined rights/territory, don't re-probe for a while
             var negKey = $"neg:{trackId}";
-            var neg = _negativeCache?.Get(negKey) ?? (_negMem.TryGetValue(negKey, out var n) ? n : TrackUnavailableReason.Unknown);
+            var neg = _negativeCache?.Find(negKey) ?? (_negMem.TryGetValue(negKey, out var n) ? n : TrackUnavailableReason.Unknown);
             if (neg != default && neg != TrackUnavailableReason.Unknown)
             {
                 return new StreamProbeResult { Success = false, Reason = neg, Detail = "Cached negative result" };
