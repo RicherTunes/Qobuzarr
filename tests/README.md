@@ -1,26 +1,33 @@
-# Qobuzzarr Unit Tests
+# Qobuzarr Test Guide
 
-## Running Tests
+## Quick Start
 
-### Basic Test Execution
-```bash
-dotnet test
-```
+- Fast, deterministic suite (excludes Integration/Live/Slow/Benchmarks):
+  - PowerShell: `./tests/run-tests.ps1 -Configuration Release`
+  - Direct: `dotnet build -c Release && dotnet test tests/Qobuzarr.Tests/Qobuzarr.Tests.csproj -c Release --settings tests/Default.runsettings --no-build`
 
-### With Code Coverage
-```bash
-dotnet test --collect:"XPlat Code Coverage" --settings coverlet.runsettings
-```
+- Full suite (all categories, still skips Live unless explicitly enabled):
+  - PowerShell: `./tests/run-tests.ps1 -Configuration Release -Full`
+  - Direct: `dotnet test tests/Qobuzarr.Tests/Qobuzarr.Tests.csproj -c Release --settings tests/Full.runsettings`
 
-### Verbose Output
-```bash
-dotnet test --verbosity detailed
-```
+- Enable LiveIntegration tests (requires a reachable Lidarr + API key):
+  - Set environment: `ENABLE_LIVE_INTEGRATION_TESTS=true`, `LIDARR_URL`, `LIDARR_API_KEY`
+  - Run: `./tests/run-tests.ps1 -Configuration Release -Live`
 
-### Generate Test Report
-```bash
-dotnet test --logger trx --results-directory TestResults
-```
+Notes
+- Avoid `dotnet watch test` on the solution. Historically, generating `plugin.json` on every build caused infinite watch loops. We’ve moved generation to Pack/Publish, but watchers can still thrash on multi-project rebuilds. Prefer the scripts above.
+- The runner builds once, then runs tests with `--no-build` to avoid testhost file-lock issues.
+
+## Running Tests (direct)
+
+- Basic:
+  - `dotnet test`
+- With coverage:
+  - `dotnet test --collect:"XPlat Code Coverage" --settings coverlet.runsettings`
+- Verbose:
+  - `dotnet test --verbosity detailed`
+- TRX report:
+  - `dotnet test --logger trx --results-directory TestResults`
 
 ## Test Structure
 
@@ -37,13 +44,13 @@ tests/
 └── coverlet.runsettings      # Coverage configuration
 ```
 
-## Test Coverage Targets
+## Coverage Targets
 
 - **Overall Project**: 80%+ line coverage
 - **Critical Components**: 85%+ line coverage
 - **Models**: 90%+ line coverage
 
-## Key Test Categories
+## Key Categories
 
 ### ✅ Authentication Tests (19 tests)
 - Email/password authentication flow

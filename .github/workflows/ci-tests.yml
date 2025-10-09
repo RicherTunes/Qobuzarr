@@ -1,0 +1,92 @@
+name: Qobuzarr CI
+
+on:
+  push:
+    branches: [ main, ci-**, feature/** ]
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      suite:
+        description: "Test suite"
+        required: true
+        default: "fast"
+        type: choice
+        options: [ fast, full, full-live ]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  fast-tests:
+    if: ${{ github.event_name != 'workflow_dispatch' || inputs.suite == 'fast' }}
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Setup .NET SDKs
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: |
+            9.0.x
+            6.0.x
+
+      - name: Restore
+        run: dotnet restore Qobuzarr.sln
+
+      - name: Run fast suite
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          ./tests/run-tests.ps1 -Configuration Release
+
+      - name: Upload TRX
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results-fast
+          path: tests/TestResults/*.trx
+
+  full-tests:
+    if: ${{ github.event_name == 'workflow_dispatch' && (inputs.suite == 'full' || inputs.suite == 'full-live') }}
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Setup .NET SDKs
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: |
+            9.0.x
+            6.0.x
+
+      - name: Restore
+        run: dotnet restore Qobuzarr.sln
+
+      - name: Run full suite
+        shell: pwsh
+        env:
+          ENABLE_LIVE_INTEGRATION_TESTS: ${{ inputs.suite == 'full-live' && secrets.LIDARR_URL && secrets.LIDARR_API_KEY && 'true' || 'false' }}
+          LIDARR_URL: ${{ secrets.LIDARR_URL }}
+          LIDARR_API_KEY: ${{ secrets.LIDARR_API_KEY }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          if ($env:ENABLE_LIVE_INTEGRATION_TESTS -eq 'true') {
+            ./tests/run-tests.ps1 -Configuration Release -Full -Live
+          } else {
+            ./tests/run-tests.ps1 -Configuration Release -Full
+          }
+
+      - name: Upload TRX
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results-${{ inputs.suite }}
+          path: tests/TestResults/*.trx
+
