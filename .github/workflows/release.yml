@@ -1,132 +1,90 @@
-name: Release
+name: Release (manual)
 
 on:
-  push:
-    tags: [ 'v*' ]
   workflow_dispatch:
     inputs:
       version:
-        description: 'Release version (e.g., v1.0.0)'
+        description: "Version (e.g., 0.0.15)"
         required: true
-        type: string
-
-permissions:
-  contents: write
-
-env:
-  DOTNET_SKIP_FIRST_TIME_EXPERIENCE: true
-  DOTNET_CLI_TELEMETRY_OPTOUT: true
-  PLUGIN_NAME: Lidarr.Plugin.Qobuzarr
-  MINIMUM_LIDARR_VERSION: 2.13.2.4685
-  DOTNET_VERSION: 8.0.x
+        default: "0.0.15"
+      draft:
+        description: "Create as draft"
+        type: boolean
+        required: true
+        default: true
+      prerelease:
+        description: "Mark as prerelease"
+        type: boolean
+        required: true
+        default: false
 
 jobs:
-  release:
-    name: Create Release
-    runs-on: ubuntu-latest
-    
+  create-release:
+    runs-on: windows-latest
+    permissions:
+      contents: write
     steps:
-    - name: Checkout
-      uses: actions/checkout@v4
-      with:
-        token: ${{ secrets.CI_PAT }}
-        fetch-depth: 0
-        submodules: recursive
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
 
-    - name: Setup .NET
-      uses: actions/setup-dotnet@v4
-      with:
-        dotnet-version: ${{ env.DOTNET_VERSION }}
+      - name: Setup .NET SDKs
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: |
+            9.0.x
+            6.0.x
 
-    - name: Determine version
-      run: |
-        if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
-          VERSION="${{ github.event.inputs.version }}"
-          VERSION="${VERSION#v}"  # Remove 'v' prefix if present
-        elif [[ "${{ github.ref }}" == refs/tags/* ]]; then
-          VERSION="${{ github.ref_name }}"
-          VERSION="${VERSION#v}"  # Remove 'v' prefix if present
-        else
-          echo "❌ Invalid trigger for release workflow"
-          exit 1
-        fi
-        
-        echo "RELEASE_VERSION=$VERSION" >> $GITHUB_ENV
-        echo "✅ Release version: $VERSION"
+      - name: Ensure version matches
+        shell: pwsh
+        run: |
+          $v = Get-Content VERSION -TotalCount 1
+          if ($v.Trim() -ne '${{ inputs.version }}') {
+            Write-Error "VERSION file ($v) does not match input (${{ inputs.version }})"; exit 1 }
 
-    - name: Setup Lidarr assemblies
-      run: |
-        echo "Setting up Lidarr assemblies for release build (plugins branch)..."
-        set -e
-        mkdir -p ext/Lidarr/_output/net6.0
-        if ! docker --version >/dev/null 2>&1; then
-          echo "[ERROR] Docker is required to fetch plugins-branch assemblies for release."
-          exit 1
-        fi
-        IMAGE="ghcr.io/hotio/lidarr:pr-plugins"
-        echo "Pulling $IMAGE (with retry)"
-        n=0
-        until [ "$n" -ge 3 ]; do
-          docker pull "$IMAGE" && break
-          n=$((n+1))
-          echo "Pull failed ($n). Retrying in 10s..." && sleep 10
-        done
-        cid=$(docker create "$IMAGE")
-        echo "Extracting assemblies from container..."
-        docker cp "$cid:/app" ext/Lidarr/_extracted || docker cp "$cid:/opt/lidarr" ext/Lidarr/_extracted
-        docker rm "$cid" >/dev/null
-        find ext/Lidarr/_extracted -type f -name "*.dll" -print -exec cp {} ext/Lidarr/_output/net6.0 \;
-        ls -la ext/Lidarr/_output/net6.0/ || true
-        if [ ! -f ext/Lidarr/_output/net6.0/Lidarr.dll ]; then
-          echo "[ERROR] Missing Lidarr.dll after extraction."
-          exit 1
-        fi
-        if ! strings ext/Lidarr/_output/net6.0/Lidarr.Core.dll | grep -q "IDownloadProtocol"; then
-          echo "[ERROR] Assemblies do not expose IDownloadProtocol (plugins branch API)."
-          exit 1
-        fi
+      - name: Build (Release)
+        run: |
+          dotnet restore Qobuzarr.sln
+          dotnet build Qobuzarr.sln -c Release -v minimal
 
-    - name: Build release
-      run: |
-        echo "🚀 Building release version $RELEASE_VERSION..."
-        dotnet restore Qobuzarr.csproj
-        dotnet build Qobuzarr.csproj --configuration Release --no-restore \
-          -p:Version="$RELEASE_VERSION" \
-          -p:AssemblyVersion="$RELEASE_VERSION" \
-          -p:FileVersion="$RELEASE_VERSION" \
-          -p:RunAnalyzersDuringBuild=false \
-          -p:EnableNETAnalyzers=false \
-          -p:TreatWarningsAsErrors=false
+      - name: Prepare artifacts
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Path dist | Out-Null
+          Copy-Item plugin.json dist\
+          Copy-Item bin\Lidarr.Plugin.Qobuzarr.dll dist\
+          Compress-Archive -Path dist\* -DestinationPath qobuzarr-${{ inputs.version }}.zip -Force
 
-    - name: Create release package
-      run: |
-        echo "📦 Creating release package..."
-        cd bin
-        zip -r "../${{ env.PLUGIN_NAME }}-v$RELEASE_VERSION.zip" *
-        cd ..
-        
-        echo "✅ Release package created"
-        ls -la *.zip
+      - name: Create tag
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: pwsh
+        run: |
+          git fetch --prune --unshallow || git fetch --all
+          git checkout origin/main
+          $tag = 'v' + '${{ inputs.version }}'
+          if (git rev-parse $tag 2>$null) { Write-Host "Tag $tag already exists" } else {
+            git tag $tag
+            git push origin $tag
+          }
 
-    - name: Generate release notes
-      run: |
-        echo "📝 Generating release notes..."
-        echo "## ${{ env.PLUGIN_NAME }} v$RELEASE_VERSION" > release-notes.md
-        echo "" >> release-notes.md
-        echo "### Installation" >> release-notes.md
-        echo "1. Download the plugin ZIP file" >> release-notes.md
-        echo "2. Extract to your Lidarr plugins directory" >> release-notes.md
-        echo "3. Restart Lidarr" >> release-notes.md
-        echo "" >> release-notes.md
-        echo "### Compatibility" >> release-notes.md
-        echo "- Lidarr: ${{ env.MINIMUM_LIDARR_VERSION }}+" >> release-notes.md
-        echo "- .NET: ${{ env.DOTNET_VERSION }}" >> release-notes.md
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -e
+          TAG=v${{ inputs.version }}
+          TITLE=Qobuzarr ${{ inputs.version }}
+          DRAFT_FLAG=$([ [string]::IsNullOrEmpty('${{ inputs.draft }}') -or '${{ inputs.draft }}' -eq 'true' ] && echo "--draft" || echo "")
+          PRERELEASE_FLAG=$([ '${{ inputs.prerelease }}' -eq 'true' ] && echo "--prerelease" || echo "")
+          NOTES_FILE=.github/release-notes/${{ inputs.version }}.md
+          if [ ! -f "$NOTES_FILE" ]; then NOTES_FILE=CHANGELOG.md; fi
+          gh release create "$TAG" $DRAFT_FLAG $PRERELEASE_FLAG --title "$TITLE" --notes-file "$NOTES_FILE" || gh release edit "$TAG" $DRAFT_FLAG $PRERELEASE_FLAG --title "$TITLE" --notes-file "$NOTES_FILE"
 
-    - name: Create GitHub release
-      uses: softprops/action-gh-release@v1
-      with:
-        name: ${{ env.PLUGIN_NAME }} v${{ env.RELEASE_VERSION }}
-        body_path: release-notes.md
-        files: ${{ env.PLUGIN_NAME }}-v${{ env.RELEASE_VERSION }}.zip
-        draft: false
-        prerelease: false
+      - name: Upload assets
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release upload v${{ inputs.version }} qobuzarr-${{ inputs.version }}.zip dist/Lidarr.Plugin.Qobuzarr.dll dist/plugin.json --clobber
+
