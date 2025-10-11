@@ -27,7 +27,7 @@ jobs:
         with:
           fetch-depth: 0
           submodules: recursive
-          token: ${{ secrets.SUBMODULES_TOKEN }}
+          token: ${{ secrets.SUBMODULES_TOKEN != '' && secrets.SUBMODULES_TOKEN || github.token }}
 
       - name: Setup .NET SDKs
         uses: actions/setup-dotnet@v4
@@ -62,7 +62,7 @@ jobs:
         with:
           fetch-depth: 0
           submodules: recursive
-          token: ${{ secrets.SUBMODULES_TOKEN }}
+          token: ${{ secrets.SUBMODULES_TOKEN != '' && secrets.SUBMODULES_TOKEN || github.token }}
 
       - name: Setup .NET SDKs
         uses: actions/setup-dotnet@v4
