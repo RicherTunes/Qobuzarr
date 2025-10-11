@@ -34,12 +34,13 @@ jobs:
             9.0.x
             6.0.x
 
-      - name: Prepare submodules (public HTTPS)
-        shell: pwsh
-        run: |
-          git config --global --unset-all http.https://github.com/.extraheader 2>$null || $true
-          git submodule sync --recursive
-          git -c protocol.version=2 submodule update --init --force --recursive --depth 1
+      - name: Checkout Lidarr.Plugin.Common (submodule replacement)
+        uses: actions/checkout@v4
+        with:
+          repository: RicherTunes/Lidarr.Plugin.Common
+          ref: main
+          path: ext/Lidarr.Plugin.Common
+          fetch-depth: 1
 
       - name: Restore
         run: dotnet restore Qobuzarr.sln
@@ -73,12 +74,13 @@ jobs:
             9.0.x
             6.0.x
 
-      - name: Prepare submodules (public HTTPS)
-        shell: pwsh
-        run: |
-          git config --global --unset-all http.https://github.com/.extraheader 2>$null || $true
-          git submodule sync --recursive
-          git -c protocol.version=2 submodule update --init --force --recursive --depth 1
+      - name: Checkout Lidarr.Plugin.Common (submodule replacement)
+        uses: actions/checkout@v4
+        with:
+          repository: RicherTunes/Lidarr.Plugin.Common
+          ref: main
+          path: ext/Lidarr.Plugin.Common
+          fetch-depth: 1
 
       - name: Restore
         run: dotnet restore Qobuzarr.sln
