@@ -22,10 +22,12 @@ jobs:
     if: ${{ github.event_name != 'workflow_dispatch' || inputs.suite == 'fast' }}
     runs-on: windows-latest
     steps:
-      - name: Checkout (no submodules)
+      - name: Checkout
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          submodules: recursive
+          token: ${{ secrets.SUBMODULES_TOKEN }}
 
       - name: Setup .NET SDKs
         uses: actions/setup-dotnet@v4
@@ -55,10 +57,12 @@ jobs:
     if: ${{ github.event_name == 'workflow_dispatch' && (inputs.suite == 'full' || inputs.suite == 'full-live') }}
     runs-on: windows-latest
     steps:
-      - name: Checkout (no submodules)
+      - name: Checkout
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          submodules: recursive
+          token: ${{ secrets.SUBMODULES_TOKEN }}
 
       - name: Setup .NET SDKs
         uses: actions/setup-dotnet@v4
