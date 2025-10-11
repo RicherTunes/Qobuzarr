@@ -1,0 +1,71 @@
+name: Release (tag)
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  release:
+    runs-on: windows-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Setup .NET SDKs
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: |
+            9.0.x
+            6.0.x
+
+      - name: Verify tag matches VERSION
+        shell: pwsh
+        run: |
+          $tag = "$env:GITHUB_REF_NAME"  # e.g., v0.0.15
+          if (-not $tag.StartsWith('v')) { Write-Error "Tag must start with 'v'"; exit 1 }
+          $version = $tag.Substring(1)
+          $fileVersion = (Get-Content VERSION -TotalCount 1).Trim()
+          if ($version -ne $fileVersion) {
+            Write-Error "VERSION file ($fileVersion) does not match tag ($version)"; exit 1 }
+          echo "VERSION=$version" | Out-File -FilePath $Env:GITHUB_ENV -Append
+
+      - name: Restore
+        run: dotnet restore Qobuzarr.sln
+
+      - name: Build (Release)
+        run: dotnet build Qobuzarr.sln -c Release -v minimal
+
+      - name: Publish to trigger plugin.json generation
+        run: dotnet publish Qobuzarr.csproj -c Release -v minimal -o out
+
+      - name: Prepare artifacts
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Path dist | Out-Null
+          Copy-Item plugin.json dist\
+          Copy-Item bin\Lidarr.Plugin.Qobuzarr.dll dist\
+          Compress-Archive -Path dist\* -DestinationPath qobuzarr-$env:VERSION.zip -Force
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: pwsh
+        run: |
+          $tag = "v$env:VERSION"
+          $title = "Qobuzarr $env:VERSION"
+          $notes = ".github/release-notes/$env:VERSION.md"
+          if (-not (Test-Path $notes)) { $notes = 'CHANGELOG.md' }
+          gh release create $tag --title $title --notes-file $notes 2>$null \
+            || gh release edit $tag --title $title --notes-file $notes
+
+      - name: Upload assets
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release upload v${{ env.VERSION }} qobuzarr-${{ env.VERSION }}.zip dist/Lidarr.Plugin.Qobuzarr.dll dist/plugin.json --clobber
+
