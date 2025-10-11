@@ -22,10 +22,9 @@ jobs:
     if: ${{ github.event_name != 'workflow_dispatch' || inputs.suite == 'fast' }}
     runs-on: windows-latest
     steps:
-      - name: Checkout
+      - name: Checkout (no submodules)
         uses: actions/checkout@v4
         with:
-          submodules: recursive
           fetch-depth: 0
 
       - name: Setup .NET SDKs
@@ -34,6 +33,13 @@ jobs:
           dotnet-version: |
             9.0.x
             6.0.x
+
+      - name: Prepare submodules (public HTTPS)
+        shell: pwsh
+        run: |
+          git config --global --unset-all http.https://github.com/.extraheader 2>$null || $true
+          git submodule sync --recursive
+          git -c protocol.version=2 submodule update --init --force --recursive --depth 1
 
       - name: Restore
         run: dotnet restore Qobuzarr.sln
@@ -55,10 +61,9 @@ jobs:
     if: ${{ github.event_name == 'workflow_dispatch' && (inputs.suite == 'full' || inputs.suite == 'full-live') }}
     runs-on: windows-latest
     steps:
-      - name: Checkout
+      - name: Checkout (no submodules)
         uses: actions/checkout@v4
         with:
-          submodules: recursive
           fetch-depth: 0
 
       - name: Setup .NET SDKs
@@ -67,6 +72,13 @@ jobs:
           dotnet-version: |
             9.0.x
             6.0.x
+
+      - name: Prepare submodules (public HTTPS)
+        shell: pwsh
+        run: |
+          git config --global --unset-all http.https://github.com/.extraheader 2>$null || $true
+          git submodule sync --recursive
+          git -c protocol.version=2 submodule update --init --force --recursive --depth 1
 
       - name: Restore
         run: dotnet restore Qobuzarr.sln
