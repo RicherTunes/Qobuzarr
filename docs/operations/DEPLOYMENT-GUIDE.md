@@ -660,6 +660,33 @@ spec:
 }
 ```
 
+### Release Automation (CI/CD)
+
+Qobuzarr uses GitHub Actions for tests and releases.
+
+- Fast tests: run on push/PR using `.github/workflows/ci-tests.yml`.
+- Full/Live tests: manual `workflow_dispatch` (requires environment/secrets for live).
+- Release options:
+  - Manual workflow: Actions → “Release (manual)” → set `version` (e.g., `0.0.15`). Builds, tags `v<version>`, drafts release, uploads assets.
+  - Tag-driven: push a tag `vX.Y.Z` to `main` and the “Release (tag)” workflow builds and publishes.
+
+Artifacts per release:
+- `qobuzarr-<version>.zip` containing `Lidarr.Plugin.Qobuzarr.dll` and `plugin.json`.
+- Standalone `Lidarr.Plugin.Qobuzarr.dll` and `plugin.json` for manual installs.
+
+Notes
+- `plugin.json` is generated from `plugin.json.template` during Pack/Publish and release workflows. Local `dotnet build` may not regenerate it.
+
+Examples
+```bash
+# Trigger tag-based release
+git tag v0.0.15
+git push origin v0.0.15
+
+# Trigger manual release
+gh workflow run "Release (manual)" -f version=0.0.15
+```
+
 ### Database Migration
 ```bash
 # Production database setup
