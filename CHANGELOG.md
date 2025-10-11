@@ -5,6 +5,28 @@ All notable changes to Qobuzarr will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.0.15] - 2025-10-11
+
+### Fixed
+- CS1737 compile error in TrackDownloadService by reordering constructor parameters (required `IDiskProvider` before optional `IMetricsCollector`).
+- Restored `QobuzDownloadClient.cs` to a known-good snapshot to fix corrupted interpolated strings/newlines that broke compilation.
+- Resolved ambiguous `QobuzSubscriptionTier` reference and adjusted cache calls (`Find(...)`) in `StreamUrlProvider`.
+- Aligned logging in `TrackDownloadService` to use `IQobuzLogger` via `NLogAdapter`; removed usages that required `LoggerExtensions` on `Logger`.
+- Replaced missing file helper calls with `_diskProvider`/`FileInfo` safe checks to avoid missing-type build errors.
+
+### Changed
+- Generate `plugin.json` only on Pack/Publish (not every Build) to prevent `dotnet watch test` build loops and testhost file-lock churn.
+- `IStreamUrlProvider.TryGetStreamUrlAsync` now uses `IReadOnlyList<int>` for quality chains; imports adjusted.
+
+### Docs
+- Added tests/README with clear fast vs full vs live guidance and the “avoid dotnet watch test” note.
+
+### CI
+- New GitHub Actions workflow running the fast suite on PRs, with manual dispatch for full and full-live test runs.
+
+### Notes
+- VERSION bumped to 0.0.15; `plugin.json` version will be generated during Pack/Publish from `plugin.json.template`.
+
 ## [0.0.12] - 2025-01-13
 
 ### Added

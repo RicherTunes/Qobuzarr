@@ -1,155 +1,41 @@
-# Pull Request
+## Summary
 
-## Description
+Short PR to stabilize CI test runs, fix the CS1737 compile error, and document the fast vs. full test profiles.
 
-<!-- Provide a clear and concise description of what this PR does -->
+## Changes
 
-### Type of Change
+- fix(build/tests): stop watch-loop churn by generating `plugin.json` only on Pack/Publish, not general Build
+- fix(download): TrackDownloadService constructor order (required before optional) to resolve CS1737
+- fix(client): revert `QobuzDownloadClient` to known-good snapshot to remove string literal/formatting corruption
+- fix(services): align `IStreamUrlProvider` with `IReadOnlyList<int>` probe signature; import `System.Collections.Generic`
+- fix(stream): resolve `QobuzSubscriptionTier` ambiguity (namespace-qualified); use cache `.Find(...)`
+- fix(logging): route `TrackDownloadService` logging through `IQobuzLogger` via `NLogAdapter`
+- fix(io): replace missing helpers with `_diskProvider`/`FileInfo` safe checks
+- docs(tests): add tests/README for fast/full/live guidance; warn against `dotnet watch test`
+- ci: add GitHub Actions workflow for fast suite on PRs + manual full/full-live
 
-<!-- Mark the relevant option with an [x] -->
+## Rationale
 
-- [ ] 🐛 Bug fix (non-breaking change which fixes an issue)
-- [ ] ✨ New feature (non-breaking change which adds functionality)  
-- [ ] 💥 Breaking change (fix or feature that would cause existing functionality to not work as expected)
-- [ ] 📚 Documentation update
-- [ ] 🏗️ Refactoring (no functional changes)
-- [ ] ⚡ Performance improvement
-- [ ] 🧪 Test updates
-- [ ] 🔧 Build/CI changes
-- [ ] 🔒 Security fix
+The primary cause of multi-hour test runs was a build-trigger loop (plugin.json rewritten every build) interacting with `dotnet watch` or multi-project test runs. Moving manifest generation to Pack/Publish eliminates the loop and makes local/CI runs deterministic.
 
-## What does this PR do?
+## Validation
 
-<!-- Explain your changes in detail. Include motivation and context. -->
+- local build: `dotnet build -c Release` (OK)
+- fast tests: `./tests/run-tests.ps1 -Configuration Release` (~20s, all green)
+- targeted: `dotnet test tests/Qobuzarr.Tests/Qobuzarr.Tests.csproj -c Release --settings tests/Default.runsettings --no-build` (OK)
 
-### Related Issues
+## Reviewer Checklist
 
-<!-- Link any related issues using keywords like "Fixes #123" or "Closes #456" -->
+- [ ] Solution builds on your machine (Release)
+- [ ] Fast suite green with Default.runsettings
+- [ ] Optional: trigger Actions "Qobuzarr CI" with `suite=full` (no live)
+- [ ] Optional: set secrets and run `suite=full-live` (requires LIDARR_URL/API_KEY)
+- [ ] Sanity check TrackDownloadService logs still appear in host logs
+- [ ] Confirm no functional regression in CLI smoke (basic command help works)
 
-- Fixes #
-- Addresses #
-- Related to #
+## Follow-ups (tracked separately)
 
-## Testing
+- Resolve .NET 6 EOL warnings (migrate to .NET 8)
+- Reduce package version conflicts in test projects
+- Add a small smoke test for LoggerExtensions props path
 
-<!-- Describe the tests you ran and/or added -->
-
-### Test Coverage
-
-- [ ] Unit tests added/updated
-- [ ] Integration tests added/updated
-- [ ] Manual testing performed
-- [ ] Performance impact assessed
-- [ ] Security implications reviewed
-
-### Test Environment
-
-<!-- Provide details about your testing environment -->
-
-- **Lidarr Version**: 
-- **Operating System**: 
-- **Qobuz Subscription Type**: 
-- **Test Scenarios**: 
-
-## Implementation Details
-
-<!-- Provide more technical details about your implementation -->
-
-### Changes Made
-
-<!-- List the main changes -->
-
-- 
-- 
-- 
-
-### Architecture Impact
-
-<!-- Does this change affect the plugin architecture? -->
-
-- [ ] No architectural changes
-- [ ] Changes to plugin-CLI separation
-- [ ] New dependencies added
-- [ ] API changes
-- [ ] Database/storage changes
-- [ ] Configuration changes
-
-### Performance Considerations
-
-<!-- Any performance implications? -->
-
-- [ ] No performance impact
-- [ ] Performance improvement
-- [ ] Potential performance regression (justified because...)
-- [ ] Memory usage impact
-- [ ] Network usage impact
-
-## Quality Checklist
-
-<!-- Ensure your PR meets quality standards -->
-
-### Code Quality
-
-- [ ] Code follows project coding standards
-- [ ] Self-review of code completed
-- [ ] Code is properly commented
-- [ ] No console.log or debug statements left
-- [ ] Error handling implemented appropriately
-- [ ] Thread safety considered where applicable
-
-### Plugin Architecture Compliance
-
-- [ ] Core functionality implemented in plugin (`src/`) not CLI
-- [ ] CLI only contains UI/CLI-specific features
-- [ ] Proper separation of concerns maintained
-- [ ] No duplication between plugin and CLI
-
-### Security & Safety
-
-- [ ] No sensitive information exposed in logs
-- [ ] Input validation implemented
-- [ ] No SQL injection or similar vulnerabilities
-- [ ] Secure credential handling
-- [ ] Dependencies security reviewed
-
-### Documentation
-
-- [ ] Code documentation updated (if needed)
-- [ ] User documentation updated (if needed)  
-- [ ] API documentation updated (if needed)
-- [ ] CHANGELOG updated (if applicable)
-
-## Screenshots/Recordings
-
-<!-- If applicable, add screenshots or recordings to demonstrate changes -->
-
-## Deployment Notes
-
-<!-- Any special deployment considerations? -->
-
-- [ ] No special deployment needed
-- [ ] Database migration required
-- [ ] Configuration changes required
-- [ ] External service changes
-- [ ] Breaking changes that need user communication
-
-## Backwards Compatibility
-
-<!-- How does this affect existing users? -->
-
-- [ ] Fully backwards compatible
-- [ ] Minor breaking changes (documented below)
-- [ ] Major breaking changes (migration guide provided)
-
-### Breaking Changes Details
-
-<!-- If there are breaking changes, explain them -->
-
-## Attribution
-
-<!-- If building upon TrevTV's work or other contributions, please credit appropriately -->
-This PR builds upon the foundational work of [TrevTV's Lidarr.Plugin.Qobuz](https://github.com/TrevTV/Lidarr.Plugin.Qobuz).
-
-## Additional Notes
-
-<!-- Any additional information for reviewers -->
