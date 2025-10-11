@@ -28,6 +28,7 @@ jobs:
           fetch-depth: 0
           submodules: recursive
           token: ${{ secrets.SUBMODULES_TOKEN != '' && secrets.SUBMODULES_TOKEN || github.token }}
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
 
       - name: Setup .NET SDKs
         uses: actions/setup-dotnet@v4
@@ -63,6 +64,7 @@ jobs:
           fetch-depth: 0
           submodules: recursive
           token: ${{ secrets.SUBMODULES_TOKEN != '' && secrets.SUBMODULES_TOKEN || github.token }}
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
 
       - name: Setup .NET SDKs
         uses: actions/setup-dotnet@v4
