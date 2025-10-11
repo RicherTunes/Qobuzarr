@@ -34,13 +34,6 @@ jobs:
             9.0.x
             6.0.x
 
-      - name: Checkout Lidarr.Plugin.Common (submodule replacement)
-        uses: actions/checkout@v4
-        with:
-          repository: RicherTunes/Lidarr.Plugin.Common
-          ref: main
-          path: ext/Lidarr.Plugin.Common
-          fetch-depth: 1
 
       - name: Restore
         run: dotnet restore Qobuzarr.sln
@@ -74,13 +67,6 @@ jobs:
             9.0.x
             6.0.x
 
-      - name: Checkout Lidarr.Plugin.Common (submodule replacement)
-        uses: actions/checkout@v4
-        with:
-          repository: RicherTunes/Lidarr.Plugin.Common
-          ref: main
-          path: ext/Lidarr.Plugin.Common
-          fetch-depth: 1
 
       - name: Restore
         run: dotnet restore Qobuzarr.sln
