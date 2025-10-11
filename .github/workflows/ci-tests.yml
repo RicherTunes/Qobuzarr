@@ -37,13 +37,13 @@ jobs:
 
       - name: Configure auth for private submodules
         if: ${{ secrets.SUBMODULES_TOKEN != '' }}
-        shell: pwsh
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.SUBMODULES_TOKEN }}
         run: |
-          git config --global url."https://${{ secrets.SUBMODULES_TOKEN }}:@github.com/".insteadOf https://github.com/
-
-      - name: Update submodules
-        shell: pwsh
-        run: |
+          set -euo pipefail
+          AUTH=$(printf "x-access-token:%s" "$GH_TOKEN" | base64)
+          git config --global http.https://github.com/.extraheader "AUTHORIZATION: basic $AUTH"
           git submodule sync --recursive
           git -c protocol.version=2 submodule update --init --force --recursive --depth 1
 
@@ -83,13 +83,13 @@ jobs:
 
       - name: Configure auth for private submodules
         if: ${{ secrets.SUBMODULES_TOKEN != '' }}
-        shell: pwsh
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.SUBMODULES_TOKEN }}
         run: |
-          git config --global url."https://${{ secrets.SUBMODULES_TOKEN }}:@github.com/".insteadOf https://github.com/
-
-      - name: Update submodules
-        shell: pwsh
-        run: |
+          set -euo pipefail
+          AUTH=$(printf "x-access-token:%s" "$GH_TOKEN" | base64)
+          git config --global http.https://github.com/.extraheader "AUTHORIZATION: basic $AUTH"
           git submodule sync --recursive
           git -c protocol.version=2 submodule update --init --force --recursive --depth 1
 
