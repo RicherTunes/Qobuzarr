@@ -514,7 +514,7 @@ namespace Lidarr.Plugin.Qobuzarr.Services
         /// </summary>
         private double CalculateStringSimilarity(string s1, string s2)
         {
-            return Utilities.StringSimilarity.Calculate(s1, s2);
+            return CommonStringSimilarity.Calculate(s1, s2);
         }
 
 

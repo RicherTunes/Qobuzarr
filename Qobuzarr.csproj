@@ -30,10 +30,21 @@
     
   </PropertyGroup>
 
-  <!-- Ensure Lidarr.Plugin.Common submodule is present before restore -->
-  <Target Name="CheckCommonSubmodule" BeforeTargets="Restore">
+  <!-- Detect availability of the shared common library submodule; fall back to local stubs when absent -->
+  <PropertyGroup>
+    <UseCommonStubs Condition="!Exists('ext/Lidarr.Plugin.Common/src/Lidarr.Plugin.Common.csproj')">true</UseCommonStubs>
+    <UseCommonStubs Condition="'$(UseCommonStubs)' == ''">false</UseCommonStubs>
+  </PropertyGroup>
+
+  <!-- If a Common package version is provided, prefer the package over stubs -->
+  <PropertyGroup Condition="'$(CommonPackageVersion)' != ''">
+    <UseCommonStubs>false</UseCommonStubs>
+  </PropertyGroup>
+
+  <!-- Ensure submodule only when stubs are not in use -->
+  <Target Name="CheckCommonSubmodule" BeforeTargets="Restore" Condition="'$(UseCommonStubs)' != 'true'">
     <Error Condition="!Exists('ext/Lidarr.Plugin.Common/src/Lidarr.Plugin.Common.csproj')"
-           Text="Lidarr.Plugin.Common submodule missing. Run: git submodule update --init --recursive" />
+           Text="Lidarr.Plugin.Common submodule missing and stubs disabled. Run: git submodule update --init --recursive or build with stubs." />
   </Target>
   
   
@@ -70,12 +81,21 @@
          - Release branch (enum DownloadProtocol) when UsePluginsBranch=false
        Default locally is false to match commonly available release assemblies;
        CI can set -p:UsePluginsBranch=true when plugins-branch assemblies are present. -->
-    <UsePluginsBranch Condition="'$(UsePluginsBranch)' == ''">true</UsePluginsBranch>
+    <!-- Default locally to release branch for wider dev compatibility; CI flips to plugins branch when available -->
+    <UsePluginsBranch Condition="'$(UsePluginsBranch)' == ''">false</UsePluginsBranch>
+    
+    <!-- Optional: consume Common via package when version is provided -->
+    <CommonPackageVersion Condition="'$(CommonPackageVersion)' == '' and '$(COMMON_PACKAGE_VERSION)' != ''">$(COMMON_PACKAGE_VERSION)</CommonPackageVersion>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(UsePluginsBranch)' == 'true'">
     <DefineConstants>$(DefineConstants);PLUGIN_PROTOCOL</DefineConstants>
   </PropertyGroup>
+
+  <!-- Log which Lidarr API branch we are targeting (helps devs and CI understand build context) -->
+  <Target Name="LogBranchSelection" BeforeTargets="Build">
+    <Message Text="Qobuzarr: UsePluginsBranch=$(UsePluginsBranch) (PLUGIN_PROTOCOL defined if true)" Importance="high" />
+  </Target>
 
   <!-- Source files inclusion -->
   <ItemGroup>
@@ -123,6 +143,7 @@
       <Private>false</Private>
       <ExcludeAssets>runtime</ExcludeAssets>
     </PackageReference>
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" />
     
     <!-- Plugin-specific dependencies - must be bundled -->
     <PackageReference Include="TagLibSharp-Lidarr" />
@@ -171,15 +192,26 @@
       <HintPath>$(LidarrAssembliesPath)\Lidarr.SignalR.dll</HintPath>
       <Private>true</Private>
     </Reference>
-    <!-- Shared library reference - using submodule for development -->
-    <ProjectReference Include="ext\Lidarr.Plugin.Common\src\Lidarr.Plugin.Common.csproj">
+    <!-- Shared library reference - prefer submodule for development -->
+    <ProjectReference Include="ext\Lidarr.Plugin.Common\src\Lidarr.Plugin.Common.csproj" Condition="'$(UseCommonStubs)' != 'true' and '$(CommonPackageVersion)' == ''">
       <Private>true</Private>
     </ProjectReference>
+    
+    <!-- Fallback to NuGet package when submodule is unavailable and version is supplied -->
+    <PackageReference Include="Lidarr.Plugin.Common" Version="$(CommonPackageVersion)" Condition="'$(UseCommonStubs)' != 'true' and '$(CommonPackageVersion)' != ''" />
     
     <!-- TODO: Replace with NuGet package reference once published:
     <PackageReference Include="Lidarr.Plugin.Common" Version="1.0.0" />
     -->
   </ItemGroup>
+
+  <!-- Local compatibility stubs for CI/external PRs where submodule isn't available -->
+  <ItemGroup Condition="'$(UseCommonStubs)' == 'true'">
+    <Compile Include="src\Compat\CommonStubs.cs" />
+  </ItemGroup>
+  <PropertyGroup Condition="'$(UseCommonStubs)' == 'true'">
+    <DefineConstants>$(DefineConstants);COMMON_STUBS</DefineConstants>
+  </PropertyGroup>
 
   <!-- File exclusions -->
   <ItemGroup>

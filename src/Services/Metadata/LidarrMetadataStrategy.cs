@@ -88,7 +88,7 @@ namespace Lidarr.Plugin.Qobuzarr.Services.Metadata
 
             if (exactNumberMatch != null)
             {
-                var titleSimilarity = Utilities.StringSimilarity.Calculate(lidarrTrack.Title, exactNumberMatch.Title);
+                var titleSimilarity = CommonStringSimilarity.Calculate(lidarrTrack.Title, exactNumberMatch.Title);
                 if (titleSimilarity >= 0.7) // 70% minimum for exact number matches
                 {
                     return exactNumberMatch;
@@ -117,7 +117,7 @@ namespace Lidarr.Plugin.Qobuzarr.Services.Metadata
             double score = 0;
 
             // Title similarity (70% weight)
-            var titleSimilarity = Utilities.StringSimilarity.Calculate(lidarrTrack.Title, qobuzTrack.Title);
+            var titleSimilarity = CommonStringSimilarity.Calculate(lidarrTrack.Title, qobuzTrack.Title);
             score += titleSimilarity * 0.7;
 
             // Track number match (20% weight)
