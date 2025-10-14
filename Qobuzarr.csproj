@@ -196,8 +196,10 @@
   <!-- Local compatibility stubs for CI/external PRs where submodule isn't available -->
   <ItemGroup Condition="'$(UseCommonStubs)' == 'true'">
     <Compile Include="src\Compat\CommonStubs.cs" />
-    <DefineConstants>$(DefineConstants);COMMON_STUBS</DefineConstants>
   </ItemGroup>
+  <PropertyGroup Condition="'$(UseCommonStubs)' == 'true'">
+    <DefineConstants>$(DefineConstants);COMMON_STUBS</DefineConstants>
+  </PropertyGroup>
 
   <!-- File exclusions -->
   <ItemGroup>
