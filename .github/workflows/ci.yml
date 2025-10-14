@@ -127,6 +127,10 @@ jobs:
         fetch-depth: 0
         submodules: false
 
+    - name: Determine CI capabilities
+      run: |
+        if [ -n "${{ secrets.CI_PAT }}" ]; then echo "CI_PAT_AVAILABLE=1" >> $GITHUB_ENV; else echo "CI_PAT_AVAILABLE=0" >> $GITHUB_ENV; fi
+
     - name: Note for external pull requests
       if: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.fork }}
       run: |
@@ -134,6 +138,7 @@ jobs:
         echo "This job will run only lightweight validation steps; full tests run on internal PRs and pushes."
 
     - name: Configure git auth for private submodules
+      if: ${{ env.CI_PAT_AVAILABLE == '1' }}
       continue-on-error: true
       env:
         CI_PAT: ${{ secrets.CI_PAT }}
@@ -167,6 +172,7 @@ jobs:
     # Use actions/setup-dotnet. Avoid creating global.json with wildcard versions.
 
     - name: Setup Lidarr assemblies (plugins branch)
+      if: ${{ env.CI_PAT_AVAILABLE == '1' }}
       run: |
 
         echo "Setting up Lidarr assemblies from plugins branch (Docker)..."
@@ -222,9 +228,11 @@ jobs:
         fi
 
     - name: Dotnet info
+      if: ${{ env.CI_PAT_AVAILABLE == '1' }}
       run: dotnet --info
 
     - name: List Lidarr assemblies
+      if: ${{ env.CI_PAT_AVAILABLE == '1' }}
       run: |
         echo "Listing ext/Lidarr/_output/net6.0 contents"
         ls -la ext/Lidarr/_output/net6.0/ || true
@@ -238,6 +246,7 @@ jobs:
         fi
 
     - name: Restore and build
+      if: ${{ env.CI_PAT_AVAILABLE == '1' }}
       run: |
         dotnet restore Qobuzarr.csproj
         dotnet build Qobuzarr.csproj --configuration Release --no-restore \
@@ -245,6 +254,7 @@ jobs:
           -p:RunAnalyzersDuringBuild=false -p:EnableNETAnalyzers=false -p:TreatWarningsAsErrors=false
 
     - name: Pre-build fast tests only
+      if: ${{ env.CI_PAT_AVAILABLE == '1' }}
       run: |
         set -e
         if [ -f "tests/Minimal.Tests/Minimal.Tests.csproj" ]; then
@@ -253,6 +263,7 @@ jobs:
         fi
 
     - name: Run fast tests (unit only)
+      if: ${{ env.CI_PAT_AVAILABLE == '1' }}
       timeout-minutes: 20
       run: |
         if [ -f "tests/run-tests.ps1" ]; then
@@ -262,7 +273,7 @@ jobs:
         fi
 
     - name: Upload test results (fast)
-      if: always()
+      if: ${{ env.CI_PAT_AVAILABLE == '1' && always() }}
       uses: actions/upload-artifact@v4
       with:
         name: test-results-fast
