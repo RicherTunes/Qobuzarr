@@ -70,12 +70,18 @@
          - Release branch (enum DownloadProtocol) when UsePluginsBranch=false
        Default locally is false to match commonly available release assemblies;
        CI can set -p:UsePluginsBranch=true when plugins-branch assemblies are present. -->
-    <UsePluginsBranch Condition="'$(UsePluginsBranch)' == ''">true</UsePluginsBranch>
+    <!-- Default locally to release branch for wider dev compatibility; CI flips to plugins branch when available -->
+    <UsePluginsBranch Condition="'$(UsePluginsBranch)' == ''">false</UsePluginsBranch>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(UsePluginsBranch)' == 'true'">
     <DefineConstants>$(DefineConstants);PLUGIN_PROTOCOL</DefineConstants>
   </PropertyGroup>
+
+  <!-- Log which Lidarr API branch we are targeting (helps devs and CI understand build context) -->
+  <Target Name="LogBranchSelection" BeforeTargets="Build">
+    <Message Text="Qobuzarr: UsePluginsBranch=$(UsePluginsBranch) (PLUGIN_PROTOCOL defined if true)" Importance="high" />
+  </Target>
 
   <!-- Source files inclusion -->
   <ItemGroup>

@@ -1,0 +1,13 @@
+<Project>
+  <!-- Re-enable analyzers for production code under src/, and treat warnings as errors.
+       Root-wide settings remain disabled for external code (ext/**). -->
+  <PropertyGroup>
+    <RunAnalyzersDuringBuild>true</RunAnalyzersDuringBuild>
+    <EnableNETAnalyzers>true</EnableNETAnalyzers>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <WarningsAsErrors>*</WarningsAsErrors>
+    <!-- Keep documentation warnings relaxed; we care about correctness first. -->
+    <NoWarn>CS1591</NoWarn>
+  </PropertyGroup>
+</Project>
+
