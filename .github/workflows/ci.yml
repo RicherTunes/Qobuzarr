@@ -139,13 +139,22 @@ jobs:
 
     - name: Configure git auth for private submodules
       if: ${{ env.CI_PAT_AVAILABLE == '1' }}
-      continue-on-error: true
       env:
         CI_PAT: ${{ secrets.CI_PAT }}
       run: |
+        set +e
         git config --global url.https://x-access-token:${CI_PAT}@github.com/.insteadOf https://github.com/
         git submodule sync --recursive
         git submodule update --init --recursive
+        if [ $? -eq 0 ] && [ -f ext/Lidarr.Plugin.Common/README.md ]; then
+          echo "COMMON_AVAILABLE=1" >> $GITHUB_ENV
+          echo "[OK] Lidarr.Plugin.Common submodule available"
+          exit 0
+        else
+          echo "COMMON_AVAILABLE=0" >> $GITHUB_ENV
+          echo "[WARN] Unable to fetch Lidarr.Plugin.Common; Fast Tests will be skipped."
+          exit 0
+        fi
 
     - name: Setup .NET
       uses: actions/setup-dotnet@v4
@@ -246,7 +255,7 @@ jobs:
         fi
 
     - name: Restore and build
-      if: ${{ env.CI_PAT_AVAILABLE == '1' }}
+      if: ${{ env.CI_PAT_AVAILABLE == '1' && env.COMMON_AVAILABLE == '1' }}
       run: |
         dotnet restore Qobuzarr.csproj
         dotnet build Qobuzarr.csproj --configuration Release --no-restore \
@@ -254,7 +263,7 @@ jobs:
           -p:RunAnalyzersDuringBuild=false -p:EnableNETAnalyzers=false -p:TreatWarningsAsErrors=false
 
     - name: Pre-build fast tests only
-      if: ${{ env.CI_PAT_AVAILABLE == '1' }}
+      if: ${{ env.CI_PAT_AVAILABLE == '1' && env.COMMON_AVAILABLE == '1' }}
       run: |
         set -e
         if [ -f "tests/Minimal.Tests/Minimal.Tests.csproj" ]; then
@@ -263,7 +272,7 @@ jobs:
         fi
 
     - name: Run fast tests (unit only)
-      if: ${{ env.CI_PAT_AVAILABLE == '1' }}
+      if: ${{ env.CI_PAT_AVAILABLE == '1' && env.COMMON_AVAILABLE == '1' }}
       timeout-minutes: 20
       run: |
         if [ -f "tests/run-tests.ps1" ]; then
@@ -273,7 +282,7 @@ jobs:
         fi
 
     - name: Upload test results (fast)
-      if: ${{ env.CI_PAT_AVAILABLE == '1' && always() }}
+      if: ${{ env.CI_PAT_AVAILABLE == '1' && env.COMMON_AVAILABLE == '1' && always() }}
       uses: actions/upload-artifact@v4
       with:
         name: test-results-fast
