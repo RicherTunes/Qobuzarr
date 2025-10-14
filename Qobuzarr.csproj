@@ -30,10 +30,16 @@
     
   </PropertyGroup>
 
-  <!-- Ensure Lidarr.Plugin.Common submodule is present before restore -->
-  <Target Name="CheckCommonSubmodule" BeforeTargets="Restore">
+  <!-- Detect availability of the shared common library submodule; fall back to local stubs when absent -->
+  <PropertyGroup>
+    <UseCommonStubs Condition="!Exists('ext/Lidarr.Plugin.Common/src/Lidarr.Plugin.Common.csproj')">true</UseCommonStubs>
+    <UseCommonStubs Condition="'$(UseCommonStubs)' == ''">false</UseCommonStubs>
+  </PropertyGroup>
+
+  <!-- Ensure submodule only when stubs are not in use -->
+  <Target Name="CheckCommonSubmodule" BeforeTargets="Restore" Condition="'$(UseCommonStubs)' != 'true'">
     <Error Condition="!Exists('ext/Lidarr.Plugin.Common/src/Lidarr.Plugin.Common.csproj')"
-           Text="Lidarr.Plugin.Common submodule missing. Run: git submodule update --init --recursive" />
+           Text="Lidarr.Plugin.Common submodule missing and stubs disabled. Run: git submodule update --init --recursive or build with stubs." />
   </Target>
   
   
@@ -178,13 +184,19 @@
       <Private>true</Private>
     </Reference>
     <!-- Shared library reference - using submodule for development -->
-    <ProjectReference Include="ext\Lidarr.Plugin.Common\src\Lidarr.Plugin.Common.csproj">
+    <ProjectReference Include="ext\Lidarr.Plugin.Common\src\Lidarr.Plugin.Common.csproj" Condition="'$(UseCommonStubs)' != 'true'">
       <Private>true</Private>
     </ProjectReference>
     
     <!-- TODO: Replace with NuGet package reference once published:
     <PackageReference Include="Lidarr.Plugin.Common" Version="1.0.0" />
     -->
+  </ItemGroup>
+
+  <!-- Local compatibility stubs for CI/external PRs where submodule isn't available -->
+  <ItemGroup Condition="'$(UseCommonStubs)' == 'true'">
+    <Compile Include="src\Compat\CommonStubs.cs" />
+    <DefineConstants>$(DefineConstants);COMMON_STUBS</DefineConstants>
   </ItemGroup>
 
   <!-- File exclusions -->
