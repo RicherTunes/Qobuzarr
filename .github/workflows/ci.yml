@@ -45,6 +45,7 @@ on:
 
 permissions:
   contents: write
+  packages: read
 
 env:
   DOTNET_SKIP_FIRST_TIME_EXPERIENCE: true
@@ -130,6 +131,8 @@ jobs:
     - name: Determine CI capabilities
       run: |
         if [ -n "${{ secrets.CI_PAT }}" ]; then echo "CI_PAT_AVAILABLE=1" >> $GITHUB_ENV; else echo "CI_PAT_AVAILABLE=0" >> $GITHUB_ENV; fi
+        # Optional package version gate; set a repo variable COMMON_PACKAGE_VERSION to enable
+        if [ -n "${{ vars.COMMON_PACKAGE_VERSION }}" ]; then echo "COMMON_PACKAGE_VERSION=${{ vars.COMMON_PACKAGE_VERSION }}" >> $GITHUB_ENV; fi
 
     - name: Note for external pull requests
       if: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.fork }}
@@ -179,6 +182,12 @@ jobs:
           ${{ runner.os }}-nuget-
 
     # Use actions/setup-dotnet. Avoid creating global.json with wildcard versions.
+
+    - name: Enable GitHub Packages (optional)
+      if: ${{ env.COMMON_PACKAGE_VERSION != '' }}
+      run: |
+        echo "Configuring GitHub Packages feed for Common package..."
+        dotnet nuget add source "https://nuget.pkg.github.com/${{ github.repository_owner }}/index.json" --name github --username ${{ github.repository_owner }} --password ${{ secrets.GITHUB_TOKEN }} --store-password-in-clear-text || true
 
     - name: Setup Lidarr assemblies (plugins branch)
       if: ${{ env.CI_PAT_AVAILABLE == '1' }}

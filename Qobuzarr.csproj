@@ -36,6 +36,11 @@
     <UseCommonStubs Condition="'$(UseCommonStubs)' == ''">false</UseCommonStubs>
   </PropertyGroup>
 
+  <!-- If a Common package version is provided, prefer the package over stubs -->
+  <PropertyGroup Condition="'$(CommonPackageVersion)' != ''">
+    <UseCommonStubs>false</UseCommonStubs>
+  </PropertyGroup>
+
   <!-- Ensure submodule only when stubs are not in use -->
   <Target Name="CheckCommonSubmodule" BeforeTargets="Restore" Condition="'$(UseCommonStubs)' != 'true'">
     <Error Condition="!Exists('ext/Lidarr.Plugin.Common/src/Lidarr.Plugin.Common.csproj')"
@@ -78,6 +83,9 @@
        CI can set -p:UsePluginsBranch=true when plugins-branch assemblies are present. -->
     <!-- Default locally to release branch for wider dev compatibility; CI flips to plugins branch when available -->
     <UsePluginsBranch Condition="'$(UsePluginsBranch)' == ''">false</UsePluginsBranch>
+    
+    <!-- Optional: consume Common via package when version is provided -->
+    <CommonPackageVersion Condition="'$(CommonPackageVersion)' == '' and '$(COMMON_PACKAGE_VERSION)' != ''">$(COMMON_PACKAGE_VERSION)</CommonPackageVersion>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(UsePluginsBranch)' == 'true'">
@@ -184,10 +192,13 @@
       <HintPath>$(LidarrAssembliesPath)\Lidarr.SignalR.dll</HintPath>
       <Private>true</Private>
     </Reference>
-    <!-- Shared library reference - using submodule for development -->
-    <ProjectReference Include="ext\Lidarr.Plugin.Common\src\Lidarr.Plugin.Common.csproj" Condition="'$(UseCommonStubs)' != 'true'">
+    <!-- Shared library reference - prefer submodule for development -->
+    <ProjectReference Include="ext\Lidarr.Plugin.Common\src\Lidarr.Plugin.Common.csproj" Condition="'$(UseCommonStubs)' != 'true' and '$(CommonPackageVersion)' == ''">
       <Private>true</Private>
     </ProjectReference>
+    
+    <!-- Fallback to NuGet package when submodule is unavailable and version is supplied -->
+    <PackageReference Include="Lidarr.Plugin.Common" Version="$(CommonPackageVersion)" Condition="'$(UseCommonStubs)' != 'true' and '$(CommonPackageVersion)' != ''" />
     
     <!-- TODO: Replace with NuGet package reference once published:
     <PackageReference Include="Lidarr.Plugin.Common" Version="1.0.0" />
