@@ -7,7 +7,7 @@ set -euo pipefail
 # Default values
 SERVICE_NAME=""
 OUTPUT_PATH="."
-PACKAGE_VERSION="1.0.0"
+PACKAGE_VERSION="1.1.7"
 TEMPLATE="Basic"
 
 # Color output functions

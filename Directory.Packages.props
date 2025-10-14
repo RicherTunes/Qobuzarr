@@ -29,6 +29,10 @@
     <!-- Build Tools -->
     <!-- ILRepack disabled - causes assembly resolution issues in plugin builds -->
     <!-- <PackageVersion Include="ILRepack.Lib.MSBuild.Task" Version="2.0.34.2" /> -->
+    
+    <!-- Shared Plugin Ecosystem -->
+    <!-- Pin to latest verified release of the shared library -->
+    <PackageVersion Include="Lidarr.Plugin.Common" Version="1.1.7" />
   </ItemGroup>
 
   <!-- Security Updates for Transitive Dependencies -->
