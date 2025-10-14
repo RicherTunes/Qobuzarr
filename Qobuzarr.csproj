@@ -135,6 +135,7 @@
       <Private>false</Private>
       <ExcludeAssets>runtime</ExcludeAssets>
     </PackageReference>
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" />
     
     <!-- Plugin-specific dependencies - must be bundled -->
     <PackageReference Include="TagLibSharp-Lidarr" />
