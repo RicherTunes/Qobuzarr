@@ -134,7 +134,7 @@ jobs:
         echo "This job will run only lightweight validation steps; full tests run on internal PRs and pushes."
 
     - name: Configure git auth for private submodules
-      if: ${{ (github.event_name != 'pull_request') || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.fork == false) }} && ${{ secrets.CI_PAT != '' }}
+      if: ${{ ((github.event_name != 'pull_request') || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.fork == false)) && (secrets.CI_PAT != '') }}
       env:
         CI_PAT: ${{ secrets.CI_PAT }}
       run: |
