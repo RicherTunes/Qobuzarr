@@ -6,6 +6,8 @@ using System.Text;
 using System.Text.RegularExpressions;
 using System.Net;
 using LimitConstants = Lidarr.Plugin.Qobuzarr.Constants.QobuzarrConstants;
+using LPCSanitize = Lidarr.Plugin.Common.Security.Sanitize;
+using LPCFileNameSanitizer = Lidarr.Plugin.Common.Utilities.FileNameSanitizer;
 
 namespace Lidarr.Plugin.Qobuzarr.Security
 {
@@ -186,13 +188,13 @@ namespace Lidarr.Plugin.Qobuzarr.Security
             if (string.IsNullOrWhiteSpace(parameter))
                 return string.Empty;
 
-            // URL encode the parameter
-            parameter = Uri.EscapeDataString(parameter);
-            
-            if (parameter.Length > MaxUrlLength)
+            // Delegate to shared library's RFC 3986 URL component encoder
+            var encoded = LPCSanitize.UrlComponent(parameter);
+
+            if (encoded.Length > MaxUrlLength)
                 throw new ArgumentException($"URL parameter exceeds maximum length of {MaxUrlLength} characters");
 
-            return parameter;
+            return encoded;
         }
 
         /// <summary>
@@ -369,37 +371,9 @@ namespace Lidarr.Plugin.Qobuzarr.Security
             if (string.IsNullOrWhiteSpace(fileName))
                 return "unknown_file";
 
-            // Remove or replace illegal file system characters
-            var illegal = new char[] { '<', '>', ':', '"', '|', '?', '*', '/', '\\' };
-            var sanitized = fileName;
-            
-            foreach (var c in illegal)
-            {
-                sanitized = sanitized.Replace(c, '_');
-            }
-
-            // Remove control characters
-            sanitized = Regex.Replace(sanitized, @"[\x00-\x1F\x7F]", "");
-            
-            // Handle Unicode normalization
-            sanitized = sanitized.Normalize(NormalizationForm.FormC);
-            
-            // Trim and ensure reasonable length
-            sanitized = sanitized.Trim().Trim('.');
-            if (sanitized.Length > 255)
-                sanitized = sanitized.Substring(0, 255);
-                
-            // Handle empty result
-            if (string.IsNullOrWhiteSpace(sanitized))
-                return "unknown_file";
-                
-            // Handle Windows reserved names
-            var reservedNames = new[] { "CON", "PRN", "AUX", "NUL", "COM1", "COM2", "COM3", "COM4", "COM5", "COM6", "COM7", "COM8", "COM9", "LPT1", "LPT2", "LPT3", "LPT4", "LPT5", "LPT6", "LPT7", "LPT8", "LPT9" };
-            var nameWithoutExt = Path.GetFileNameWithoutExtension(sanitized);
-            if (reservedNames.Contains(nameWithoutExt.ToUpperInvariant()))
-                sanitized = "safe_" + sanitized;
-
-            return sanitized;
+            // Delegate to the shared library's sanitizer for consistent cross-platform rules
+            var sanitized = LPCFileNameSanitizer.SanitizeFileName(fileName);
+            return string.IsNullOrWhiteSpace(sanitized) ? "unknown_file" : sanitized;
         }
 
         /// <summary>
@@ -525,7 +499,7 @@ namespace Lidarr.Plugin.Qobuzarr.Security
         {
             if (string.IsNullOrEmpty(text))
                 return string.Empty;
-            return WebUtility.HtmlEncode(text);
+            return LPCSanitize.DisplayText(text);
         }
 
         /// <summary>
