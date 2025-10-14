@@ -35,7 +35,7 @@ param(
     
     [string]$OutputPath = ".",
     
-    [string]$PackageVersion = "1.0.0",
+    [string]$PackageVersion = "1.1.7",
     
     [ValidateSet("Basic", "Advanced", "OAuth2")]
     [string]$Template = "Basic"
