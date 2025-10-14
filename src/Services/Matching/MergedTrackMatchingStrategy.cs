@@ -139,15 +139,15 @@ namespace Lidarr.Plugin.Qobuzarr.Services.Matching
 
         private bool TrackTitlesSimilar(string title1, string title2)
         {
-            var normalized1 = NormalizeTitle(title1);
-            var normalized2 = NormalizeTitle(title2);
+            var normalized1 = TitleNormalizer.Normalize(title1);
+            var normalized2 = TitleNormalizer.Normalize(title2);
 
             // Check if one title contains the other
             if (normalized1.Contains(normalized2) || normalized2.Contains(normalized1))
                 return true;
 
             // Check string similarity
-            return Utilities.StringSimilarity.Calculate(normalized1, normalized2) >= 0.7;
+            return CommonStringSimilarity.Calculate(normalized1, normalized2) >= 0.7;
         }
 
         private List<List<LidarrTrack>> FindConsecutiveLidarrGroups(List<LidarrTrack> tracks)
@@ -217,18 +217,7 @@ namespace Lidarr.Plugin.Qobuzarr.Services.Matching
             return "ContinuousComposition";
         }
 
-        private string NormalizeTitle(string title)
-        {
-            if (string.IsNullOrWhiteSpace(title))
-                return "";
-
-            return title.ToLowerInvariant()
-                       .Replace("(", "")
-                       .Replace(")", "")
-                       .Replace("[", "")
-                       .Replace("]", "")
-                       .Trim();
-        }
+        // Title normalization now centralized in Utilities.TitleNormalizer
 
         private void CalculateMatchingStatistics(TrackMatchingResult result, int totalLidarrTracks)
         {

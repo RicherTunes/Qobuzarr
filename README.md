@@ -146,6 +146,13 @@ The plugin integrates seamlessly with Lidarr's automated workflow:
 - No duplicate implementations
 - Clean adapter pattern for interface bridging
 
+### Lidarr API Compatibility (Build Selection)
+
+- By default, local builds target the Lidarr release API for wider developer compatibility.
+- CI auto-detects and flips to the plugins-branch API when assemblies are available.
+- You can override locally with MSBuild: `-p:UsePluginsBranch=true`.
+- During build, the project prints which branch is used (see `Qobuzarr.csproj` target `LogBranchSelection`).
+
 ## 📊 Performance
 
 ### Optimization Results

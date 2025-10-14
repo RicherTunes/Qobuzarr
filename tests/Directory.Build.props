@@ -1,0 +1,11 @@
+<Project>
+  <!-- Tests adopt the same analyzer posture to keep code healthy. -->
+  <PropertyGroup>
+    <RunAnalyzersDuringBuild>true</RunAnalyzersDuringBuild>
+    <EnableNETAnalyzers>true</EnableNETAnalyzers>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <WarningsAsErrors>*</WarningsAsErrors>
+    <NoWarn>CS1591</NoWarn>
+  </PropertyGroup>
+</Project>
+
