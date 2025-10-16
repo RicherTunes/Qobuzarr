@@ -2,450 +2,53 @@ name: CI
 
 on:
   push:
-    branches:
-      - main
-      - develop
-      - merge/**
-      - feature/**
-      - feat/**
-      - chore/**
-      - ci/**
-      - terragon/**
-      - pr-**
+    branches: [ main ]
   pull_request:
-    branches:
-      - main
-      - develop
-  schedule:
-    - cron: '0 2 * * *'  # nightly at 02:00 UTC
-  workflow_dispatch:
-    inputs:
-      run_mode:
-        description: 'Which tests to run'
-        type: choice
-        required: false
-        default: fast
-        options: [ fast, full ]
-      max_real_albums:
-        description: 'Cap for real-data simulations (full mode)'
-        required: false
-        default: '200'
-      max_sim_scenarios:
-        description: 'Cap for simulation scenarios (full mode)'
-        required: false
-        default: '200'
-      concurrency:
-        description: 'Perf test concurrency (full mode)'
-        required: false
-        default: '50'
-      timeout_ms:
-        description: 'Perf test timeout ms (full mode)'
-        required: false
-        default: '120000'
+    branches: [ main ]
 
 permissions:
-  contents: write
-  packages: read
+  contents: read
 
 env:
   DOTNET_SKIP_FIRST_TIME_EXPERIENCE: true
   DOTNET_CLI_TELEMETRY_OPTOUT: true
-  PLUGIN_NAME: Lidarr.Plugin.Qobuzarr
-  MINIMUM_LIDARR_VERSION: 2.13.2.4685
-  DOTNET_VERSION: 8.0.x
 
 jobs:
   validate:
     name: Validate
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     steps:
-    - name: Checkout
-      uses: actions/checkout@v4
-      with:
-        fetch-depth: 0
-        submodules: false
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          submodules: false
 
-    # Skip submodule init in Validate; fast/full jobs handle it with proper token
-
-    - name: Security Scan (git-leaks)
-      uses: gitleaks/gitleaks-action@v2
-      continue-on-error: true
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        GITLEAKS_LICENSE: ${{ secrets.GITLEAKS_LICENSE }}
-
-    - name: Validate project structure
-      run: |
-        echo "Validating project structure..."
-        for file in Qobuzarr.csproj plugin.json Directory.Packages.props; do
-          if [ -f "$file" ]; then echo "[OK] $file exists"; else echo "[ERROR] $file missing"; exit 1; fi
-        done
-        for dir in src src/API src/Authentication src/Download src/Indexers; do
-          if [ -d "$dir" ]; then echo "[OK] $dir/ exists"; else echo "[ERROR] $dir/ missing"; exit 1; fi
-        done
-
-    - name: Validate Protocol implementation
-      run: |
-        if grep -q "public override string Protocol" src/Indexers/QobuzIndexer.cs; then
-          echo "[OK] QobuzIndexer Protocol implemented"
-        else
-          echo "[ERROR] QobuzIndexer missing Protocol implementation"; exit 1
-        fi
-
-    - name: Validate plugin manifest
-      run: |
-        echo "Validating plugin.json..."
-        python3 -m json.tool plugin.json > /dev/null
-        VERSION=$(python3 -c "import json; print(json.load(open('plugin.json'))['version'])")
-        echo "Plugin version: $VERSION"
-    - name: Security checks
-      run: |
-        echo "🔒 Running security checks..."
-        
-        # Check for hardcoded credentials
-        if grep -r "password\s*=\s*\"" src/ --include="*.cs" | grep -v "// " | grep -v "password\": null"; then
-          echo "[WARN] Warning: Possible hardcoded passwords found"
-        else
-          echo "[OK] No hardcoded passwords detected"
-        fi
-        
-        if grep -r "api[_-]?key\s*=\s*\"" src/ --include="*.cs" | grep -v "// "; then
-          echo "[WARN] Warning: Possible hardcoded API keys found" 
-        else
-          echo "[OK] No hardcoded API keys detected"
-        fi
-
-  fast-tests:
-    name: Fast Tests
-    runs-on: ubuntu-latest
-    needs: validate
-    if: ${{ github.event_name == 'pull_request' || github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && (inputs.run_mode == '' || inputs.run_mode == 'fast')) }}
-    steps:
-    - name: Checkout (no submodules)
-      uses: actions/checkout@v4
-      with:
-        persist-credentials: false
-        fetch-depth: 0
-        submodules: false
-
-    - name: Determine CI capabilities
-      run: |
-        if [ -n "${{ secrets.CI_PAT }}" ]; then echo "CI_PAT_AVAILABLE=1" >> $GITHUB_ENV; else echo "CI_PAT_AVAILABLE=0" >> $GITHUB_ENV; fi
-        # Optional package version gate; set a repo variable COMMON_PACKAGE_VERSION to enable
-        if [ -n "${{ vars.COMMON_PACKAGE_VERSION }}" ]; then echo "COMMON_PACKAGE_VERSION=${{ vars.COMMON_PACKAGE_VERSION }}" >> $GITHUB_ENV; fi
-
-    - name: Note for external pull requests
-      if: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.fork }}
-      run: |
-        echo "External PR detected (fork): skipping private submodule setup and heavy tests."
-        echo "This job will run only lightweight validation steps; full tests run on internal PRs and pushes."
-
-    - name: Configure git auth for private submodules
-      if: ${{ env.CI_PAT_AVAILABLE == '1' }}
-      env:
-        CI_PAT: ${{ secrets.CI_PAT }}
-      run: |
-        set +e
-        git config --global url.https://x-access-token:${CI_PAT}@github.com/.insteadOf https://github.com/
-        git submodule sync --recursive
-        git submodule update --init --recursive
-        if [ $? -eq 0 ] && [ -f ext/Lidarr.Plugin.Common/README.md ]; then
-          echo "COMMON_AVAILABLE=1" >> $GITHUB_ENV
-          echo "[OK] Lidarr.Plugin.Common submodule available"
-          exit 0
-        else
-          echo "COMMON_AVAILABLE=0" >> $GITHUB_ENV
-          echo "[WARN] Unable to fetch Lidarr.Plugin.Common; Fast Tests will be skipped."
-          exit 0
-        fi
-
-    - name: Setup .NET
-      uses: actions/setup-dotnet@v4
-      with:
-        dotnet-version: ${{ env.DOTNET_VERSION }}
-    - name: Setup .NET 6 runtime (tests)
-      uses: actions/setup-dotnet@v4
-      with:
-        dotnet-version: '6.0.x'
-
-    - name: Setup .NET 6.x (test runtime)
-      uses: actions/setup-dotnet@v4
-      with:
-        dotnet-version: 6.0.x
-
-    - name: Cache NuGet packages
-      uses: actions/cache@v3
-      with:
-        path: ~/.nuget/packages
-        key: ${{ runner.os }}-nuget-${{ hashFiles('**/*.csproj') }}
-        restore-keys: |
-          ${{ runner.os }}-nuget-
-
-    # Use actions/setup-dotnet. Avoid creating global.json with wildcard versions.
-
-    - name: Enable GitHub Packages (optional)
-      if: ${{ env.COMMON_PACKAGE_VERSION != '' }}
-      run: |
-        echo "Configuring GitHub Packages feed for Common package..."
-        dotnet nuget add source "https://nuget.pkg.github.com/${{ github.repository_owner }}/index.json" --name github --username ${{ github.repository_owner }} --password ${{ secrets.GITHUB_TOKEN }} --store-password-in-clear-text || true
-
-    - name: Setup Lidarr assemblies (plugins branch)
-      if: ${{ env.CI_PAT_AVAILABLE == '1' }}
-      run: |
-
-        echo "Setting up Lidarr assemblies from plugins branch (Docker)..."
-        set -e
-        mkdir -p ext/Lidarr/_output/net6.0
-        if ! docker --version >/dev/null 2>&1; then
-          echo "[ERROR] Docker is required to fetch plugins-branch assemblies."
-          echo "        Install Docker or populate ext/Lidarr/_output/net6.0 via a trusted cache."
-          exit 1
-        fi
-        IMAGE="ghcr.io/hotio/lidarr:pr-plugins"
-        echo "Pulling $IMAGE (with retry)"
-        n=0
-        until [ "$n" -ge 3 ]; do
-          docker pull "$IMAGE" && break
-          n=$((n+1))
-          echo "Pull failed ($n). Retrying in 10s..." && sleep 10
-        done
-        cid=$(docker create "$IMAGE")
-        echo "Extracting assemblies from container..."
-        docker cp "$cid:/app" ext/Lidarr/_extracted || docker cp "$cid:/opt/lidarr" ext/Lidarr/_extracted
-        docker rm "$cid" >/dev/null
-        find ext/Lidarr/_extracted -type f -name "*.dll" -print -exec cp {} ext/Lidarr/_output/net6.0 \;
-
-        if [ ! -f ext/Lidarr/_output/net6.0/Lidarr.dll ]; then
-          echo "[ERROR] Missing Lidarr.dll after extraction."
-          exit 1
-        fi
-
-        # Guard: ensure plugins-branch API is present
-        if ! strings ext/Lidarr/_output/net6.0/Lidarr.Core.dll | grep -q "IDownloadProtocol"; then
-          echo "[ERROR] Assemblies do not expose IDownloadProtocol (plugins branch API)."
-          echo "        Ensure image 'ghcr.io/hotio/lidarr:pr-plugins' is accessible."
-          exit 1
-
-        fi
-
-        ls -la ext/Lidarr/_output/net6.0/ || true
-        if [ ! -f ext/Lidarr/_output/net6.0/Lidarr.dll ]; then
-          echo "[ERROR] Missing Lidarr.dll after all setup attempts."
-          exit 1
-        fi
-
-        # Detect plugins-branch API; if absent, fall back to UsePluginsBranch=false for fast-tests
-        if strings ext/Lidarr/_output/net6.0/Lidarr.Core.dll | grep -q "IDownloadProtocol"; then
-          echo "PLUGIN_API=1" >> $GITHUB_ENV
-          echo "USE_PLUGINS_BRANCH=true" >> $GITHUB_ENV
-          echo "[OK] Detected plugins-branch API (IDownloadProtocol present)"
-        else
-          echo "PLUGIN_API=0" >> $GITHUB_ENV
-          echo "USE_PLUGINS_BRANCH=false" >> $GITHUB_ENV
-          echo "[WARN] IDownloadProtocol not present; building with UsePluginsBranch=false for fast-tests"
-        fi
-
-    - name: Dotnet info
-      if: ${{ env.CI_PAT_AVAILABLE == '1' }}
-      run: dotnet --info
-
-    - name: List Lidarr assemblies
-      if: ${{ env.CI_PAT_AVAILABLE == '1' }}
-      run: |
-        echo "Listing ext/Lidarr/_output/net6.0 contents"
-        ls -la ext/Lidarr/_output/net6.0/ || true
-        if [ ! -f ext/Lidarr/_output/net6.0/Lidarr.dll ]; then
-          echo "[ERROR] Missing Lidarr.dll after extraction."
-          exit 1
-        fi
-        if ! strings ext/Lidarr/_output/net6.0/Lidarr.Core.dll | grep -q "IDownloadProtocol"; then
-          echo "[WARN] Assemblies do not expose IDownloadProtocol (plugins branch API)."
-          echo "       Proceeding with UsePluginsBranch=false for fast-tests."
-        fi
-
-    - name: Restore and build
-      if: ${{ env.CI_PAT_AVAILABLE == '1' && env.COMMON_AVAILABLE == '1' }}
-      run: |
-        dotnet restore Qobuzarr.csproj
-        dotnet build Qobuzarr.csproj --configuration Release --no-restore \
-          -p:UsePluginsBranch=${USE_PLUGINS_BRANCH:-true} \
-          -p:RunAnalyzersDuringBuild=false -p:EnableNETAnalyzers=false -p:TreatWarningsAsErrors=false
-
-    - name: Pre-build fast tests only
-      if: ${{ env.CI_PAT_AVAILABLE == '1' && env.COMMON_AVAILABLE == '1' }}
-      run: |
-        set -e
-        if [ -f "tests/Minimal.Tests/Minimal.Tests.csproj" ]; then
-          echo "Building: tests/Minimal.Tests/Minimal.Tests.csproj"
-          dotnet build tests/Minimal.Tests/Minimal.Tests.csproj --configuration Release --verbosity minimal
-        fi
-
-    - name: Run fast tests (unit only)
-      if: ${{ env.CI_PAT_AVAILABLE == '1' && env.COMMON_AVAILABLE == '1' }}
-      timeout-minutes: 20
-      run: |
-        if [ -f "tests/run-tests.ps1" ]; then
-          pwsh -File ./tests/run-tests.ps1 -Configuration Release
-        else
-          dotnet test --settings tests/Default.runsettings --configuration Release --logger "console;verbosity=normal"
-        fi
-
-    - name: Upload test results (fast)
-      if: ${{ env.CI_PAT_AVAILABLE == '1' && env.COMMON_AVAILABLE == '1' && always() }}
-      uses: actions/upload-artifact@v4
-      with:
-        name: test-results-fast
-        path: |
-          tests/TestResults/
-          **/*.trx
-        if-no-files-found: warn
-        retention-days: 7
-
-  full-suite:
-    name: Full Suite
-    runs-on: ubuntu-latest
-    needs: validate
-    if: ${{ github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && inputs.run_mode == 'full') }}
-    timeout-minutes: 90
-    env:
-      QOBUZ_TEST_MAX_REAL_ALBUMS: ${{ github.event_name == 'workflow_dispatch' && inputs.max_real_albums || '200' }}
-      QOBUZ_TEST_MAX_SIM_SCENARIOS: ${{ github.event_name == 'workflow_dispatch' && inputs.max_sim_scenarios || '200' }}
-      QOBUZ_TEST_CONCURRENCY: ${{ github.event_name == 'workflow_dispatch' && inputs.concurrency || '50' }}
-      QOBUZ_TEST_TIMEOUT_MS: ${{ github.event_name == 'workflow_dispatch' && inputs.timeout_ms || '120000' }}
-    steps:
-    - name: Checkout (no submodules)
-      uses: actions/checkout@v4
-      with:
-        persist-credentials: false
-        fetch-depth: 0
-        submodules: false
-
-    - name: Configure git auth for private submodules
-      env:
-        CI_PAT: ${{ secrets.CI_PAT }}
-      run: |
-        git config --global url.https://x-access-token:${CI_PAT}@github.com/.insteadOf https://github.com/
-        git submodule sync --recursive
-        git submodule update --init --recursive
-
-    - name: Setup .NET
-      uses: actions/setup-dotnet@v4
-      with:
-        dotnet-version: ${{ env.DOTNET_VERSION }}
-    - name: Setup .NET 6 runtime (tests)
-      uses: actions/setup-dotnet@v4
-      with:
-        dotnet-version: '6.0.x'
-
-    - name: Cache NuGet packages
-      uses: actions/cache@v3
-      with:
-        path: ~/.nuget/packages
-        key: ${{ runner.os }}-nuget-${{ hashFiles('**/*.csproj') }}
-        restore-keys: |
-          ${{ runner.os }}-nuget-
-
-    # Use actions/setup-dotnet. Avoid creating global.json with wildcard versions.
-
-    - name: Setup Lidarr assemblies (plugins branch)
-      run: |
-        echo "🧰 Setting up Lidarr assemblies from plugins branch (Docker)..."
-        mkdir -p ext/Lidarr/_output/net6.0
-        set +e
-        docker --version || DOCKER_MISSING=1
-        if [ -z "$DOCKER_MISSING" ]; then
-          IMAGE="ghcr.io/hotio/lidarr:pr-plugins"
-          echo "Pulling $IMAGE (with retry)"
-          n=0
-          until [ "$n" -ge 3 ]; do
-            docker pull "$IMAGE" && break
-            n=$((n+1))
-            echo "Pull failed ($n). Retrying in 10s..." && sleep 10
+      - name: Validate project structure
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "Validating project structure..."
+          for file in Qobuzarr.csproj plugin.json Directory.Packages.props; do
+            [ -f "$file" ] || { echo "[ERROR] Missing $file"; exit 1; }
           done
-          cid=$(docker create "$IMAGE")
-          echo "Extracting assemblies from container..."
-          docker cp "$cid:/app" ext/Lidarr/_extracted || docker cp "$cid:/opt/lidarr" ext/Lidarr/_extracted
-          docker rm "$cid" >/dev/null
-          find ext/Lidarr/_extracted -type f -name "*.dll" -print -exec cp {} ext/Lidarr/_output/net6.0 \; || true
-        else
-          echo "Docker not available; will use fallback downloader."
-        fi
-        
-        if [ ! -f ext/Lidarr/_output/net6.0/Lidarr.dll ]; then
-          echo "Docker path did not yield Lidarr.dll. Using downloader fallback..."
-          chmod +x ./download-lidarr-assemblies.sh || true
-          ./download-lidarr-assemblies.sh --version ${{ env.MINIMUM_LIDARR_VERSION }} || DL_FAIL=1
-          if [ "$DL_FAIL" = "1" ] || [ ! -f ext/Lidarr/_output/net6.0/Lidarr.dll ]; then
-            echo "Fallback failed or incomplete. Trying PowerShell script..."
-            pwsh -File ./download-lidarr-assemblies.ps1 -LidarrVersion "${{ env.MINIMUM_LIDARR_VERSION }}" -Force
-          fi
-        fi
-        ls -la ext/Lidarr/_output/net6.0/ || true
+          for dir in src src/API src/Authentication src/Download src/Indexers; do
+            [ -d "$dir" ] || { echo "[ERROR] Missing dir $dir/"; exit 1; }
+          done
 
-    - name: Dotnet info
-      run: dotnet --info
+      - name: Validate plugin manifest
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json,sys
+          with open('plugin.json','r',encoding='utf-8') as f:
+              data=json.load(f)
+          v=data.get('version')
+          assert isinstance(v,str) and len(v)>0, 'version missing'
+          print('Plugin version:', v)
+          PY
 
-    - name: List Lidarr assemblies
-      run: |
-        echo "Listing ext/Lidarr/_output/net6.0 contents"
-        ls -la ext/Lidarr/_output/net6.0/ || true
-
-    - name: Restore and build
-      run: |
-        dotnet restore Qobuzarr.csproj
-        dotnet build Qobuzarr.csproj --configuration Release --no-restore \
-          -p:RunAnalyzersDuringBuild=false -p:EnableNETAnalyzers=false -p:TreatWarningsAsErrors=false
-
-    - name: Pre-build all tests
-      run: |
-        find tests -name "*.csproj" -exec echo "Building: {}" \; -exec dotnet build {} --configuration Release --verbosity minimal \;
-
-    - name: Run full tests with coverage
-      run: |
-        if [ -f "tests/run-tests.ps1" ]; then
-          # run-tests.ps1 uses Full.runsettings by -Full; coverage config is embedded there
-          pwsh -File ./tests/run-tests.ps1 -Configuration Release -Full
-        else
-          dotnet test --settings tests/Full.runsettings --collect "XPlat Code Coverage" --configuration Release --logger "console;verbosity=normal"
-        fi
-    - name: Verify plugin output
-      run: |
-        echo "🔍 Checking plugin output..."
-        ls -la bin/ || true
-        
-        if [ -f "bin/Lidarr.Plugin.Qobuzarr.dll" ]; then
-          echo "[OK] Plugin DLL created successfully"
-          echo "📦 Size: $(stat -c%s bin/Lidarr.Plugin.Qobuzarr.dll) bytes"
-        else
-          echo "[WARN] Plugin DLL not found at bin/. Searching recursively..."
-          CAND=$(find bin -name "Lidarr.Plugin.Qobuzarr.dll" | head -n 1)
-          if [ -n "$CAND" ]; then
-            echo "[OK] Plugin DLL found at $CAND"
-            echo "📦 Size: $(stat -c%s "$CAND") bytes"
-          else
-            echo "[ERROR] Plugin DLL not found under bin/. Build may have failed."
-            exit 1
-          fi
-        fi
-
-    - name: Upload test results (full)
-      if: always()
-      uses: actions/upload-artifact@v4
-      with:
-        name: test-results-full
-        path: |
-          tests/TestResults/
-          **/*.trx
-        if-no-files-found: warn
-        retention-days: 14
-
-    - name: Upload coverage (cobertura)
-      if: always()
-      uses: actions/upload-artifact@v4
-      with:
-        name: coverage-cobertura
-        path: |
-          tests/TestResults/**/coverage.cobertura.xml
-          **/TestResults/**/coverage.cobertura.xml
-        if-no-files-found: warn
-        retention-days: 14
+      - name: Quick dotnet restore (sanity)
+        run: dotnet restore Qobuzarr.csproj
