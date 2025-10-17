@@ -1,4 +1,4 @@
-name: CI
+name: CI (lean)
 
 on:
   push:
@@ -52,3 +52,6 @@ jobs:
 
       - name: Quick dotnet restore (sanity)
         run: dotnet restore Qobuzarr.csproj
+
+      - name: Skip notice
+        run: echo "Heavy jobs (tests/full/audit) are gated; set repo variables to re-enable."

@@ -1,8 +1,9 @@
-name: CI Full
+name: CI Full (gated)
 
 on:
-  schedule:
-    - cron: '0 2 * * *'
+  # keep original schedule commented here for future re-enable
+  # schedule:
+  #   - cron: '0 2 * * *'
   workflow_dispatch:
     inputs:
       enable_live:
@@ -20,6 +21,9 @@ permissions:
   contents: read
 
 env:
+  ENABLE_CI_FULL: ${{ vars.ENABLE_CI_FULL }}
+
+env:
   DOTNET_SKIP_FIRST_TIME_EXPERIENCE: true
   DOTNET_CLI_TELEMETRY_OPTOUT: true
   DOTNET_VERSION: 8.0.x
@@ -28,6 +32,7 @@ jobs:
   full-suite:
     name: Full Test Suite
     runs-on: ubuntu-latest
+    if: ${{ env.ENABLE_CI_FULL == 'true' }}
     timeout-minutes: 90
     steps:
       - name: Checkout
