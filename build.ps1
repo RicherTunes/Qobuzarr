@@ -75,19 +75,21 @@ if ($Clean) {
     Write-Host ""
     Write-Host "🧹 Cleaning..." -ForegroundColor Blue
     try {
-        dotnet clean --configuration $Configuration --verbosity minimal
+        dotnet clean Qobuzarr.csproj --configuration $Configuration --verbosity minimal
         Write-Host "✅ Clean completed" -ForegroundColor Green
     } catch {
         Write-Host "⚠️ Clean failed: $_" -ForegroundColor Yellow
     }
+    # Ensure we restore after a clean to avoid stale/no-restore failures
+    $Restore = $true
 }
 
 # Restore if requested or if packages are missing
-if ($Restore -or -not (Test-Path "obj")) {
+if ($Restore -or $Deploy -or -not (Test-Path "obj")) {
     Write-Host ""
     Write-Host "📦 Restoring packages..." -ForegroundColor Blue
     try {
-        dotnet restore --verbosity minimal
+        dotnet restore Qobuzarr.csproj --verbosity minimal
         Write-Host "✅ Packages restored" -ForegroundColor Green
     } catch {
         Write-Host "❌ Package restore failed: $_" -ForegroundColor Red
@@ -131,12 +133,12 @@ if (-not $NoBuild) {
             $buildParams += "-p:LidarrPluginDeployPath=$defaultDeployPath"
             $effectiveDeployPath = $defaultDeployPath
         }
-        Write-Host "🚀 Plugin deployment enabled" -ForegroundColor Cyan
-        if ($DeployPath -ne "") {
-            Write-Host "📁 Deploy path: $DeployPath" -ForegroundColor Cyan
-        } else {
-            Write-Host "📁 Deploy path: X:\lidarr-hotio-plugins-test" -ForegroundColor Cyan
-        }
+        Write-Host "?? Plugin deployment enabled" -ForegroundColor Cyan
+        Write-Host "?? Deploy path: $effectiveDeployPath" -ForegroundColor Cyan
+
+
+
+
     }
     
     # Add verbosity if requested
@@ -148,9 +150,9 @@ if (-not $NoBuild) {
     
     # Execute build
     try {
-        $buildResult = & dotnet build @buildParams
-        
-        if ($LASTEXITCODE -eq 0) {
+        $buildOutput = & dotnet build @buildParams 2>&1
+        $exitCode = $LASTEXITCODE
+        if ($exitCode -eq 0) {
             Write-Host ""
             Write-Host "✅ Build successful!" -ForegroundColor Green
             Write-Host "📍 Output: bin\Lidarr.Plugin.Qobuzarr.dll" -ForegroundColor Gray
@@ -161,18 +163,18 @@ if (-not $NoBuild) {
             }
         } else {
             Write-Host ""
-            Write-Host "❌ Build failed!" -ForegroundColor Red
-            Write-Host "💡 Try running with -VerboseOutput for more details" -ForegroundColor Yellow
-            exit 1
+            # Print key errors to help diagnosis
+            $highlights = $buildOutput | Select-String -Pattern "^\s*error ", "MSB\d{4}", "FAILED", "Exception" -SimpleMatch:$false
+            if ($highlights) { $highlights | ForEach-Object { Write-Host $_ -ForegroundColor Red } }
+            Write-Host "?? Try running with -VerboseOutput for more details" -ForegroundColor Yellow
+            exit $exitCode
         }
     } catch {
         Write-Host ""
-        Write-Host "❌ Build failed with exception: $_" -ForegroundColor Red
+        Write-Host "? Build failed with exception: $_" -ForegroundColor Red
         exit 1
     }
 }
-
-Write-Host ""
 Write-Host "🎉 Build script completed!" -ForegroundColor Green
 
 # Show next steps

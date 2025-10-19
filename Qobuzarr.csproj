@@ -22,11 +22,14 @@
     <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
     <WarningsAsErrors />
     <!-- Only suppress StyleCop documentation rules and non-critical nullable warnings -->
-    <NoWarn>SA1200;SA1633;CS1591;CS8625;CS8618;CS8604;CS8603;CS8601;CS1998;CS8602;CS8629</NoWarn>
+    <!-- Also silence MSB3277 assembly version conflict noise due to mixed host deps -->
+    <NoWarn>SA1200;SA1633;CS1591;CS8625;CS8618;CS8604;CS8603;CS8601;CS1998;CS8602;CS8629;MSB3277</NoWarn>
     
     <!-- Enable analyzers to catch potential issues -->
     <RunAnalyzersDuringBuild>true</RunAnalyzersDuringBuild>
     <RunCodeAnalysis>false</RunCodeAnalysis>
+    <!-- Lidarr host targets net6; suppress package TFM support warnings under SDK 9+ -->
+    <SuppressTfmSupportBuildWarnings>true</SuppressTfmSupportBuildWarnings>
     
   </PropertyGroup>
 
@@ -86,6 +89,16 @@
     
     <!-- Optional: consume Common via package when version is provided -->
     <CommonPackageVersion Condition="'$(CommonPackageVersion)' == '' and '$(COMMON_PACKAGE_VERSION)' != ''">$(COMMON_PACKAGE_VERSION)</CommonPackageVersion>
+  </PropertyGroup>
+  
+  <!-- Auto-enable plugins branch when local plugins-branch host assemblies are present -->
+  <PropertyGroup Condition="Exists('ext/Lidarr-plugins-branch/_output/net6.0/Lidarr.Core.dll')">
+    <UsePluginsBranch>true</UsePluginsBranch>
+  </PropertyGroup>
+
+  <!-- If using plugins branch, unify all host references to its output path -->
+  <PropertyGroup Condition="'$(UsePluginsBranch)' == 'true' and Exists('ext/Lidarr-plugins-branch/_output/net6.0/Lidarr.dll')">
+    <LidarrAssembliesPath>ext\Lidarr-plugins-branch\_output\net6.0</LidarrAssembliesPath>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(UsePluginsBranch)' == 'true'">
@@ -152,8 +165,7 @@
     
     <!-- Performance Monitoring now uses NLog (Lidarr's built-in logging) -->
     
-    <!-- Security patches for transitive vulnerabilities -->
-    <PackageReference Include="System.Text.Json" />
+    <!-- Security patches: rely on framework STJ for net6 to avoid TFM warnings -->
     <PackageReference Include="System.Net.Http" />
     <PackageReference Include="System.Text.RegularExpressions" />
     <!-- ILRepack disabled - causes assembly resolution issues -->

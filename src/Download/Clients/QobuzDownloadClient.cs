@@ -102,7 +102,7 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Clients
         /// </summary>
         private void UpdateConcurrencySettings()
         {
-            QobuzDownloadSettings effectiveSettings = null;
+            QobuzDownloadSettings? effectiveSettings = null;
             try
             {
                 var prop = GetType().GetProperty("Settings", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Public);
@@ -246,7 +246,7 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Clients
         private string BuildOutputPath(RemoteAlbum remoteAlbum)
         {
             // Attempt to read a shadowed Settings property from derived test classes
-            QobuzDownloadSettings effectiveSettings = null;
+            QobuzDownloadSettings? effectiveSettings = null;
             try
             {
                 var prop = GetType().GetProperty("Settings", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Public);

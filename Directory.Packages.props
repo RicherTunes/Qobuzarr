@@ -1,12 +1,16 @@
 <Project>
-  
   <!-- Enable centralized package management for plugin projects only -->
   <PropertyGroup>
     <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
   </PropertyGroup>
-  
+
   <!-- Disable central package management for Lidarr source projects -->
   <PropertyGroup Condition="$(MSBuildProjectDirectory.Contains('ext\Lidarr-source')) OR $(MSBuildProjectDirectory.Contains('ext/Lidarr-source'))">
+    <ManagePackageVersionsCentrally>false</ManagePackageVersionsCentrally>
+  </PropertyGroup>
+
+  <!-- Disable central package management for external Lidarr Plugin Common submodule -->
+  <PropertyGroup Condition="$(MSBuildProjectDirectory.Contains('ext\Lidarr.Plugin.Common')) OR $(MSBuildProjectDirectory.Contains('ext/Lidarr.Plugin.Common'))">
     <ManagePackageVersionsCentrally>false</ManagePackageVersionsCentrally>
   </PropertyGroup>
 
@@ -14,45 +18,32 @@
   <ItemGroup>
     <!-- Core Framework -->
     <PackageVersion Include="Newtonsoft.Json" Version="13.0.3" />
-    <!-- NLog 6.0.3 - latest version with breaking changes -->
     <PackageVersion Include="NLog" Version="6.0.3" />
     <PackageVersion Include="NLog.Extensions.Logging" Version="5.3.14" />
     <PackageVersion Include="FluentValidation" Version="11.11.0" />
     <PackageVersion Include="System.Resources.Extensions" Version="8.0.0" />
-    
+
     <!-- Audio Processing -->
     <PackageVersion Include="TagLibSharp-Lidarr" Version="2.2.0.27" />
-    
+
     <!-- Machine Learning -->
     <PackageVersion Include="Microsoft.ML" Version="4.0.2" />
-    
-    <!-- Build Tools -->
-    <!-- ILRepack disabled - causes assembly resolution issues in plugin builds -->
-    <!-- <PackageVersion Include="ILRepack.Lib.MSBuild.Task" Version="2.0.34.2" /> -->
-    
-    <!-- Shared Plugin Ecosystem -->
-    <!-- Pin to latest verified release of the shared library -->
-    <PackageVersion Include="Lidarr.Plugin.Common" Version="1.1.7" />
   </ItemGroup>
 
   <!-- Security Updates for Transitive Dependencies -->
   <ItemGroup>
-    <!-- Updated System.Text.Json to latest version -->
-    <PackageVersion Include="System.Text.Json" Version="9.0.8" />
+    <!-- Do not override System.Text.Json centrally to avoid TFM warnings on net6. -->
     <PackageVersion Include="System.Net.Http" Version="4.3.4" />
     <PackageVersion Include="System.Text.RegularExpressions" Version="4.3.1" />
   </ItemGroup>
 
   <!-- CLI Application Dependencies -->
   <ItemGroup>
-    <!-- CLI Framework -->
     <PackageVersion Include="System.CommandLine" Version="2.0.0-beta4.22272.1" />
     <PackageVersion Include="Spectre.Console" Version="0.50.0" />
     <PackageVersion Include="Spectre.Console.Cli" Version="0.50.0" />
     <PackageVersion Include="Newtonsoft.Json.Schema" Version="3.0.15" />
     <PackageVersion Include="DotNetEnv" Version="3.1.1" />
-    
-    <!-- Microsoft Extensions (mix of versions based on compatibility requirements) -->
     <PackageVersion Include="Microsoft.Extensions.DependencyInjection" Version="8.0.0" />
     <PackageVersion Include="Microsoft.Extensions.Configuration" Version="8.0.0" />
     <PackageVersion Include="Microsoft.Extensions.Configuration.Json" Version="8.0.0" />
@@ -61,33 +52,23 @@
     <PackageVersion Include="Microsoft.Extensions.Logging.Abstractions" Version="8.0.2" />
     <PackageVersion Include="Microsoft.Extensions.Logging.Console" Version="8.0.0" />
     <PackageVersion Include="Microsoft.Extensions.Http" Version="8.0.0" />
-    <!-- NLog.Extensions.Logging removed - use Lidarr's built-in logging -->
   </ItemGroup>
 
   <!-- Test Dependencies -->
   <ItemGroup>
-    <!-- Test Framework -->
     <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="17.8.0" />
     <PackageVersion Include="xunit" Version="2.4.2" />
     <PackageVersion Include="xunit.runner.visualstudio" Version="2.4.5" />
     <PackageVersion Include="coverlet.collector" Version="6.0.0" />
-    
-    <!-- Assertions and Mocking (standardized on Moq, but keep NSubstitute for compatibility) -->
     <PackageVersion Include="FluentAssertions" Version="6.12.0" />
     <PackageVersion Include="Moq" Version="4.20.69" />
     <PackageVersion Include="NSubstitute" Version="5.1.0" />
-    
-    <!-- Missing Test Dependencies for Lidarr assemblies compatibility -->
     <PackageVersion Include="System.IO.Abstractions" Version="17.2.3" />
     <PackageVersion Include="System.IO.Abstractions.TestingHelpers" Version="17.2.3" />
     <PackageVersion Include="Equ" Version="2.3.0" />
     <PackageVersion Include="FsCheck" Version="2.16.5" />
     <PackageVersion Include="FsCheck.Xunit" Version="2.16.5" />
-    
-    <!-- Integration Test Dependencies -->
     <PackageVersion Include="Docker.DotNet" Version="3.125.15" />
-    
-    <!-- Advanced Quality Testing (Sprint 6) -->
     <PackageVersion Include="BenchmarkDotNet" Version="0.13.12" />
   </ItemGroup>
 

@@ -10,6 +10,7 @@ set -e
 CONFIGURATION="Debug"
 DEPLOY=false
 DEPLOY_PATH=""
+DEFAULT_DEPLOY_PATH_WIN="X:\\lidarr-hotio-plugins-test"
 CLEAN=false
 RESTORE=false
 NO_BUILD=false
@@ -54,7 +55,7 @@ function show_help() {
     echo -e "  ${GRAY}./build.sh --deploy-path /custom    # Deploy to custom location${NC}"
     echo ""
     echo -e "${CYAN}DEFAULT DEPLOY PATH:${NC}"
-    echo -e "  ${GRAY}X:\\\\lidarr-hotio-test2\\\\plugins\\\\RicherTunes\\\\Qobuzarr${NC}"
+    echo -e "  ${GRAY}${DEFAULT_DEPLOY_PATH_WIN}${NC}"
     echo ""
 }
 

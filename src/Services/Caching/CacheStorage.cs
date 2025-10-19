@@ -165,10 +165,6 @@ namespace Lidarr.Plugin.Qobuzarr.Services.Caching
         /// <summary>
         /// Clears all entries from storage
         /// </summary>
-        public void Clear()
-        {
-            _storage.Clear();
-        }
 
         /// <summary>
         /// Gets all entries that match a predicate
