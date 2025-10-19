@@ -136,6 +136,22 @@ if (-not $NoBuild) {
         Write-Host "?? Plugin deployment enabled" -ForegroundColor Cyan
         Write-Host "?? Deploy path: $effectiveDeployPath" -ForegroundColor Cyan
 
+        # Proactively remove host-provided DLLs that must not be shipped with the plugin
+        try {
+            if (-not (Test-Path $effectiveDeployPath)) {
+                New-Item -ItemType Directory -Force -Path $effectiveDeployPath | Out-Null
+            }
+            foreach ($name in @('FluentValidation.dll','Lidarr.Plugin.Abstractions.dll')) {
+                $target = Join-Path $effectiveDeployPath $name
+                if (Test-Path $target) {
+                    Remove-Item $target -Force -ErrorAction SilentlyContinue
+                    Write-Host "   - Removed stale $name from deploy folder" -ForegroundColor DarkGray
+                }
+            }
+        } catch {
+            Write-Host "   ! Cleanup warning: $_" -ForegroundColor Yellow
+        }
+
 
 
 

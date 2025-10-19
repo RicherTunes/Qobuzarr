@@ -270,3 +270,29 @@ This plugin is not affiliated with or endorsed by Qobuz. Use of this plugin requ
 ---
 
 **Current Version**: v0.0.12 | **Last Updated**: January 2025
+
+## 🚀 Local Deploy (Default Path)
+
+- Local builds can auto-deploy the plugin into a test Lidarr instance.
+- Default Windows deploy path when none is provided:
+  - X:\lidarr-hotio-plugins-test\plugins\RicherTunes\Qobuzarr
+- With hotio, map the host path X:\lidarr-hotio-plugins-test to /config in the container so Lidarr sees /config/plugins/RicherTunes/Qobuzarr.
+
+PowerShell
+`
+./build.ps1 -Deploy
+# or custom path
+./build.ps1 -Deploy -DeployPath 'D:\Other\Plugins\RicherTunes\Qobuzarr'
+`
+
+Bash
+`
+./build.sh --deploy
+# or custom path
+./build.sh --deploy --deploy-path "X:\\lidarr-hotio-plugins-test\\plugins\\RicherTunes\\Qobuzarr"
+`
+
+Notes
+- Host provides FluentValidation and Lidarr.Plugin.Abstractions. The build/deploy steps proactively remove those DLLs from the plugin folder if present.
+- We ship Lidarr.Plugin.Common.dll with the plugin; other Lidarr host assemblies remain excluded.
+
