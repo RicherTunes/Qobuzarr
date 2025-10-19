@@ -28,7 +28,7 @@ GRAY='\033[0;37m'
 NC='\033[0m' # No Color
 
 function show_help() {
-    echo -e "${GREEN}🔨 Qobuzarr Build Script${NC}"
+    echo -e "${GREEN}?? Qobuzarr Build Script${NC}"
     echo ""
     echo -e "${CYAN}USAGE:${NC}"
     echo -e "  ${WHITE}./build.sh [Configuration] [Options]${NC}"
@@ -95,7 +95,7 @@ while [[ $# -gt 0 ]]; do
             shift
             ;;
         *)
-            echo -e "${RED}❌ Unknown option: $1${NC}"
+            echo -e "${RED}? Unknown option: $1${NC}"
             echo "Use --help for usage information"
             exit 1
             ;;
@@ -109,33 +109,33 @@ fi
 
 # Check if we're in the right directory
 if [ ! -f "Qobuzarr.csproj" ]; then
-    echo -e "${RED}❌ Error: Please run this script from the Qobuzarr root directory${NC}"
+    echo -e "${RED}? Error: Please run this script from the Qobuzarr root directory${NC}"
     echo -e "${YELLOW}   Current directory: $(pwd)${NC}"
     exit 1
 fi
 
-echo -e "${GREEN}🔨 Building Qobuzarr Plugin${NC}"
+echo -e "${GREEN}?? Building Qobuzarr Plugin${NC}"
 echo -e "${CYAN}Configuration: $CONFIGURATION${NC}"
 
 # Clean if requested
 if [ "$CLEAN" = true ]; then
     echo ""
-    echo -e "${BLUE}🧹 Cleaning...${NC}"
+    echo -e "${BLUE}?? Cleaning...${NC}"
     if dotnet clean --configuration "$CONFIGURATION" --verbosity minimal; then
-        echo -e "${GREEN}✅ Clean completed${NC}"
+        echo -e "${GREEN}? Clean completed${NC}"
     else
-        echo -e "${YELLOW}⚠️ Clean failed${NC}"
+        echo -e "${YELLOW}?? Clean failed${NC}"
     fi
 fi
 
 # Restore if requested or if packages are missing
 if [ "$RESTORE" = true ] || [ ! -d "obj" ]; then
     echo ""
-    echo -e "${BLUE}📦 Restoring packages...${NC}"
+    echo -e "${BLUE}?? Restoring packages...${NC}"
     if dotnet restore --verbosity minimal; then
-        echo -e "${GREEN}✅ Packages restored${NC}"
+        echo -e "${GREEN}? Packages restored${NC}"
     else
-        echo -e "${RED}❌ Package restore failed${NC}"
+        echo -e "${RED}? Package restore failed${NC}"
         exit 1
     fi
 fi
@@ -143,16 +143,16 @@ fi
 # Build (unless --no-build is specified)
 if [ "$NO_BUILD" = false ]; then
     echo ""
-    echo -e "${BLUE}🔨 Building...${NC}"
+    echo -e "${BLUE}?? Building...${NC}"
     
     # Override Lidarr assembly version to match target hotio version
     # Only apply if Lidarr source exists (not needed for pre-built assemblies)
     if [ -f "ext/Lidarr-source/src/Directory.Build.props" ]; then
         LIDARR_VERSION_OVERRIDE="2.13.2.4685"
-        echo -e "${BLUE}🔧 Setting Lidarr assembly version to $LIDARR_VERSION_OVERRIDE${NC}"
+        echo -e "${BLUE}?? Setting Lidarr assembly version to $LIDARR_VERSION_OVERRIDE${NC}"
         sed -i "s/<AssemblyVersion>[0-9.*]\+<\/AssemblyVersion>/<AssemblyVersion>$LIDARR_VERSION_OVERRIDE<\/AssemblyVersion>/g" ext/Lidarr-source/src/Directory.Build.props
     else
-        echo -e "${BLUE}📦 Using pre-built Lidarr assemblies (no version override needed)${NC}"
+        echo -e "${BLUE}?? Using pre-built Lidarr assemblies (no version override needed)${NC}"
     fi
     
     # Prepare build parameters (always suppress analyzers to avoid Lidarr source issues)
@@ -164,15 +164,13 @@ if [ "$NO_BUILD" = false ]; then
     # Add deployment parameters
     if [ "$DEPLOY" = true ]; then
         BUILD_PARAMS="$BUILD_PARAMS -p:EnablePluginDeployment=true"
-        if [ -n "$DEPLOY_PATH" ]; then
-            BUILD_PARAMS="$BUILD_PARAMS -p:LidarrPluginDeployPath=$DEPLOY_PATH"
+        # If no explicit deploy path provided, use the default
+        if [ -z "$DEPLOY_PATH" ]; then
+            DEPLOY_PATH="$DEFAULT_DEPLOY_PATH_WIN"
         fi
-        echo -e "${CYAN}🚀 Plugin deployment enabled${NC}"
-        if [ -n "$DEPLOY_PATH" ]; then
-            echo -e "${CYAN}📁 Deploy path: $DEPLOY_PATH${NC}"
-        else
-            echo -e "${CYAN}📁 Deploy path: X:\\\\lidarr-hotio-test2\\\\plugins\\\\RicherTunes\\\\Qobuzarr${NC}"
-        fi
+        BUILD_PARAMS="$BUILD_PARAMS -p:LidarrPluginDeployPath=$DEPLOY_PATH"
+        echo -e "${CYAN}?? Plugin deployment enabled${NC}"
+        echo -e "${CYAN}?? Deploy path: $DEPLOY_PATH${NC}"
     fi
     
     # Add verbosity
@@ -185,29 +183,30 @@ if [ "$NO_BUILD" = false ]; then
     # Execute build
     if dotnet build $BUILD_PARAMS; then
         echo ""
-        echo -e "${GREEN}✅ Build successful!${NC}"
-        echo -e "${GRAY}📍 Output: bin/Lidarr.Plugin.Qobuzarr.dll${NC}"
+        echo -e "${GREEN}? Build successful!${NC}"
+        echo -e "${GRAY}?? Output: bin/Lidarr.Plugin.Qobuzarr.dll${NC}"
         
         if [ "$DEPLOY" = true ]; then
-            echo -e "${GREEN}🚀 Plugin deployed and ready for testing${NC}"
-            echo -e "${YELLOW}💡 Restart Lidarr to load the updated plugin${NC}"
+            echo -e "${GREEN}?? Plugin deployed and ready for testing${NC}"
+            echo -e "${YELLOW}?? Restart Lidarr to load the updated plugin${NC}"
         fi
     else
         echo ""
-        echo -e "${RED}❌ Build failed!${NC}"
-        echo -e "${YELLOW}💡 Try running with --verbose for more details${NC}"
+        echo -e "${RED}? Build failed!${NC}"
+        echo -e "${YELLOW}?? Try running with --verbose for more details${NC}"
         exit 1
     fi
 fi
 
 echo ""
-echo -e "${GREEN}🎉 Build script completed!${NC}"
+echo -e "${GREEN}?? Build script completed!${NC}"
 
 # Show next steps
 if [ "$DEPLOY" = false ] && [ "$NO_BUILD" = false ]; then
     echo ""
-    echo -e "${CYAN}💡 Next steps:${NC}"
-    echo -e "${WHITE}• To deploy: ./build.sh $CONFIGURATION --deploy${NC}"
-    echo -e "${WHITE}• Plugin location: bin/Lidarr.Plugin.Qobuzarr.dll${NC}"
-    echo -e "${WHITE}• Manual deploy: Copy bin/* to Lidarr plugins folder${NC}"
+    echo -e "${CYAN}?? Next steps:${NC}"
+    echo -e "${WHITE} To deploy: ./build.sh $CONFIGURATION --deploy${NC}"
+    echo -e "${WHITE} Plugin location: bin/Lidarr.Plugin.Qobuzarr.dll${NC}"
+    echo -e "${WHITE} Manual deploy: Copy bin/* to Lidarr plugins folder${NC}"
 fi
+

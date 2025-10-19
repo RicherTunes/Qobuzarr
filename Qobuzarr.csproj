@@ -152,6 +152,8 @@
       <Private>false</Private>
       <ExcludeAssets>runtime</ExcludeAssets>
     </PackageReference>
+    <!-- FluentValidation is provided by the host. Do not bundle a copy to avoid
+         type identity mismatches with DownloadClientBase.Test(List<ValidationFailure>). -->
     <PackageReference Include="FluentValidation">
       <Private>false</Private>
       <ExcludeAssets>runtime</ExcludeAssets>
@@ -315,13 +317,16 @@
     <!-- Create target directory if it doesn't exist -->
     <MakeDir Directories="$(PluginTargetDir)" ContinueOnError="true" />
     
-    <!-- Copy main plugin files (exclude Lidarr assemblies - they're already in the host) -->
+    <!-- Copy main plugin files (exclude core Lidarr host assemblies; include Plugin.* and needed third-party deps) -->
     <ItemGroup>
       <PluginFiles Include="$(OutputPath)$(AssemblyName).dll" />
       <PluginFiles Include="$(OutputPath)$(AssemblyName).pdb" />
       <PluginFiles Include="$(OutputPath)$(AssemblyName).dll.config" Condition="Exists('$(OutputPath)$(AssemblyName).dll.config')" />
       <PluginFiles Include="$(OutputPath)plugin.json" />
       <PluginFiles Include="$(OutputPath)src\Indexers\ml-baseline-patterns.json" />
+      <!-- Include Common only; Abstractions is provided by host -->
+      <PluginFiles Include="$(OutputPath)Lidarr.Plugin.Common.dll" Condition="Exists('$(OutputPath)Lidarr.Plugin.Common.dll')" />
+      <!-- Do NOT ship FluentValidation.dll; host provides it -->
       <!-- Exclude host assemblies and common shared dependencies from deployment -->
       <PluginFiles Remove="$(OutputPath)Lidarr.dll" />
       <PluginFiles Remove="$(OutputPath)Lidarr.Core.dll" />
@@ -332,9 +337,12 @@
       <PluginFiles Remove="$(OutputPath)Lidarr.Mono.dll" />
       <PluginFiles Remove="$(OutputPath)NLog.dll" />
       <PluginFiles Remove="$(OutputPath)Newtonsoft.Json.dll" />
-      <PluginFiles Remove="$(OutputPath)FluentValidation.dll" />
     </ItemGroup>
     
+    <!-- Remove stale host-provided libs that might have been deployed previously -->
+    <Delete Files="$(PluginTargetDir)\FluentValidation.dll" ContinueOnError="true" Condition="Exists('$(PluginTargetDir)\FluentValidation.dll')" />
+    <Delete Files="$(PluginTargetDir)\Lidarr.Plugin.Abstractions.dll" ContinueOnError="true" Condition="Exists('$(PluginTargetDir)\Lidarr.Plugin.Abstractions.dll')" />
+
     <Copy SourceFiles="@(PluginFiles)" DestinationFolder="$(PluginTargetDir)" SkipUnchangedFiles="false" ContinueOnError="true" />
     
     <!-- Verify deployment worked -->
