@@ -10,7 +10,7 @@ set -e
 CONFIGURATION="Debug"
 DEPLOY=false
 DEPLOY_PATH=""
-DEFAULT_DEPLOY_PATH_WIN="X:\\lidarr-hotio-plugins-test"
+DEFAULT_DEPLOY_PATH_WIN="X:\\lidarr-hotio-plugins-test\\plugins\\RicherTunes\\Qobuzarr"
 CLEAN=false
 RESTORE=false
 NO_BUILD=false

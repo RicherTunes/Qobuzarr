@@ -322,9 +322,14 @@
       <PluginFiles Include="$(OutputPath)$(AssemblyName).dll.config" Condition="Exists('$(OutputPath)$(AssemblyName).dll.config')" />
       <PluginFiles Include="$(OutputPath)plugin.json" />
       <PluginFiles Include="$(OutputPath)src\Indexers\ml-baseline-patterns.json" />
-      <!-- Exclude Lidarr assemblies and shared dependencies from deployment -->
-      <PluginFiles Remove="$(OutputPath)Lidarr.*.dll" />
-      <PluginFiles Remove="$(OutputPath)Lidarr.*.xml" />
+      <!-- Exclude host assemblies and common shared dependencies from deployment -->
+      <PluginFiles Remove="$(OutputPath)Lidarr.dll" />
+      <PluginFiles Remove="$(OutputPath)Lidarr.Core.dll" />
+      <PluginFiles Remove="$(OutputPath)Lidarr.Common.dll" />
+      <PluginFiles Remove="$(OutputPath)Lidarr.Http.dll" />
+      <PluginFiles Remove="$(OutputPath)Lidarr.SignalR.dll" />
+      <PluginFiles Remove="$(OutputPath)Lidarr.Api.V1.dll" />
+      <PluginFiles Remove="$(OutputPath)Lidarr.Mono.dll" />
       <PluginFiles Remove="$(OutputPath)NLog.dll" />
       <PluginFiles Remove="$(OutputPath)Newtonsoft.Json.dll" />
       <PluginFiles Remove="$(OutputPath)FluentValidation.dll" />

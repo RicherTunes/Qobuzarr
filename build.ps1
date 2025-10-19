@@ -51,7 +51,7 @@ function Show-Help {
     Write-Host "  .\build.ps1 -UsePrebuiltAssemblies   # Use CI approach with pre-built assemblies" -ForegroundColor Gray
     Write-Host ""
     Write-Host "DEFAULT DEPLOY PATH:" -ForegroundColor Cyan
-    Write-Host "  X:\lidarr-hotio-plugins-test" -ForegroundColor Gray
+    Write-Host "  X:\\lidarr-hotio-plugins-test\\plugins\\RicherTunes\\Qobuzarr" -ForegroundColor Gray
     Write-Host ""
 }
 
@@ -125,7 +125,7 @@ if (-not $NoBuild) {
     # Add deployment parameters
     if ($Deploy) {
         $buildParams += "-p:EnablePluginDeployment=true"
-        $defaultDeployPath = "X:\\lidarr-hotio-plugins-test"
+        $defaultDeployPath = "X:\\lidarr-hotio-plugins-test\\plugins\\RicherTunes\\Qobuzarr"
         if ($DeployPath -ne "") {
             $buildParams += "-p:LidarrPluginDeployPath=$DeployPath"
             $effectiveDeployPath = $DeployPath
