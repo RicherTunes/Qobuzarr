@@ -324,8 +324,9 @@
       <PluginFiles Include="$(OutputPath)$(AssemblyName).dll.config" Condition="Exists('$(OutputPath)$(AssemblyName).dll.config')" />
       <PluginFiles Include="$(OutputPath)plugin.json" />
       <PluginFiles Include="$(OutputPath)src\Indexers\ml-baseline-patterns.json" />
-      <!-- Include Common only; Abstractions is provided by host -->
+      <!-- Include Common and Abstractions (some hosts do not ship Abstractions) -->
       <PluginFiles Include="$(OutputPath)Lidarr.Plugin.Common.dll" Condition="Exists('$(OutputPath)Lidarr.Plugin.Common.dll')" />
+      <PluginFiles Include="$(OutputPath)Lidarr.Plugin.Abstractions.dll" Condition="Exists('$(OutputPath)Lidarr.Plugin.Abstractions.dll')" />
       <!-- Include FluentValidation for hosts that don't ship it -->
       <PluginFiles Include="$(OutputPath)FluentValidation.dll" Condition="Exists('$(OutputPath)FluentValidation.dll')" />
       <!-- Do NOT ship FluentValidation.dll; host provides it -->
@@ -341,8 +342,7 @@
       <PluginFiles Remove="$(OutputPath)Newtonsoft.Json.dll" />
     </ItemGroup>
     
-    <!-- Remove stale host-provided libs that must not be shipped -->
-    <Delete Files="$(PluginTargetDir)\Lidarr.Plugin.Abstractions.dll" ContinueOnError="true" Condition="Exists('$(PluginTargetDir)\Lidarr.Plugin.Abstractions.dll')" />
+    <!-- No special deletions; keep Abstractions/Common in plugin folder for hosts that lack them -->
 
     <Copy SourceFiles="@(PluginFiles)" DestinationFolder="$(PluginTargetDir)" SkipUnchangedFiles="false" ContinueOnError="true" />
     

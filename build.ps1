@@ -141,15 +141,9 @@ if (-not $NoBuild) {
             if (-not (Test-Path $effectiveDeployPath)) {
                 New-Item -ItemType Directory -Force -Path $effectiveDeployPath | Out-Null
             }
-            foreach ($name in @('FluentValidation.dll','Lidarr.Plugin.Abstractions.dll')) {
-                $target = Join-Path $effectiveDeployPath $name
-                if (Test-Path $target) {
-                    Remove-Item $target -Force -ErrorAction SilentlyContinue
-                    Write-Host "   - Removed stale $name from deploy folder" -ForegroundColor DarkGray
-                }
-            }
+            # No forced deletions now; MSBuild target handles correct copy set
         } catch {
-            Write-Host "   ! Cleanup warning: $_" -ForegroundColor Yellow
+            Write-Host "   ! Deploy folder ensure warning: $_" -ForegroundColor Yellow
         }
 
 
