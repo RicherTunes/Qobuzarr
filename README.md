@@ -296,3 +296,29 @@ Notes
 - Host provides FluentValidation and Lidarr.Plugin.Abstractions. The build/deploy steps proactively remove those DLLs from the plugin folder if present.
 - We ship Lidarr.Plugin.Common.dll with the plugin; other Lidarr host assemblies remain excluded.
 
+
+### Slim the deployed DLLs (optional)
+
+By default we bundle dependencies that some hosts may not ship. You can slim the plugin folder by letting the host provide them:
+
+PowerShell
+```
+# Do not ship FluentValidation.dll
+./build.ps1 -Deploy -NoBundleFluentValidation
+
+# Do not ship Abstractions or FluentValidation
+./build.ps1 -Deploy -NoBundleAbstractions -NoBundleFluentValidation
+```
+
+Bash
+```
+# Do not ship FluentValidation.dll
+./build.sh --deploy --no-bundle-fluentvalidation
+
+# Do not ship Abstractions or FluentValidation
+./build.sh --deploy --no-bundle-fluentvalidation --no-bundle-abstractions
+```
+
+Notes
+- Only disable a DLL if your Lidarr host image ships the exact same assembly.
+- For hotio/lidarr:pr-plugins v3.0.0.4856 keep both bundled.

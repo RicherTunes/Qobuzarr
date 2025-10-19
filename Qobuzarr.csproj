@@ -78,6 +78,10 @@
     <!-- NOTE: CLI framework is now opt-in by default in shared library -->
     <!-- External consumers get production-ready build unless they explicitly enable this -->
     <IncludeCLIFramework>true</IncludeCLIFramework>
+
+    <!-- Bundle toggles for host-provided dependencies (override with -p:Bundle*=false) -->
+    <BundleFluentValidation Condition="'$(BundleFluentValidation)' == ''">true</BundleFluentValidation>
+    <BundleAbstractions Condition="'$(BundleAbstractions)' == ''">true</BundleAbstractions>
     
     <!-- Build against Lidarr host API
          - Plugins branch (string Protocol + IDownloadProtocol) when UsePluginsBranch=true
@@ -324,11 +328,10 @@
       <PluginFiles Include="$(OutputPath)$(AssemblyName).dll.config" Condition="Exists('$(OutputPath)$(AssemblyName).dll.config')" />
       <PluginFiles Include="$(OutputPath)plugin.json" />
       <PluginFiles Include="$(OutputPath)src\Indexers\ml-baseline-patterns.json" />
-      <!-- Include Common and Abstractions (some hosts do not ship Abstractions) -->
+      <!-- Include Common and optionally Abstractions/FluentValidation -->
       <PluginFiles Include="$(OutputPath)Lidarr.Plugin.Common.dll" Condition="Exists('$(OutputPath)Lidarr.Plugin.Common.dll')" />
-      <PluginFiles Include="$(OutputPath)Lidarr.Plugin.Abstractions.dll" Condition="Exists('$(OutputPath)Lidarr.Plugin.Abstractions.dll')" />
-      <!-- Include FluentValidation for hosts that don't ship it -->
-      <PluginFiles Include="$(OutputPath)FluentValidation.dll" Condition="Exists('$(OutputPath)FluentValidation.dll')" />
+      <PluginFiles Include="$(OutputPath)Lidarr.Plugin.Abstractions.dll" Condition="'$(BundleAbstractions)' == 'true' AND Exists('$(OutputPath)Lidarr.Plugin.Abstractions.dll')" />
+      <PluginFiles Include="$(OutputPath)FluentValidation.dll" Condition="'$(BundleFluentValidation)' == 'true' AND Exists('$(OutputPath)FluentValidation.dll')" />
       <!-- Do NOT ship FluentValidation.dll; host provides it -->
       <!-- Exclude host assemblies and common shared dependencies from deployment -->
       <PluginFiles Remove="$(OutputPath)Lidarr.dll" />

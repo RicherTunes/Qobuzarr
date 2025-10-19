@@ -17,7 +17,10 @@ param(
     [switch]$VerboseOutput,
     [switch]$UsePrebuiltAssemblies,
     [string]$LidarrVersion = "2.13.2.4685",
-    [switch]$Help
+    [switch]$Help,
+    # Slimming toggles for host-provided deps
+    [switch]$NoBundleFluentValidation,
+    [switch]$NoBundleAbstractions
 )
 
 function Show-Help {
@@ -39,6 +42,8 @@ function Show-Help {
     Write-Host "  -VerboseOutput        Show detailed build output" -ForegroundColor White
     Write-Host "  -UsePrebuiltAssemblies Use pre-built Lidarr assemblies (CI approach)" -ForegroundColor White
     Write-Host "  -LidarrVersion        Lidarr version for pre-built assemblies" -ForegroundColor White
+    Write-Host "  -NoBundleFluentValidation  Do not ship FluentValidation.dll (use host)" -ForegroundColor White
+    Write-Host "  -NoBundleAbstractions      Do not ship Lidarr.Plugin.Abstractions.dll (use host)" -ForegroundColor White
     Write-Host "  -Help                 Show this help" -ForegroundColor White
     Write-Host ""
     Write-Host "EXAMPLES:" -ForegroundColor Cyan
@@ -121,6 +126,9 @@ if (-not $NoBuild) {
         "-p:EnableNETAnalyzers=false",
         "-p:TreatWarningsAsErrors=false"
     )
+
+    if ($NoBundleFluentValidation) { $buildParams += "-p:BundleFluentValidation=false" }
+    if ($NoBundleAbstractions)     { $buildParams += "-p:BundleAbstractions=false" }
     
     # Add deployment parameters
     if ($Deploy) {

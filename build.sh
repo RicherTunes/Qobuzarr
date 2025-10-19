@@ -16,6 +16,8 @@ RESTORE=false
 NO_BUILD=false
 VERBOSE=false
 HELP=false
+NO_BUNDLE_FLUENTVALIDATION=false
+NO_BUNDLE_ABSTRACTIONS=false
 
 # Colors for output
 RED='\033[0;31m'
@@ -94,6 +96,14 @@ while [[ $# -gt 0 ]]; do
             HELP=true
             shift
             ;;
+        --no-bundle-fluentvalidation)
+            NO_BUNDLE_FLUENTVALIDATION=true
+            shift
+            ;;
+        --no-bundle-abstractions)
+            NO_BUNDLE_ABSTRACTIONS=true
+            shift
+            ;;
         *)
             echo -e "${RED}? Unknown option: $1${NC}"
             echo "Use --help for usage information"
@@ -160,6 +170,14 @@ if [ "$NO_BUILD" = false ]; then
     BUILD_PARAMS="$BUILD_PARAMS -p:RunAnalyzersDuringBuild=false"
     BUILD_PARAMS="$BUILD_PARAMS -p:EnableNETAnalyzers=false"
     BUILD_PARAMS="$BUILD_PARAMS -p:TreatWarningsAsErrors=false"
+
+    # Bundle toggles
+    if [ "$NO_BUNDLE_FLUENTVALIDATION" = true ]; then
+        BUILD_PARAMS="$BUILD_PARAMS -p:BundleFluentValidation=false"
+    fi
+    if [ "$NO_BUNDLE_ABSTRACTIONS" = true ]; then
+        BUILD_PARAMS="$BUILD_PARAMS -p:BundleAbstractions=false"
+    fi
     
     # Add deployment parameters
     if [ "$DEPLOY" = true ]; then
@@ -209,4 +227,3 @@ if [ "$DEPLOY" = false ] && [ "$NO_BUILD" = false ]; then
     echo -e "${WHITE} Plugin location: bin/Lidarr.Plugin.Qobuzarr.dll${NC}"
     echo -e "${WHITE} Manual deploy: Copy bin/* to Lidarr plugins folder${NC}"
 fi
-
