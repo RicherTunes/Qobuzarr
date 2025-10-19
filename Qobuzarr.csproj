@@ -152,11 +152,11 @@
       <Private>false</Private>
       <ExcludeAssets>runtime</ExcludeAssets>
     </PackageReference>
-    <!-- FluentValidation is provided by the host. Do not bundle a copy to avoid
-         type identity mismatches with DownloadClientBase.Test(List<ValidationFailure>). -->
+    <!-- FluentValidation: Bundle by default so the plugin can run on hosts that
+         do not ship it. If the host already provides the exact same assembly, the
+         loader should unify to a single copy. -->
     <PackageReference Include="FluentValidation">
-      <Private>false</Private>
-      <ExcludeAssets>runtime</ExcludeAssets>
+      <Private>true</Private>
     </PackageReference>
     <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" />
     
@@ -326,6 +326,8 @@
       <PluginFiles Include="$(OutputPath)src\Indexers\ml-baseline-patterns.json" />
       <!-- Include Common only; Abstractions is provided by host -->
       <PluginFiles Include="$(OutputPath)Lidarr.Plugin.Common.dll" Condition="Exists('$(OutputPath)Lidarr.Plugin.Common.dll')" />
+      <!-- Include FluentValidation for hosts that don't ship it -->
+      <PluginFiles Include="$(OutputPath)FluentValidation.dll" Condition="Exists('$(OutputPath)FluentValidation.dll')" />
       <!-- Do NOT ship FluentValidation.dll; host provides it -->
       <!-- Exclude host assemblies and common shared dependencies from deployment -->
       <PluginFiles Remove="$(OutputPath)Lidarr.dll" />
@@ -339,8 +341,7 @@
       <PluginFiles Remove="$(OutputPath)Newtonsoft.Json.dll" />
     </ItemGroup>
     
-    <!-- Remove stale host-provided libs that might have been deployed previously -->
-    <Delete Files="$(PluginTargetDir)\FluentValidation.dll" ContinueOnError="true" Condition="Exists('$(PluginTargetDir)\FluentValidation.dll')" />
+    <!-- Remove stale host-provided libs that must not be shipped -->
     <Delete Files="$(PluginTargetDir)\Lidarr.Plugin.Abstractions.dll" ContinueOnError="true" Condition="Exists('$(PluginTargetDir)\Lidarr.Plugin.Abstractions.dll')" />
 
     <Copy SourceFiles="@(PluginFiles)" DestinationFolder="$(PluginTargetDir)" SkipUnchangedFiles="false" ContinueOnError="true" />
