@@ -18,6 +18,7 @@ using NzbDrone.Core.Localization;
 using NzbDrone.Core.Parser.Model;
 using NzbDrone.Core.RemotePathMappings;
 using NLog;
+using NzbDrone.Core.ThingiProvider;
 using Lidarr.Plugin.Qobuzarr.Abstractions;
 using Lidarr.Plugin.Qobuzarr.Indexers;
 using Lidarr.Plugin.Qobuzarr.API;
@@ -39,8 +40,13 @@ using System.Net.Http.Headers;
 
 namespace Lidarr.Plugin.Qobuzarr.Download.Clients
 {
-    public class QobuzDownloadClient : DownloadClientBase<QobuzDownloadSettings>, IDisposable
+    public class QobuzDownloadClient : IDownloadClient, IDisposable
     {
+        private readonly IConfigService _configService;
+        private readonly IDiskProvider _diskProvider;
+        private readonly IRemotePathMappingService _remotePathMappingService;
+        private readonly ILocalizationService _localizationService;
+        private readonly Logger _logger;
         private readonly IQobuzAuthenticationService _authService;
         private readonly IQobuzApiClient _apiClient;
         private readonly IHttpClient _httpClient;
@@ -55,14 +61,14 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Clients
         private readonly ConcurrentDictionary<string, QobuzDownloadItem> _activeDownloads;
         private QobuzDownloadItem _lastQueuedItem;
 
-        public override string Name => QobuzarrConstants.PluginName;
+        public string Name => QobuzarrConstants.PluginName;
 
 #if PLUGIN_PROTOCOL
         // Plugins branch host expects string protocol identifier
-        public override string Protocol => nameof(QobuzarrDownloadProtocol);
+        public string Protocol => nameof(QobuzarrDownloadProtocol);
 #else
         // Release branch host expects enum DownloadProtocol
-        public override DownloadProtocol Protocol => DownloadProtocol.Unknown;
+        public DownloadProtocol Protocol => DownloadProtocol.Unknown;
 #endif
 
         public QobuzDownloadClient(IQobuzAuthenticationService authService,
@@ -80,7 +86,6 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Clients
                                   IRemotePathMappingService remotePathMappingService,
                                   ILocalizationService localizationService,
                                   Logger logger)
-            : base(configService, diskProvider, remotePathMappingService, localizationService, logger)
         {
             _authService = authService ?? throw new ArgumentNullException(nameof(authService));
             _apiClient = apiClient ?? throw new ArgumentNullException(nameof(apiClient));
@@ -93,7 +98,12 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Clients
             _batchProcessor = batchProcessor ?? throw new ArgumentNullException(nameof(batchProcessor));
             _trackDownloadService = trackDownloadService ?? throw new ArgumentNullException(nameof(trackDownloadService));
             // Track downloader functionality consolidated into this class
-            
+
+            _configService = configService;
+            _diskProvider = diskProvider;
+            _remotePathMappingService = remotePathMappingService;
+            _localizationService = localizationService;
+            _logger = logger;
             _activeDownloads = new ConcurrentDictionary<string, QobuzDownloadItem>();
         }
 
@@ -121,7 +131,7 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Clients
             _logger.Debug("Updated concurrency limit to {0} concurrent downloads for this client", newLimit);
         }
 
-        public override async Task<string> Download(RemoteAlbum remoteAlbum, IIndexer indexer)
+        public async Task<string> Download(RemoteAlbum remoteAlbum, IIndexer indexer)
         {
             try
             {
@@ -176,7 +186,7 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Clients
             }
         }
 
-        public override IEnumerable<DownloadClientItem> GetItems()
+        public IEnumerable<DownloadClientItem> GetItems()
         {
             try
             {
@@ -213,7 +223,7 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Clients
             }
         }
 
-        public override void RemoveItem(DownloadClientItem item, bool deleteData)
+        public void RemoveItem(DownloadClientItem item, bool deleteData)
         {
             RemoveItem(item.DownloadId, deleteData);
         }
@@ -284,7 +294,7 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Clients
 
         // Qobuz uses streaming protocol, no magnet or torrent support needed
 
-        protected override void Test(List<ValidationFailure> failures)
+        private void RunConnectionTest(List<ValidationFailure> failures)
         {
             try
             {
@@ -338,13 +348,54 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Clients
             }
         }
 
-        public override DownloadClientInfo GetStatus()
+        public DownloadClientInfo GetStatus()
         {
             return new DownloadClientInfo
             {
                 IsLocalhost = true,
                 OutputRootFolders = new List<OsPath> { new OsPath(Settings.DownloadPath ?? "") }
             };
+        }
+
+        // ===== IProvider members and helpers =====
+        public Type ConfigContract => typeof(QobuzDownloadSettings);
+
+        public ProviderMessage Message => null;
+
+        public IEnumerable<ProviderDefinition> DefaultDefinitions => new List<ProviderDefinition>();
+
+        public ProviderDefinition Definition { get; set; } = default!;
+
+        public object RequestAction(string stage, IDictionary<string, string> query)
+        {
+            return null;
+        }
+
+        private QobuzDownloadSettings Settings => (Definition?.Settings as QobuzDownloadSettings) ?? new QobuzDownloadSettings();
+
+        public ValidationResult Test()
+        {
+            var failures = new List<ValidationFailure>();
+            try
+            {
+                RunConnectionTest(failures);
+            }
+            catch (Exception ex)
+            {
+                _logger.Error(ex, "Test aborted due to exception");
+                failures.Add(new ValidationFailure(string.Empty, "Test was aborted due to an error: " + ex.Message));
+            }
+            return new ValidationResult(failures);
+        }
+
+        public DownloadClientItem GetImportItem(DownloadClientItem item, DownloadClientItem previousImportAttempt)
+        {
+            return item;
+        }
+
+        public void MarkItemAsImported(DownloadClientItem downloadClientItem)
+        {
+            // No-op
         }
 
         // Maintain backward compatibility with tests
