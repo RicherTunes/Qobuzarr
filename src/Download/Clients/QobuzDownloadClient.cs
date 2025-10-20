@@ -18,7 +18,7 @@ using NzbDrone.Core.Localization;
 using NzbDrone.Core.Parser.Model;
 using NzbDrone.Core.RemotePathMappings;
 using NLog;
-using NzbDrone.Core.ThingiProvider;
+// using NzbDrone.Core.ThingiProvider; // decoupled from host interfaces
 using Lidarr.Plugin.Qobuzarr.Abstractions;
 using Lidarr.Plugin.Qobuzarr.Indexers;
 using Lidarr.Plugin.Qobuzarr.API;
@@ -40,7 +40,7 @@ using System.Net.Http.Headers;
 
 namespace Lidarr.Plugin.Qobuzarr.Download.Clients
 {
-    public class QobuzDownloadClient : IDownloadClient, IDisposable
+    public class QobuzDownloadClient : IDisposable
     {
         private readonly IConfigService _configService;
         private readonly IDiskProvider _diskProvider;
@@ -357,46 +357,8 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Clients
             };
         }
 
-        // ===== IProvider members and helpers =====
-        public Type ConfigContract => typeof(QobuzDownloadSettings);
-
-        public ProviderMessage Message => null;
-
-        public IEnumerable<ProviderDefinition> DefaultDefinitions => new List<ProviderDefinition>();
-
-        public ProviderDefinition Definition { get; set; } = default!;
-
-        public object RequestAction(string stage, IDictionary<string, string> query)
-        {
-            return null;
-        }
-
-        private QobuzDownloadSettings Settings => (Definition?.Settings as QobuzDownloadSettings) ?? new QobuzDownloadSettings();
-
-        public ValidationResult Test()
-        {
-            var failures = new List<ValidationFailure>();
-            try
-            {
-                RunConnectionTest(failures);
-            }
-            catch (Exception ex)
-            {
-                _logger.Error(ex, "Test aborted due to exception");
-                failures.Add(new ValidationFailure(string.Empty, "Test was aborted due to an error: " + ex.Message));
-            }
-            return new ValidationResult(failures);
-        }
-
-        public DownloadClientItem GetImportItem(DownloadClientItem item, DownloadClientItem previousImportAttempt)
-        {
-            return item;
-        }
-
-        public void MarkItemAsImported(DownloadClientItem downloadClientItem)
-        {
-            // No-op
-        }
+        // ===== Local helpers for connection testing =====
+        private QobuzDownloadSettings Settings => new QobuzDownloadSettings();
 
         // Maintain backward compatibility with tests
         private void CleanupOldDownloads()
