@@ -60,6 +60,14 @@
    - Settings → Indexers → Add → Qobuzarr
    - Settings → Download Clients → Add → Qobuzarr
 
+> Upgrade note (Unreleased): settings keys were renamed for the new pr-plugins loader.
+> Please open the plugin UI and re-save your settings once after upgrading:
+> - downloadPath -> DownloadPath
+> - userId -> UserId
+> - authToken -> AuthToken
+>
+> The plugin now provides both Indexer and Download capabilities via the new StreamingPlugin entry and pr-plugins adapters. A quick live credential check runs on Save and when you click the “Test” button.
+
 ### CLI Installation (Optional)
 
 The CLI provides direct access to Qobuz for testing and standalone use:
