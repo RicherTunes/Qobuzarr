@@ -1,13 +1,13 @@
 {
+  // pr-plugins manifest (consumed by Lidarr.Plugin.Common loader)
+  "id": "RicherTunes.Qobuzarr",
   "name": "Qobuzarr",
   "version": "{VERSION}",
+  "apiVersion": "1.x",
   "author": "RicherTunes",
-  "description": "High-quality music indexer and download client for Qobuz streaming service with ML optimization - built upon TrevTV's Lidarr.Plugin.Qobuz foundation",
-  "homepage": "https://github.com/richertunes/qobuzarr",
-  "license": "GPL-3.0",
-  "tags": ["music", "qobuz", "hi-res", "lossless"],
-  "minimumLidarrVersion": "2.13.2.4685",
-  "targetFramework": "net6.0",
-  "main": "Lidarr.Plugin.Qobuzarr.dll",
-  "rootNamespace": "Lidarr.Plugin.Qobuzarr"
+  "description": "Qobuz indexer + download client (adapter mode)",
+  "capabilities": ["download","indexer"],
+  "requiredSettings": ["DownloadPath","UserId","AuthToken"],
+  "minHostVersion": "2.13.2.4685",
+  "entryAssembly": "Lidarr.Plugin.Qobuzarr.dll"
 }
