@@ -5,6 +5,27 @@ All notable changes to Qobuzarr will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+- pr-plugins integration using Lidarr.Plugin.Common Hosting.StreamingPlugin (typed settings + DI)
+- Indexer and Download adapters (IIndexer/IDownloadClient) with Abstractions models
+- Live credential probes:
+  - On Save (ValidateSettings): 2s token-auth probe with warnings on transient errors
+  - On Test (InitializeAsync): 3s probe for immediate feedback in UI
+- UniversalAdaptiveRateLimiter applied to external calls (album/search, track/search, album/get, album/download)
+
+### Changed
+- Manifest capabilities now include indexer
+- plugin.json.template requiredSettings aligned to typed keys
+
+### Breaking
+- Settings keys renamed (one-time re-save required in UI):
+  - downloadPath -> DownloadPath
+  - userId -> UserId
+  - authToken -> AuthToken
+
+
 ## [0.0.12] - 2025-01-13
 
 ### Added
