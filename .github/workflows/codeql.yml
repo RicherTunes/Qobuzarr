@@ -1,0 +1,70 @@
+name: CodeQL Security Analysis
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+  schedule:
+    - cron: '0 3 * * 1'  # Weekly Monday 3 AM
+
+permissions:
+  contents: read
+
+jobs:
+  analyze:
+    name: Analyze Code
+    runs-on: ubuntu-latest
+    permissions:
+      security-events: write
+      contents: read
+      actions: read
+
+    strategy:
+      fail-fast: false
+      matrix:
+        language: ['csharp']
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: |
+            6.0.x
+            8.0.x
+
+      - name: Download Lidarr Assemblies
+        run: |
+          if [ ! -d "ext/Lidarr/_output/net6.0" ]; then
+            chmod +x scripts/download-lidarr-assemblies.sh
+            ./scripts/download-lidarr-assemblies.sh --version 2.13.2.4685
+          fi
+        shell: bash
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v3
+        with:
+          languages: ${{ matrix.language }}
+          queries: security-and-quality
+          config: |
+            paths-ignore:
+              - ext/**
+              - tests/**
+
+      - name: Build
+        run: |
+          dotnet build --configuration Release \
+            -p:RunAnalyzersDuringBuild=false \
+            -p:EnableNETAnalyzers=false \
+            -p:TreatWarningsAsErrors=false
+
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@v3
+        with:
+          category: "/language:${{ matrix.language }}"
+          upload: true
