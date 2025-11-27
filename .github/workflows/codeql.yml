@@ -15,7 +15,6 @@ jobs:
   analyze:
     name: Analyze Code
     runs-on: ubuntu-latest
-    continue-on-error: true  # Non-blocking - requires plugins branch assemblies for full build
     permissions:
       security-events: write
       contents: read
@@ -40,12 +39,25 @@ jobs:
             6.0.x
             8.0.x
 
-      - name: Download Lidarr Assemblies
+      - name: Extract Lidarr Plugins Branch Assemblies
         run: |
-          if [ ! -d "ext/Lidarr/_output/net6.0" ]; then
-            chmod +x ./download-lidarr-assemblies.sh
-            ./download-lidarr-assemblies.sh --version 2.13.2.4685
+          # Extract assemblies from plugins branch Docker image (same as main CI)
+          mkdir -p ext/Lidarr/_output/net6.0
+          IMAGE="ghcr.io/hotio/lidarr:pr-plugins"
+          echo "Pulling $IMAGE..."
+          docker pull "$IMAGE"
+          cid=$(docker create "$IMAGE")
+          echo "Extracting assemblies from container..."
+          docker cp "$cid:/app" ext/Lidarr/_extracted || docker cp "$cid:/opt/lidarr" ext/Lidarr/_extracted
+          docker rm "$cid" >/dev/null
+          find ext/Lidarr/_extracted -type f -name "*.dll" -exec cp {} ext/Lidarr/_output/net6.0 \;
+          
+          # Verify plugins branch API is present
+          if ! strings ext/Lidarr/_output/net6.0/Lidarr.Core.dll | grep -q "IDownloadProtocol"; then
+            echo "[ERROR] Assemblies do not expose IDownloadProtocol (plugins branch API)."
+            exit 1
           fi
+          echo "[OK] Plugins branch assemblies extracted successfully"
         shell: bash
 
       - name: Initialize CodeQL
@@ -60,10 +72,9 @@ jobs:
 
       - name: Build
         run: |
-          # Build only the main plugin project (not tests) to avoid package version conflicts
-          # UsePluginsBranch=false because we're using release assemblies (not plugins branch)
+          # Build main plugin with plugins branch assemblies
           dotnet build Qobuzarr.csproj --configuration Release \
-            -p:UsePluginsBranch=false \
+            -p:UsePluginsBranch=true \
             -p:RunAnalyzersDuringBuild=false \
             -p:EnableNETAnalyzers=false \
             -p:TreatWarningsAsErrors=false
