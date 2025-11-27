@@ -15,6 +15,7 @@ jobs:
   analyze:
     name: Analyze Code
     runs-on: ubuntu-latest
+    continue-on-error: true  # Non-blocking - requires GitHub Advanced Security (Code Scanning)
     permissions:
       security-events: write
       contents: read
