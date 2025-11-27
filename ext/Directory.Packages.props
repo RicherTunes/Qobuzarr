@@ -1,0 +1,6 @@
+<Project>
+  <!-- Disable Central Package Management for submodule projects -->
+  <PropertyGroup>
+    <ManagePackageVersionsCentrally>false</ManagePackageVersionsCentrally>
+  </PropertyGroup>
+</Project>

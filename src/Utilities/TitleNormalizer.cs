@@ -8,8 +8,8 @@ namespace Lidarr.Plugin.Qobuzarr.Utilities
     /// </summary>
     public static class TitleNormalizer
     {
-        private static readonly Regex NonWord = new Regex("[^a-z0-9\s]", RegexOptions.Compiled | RegexOptions.IgnoreCase);
-        private static readonly Regex MultiSpace = new Regex("\\s+", RegexOptions.Compiled);
+        private static readonly Regex NonWord = new Regex(@"[^a-z0-9\s]", RegexOptions.Compiled | RegexOptions.IgnoreCase);
+        private static readonly Regex MultiSpace = new Regex(@"\s+", RegexOptions.Compiled);
 
         public static string Normalize(string title)
         {
@@ -22,4 +22,3 @@ namespace Lidarr.Plugin.Qobuzarr.Utilities
         }
     }
 }
-
