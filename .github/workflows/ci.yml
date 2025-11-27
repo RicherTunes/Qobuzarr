@@ -277,7 +277,7 @@ jobs:
         set -e
         if [ -f "tests/Minimal.Tests/Minimal.Tests.csproj" ]; then
           echo "Building: tests/Minimal.Tests/Minimal.Tests.csproj"
-          dotnet build tests/Minimal.Tests/Minimal.Tests.csproj --configuration Release --verbosity minimal
+          dotnet build tests/Minimal.Tests/Minimal.Tests.csproj --configuration Release --verbosity minimal -p:UsePluginsBranch=${USE_PLUGINS_BRANCH:-true}
         fi
 
     - name: Run fast tests (unit only)
