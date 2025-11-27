@@ -41,8 +41,8 @@ jobs:
       - name: Download Lidarr Assemblies
         run: |
           if [ ! -d "ext/Lidarr/_output/net6.0" ]; then
-            chmod +x scripts/download-lidarr-assemblies.sh
-            ./scripts/download-lidarr-assemblies.sh --version 2.13.2.4685
+            chmod +x ./download-lidarr-assemblies.sh
+            ././download-lidarr-assemblies.sh --version 2.13.2.4685
           fi
         shell: bash
 
