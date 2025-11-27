@@ -59,7 +59,8 @@ jobs:
 
       - name: Build
         run: |
-          dotnet build --configuration Release \
+          # Build only the main plugin project (not tests) to avoid package version conflicts
+          dotnet build Qobuzarr.csproj --configuration Release \
             -p:RunAnalyzersDuringBuild=false \
             -p:EnableNETAnalyzers=false \
             -p:TreatWarningsAsErrors=false
