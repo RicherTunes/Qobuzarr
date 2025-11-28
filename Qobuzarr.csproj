@@ -69,7 +69,7 @@
     <AssemblyInformationalVersion>$(Version)</AssemblyInformationalVersion>
     
     <!-- Disable ILRepack until assembly resolution issues are fixed -->
-    <ILRepackEnabled>false</ILRepackEnabled>
+    <ILRepackEnabled>true</ILRepackEnabled>
     
     <!-- Enable CLI framework for Qobuzarr development -->
     <!-- NOTE: CLI framework is now opt-in by default in shared library -->
@@ -156,11 +156,8 @@
     <PackageReference Include="System.Text.Json" />
     <PackageReference Include="System.Net.Http" />
     <PackageReference Include="System.Text.RegularExpressions" />
-    <!-- ILRepack disabled - causes assembly resolution issues -->
-    <!-- <PackageReference Include="ILRepack.Lib.MSBuild.Task" Condition="'$(Configuration)' == 'PluginRelease' Or '$(Configuration)' == 'Release'">
-      <PrivateAssets>all</PrivateAssets>
-      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
-    </PackageReference> -->
+    <!-- ILRepack for multi-plugin compatibility -->
+    <PackageReference Include="ILRepack.Lib.MSBuild.Task" Version="2.0.34.2" PrivateAssets="all" />
   </ItemGroup>
 
   <!-- Prefer prebuilt assemblies prepared by CI at ext/Lidarr/_output/net6.0; fallback to source-built output if present -->
@@ -348,4 +345,7 @@
     <Message Text="🧹 Removed deployed plugin files from: $(PluginTargetDir)" Importance="high" />
   </Target>
 
+
+  <!-- Import shared plugin packaging targets from Lidarr.Plugin.Common -->
+  <Import Project="ext\Lidarr.Plugin.Common\build\PluginPackaging.targets" Condition="Exists('ext\Lidarr.Plugin.Common\build\PluginPackaging.targets')" />
 </Project>
