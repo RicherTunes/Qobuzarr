@@ -268,7 +268,7 @@ jobs:
       run: |
         dotnet restore Qobuzarr.csproj
         dotnet build Qobuzarr.csproj --configuration Release --no-restore \
-          -p:UsePluginsBranch=${USE_PLUGINS_BRANCH:-true} \
+          -p:UsePluginsBranch=${USE_PLUGINS_BRANCH:-true} -p:PluginPackagingDisable=true \
           -p:RunAnalyzersDuringBuild=false -p:EnableNETAnalyzers=false -p:TreatWarningsAsErrors=false
 
     - name: Pre-build fast tests only
@@ -277,7 +277,7 @@ jobs:
         set -e
         if [ -f "tests/Minimal.Tests/Minimal.Tests.csproj" ]; then
           echo "Building: tests/Minimal.Tests/Minimal.Tests.csproj"
-          dotnet build tests/Minimal.Tests/Minimal.Tests.csproj --configuration Release --verbosity minimal -p:UsePluginsBranch=${USE_PLUGINS_BRANCH:-true} -p:RunAnalyzersDuringBuild=false -p:EnableNETAnalyzers=false -p:TreatWarningsAsErrors=false
+          dotnet build tests/Minimal.Tests/Minimal.Tests.csproj --configuration Release --verbosity minimal -p:UsePluginsBranch=${USE_PLUGINS_BRANCH:-true} -p:PluginPackagingDisable=true -p:RunAnalyzersDuringBuild=false -p:EnableNETAnalyzers=false -p:TreatWarningsAsErrors=false
         fi
 
     - name: Run fast tests (unit only)
