@@ -47,7 +47,7 @@ if ($TestProjects.Count -eq 0) {
 Write-Host "[BUILD] Building selected test projects..." -ForegroundColor Yellow
 foreach ($proj in $TestProjects) {
     $verbosity = if ($Verbose) { "detailed" } else { "minimal" }
-    $buildArgs = @($proj, "--configuration", $Configuration, "--verbosity", $verbosity, "-p:UsePluginsBranch=$PluginsBranchFlag", "-p:RunAnalyzersDuringBuild=false", "-p:EnableNETAnalyzers=false", "-p:TreatWarningsAsErrors=false")
+    $buildArgs = @($proj, "--configuration", $Configuration, "--verbosity", $verbosity, "-p:UsePluginsBranch=$PluginsBranchFlag", "-p:RunAnalyzersDuringBuild=false", "-p:EnableNETAnalyzers=false", "-p:TreatWarningsAsErrors=false", "-p:PluginPackagingDisable=true")
     & dotnet build @buildArgs
     if ($LASTEXITCODE -ne 0) {
         Write-Host "[ERROR] Build failed: $proj" -ForegroundColor Red
