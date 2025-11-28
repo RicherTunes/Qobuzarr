@@ -157,7 +157,7 @@
     <PackageReference Include="System.Net.Http" />
     <PackageReference Include="System.Text.RegularExpressions" />
     <!-- ILRepack for multi-plugin compatibility -->
-    <PackageReference Include="ILRepack.Lib.MSBuild.Task" Version="2.0.34.2" PrivateAssets="all" />
+    <PackageReference Include="ILRepack.Lib.MSBuild.Task" PrivateAssets="all" />
   </ItemGroup>
 
   <!-- Prefer prebuilt assemblies prepared by CI at ext/Lidarr/_output/net6.0; fallback to source-built output if present -->
