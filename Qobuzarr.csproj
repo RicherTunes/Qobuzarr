@@ -239,48 +239,11 @@
     <None Remove="bin\**" />
   </ItemGroup>
 
-  <!-- Assembly merging with ILRepack -  -->
-  <Target Name="ILRepack" AfterTargets="Build" Condition="'$(ILRepackEnabled)' == 'true'">
-    <ItemGroup>
-      <InputAssemblies Include="$(OutputPath)$(AssemblyName).dll" />
-      <!-- Bundle all plugin dependencies including NLog 6.0.0 -->
-      <InputAssemblies Include="$(OutputPath)NLog.dll" Condition="Exists('$(OutputPath)NLog.dll')" />
-      <InputAssemblies Include="$(OutputPath)TagLibSharp.dll" Condition="Exists('$(OutputPath)TagLibSharp.dll')" />
-      <InputAssemblies Include="$(OutputPath)FluentValidation.dll" Condition="Exists('$(OutputPath)FluentValidation.dll')" />
-      <InputAssemblies Include="$(OutputPath)Newtonsoft.Json.dll" Condition="Exists('$(OutputPath)Newtonsoft.Json.dll')" />
-    </ItemGroup>
-    
-    <!-- Include both output path and Lidarr assemblies path in LibraryPath for resolution -->
-    <PropertyGroup>
-      <ILRepackLibraryPaths>$(OutputPath);$(MSBuildProjectDirectory)\ext\Lidarr\_output\net6.0;$(MSBuildProjectDirectory)\ext\Lidarr-source\Lidarr\_output\net6.0</ILRepackLibraryPaths>
-    </PropertyGroup>
-    
-    <Message Text="Merging plugin-specific assemblies with ILRepack..." Importance="high" />
-    <ILRepack 
-      Parallel="true"
-      Internalize="true"
-      InputAssemblies="@(InputAssemblies)"
-      OutputFile="$(OutputPath)$(AssemblyName).dll"
-      TargetKind="SameAsPrimaryAssembly"
-      LibraryPath="$(ILRepackLibraryPaths)"
-      DebugInfo="true"
-      Union="true" />
-    <Message Text="Assembly merging completed: $(OutputPath)$(AssemblyName).dll" Importance="high" />
-  </Target>
+  <!-- ILRepack handled by shared PluginPackaging.targets from Lidarr.Plugin.Common -->
 
   <!-- Development build target (without ILRepack for faster builds) -->
   <Target Name="DevBuild">
-    <MSBuild Projects="$(MSBuildProjectFile)" Targets="Build" Properties="SkipILRepack=true" />
-  </Target>
-
-  <!-- Clean up temporary files -->
-  <Target Name="CleanupTempFiles" AfterTargets="ILRepack">
-    <ItemGroup>
-      <TempFiles Include="$(OutputPath)Newtonsoft.Json.dll" />
-      <TempFiles Include="$(OutputPath)TagLibSharp.dll" />
-      <TempFiles Include="$(OutputPath)*.pdb" Exclude="$(OutputPath)$(AssemblyName).pdb" />
-    </ItemGroup>
-    <Delete Files="@(TempFiles)" ContinueOnError="true" />
+    <MSBuild Projects="$(MSBuildProjectFile)" Targets="Build" Properties="ILRepackEnabled=false" />
   </Target>
 
   <!-- Plugin deployment configuration (opt-in for local dev) -->
