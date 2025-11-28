@@ -69,7 +69,6 @@
     <AssemblyInformationalVersion>$(Version)</AssemblyInformationalVersion>
     
     <!-- Disable ILRepack until assembly resolution issues are fixed -->
-    <ILRepackEnabled>false</ILRepackEnabled>
     
     <!-- Enable CLI framework for Qobuzarr development -->
     <!-- NOTE: CLI framework is now opt-in by default in shared library -->
