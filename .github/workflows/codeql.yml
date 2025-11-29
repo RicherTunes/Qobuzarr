@@ -74,8 +74,10 @@ jobs:
       - name: Build
         run: |
           # Build main plugin with plugins branch assemblies
+          # PluginPackagingDisable=true skips ILRepack during CodeQL (assemblies not available in library path)
           dotnet build Qobuzarr.csproj --configuration Release \
             -p:UsePluginsBranch=true \
+            -p:PluginPackagingDisable=true \
             -p:RunAnalyzersDuringBuild=false \
             -p:EnableNETAnalyzers=false \
             -p:TreatWarningsAsErrors=false
