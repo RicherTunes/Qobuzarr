@@ -13,6 +13,9 @@ param(
 Write-Host "[TEST] Qobuzzarr Unit Test Runner" -ForegroundColor Cyan
 Write-Host "================================" -ForegroundColor Cyan
 
+# Detect UsePluginsBranch from environment variable (set by CI)
+$PluginsBranchFlag = if ($env:USE_PLUGINS_BRANCH -eq "true") { "true" } else { "false" }
+
 $ProjectRoot = Split-Path -Parent $PSScriptRoot
 $MinimalProject = Join-Path $PSScriptRoot "Minimal.Tests\Minimal.Tests.csproj"
 $DefaultProject = Join-Path $PSScriptRoot "Qobuzarr.Tests\Qobuzarr.Tests.csproj"
@@ -44,7 +47,8 @@ if ($TestProjects.Count -eq 0) {
 Write-Host "[BUILD] Building selected test projects..." -ForegroundColor Yellow
 foreach ($proj in $TestProjects) {
     $verbosity = if ($Verbose) { "detailed" } else { "minimal" }
-    & dotnet build $proj --configuration $Configuration --verbosity $verbosity
+    $buildArgs = @($proj, "--configuration", $Configuration, "--verbosity", $verbosity, "-p:UsePluginsBranch=$PluginsBranchFlag", "-p:RunAnalyzersDuringBuild=false", "-p:EnableNETAnalyzers=false", "-p:TreatWarningsAsErrors=false", "-p:PluginPackagingDisable=true")
+    & dotnet build @buildArgs
     if ($LASTEXITCODE -ne 0) {
         Write-Host "[ERROR] Build failed: $proj" -ForegroundColor Red
         exit 1
