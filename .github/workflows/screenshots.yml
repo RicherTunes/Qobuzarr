@@ -158,6 +158,7 @@ jobs:
           if-no-files-found: warn
 
       - name: Commit updated screenshots
+        continue-on-error: true  # Push may fail due to branch protection - screenshots still uploaded as artifact
         run: |
           set -e
           if git status --porcelain | grep -E "^ M|^\?\?" >/dev/null 2>&1; then
@@ -168,7 +169,7 @@ jobs:
               echo "No screenshot changes to commit"
             else
               git commit -m "docs(screenshots): refresh auto-generated UI screenshots"
-              git push
+              git push || echo "Push failed (likely branch protection) - screenshots available as workflow artifact"
             fi
           else
             echo "No changes detected"
