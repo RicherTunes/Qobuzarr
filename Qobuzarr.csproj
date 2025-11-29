@@ -157,8 +157,10 @@
     <PackageReference Include="System.Text.Json" />
     <PackageReference Include="System.Net.Http" />
     <PackageReference Include="System.Text.RegularExpressions" />
-    <!-- ILRepack for multi-plugin compatibility -->
-    <PackageReference Include="ILRepack.Lib.MSBuild.Task" PrivateAssets="all" />
+    <!-- ILRepack for multi-plugin compatibility.
+         ExcludeAssets="build" prevents NuGet's automatic ILRepack target from running.
+         Our PluginPackaging.targets uses the ILRepack task directly instead. -->
+    <PackageReference Include="ILRepack.Lib.MSBuild.Task" PrivateAssets="all" ExcludeAssets="build" />
   </ItemGroup>
 
   <!-- Prefer prebuilt assemblies prepared by CI at ext/Lidarr/_output/net6.0; fallback to source-built output if present -->
