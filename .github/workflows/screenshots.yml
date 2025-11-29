@@ -53,6 +53,7 @@ jobs:
           dotnet build Qobuzarr.csproj \
             --configuration Release \
             --no-restore \
+            -p:UsePluginsBranch=true \
             -p:RunAnalyzersDuringBuild=false \
             -p:EnableNETAnalyzers=false \
             -p:TreatWarningsAsErrors=false
