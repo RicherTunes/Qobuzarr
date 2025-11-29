@@ -199,10 +199,5 @@ namespace Lidarr.Plugin.Qobuzarr.Services.Caching
                 }
             }
         }
-
-        public void Clear()
-        {
-            _storage.Clear();
-        }
     }
 }
