@@ -85,13 +85,31 @@ jobs:
             -v "${{ github.workspace }}/plugin-dist:/config/plugins/RicherTunes/Qobuzarr:ro" \
             -e PUID=1000 -e PGID=1000 \
             ghcr.io/hotio/lidarr:${{ env.LIDARR_DOCKER_VERSION }}
-          # Wait for web ready
-          for i in {1..120}; do curl -fsS http://localhost:8686 >/dev/null && break || sleep 5; done
+          # Wait for config.xml to be created and web ready
+          echo "Waiting for Lidarr to initialize..."
+          for i in {1..120}; do
+            if docker exec lidarr-ss test -f /config/config.xml 2>/dev/null; then
+              echo "Config file exists, checking web..."
+              if curl -fsS http://localhost:8686 >/dev/null 2>&1; then
+                echo "Lidarr is ready!"
+                break
+              fi
+            fi
+            sleep 5
+          done
 
       - name: Verify plugin discovery via API
         shell: bash
         run: |
           set -e
+          # Wait for config.xml with retries
+          for i in $(seq 1 10); do
+            if docker exec lidarr-ss test -f /config/config.xml 2>/dev/null; then
+              break
+            fi
+            echo "Waiting for config.xml... attempt $i"
+            sleep 5
+          done
           APIKEY=$(docker exec lidarr-ss sh -lc "sed -n 's:.*<ApiKey>\\(.*\\)</ApiKey>.*:\\1:p' /config/config.xml")
           echo "Using API key: ${APIKEY:0:4}..."
           for i in $(seq 1 30); do
