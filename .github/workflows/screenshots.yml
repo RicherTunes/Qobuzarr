@@ -90,22 +90,36 @@ jobs:
             -v "${{ github.workspace }}/plugin-dist:/config/plugins/RicherTunes/Qobuzarr:ro" \
             -e PUID=1000 -e PGID=1000 \
             ghcr.io/hotio/lidarr:${{ env.LIDARR_DOCKER_VERSION }}
-          # Wait for config.xml to be created and web ready
+          # Wait for config.xml to be created
           echo "Waiting for Lidarr to initialize..."
           for i in {1..60}; do
             if docker exec lidarr-ss test -f /config/config.xml 2>/dev/null; then
-              echo "Config file exists, checking web..."
-              if curl -fsS http://localhost:8686 >/dev/null 2>&1; then
-                echo "Lidarr is ready!"
-                break
-              fi
+              echo "Config file exists!"
+              break
             fi
-            # Show container status periodically
+            sleep 2
+          done
+
+          # Configure authentication to bypass the modal (set to Forms with known creds)
+          echo "Configuring authentication..."
+          docker exec lidarr-ss sed -i 's|<AuthenticationMethod>.*</AuthenticationMethod>|<AuthenticationMethod>Forms</AuthenticationMethod>|' /config/config.xml
+          docker exec lidarr-ss sed -i 's|<AuthenticationRequired>.*</AuthenticationRequired>|<AuthenticationRequired>DisabledForLocalAddresses</AuthenticationRequired>|' /config/config.xml
+
+          # Restart Lidarr to apply config changes
+          docker restart lidarr-ss
+
+          # Wait for web to be ready
+          echo "Waiting for Lidarr web interface..."
+          for i in {1..60}; do
+            if curl -fsS http://localhost:8686 >/dev/null 2>&1; then
+              echo "Lidarr is ready!"
+              break
+            fi
             if [ $((i % 10)) -eq 0 ]; then
               echo "Progress check $i/60 - container running:"
               docker ps --filter name=lidarr-ss --format "{{.Status}}"
             fi
-            sleep 5
+            sleep 3
           done
           # Show final container logs for debugging
           echo "=== Lidarr container logs (last 50 lines) ==="
