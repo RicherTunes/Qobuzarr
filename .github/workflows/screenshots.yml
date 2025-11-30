@@ -159,10 +159,24 @@ jobs:
           npm i -D playwright@1.48.2
           npx --yes playwright install --with-deps chromium
 
+      - name: Fetch centralized screenshot utility
+        run: |
+          # Get the latest centralized screenshot utility from Common library
+          mkdir -p .screenshot-tools
+          curl -fsSL https://raw.githubusercontent.com/RicherTunes/Lidarr.Plugin.Common/main/scripts/snapshots/snap.mjs -o .screenshot-tools/snap.mjs
+          echo "Downloaded centralized screenshot utility"
+
       - name: Capture Screenshots
         env:
           LIDARR_BASE_URL: http://localhost:8686
-        run: node scripts/snapshots/snap.mjs
+        run: |
+          # Use centralized utility with Qobuzarr-specific settings
+          # Captures: indexer add modal, indexer config, download-client add modal, download-client config
+          node .screenshot-tools/snap.mjs \
+            --plugin=Qobuzarr \
+            --type=indexer,download-client \
+            --output=docs/assets/screenshots \
+            --url=http://localhost:8686
 
       - name: Upload Screenshots artifact
         uses: actions/upload-artifact@v4
