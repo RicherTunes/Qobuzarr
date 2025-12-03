@@ -80,10 +80,9 @@
     <!-- Build against Lidarr host API
          - Plugins branch (string Protocol + IDownloadProtocol) when UsePluginsBranch=true
          - Release branch (enum DownloadProtocol) when UsePluginsBranch=false
-       Default locally is false to match commonly available release assemblies;
-       CI can set -p:UsePluginsBranch=true when plugins-branch assemblies are present. -->
-    <!-- Default locally to release branch for wider dev compatibility; CI flips to plugins branch when available -->
-    <UsePluginsBranch Condition="'$(UsePluginsBranch)' == ''">false</UsePluginsBranch>
+       These plugins are designed for Lidarr's plugins branch ONLY, so default to true.
+       CI and local builds use plugins branch assemblies exclusively. -->
+    <UsePluginsBranch Condition="'$(UsePluginsBranch)' == ''">true</UsePluginsBranch>
     
     <!-- Optional: consume Common via package when version is provided -->
     <CommonPackageVersion Condition="'$(CommonPackageVersion)' == '' and '$(COMMON_PACKAGE_VERSION)' != ''">$(COMMON_PACKAGE_VERSION)</CommonPackageVersion>
