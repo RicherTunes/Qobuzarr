@@ -32,12 +32,12 @@ namespace Qobuzarr.IntegrationTests
                 _output.WriteLine(connectivityResult.ToString());
                 if (!connectivityResult.IsSuccess)
                 {
-                    throw new Xunit.Sdk.SkipException("Skipping: Lidarr not reachable (set LIDARR_URL and LIDARR_API_KEY)");
+                    Assert.Skip("Skipping: Lidarr not reachable (set LIDARR_URL and LIDARR_API_KEY)");
                 }
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is not Xunit.SkipException)
             {
-                throw new Xunit.Sdk.SkipException($"Skipping: Live integration not configured ({ex.Message})");
+                Assert.Skip($"Skipping: Live integration not configured ({ex.Message})");
             }
         }
 
