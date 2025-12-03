@@ -99,7 +99,8 @@ namespace Qobuzarr.Tests.Integration
 
                 if (string.IsNullOrEmpty(appId) || string.IsNullOrEmpty(email))
                 {
-                    throw new Xunit.Sdk.SkipException("Skipping: Qobuz credentials not configured (set QOBUZ_APP_ID, QOBUZ_APP_SECRET, QOBUZ_EMAIL, QOBUZ_PASSWORD)");
+                    Assert.Skip("Skipping: Qobuz credentials not configured (set QOBUZ_APP_ID, QOBUZ_APP_SECRET, QOBUZ_EMAIL, QOBUZ_PASSWORD)");
+                    return;
                 }
 
                 // Initialize services
@@ -122,7 +123,7 @@ namespace Qobuzarr.Tests.Integration
             catch (Exception ex)
             {
                 _output.WriteLine($"Initialization failed: {ex.Message}");
-                throw new Xunit.Sdk.SkipException($"Skipping: Test initialization failed: {ex.Message}");
+                Assert.Skip($"Skipping: Test initialization failed: {ex.Message}");
             }
         }
 
