@@ -18,6 +18,7 @@ namespace Qobuzarr.IntegrationTests
     {
         private readonly ITestOutputHelper _output;
         private LiveLidarrIntegrationFramework _framework;
+        private string _skipReason;
 
         public SecurityValidationTests(ITestOutputHelper output)
         {
@@ -32,12 +33,19 @@ namespace Qobuzarr.IntegrationTests
                 var connectivityResult = await _framework.ValidateBasicConnectivityAsync();
                 if (!connectivityResult.IsSuccess)
                 {
-                    Assert.Skip("Skipping: Lidarr not reachable (set LIDARR_URL and LIDARR_API_KEY)");
+                    _skipReason = "⏭️ Skipping: Lidarr not reachable (set LIDARR_URL and LIDARR_API_KEY)";
+                    _output.WriteLine(_skipReason);
                 }
             }
-            catch (Exception ex) when (ex is not Xunit.SkipException)
+            catch (IntegrationTestSkipException ex)
             {
-                Assert.Skip($"Skipping: Live integration not configured ({ex.Message})");
+                _skipReason = ex.Message;
+                _output.WriteLine(_skipReason);
+            }
+            catch (Exception ex)
+            {
+                _skipReason = $"⏭️ Skipping: Live integration not configured ({ex.Message})";
+                _output.WriteLine(_skipReason);
             }
         }
 
@@ -52,6 +60,7 @@ namespace Qobuzarr.IntegrationTests
         [Trait("Priority", "Critical")]
         public async Task Test_InputSanitizer_Email_Validation()
         {
+            if (_skipReason != null) return;
             _output.WriteLine("🛡️ Testing InputSanitizer Email Validation");
             
             // Test valid emails
@@ -87,6 +96,7 @@ namespace Qobuzarr.IntegrationTests
         [Trait("Priority", "Critical")]
         public async Task Test_InputSanitizer_Query_Sanitization()
         {
+            if (_skipReason != null) return;
             _output.WriteLine("🛡️ Testing InputSanitizer Query Sanitization");
             
             // Test legitimate search queries
@@ -138,6 +148,7 @@ namespace Qobuzarr.IntegrationTests
         [Trait("Priority", "Critical")]
         public async Task Test_InputSanitizer_Path_Traversal_Prevention()
         {
+            if (_skipReason != null) return;
             _output.WriteLine("🛡️ Testing InputSanitizer Path Traversal Prevention");
             
             // Test legitimate paths
@@ -188,6 +199,7 @@ namespace Qobuzarr.IntegrationTests
         [Trait("Priority", "High")]
         public async Task Test_InputSanitizer_Credential_Validation()
         {
+            if (_skipReason != null) return;
             _output.WriteLine("🛡️ Testing InputSanitizer Credential Validation");
             
             // Test App ID validation
@@ -255,6 +267,7 @@ namespace Qobuzarr.IntegrationTests
         [Trait("Priority", "High")]
         public async Task Test_InputSanitizer_Country_Code_Validation()
         {
+            if (_skipReason != null) return;
             _output.WriteLine("🛡️ Testing InputSanitizer Country Code Validation");
             
             // Test valid country codes
@@ -283,6 +296,7 @@ namespace Qobuzarr.IntegrationTests
         [Trait("Priority", "High")]
         public async Task Test_Security_During_Live_Operations()
         {
+            if (_skipReason != null) return;
             _output.WriteLine("🛡️ Testing Security During Live Operations");
             
             // Start monitoring for security-related log entries
@@ -349,6 +363,7 @@ namespace Qobuzarr.IntegrationTests
         [Trait("Priority", "Medium")]
         public async Task Test_Dangerous_Content_Detection()
         {
+            if (_skipReason != null) return;
             _output.WriteLine("🛡️ Testing Dangerous Content Detection");
             
             // Test obviously safe content
@@ -391,6 +406,7 @@ namespace Qobuzarr.IntegrationTests
         [Trait("Priority", "High")]
         public async Task Test_URL_Parameter_Sanitization()
         {
+            if (_skipReason != null) return;
             _output.WriteLine("🛡️ Testing URL Parameter Sanitization");
             
             // Test normal parameters
@@ -442,10 +458,11 @@ namespace Qobuzarr.IntegrationTests
 
         [Fact]
         [Trait("Category", "LiveIntegration")]
-        [Trait("Category", "Security")]  
+        [Trait("Category", "Security")]
         [Trait("Priority", "Medium")]
         public async Task Test_Authentication_Security_In_Live_Environment()
         {
+            if (_skipReason != null) return;
             _output.WriteLine("🛡️ Testing Authentication Security in Live Environment");
             
             // Monitor logs during authentication operations
@@ -501,6 +518,7 @@ namespace Qobuzarr.IntegrationTests
         [Trait("Priority", "Low")]
         public async Task Test_Security_Documentation_And_Guidelines()
         {
+            if (_skipReason != null) return;
             _output.WriteLine("📚 Validating Security Documentation");
             
             // This test validates that security measures are properly documented

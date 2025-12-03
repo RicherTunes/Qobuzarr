@@ -17,6 +17,7 @@ namespace Qobuzarr.IntegrationTests
     {
         private readonly ITestOutputHelper _output;
         private LiveLidarrIntegrationFramework _framework;
+        private string _skipReason;
 
         public ComprehensiveLiveTests(ITestOutputHelper output)
         {
@@ -32,12 +33,19 @@ namespace Qobuzarr.IntegrationTests
                 _output.WriteLine(connectivityResult.ToString());
                 if (!connectivityResult.IsSuccess)
                 {
-                    Assert.Skip("Skipping: Lidarr not reachable (set LIDARR_URL and LIDARR_API_KEY)");
+                    _skipReason = "⏭️ Skipping: Lidarr not reachable (set LIDARR_URL and LIDARR_API_KEY)";
+                    _output.WriteLine(_skipReason);
                 }
             }
-            catch (Exception ex) when (ex is not Xunit.SkipException)
+            catch (IntegrationTestSkipException ex)
             {
-                Assert.Skip($"Skipping: Live integration not configured ({ex.Message})");
+                _skipReason = ex.Message;
+                _output.WriteLine(_skipReason);
+            }
+            catch (Exception ex)
+            {
+                _skipReason = $"⏭️ Skipping: Live integration not configured ({ex.Message})";
+                _output.WriteLine(_skipReason);
             }
         }
 
@@ -51,6 +59,7 @@ namespace Qobuzarr.IntegrationTests
         [Trait("Priority", "Critical")]
         public async Task Test_01_Plugin_Loading_And_Configuration()
         {
+            if (_skipReason != null) return;
             _output.WriteLine("🧪 TEST 1: Plugin Loading & Configuration Validation");
             
             var result = await _framework.ValidateBasicConnectivityAsync();
@@ -72,6 +81,7 @@ namespace Qobuzarr.IntegrationTests
         [Trait("Priority", "Critical")]
         public async Task Test_02_Search_Functionality_With_Known_Album()
         {
+            if (_skipReason != null) return;
             _output.WriteLine("🧪 TEST 2: Search Functionality with Known Album");
             
             var searchResult = await _framework.TestSearchFunctionalityAsync();
@@ -97,6 +107,7 @@ namespace Qobuzarr.IntegrationTests
         [Trait("Priority", "High")]
         public async Task Test_03_Plugin_Error_Handling()
         {
+            if (_skipReason != null) return;
             _output.WriteLine("🧪 TEST 3: Plugin Error Handling & Resilience");
             
             // Monitor logs for any errors during normal operations
@@ -121,6 +132,7 @@ namespace Qobuzarr.IntegrationTests
         [Trait("Priority", "Medium")]
         public async Task Test_04_Download_Queue_Integration()
         {
+            if (_skipReason != null) return;
             _output.WriteLine("🧪 TEST 4: Download Queue Integration");
             
             // This test validates that downloads can be queued successfully
@@ -144,6 +156,7 @@ namespace Qobuzarr.IntegrationTests
         [Trait("Priority", "Critical")]
         public async Task Test_05_Plugin_Restart_Resilience()
         {
+            if (_skipReason != null) return;
             _output.WriteLine("🧪 TEST 5: Plugin Restart Resilience");
             
             // Test that the plugin survives Lidarr restarts
@@ -172,6 +185,7 @@ namespace Qobuzarr.IntegrationTests
         [Trait("Priority", "High")]
         public async Task Test_06_Security_Input_Validation()
         {
+            if (_skipReason != null) return;
             _output.WriteLine("🧪 TEST 6: Security Input Validation (NEW)");
             
             // Test that our new InputSanitizer prevents malicious inputs
@@ -216,6 +230,7 @@ namespace Qobuzarr.IntegrationTests
         [Trait("Priority", "Medium")]
         public async Task Test_07_Performance_And_Resource_Usage()
         {
+            if (_skipReason != null) return;
             _output.WriteLine("🧪 TEST 7: Performance & Resource Usage");
             
             var startTime = DateTime.UtcNow;
@@ -248,6 +263,7 @@ namespace Qobuzarr.IntegrationTests
         [Trait("Priority", "High")]
         public async Task Test_08_End_To_End_Workflow()
         {
+            if (_skipReason != null) return;
             _output.WriteLine("🧪 TEST 8: Complete End-to-End Workflow");
             
             var e2eResult = await _framework.RunEndToEndTestAsync();

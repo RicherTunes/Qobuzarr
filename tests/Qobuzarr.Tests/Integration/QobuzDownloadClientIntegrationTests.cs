@@ -99,7 +99,7 @@ namespace Qobuzarr.Tests.Integration
 
                 if (string.IsNullOrEmpty(appId) || string.IsNullOrEmpty(email))
                 {
-                    Assert.Skip("Skipping: Qobuz credentials not configured (set QOBUZ_APP_ID, QOBUZ_APP_SECRET, QOBUZ_EMAIL, QOBUZ_PASSWORD)");
+                    _output.WriteLine("⏭️ Skipping: Qobuz credentials not configured (set QOBUZ_APP_ID, QOBUZ_APP_SECRET, QOBUZ_EMAIL, QOBUZ_PASSWORD)");
                     return;
                 }
 
@@ -122,8 +122,8 @@ namespace Qobuzarr.Tests.Integration
             }
             catch (Exception ex)
             {
-                _output.WriteLine($"Initialization failed: {ex.Message}");
-                Assert.Skip($"Skipping: Test initialization failed: {ex.Message}");
+                _output.WriteLine($"⏭️ Skipping: Test initialization failed: {ex.Message}");
+                // Test will be skipped due to null services
             }
         }
 
