@@ -1,5 +1,6 @@
 using System;
 using Microsoft.Extensions.Configuration;
+using Xunit;
 using Xunit.Abstractions;
 
 namespace Qobuzarr.IntegrationTests
@@ -37,7 +38,7 @@ namespace Qobuzarr.IntegrationTests
             var flag = Environment.GetEnvironmentVariable("ENABLE_LIVE_INTEGRATION_TESTS");
             if (!string.Equals(flag, "true", StringComparison.OrdinalIgnoreCase))
             {
-                throw new Xunit.Sdk.SkipException("Skipping: Live integration tests are disabled (set ENABLE_LIVE_INTEGRATION_TESTS=true)");
+                Assert.Skip("Skipping: Live integration tests are disabled (set ENABLE_LIVE_INTEGRATION_TESTS=true)");
             }
         }
 
@@ -58,7 +59,7 @@ namespace Qobuzarr.IntegrationTests
 
             if (string.IsNullOrWhiteSpace(lidarrUrl) || string.IsNullOrWhiteSpace(lidarrApiKey))
             {
-                throw new Xunit.Sdk.SkipException("Skipping: Lidarr not configured (set LIDARR_URL and LIDARR_API_KEY)");
+                Assert.Skip("Skipping: Lidarr not configured (set LIDARR_URL and LIDARR_API_KEY)");
             }
         }
 
@@ -81,7 +82,7 @@ namespace Qobuzarr.IntegrationTests
 
             if (string.IsNullOrWhiteSpace(appId) || (!hasUserPass && !hasUserToken))
             {
-                throw new Xunit.Sdk.SkipException("Skipping: Qobuz credentials not configured (set QOBUZ_APP_ID and either EMAIL/PASSWORD or USER_ID/USER_AUTH_TOKEN)");
+                Assert.Skip("Skipping: Qobuz credentials not configured (set QOBUZ_APP_ID and either EMAIL/PASSWORD or USER_ID/USER_AUTH_TOKEN)");
             }
         }
     }
