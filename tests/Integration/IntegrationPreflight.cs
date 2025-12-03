@@ -1,10 +1,18 @@
 using System;
 using Microsoft.Extensions.Configuration;
-using Xunit;
 using Xunit.Abstractions;
 
 namespace Qobuzarr.IntegrationTests
 {
+    /// <summary>
+    /// Exception thrown to skip integration tests when preconditions are not met.
+    /// xUnit 2.x doesn't have Assert.Skip, so we use a custom exception that tests can catch.
+    /// </summary>
+    public class IntegrationTestSkipException : Exception
+    {
+        public IntegrationTestSkipException(string message) : base(message) { }
+    }
+
     /// <summary>
     /// Centralized preflight guard for live/integration tests.
     /// Ensures tests only run when explicitly enabled and configured.
@@ -30,24 +38,26 @@ namespace Qobuzarr.IntegrationTests
         }
 
         /// <summary>
-        /// Require explicit opt-in via ENABLE_LIVE_INTEGRATION_TESTS=true
+        /// Checks if live integration tests are enabled. Returns false if tests should be skipped.
         /// </summary>
-        public static void RequireLiveIntegrationOrSkip(ITestOutputHelper output)
+        public static bool IsLiveIntegrationEnabled(ITestOutputHelper output)
         {
             TryLoadEnv(output);
             var flag = Environment.GetEnvironmentVariable("ENABLE_LIVE_INTEGRATION_TESTS");
-            if (!string.Equals(flag, "true", StringComparison.OrdinalIgnoreCase))
+            var enabled = string.Equals(flag, "true", StringComparison.OrdinalIgnoreCase);
+            if (!enabled)
             {
-                Assert.Skip("Skipping: Live integration tests are disabled (set ENABLE_LIVE_INTEGRATION_TESTS=true)");
+                output?.WriteLine("⏭️ Skipping: Live integration tests are disabled (set ENABLE_LIVE_INTEGRATION_TESTS=true)");
             }
+            return enabled;
         }
 
         /// <summary>
-        /// Require Lidarr target configuration for tests that call Lidarr HTTP endpoints
+        /// Checks if Lidarr is configured. Returns false if tests should be skipped.
         /// </summary>
-        public static void RequireLidarrConfiguredOrSkip(ITestOutputHelper output)
+        public static bool IsLidarrConfigured(ITestOutputHelper output)
         {
-            RequireLiveIntegrationOrSkip(output);
+            if (!IsLiveIntegrationEnabled(output)) return false;
             TryLoadEnv(output);
 
             var config = new ConfigurationBuilder()
@@ -57,18 +67,20 @@ namespace Qobuzarr.IntegrationTests
             var lidarrUrl = config["LIDARR_URL"];
             var lidarrApiKey = config["LIDARR_API_KEY"];
 
-            if (string.IsNullOrWhiteSpace(lidarrUrl) || string.IsNullOrWhiteSpace(lidarrApiKey))
+            var configured = !string.IsNullOrWhiteSpace(lidarrUrl) && !string.IsNullOrWhiteSpace(lidarrApiKey);
+            if (!configured)
             {
-                Assert.Skip("Skipping: Lidarr not configured (set LIDARR_URL and LIDARR_API_KEY)");
+                output?.WriteLine("⏭️ Skipping: Lidarr not configured (set LIDARR_URL and LIDARR_API_KEY)");
             }
+            return configured;
         }
 
         /// <summary>
-        /// Require Qobuz credentials for tests that call Qobuz endpoints
+        /// Checks if Qobuz credentials are configured. Returns false if tests should be skipped.
         /// </summary>
-        public static void RequireQobuzCredentialsOrSkip(ITestOutputHelper output)
+        public static bool HasQobuzCredentials(ITestOutputHelper output)
         {
-            RequireLiveIntegrationOrSkip(output);
+            if (!IsLiveIntegrationEnabled(output)) return false;
             TryLoadEnv(output);
 
             var appId = Environment.GetEnvironmentVariable("QOBUZ_APP_ID");
@@ -80,10 +92,31 @@ namespace Qobuzarr.IntegrationTests
             var hasUserPass = !string.IsNullOrWhiteSpace(email) && !string.IsNullOrWhiteSpace(password);
             var hasUserToken = !string.IsNullOrWhiteSpace(userId) && !string.IsNullOrWhiteSpace(userToken);
 
-            if (string.IsNullOrWhiteSpace(appId) || (!hasUserPass && !hasUserToken))
+            var hasCredentials = !string.IsNullOrWhiteSpace(appId) && (hasUserPass || hasUserToken);
+            if (!hasCredentials)
             {
-                Assert.Skip("Skipping: Qobuz credentials not configured (set QOBUZ_APP_ID and either EMAIL/PASSWORD or USER_ID/USER_AUTH_TOKEN)");
+                output?.WriteLine("⏭️ Skipping: Qobuz credentials not configured (set QOBUZ_APP_ID and either EMAIL/PASSWORD or USER_ID/USER_AUTH_TOKEN)");
             }
+            return hasCredentials;
+        }
+
+        // Legacy methods for backward compatibility - these throw for tests that expect exceptions
+        public static void RequireLiveIntegrationOrSkip(ITestOutputHelper output)
+        {
+            if (!IsLiveIntegrationEnabled(output))
+                throw new IntegrationTestSkipException("Skipping: Live integration tests are disabled (set ENABLE_LIVE_INTEGRATION_TESTS=true)");
+        }
+
+        public static void RequireLidarrConfiguredOrSkip(ITestOutputHelper output)
+        {
+            if (!IsLidarrConfigured(output))
+                throw new IntegrationTestSkipException("Skipping: Lidarr not configured (set LIDARR_URL and LIDARR_API_KEY)");
+        }
+
+        public static void RequireQobuzCredentialsOrSkip(ITestOutputHelper output)
+        {
+            if (!HasQobuzCredentials(output))
+                throw new IntegrationTestSkipException("Skipping: Qobuz credentials not configured");
         }
     }
 }
