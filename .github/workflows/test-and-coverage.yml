@@ -89,14 +89,17 @@ jobs:
           if [ -f "tests/Minimal.Tests/Minimal.Tests.csproj" ]; then
             dotnet test tests/Minimal.Tests/Minimal.Tests.csproj \
               --configuration Release \
+              --no-build \
               --collect "XPlat Code Coverage" \
               --logger "trx;LogFileName=test-results.trx" \
               --results-directory TestResults/ \
-              --filter "Category!=LiveIntegration"
+              --filter "Category!=LiveIntegration" \
+              -- RunConfiguration.TestSessionTimeout=600000
           elif [ -f "tests/run-tests.ps1" ]; then
             pwsh -File ./tests/run-tests.ps1 -Configuration Release
           else
             dotnet test --configuration Release \
+              --no-build \
               --collect "XPlat Code Coverage" \
               --logger "trx;LogFileName=test-results.trx" \
               --results-directory TestResults/
