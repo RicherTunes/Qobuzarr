@@ -1,0 +1,133 @@
+name: Bump Common Submodule
+
+on:
+  workflow_dispatch: {}
+  schedule:
+    # Run daily at 2:20 AM UTC (after Common nightly, before our nightly)
+    - cron: '20 2 * * *'
+
+concurrency:
+  group: bump-common
+  cancel-in-progress: true
+
+jobs:
+  bump:
+    name: Bump Common to Latest
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          submodules: recursive
+          token: ${{ secrets.CI_PAT || github.token }}
+
+      - name: Update Common submodule to latest main
+        id: update
+        run: |
+          set -euo pipefail
+
+          cd ext/Lidarr.Plugin.Common
+          git fetch origin main
+          NEW_SHA=$(git rev-parse origin/main)
+          CURRENT_SHA=$(git rev-parse HEAD)
+
+          if [ "$NEW_SHA" = "$CURRENT_SHA" ]; then
+            echo "No changes in submodule; skipping."
+            echo "changed=false" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
+          echo "Updating from $CURRENT_SHA to $NEW_SHA"
+          git checkout $NEW_SHA
+          cd ../..
+
+          # Update the SHA tracking file if it exists
+          if [ -f ext-common-sha.txt ]; then
+            echo "$NEW_SHA" > ext-common-sha.txt
+            git add ext-common-sha.txt
+          fi
+
+          git add ext/Lidarr.Plugin.Common
+
+          echo "changed=true" >> $GITHUB_OUTPUT
+          echo "new_sha=$NEW_SHA" >> $GITHUB_OUTPUT
+          echo "short_sha=${NEW_SHA:0:7}" >> $GITHUB_OUTPUT
+
+      - name: Setup .NET
+        if: steps.update.outputs.changed == 'true'
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Verify build with new submodule
+        if: steps.update.outputs.changed == 'true'
+        id: verify
+        run: |
+          set -euo pipefail
+
+          echo "Verifying build with updated Common submodule..."
+
+          dotnet restore Qobuzarr.sln || { echo "build_ok=false" >> $GITHUB_OUTPUT; exit 0; }
+          dotnet build src/Qobuzarr/Qobuzarr.csproj -c Release --no-restore || { echo "build_ok=false" >> $GITHUB_OUTPUT; exit 0; }
+
+          echo "build_ok=true" >> $GITHUB_OUTPUT
+
+      - name: Create branch and commit
+        if: steps.update.outputs.changed == 'true' && steps.verify.outputs.build_ok == 'true'
+        run: |
+          BRANCH="chore/bump-common-${{ steps.update.outputs.short_sha }}"
+
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git config user.name "github-actions[bot]"
+
+          git checkout -B "$BRANCH"
+          git commit -m "chore(submodule): bump Common to ${{ steps.update.outputs.short_sha }}
+
+          Updates ext/Lidarr.Plugin.Common to ${{ steps.update.outputs.new_sha }}
+
+          Build verification: ✅ Passed"
+
+          git push -u origin "$BRANCH" --force
+          echo "BRANCH=$BRANCH" >> $GITHUB_ENV
+
+      - name: Create or update PR
+        if: steps.update.outputs.changed == 'true' && steps.verify.outputs.build_ok == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          BRANCH="${{ env.BRANCH }}"
+
+          EXISTING_PR=$(gh pr list --head "$BRANCH" --json number --jq '.[0].number' || echo "")
+
+          if [ -z "$EXISTING_PR" ]; then
+            gh pr create \
+              --title "chore(submodule): bump Common to ${{ steps.update.outputs.short_sha }}" \
+              --body "## Automated Submodule Update
+
+Updates \`ext/Lidarr.Plugin.Common\` to latest main.
+
+**New SHA:** \`${{ steps.update.outputs.new_sha }}\`
+
+### Verification
+- ✅ Build passed with updated submodule
+
+---
+*This PR was automatically created by the bump-common workflow.*" \
+              --head "$BRANCH" \
+              --base main
+          else
+            echo "PR #$EXISTING_PR already exists for branch $BRANCH"
+          fi
+
+      - name: Report build failure
+        if: steps.update.outputs.changed == 'true' && steps.verify.outputs.build_ok == 'false'
+        run: |
+          echo "::warning::Build failed with updated Common submodule. Manual intervention required."
+          echo "## ⚠️ Build Failed" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "The build failed after updating Common to \`${{ steps.update.outputs.new_sha }}\`." >> $GITHUB_STEP_SUMMARY
