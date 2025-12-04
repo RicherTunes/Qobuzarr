@@ -12,6 +12,7 @@ on:
 
 permissions:
   contents: write
+  id-token: write  # Required for keyless signing with Cosign
 
 env:
   DOTNET_SKIP_FIRST_TIME_EXPERIENCE: true
@@ -24,7 +25,7 @@ jobs:
   release:
     name: Create Release
     runs-on: ubuntu-latest
-    
+
     steps:
     - name: Checkout
       uses: actions/checkout@v4
@@ -46,12 +47,12 @@ jobs:
           VERSION="${{ github.ref_name }}"
           VERSION="${VERSION#v}"  # Remove 'v' prefix if present
         else
-          echo "❌ Invalid trigger for release workflow"
+          echo "Invalid trigger for release workflow"
           exit 1
         fi
-        
+
         echo "RELEASE_VERSION=$VERSION" >> $GITHUB_ENV
-        echo "✅ Release version: $VERSION"
+        echo "Release version: $VERSION"
 
     - name: Setup Lidarr assemblies
       run: |
@@ -87,7 +88,7 @@ jobs:
 
     - name: Build release
       run: |
-        echo "🚀 Building release version $RELEASE_VERSION..."
+        echo "Building release version $RELEASE_VERSION..."
         dotnet restore Qobuzarr.csproj
         dotnet build Qobuzarr.csproj --configuration Release --no-restore \
           -p:Version="$RELEASE_VERSION" \
@@ -99,17 +100,41 @@ jobs:
 
     - name: Create release package
       run: |
-        echo "📦 Creating release package..."
+        echo "Creating release package..."
         cd bin
         zip -r "../${{ env.PLUGIN_NAME }}-v$RELEASE_VERSION.zip" *
         cd ..
-        
-        echo "✅ Release package created"
+
+        echo "Release package created"
         ls -la *.zip
+
+    - name: Generate SBOM (SPDX JSON)
+      uses: anchore/sbom-action@v0
+      with:
+        path: .
+        format: spdx-json
+        output-file: sbom.spdx.json
+
+    - name: Install Cosign
+      uses: sigstore/cosign-installer@v3
+
+    - name: Sign ZIP with Cosign (keyless)
+      env:
+        COSIGN_EXPERIMENTAL: "true"
+      run: |
+        cosign version
+        cosign sign-blob \
+          --yes \
+          --output-signature ${{ env.PLUGIN_NAME }}-v$RELEASE_VERSION.zip.sig \
+          ${{ env.PLUGIN_NAME }}-v$RELEASE_VERSION.zip
+
+    - name: Generate SHA256 checksum
+      run: |
+        sha256sum ${{ env.PLUGIN_NAME }}-v$RELEASE_VERSION.zip > ${{ env.PLUGIN_NAME }}-v$RELEASE_VERSION.zip.sha256
 
     - name: Generate release notes
       run: |
-        echo "📝 Generating release notes..."
+        echo "Generating release notes..."
         echo "## ${{ env.PLUGIN_NAME }} v$RELEASE_VERSION" > release-notes.md
         echo "" >> release-notes.md
         echo "### Installation" >> release-notes.md
@@ -118,14 +143,26 @@ jobs:
         echo "3. Restart Lidarr" >> release-notes.md
         echo "" >> release-notes.md
         echo "### Compatibility" >> release-notes.md
-        echo "- Lidarr: ${{ env.MINIMUM_LIDARR_VERSION }}+" >> release-notes.md
-        echo "- .NET: ${{ env.DOTNET_VERSION }}" >> release-notes.md
+        echo "- Lidarr: ${{ env.MINIMUM_LIDARR_VERSION }}+ (plugins branch)" >> release-notes.md
+        echo "- .NET: 8.0" >> release-notes.md
+        echo "" >> release-notes.md
+        echo "### Security" >> release-notes.md
+        echo "- SHA256 checksum provided for integrity verification" >> release-notes.md
+        echo "- Cosign signature for artifact authenticity" >> release-notes.md
+        echo "- SBOM (Software Bill of Materials) included" >> release-notes.md
+        echo "" >> release-notes.md
+        echo "### Changes" >> release-notes.md
+        echo "See [commit history](https://github.com/${{ github.repository }}/commits/v$RELEASE_VERSION) for detailed changes." >> release-notes.md
 
     - name: Create GitHub release
       uses: softprops/action-gh-release@v1
       with:
         name: ${{ env.PLUGIN_NAME }} v${{ env.RELEASE_VERSION }}
         body_path: release-notes.md
-        files: ${{ env.PLUGIN_NAME }}-v${{ env.RELEASE_VERSION }}.zip
+        files: |
+          ${{ env.PLUGIN_NAME }}-v${{ env.RELEASE_VERSION }}.zip
+          ${{ env.PLUGIN_NAME }}-v${{ env.RELEASE_VERSION }}.zip.sha256
+          ${{ env.PLUGIN_NAME }}-v${{ env.RELEASE_VERSION }}.zip.sig
+          sbom.spdx.json
         draft: false
         prerelease: false
