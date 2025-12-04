@@ -79,7 +79,8 @@ jobs:
         run: |
           if [ -d "tests/Minimal.Tests" ]; then
             dotnet build tests/Minimal.Tests/Minimal.Tests.csproj --configuration Release \
-              -p:UsePluginsBranch=true -p:RunAnalyzersDuringBuild=false -p:EnableNETAnalyzers=false
+              -p:UsePluginsBranch=true -p:PluginPackagingDisable=true \
+              -p:RunAnalyzersDuringBuild=false -p:EnableNETAnalyzers=false
           fi
 
       - name: Run tests with coverage
