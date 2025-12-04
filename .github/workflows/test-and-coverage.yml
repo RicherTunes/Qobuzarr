@@ -1,0 +1,118 @@
+name: Test and Coverage
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  DOTNET_SKIP_FIRST_TIME_EXPERIENCE: true
+  DOTNET_CLI_TELEMETRY_OPTOUT: true
+
+jobs:
+  test:
+    name: Test with Coverage
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          submodules: recursive
+          token: ${{ secrets.CI_PAT || github.token }}
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: |
+            6.0.x
+            8.0.x
+
+      - name: Cache NuGet packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.nuget/packages
+          key: ${{ runner.os }}-nuget-${{ hashFiles('**/*.csproj', '**/Directory.Packages.props', '**/NuGet.config') }}
+          restore-keys: |
+            ${{ runner.os }}-nuget-
+
+      - name: Setup Lidarr assemblies (plugins branch Docker)
+        run: |
+          set -euo pipefail
+          mkdir -p ext/Lidarr/_output/net6.0
+          IMAGE="ghcr.io/hotio/lidarr:pr-plugins"
+          echo "Pulling $IMAGE..."
+          docker pull "$IMAGE" || { echo "Docker pull failed"; exit 1; }
+          cid=$(docker create "$IMAGE")
+          docker cp "$cid:/app" ext/Lidarr/_extracted || docker cp "$cid:/opt/lidarr" ext/Lidarr/_extracted
+          docker rm "$cid" >/dev/null
+          find ext/Lidarr/_extracted -type f -name "*.dll" -exec cp {} ext/Lidarr/_output/net6.0 \;
+          ls -la ext/Lidarr/_output/net6.0/ | head -20
+
+      - name: Restore and build
+        run: |
+          dotnet restore Qobuzarr.csproj
+          dotnet build Qobuzarr.csproj --configuration Release --no-restore \
+            -p:UsePluginsBranch=true -p:PluginPackagingDisable=true \
+            -p:RunAnalyzersDuringBuild=false -p:EnableNETAnalyzers=false
+
+      - name: Build tests
+        run: |
+          if [ -d "tests/Minimal.Tests" ]; then
+            dotnet build tests/Minimal.Tests/Minimal.Tests.csproj --configuration Release \
+              -p:UsePluginsBranch=true -p:RunAnalyzersDuringBuild=false -p:EnableNETAnalyzers=false
+          fi
+
+      - name: Run tests with coverage
+        run: |
+          mkdir -p TestResults
+          if [ -f "tests/Minimal.Tests/Minimal.Tests.csproj" ]; then
+            dotnet test tests/Minimal.Tests/Minimal.Tests.csproj \
+              --configuration Release \
+              --collect "XPlat Code Coverage" \
+              --logger "trx;LogFileName=test-results.trx" \
+              --results-directory TestResults/ \
+              --filter "Category!=LiveIntegration"
+          elif [ -f "tests/run-tests.ps1" ]; then
+            pwsh -File ./tests/run-tests.ps1 -Configuration Release
+          else
+            dotnet test --configuration Release \
+              --collect "XPlat Code Coverage" \
+              --logger "trx;LogFileName=test-results.trx" \
+              --results-directory TestResults/
+          fi
+
+      - name: Install ReportGenerator
+        run: dotnet tool install -g dotnet-reportgenerator-globaltool
+
+      - name: Generate coverage summary
+        run: |
+          export PATH="$PATH:$HOME/.dotnet/tools"
+          COV=$(find TestResults -name "coverage.cobertura.xml" -type f | head -1)
+          if [ -n "$COV" ] && [ -f "$COV" ]; then
+            reportgenerator \
+              -reports:"$COV" \
+              -targetdir:"coverage-report" \
+              -reporttypes:"MarkdownSummary;HtmlInline_AzurePipelines"
+            echo "## Test Coverage Summary" >> $GITHUB_STEP_SUMMARY
+            cat coverage-report/Summary.md >> $GITHUB_STEP_SUMMARY || true
+          else
+            echo "No coverage file found"
+          fi
+
+      - name: Upload test and coverage artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-and-coverage
+          path: |
+            TestResults/**/*.trx
+            TestResults/**/coverage.cobertura.xml
+            coverage-report/**
+          retention-days: 14
