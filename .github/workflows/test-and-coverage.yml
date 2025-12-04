@@ -66,7 +66,7 @@ jobs:
           docker cp "$cid:/app" ext/Lidarr/_extracted || docker cp "$cid:/opt/lidarr" ext/Lidarr/_extracted
           docker rm "$cid" >/dev/null
           find ext/Lidarr/_extracted -type f -name "*.dll" -exec cp {} ext/Lidarr/_output/net6.0 \;
-          ls -la ext/Lidarr/_output/net6.0/ | head -20
+          echo "Extracted $(ls ext/Lidarr/_output/net6.0/*.dll 2>/dev/null | wc -l) assemblies"
 
       - name: Restore and build
         run: |
