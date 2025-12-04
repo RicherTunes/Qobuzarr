@@ -205,10 +205,10 @@ jobs:
 
         echo "Setting up Lidarr assemblies from plugins branch (Docker)..."
         set -e
-        mkdir -p ext/Lidarr/_output/net6.0
+        mkdir -p ext/Lidarr/_output/net8.0
         if ! docker --version >/dev/null 2>&1; then
           echo "[ERROR] Docker is required to fetch plugins-branch assemblies."
-          echo "        Install Docker or populate ext/Lidarr/_output/net6.0 via a trusted cache."
+          echo "        Install Docker or populate ext/Lidarr/_output/net8.0 via a trusted cache."
           exit 1
         fi
         IMAGE="ghcr.io/hotio/lidarr:pr-plugins"
@@ -223,29 +223,29 @@ jobs:
         echo "Extracting assemblies from container..."
         docker cp "$cid:/app" ext/Lidarr/_extracted || docker cp "$cid:/opt/lidarr" ext/Lidarr/_extracted
         docker rm "$cid" >/dev/null
-        find ext/Lidarr/_extracted -type f -name "*.dll" -print -exec cp {} ext/Lidarr/_output/net6.0 \;
+        find ext/Lidarr/_extracted -type f -name "*.dll" -print -exec cp {} ext/Lidarr/_output/net8.0 \;
 
-        if [ ! -f ext/Lidarr/_output/net6.0/Lidarr.dll ]; then
+        if [ ! -f ext/Lidarr/_output/net8.0/Lidarr.dll ]; then
           echo "[ERROR] Missing Lidarr.dll after extraction."
           exit 1
         fi
 
         # Guard: ensure plugins-branch API is present
-        if ! strings ext/Lidarr/_output/net6.0/Lidarr.Core.dll | grep -q "IDownloadProtocol"; then
+        if ! strings ext/Lidarr/_output/net8.0/Lidarr.Core.dll | grep -q "IDownloadProtocol"; then
           echo "[ERROR] Assemblies do not expose IDownloadProtocol (plugins branch API)."
           echo "        Ensure image 'ghcr.io/hotio/lidarr:pr-plugins' is accessible."
           exit 1
 
         fi
 
-        ls -la ext/Lidarr/_output/net6.0/ || true
-        if [ ! -f ext/Lidarr/_output/net6.0/Lidarr.dll ]; then
+        ls -la ext/Lidarr/_output/net8.0/ || true
+        if [ ! -f ext/Lidarr/_output/net8.0/Lidarr.dll ]; then
           echo "[ERROR] Missing Lidarr.dll after all setup attempts."
           exit 1
         fi
 
         # Detect plugins-branch API; if absent, fall back to UsePluginsBranch=false for fast-tests
-        if strings ext/Lidarr/_output/net6.0/Lidarr.Core.dll | grep -q "IDownloadProtocol"; then
+        if strings ext/Lidarr/_output/net8.0/Lidarr.Core.dll | grep -q "IDownloadProtocol"; then
           echo "PLUGIN_API=1" >> $GITHUB_ENV
           echo "USE_PLUGINS_BRANCH=true" >> $GITHUB_ENV
           echo "[OK] Detected plugins-branch API (IDownloadProtocol present)"
@@ -262,13 +262,13 @@ jobs:
     - name: List Lidarr assemblies
       if: ${{ env.CI_PAT_AVAILABLE == '1' }}
       run: |
-        echo "Listing ext/Lidarr/_output/net6.0 contents"
-        ls -la ext/Lidarr/_output/net6.0/ || true
-        if [ ! -f ext/Lidarr/_output/net6.0/Lidarr.dll ]; then
+        echo "Listing ext/Lidarr/_output/net8.0 contents"
+        ls -la ext/Lidarr/_output/net8.0/ || true
+        if [ ! -f ext/Lidarr/_output/net8.0/Lidarr.dll ]; then
           echo "[ERROR] Missing Lidarr.dll after extraction."
           exit 1
         fi
-        if ! strings ext/Lidarr/_output/net6.0/Lidarr.Core.dll | grep -q "IDownloadProtocol"; then
+        if ! strings ext/Lidarr/_output/net8.0/Lidarr.Core.dll | grep -q "IDownloadProtocol"; then
           echo "[WARN] Assemblies do not expose IDownloadProtocol (plugins branch API)."
           echo "       Proceeding with UsePluginsBranch=false for fast-tests."
         fi
@@ -362,7 +362,7 @@ jobs:
     - name: Setup Lidarr assemblies (plugins branch)
       run: |
         echo "🧰 Setting up Lidarr assemblies from plugins branch (Docker)..."
-        mkdir -p ext/Lidarr/_output/net6.0
+        mkdir -p ext/Lidarr/_output/net8.0
         set +e
         docker --version || DOCKER_MISSING=1
         if [ -z "$DOCKER_MISSING" ]; then
@@ -378,29 +378,29 @@ jobs:
           echo "Extracting assemblies from container..."
           docker cp "$cid:/app" ext/Lidarr/_extracted || docker cp "$cid:/opt/lidarr" ext/Lidarr/_extracted
           docker rm "$cid" >/dev/null
-          find ext/Lidarr/_extracted -type f -name "*.dll" -print -exec cp {} ext/Lidarr/_output/net6.0 \; || true
+          find ext/Lidarr/_extracted -type f -name "*.dll" -print -exec cp {} ext/Lidarr/_output/net8.0 \; || true
         else
           echo "Docker not available; will use fallback downloader."
         fi
         
-        if [ ! -f ext/Lidarr/_output/net6.0/Lidarr.dll ]; then
+        if [ ! -f ext/Lidarr/_output/net8.0/Lidarr.dll ]; then
           echo "Docker path did not yield Lidarr.dll. Using downloader fallback..."
           chmod +x ./download-lidarr-assemblies.sh || true
           ./download-lidarr-assemblies.sh --version ${{ env.MINIMUM_LIDARR_VERSION }} || DL_FAIL=1
-          if [ "$DL_FAIL" = "1" ] || [ ! -f ext/Lidarr/_output/net6.0/Lidarr.dll ]; then
+          if [ "$DL_FAIL" = "1" ] || [ ! -f ext/Lidarr/_output/net8.0/Lidarr.dll ]; then
             echo "Fallback failed or incomplete. Trying PowerShell script..."
             pwsh -File ./download-lidarr-assemblies.ps1 -LidarrVersion "${{ env.MINIMUM_LIDARR_VERSION }}" -Force
           fi
         fi
-        ls -la ext/Lidarr/_output/net6.0/ || true
+        ls -la ext/Lidarr/_output/net8.0/ || true
 
     - name: Dotnet info
       run: dotnet --info
 
     - name: List Lidarr assemblies
       run: |
-        echo "Listing ext/Lidarr/_output/net6.0 contents"
-        ls -la ext/Lidarr/_output/net6.0/ || true
+        echo "Listing ext/Lidarr/_output/net8.0 contents"
+        ls -la ext/Lidarr/_output/net8.0/ || true
 
     - name: Restore and build
       run: |

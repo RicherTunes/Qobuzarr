@@ -51,7 +51,7 @@ jobs:
       run: |
         echo "Setting up Lidarr assemblies from plugins branch (Docker)..."
         set -e
-        mkdir -p ext/Lidarr/_output/net6.0
+        mkdir -p ext/Lidarr/_output/net8.0
         IMAGE="ghcr.io/hotio/lidarr:pr-plugins"
         echo "Pulling $IMAGE (with retry)"
         n=0
@@ -64,9 +64,9 @@ jobs:
         echo "Extracting assemblies from container..."
         docker cp "$cid:/app" ext/Lidarr/_extracted || docker cp "$cid:/opt/lidarr" ext/Lidarr/_extracted
         docker rm "$cid" >/dev/null
-        find ext/Lidarr/_extracted -type f -name "*.dll" -print -exec cp {} ext/Lidarr/_output/net6.0 \;
+        find ext/Lidarr/_extracted -type f -name "*.dll" -print -exec cp {} ext/Lidarr/_output/net8.0 \;
 
-        if [ ! -f ext/Lidarr/_output/net6.0/Lidarr.dll ]; then
+        if [ ! -f ext/Lidarr/_output/net8.0/Lidarr.dll ]; then
           echo "[ERROR] Missing Lidarr.dll after extraction."
           exit 1
         fi

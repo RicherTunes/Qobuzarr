@@ -58,15 +58,15 @@ jobs:
       - name: Setup Lidarr assemblies (plugins branch Docker)
         run: |
           set -euo pipefail
-          mkdir -p ext/Lidarr/_output/net6.0
+          mkdir -p ext/Lidarr/_output/net8.0
           IMAGE="ghcr.io/hotio/lidarr:pr-plugins"
           echo "Pulling $IMAGE..."
           docker pull "$IMAGE" || { echo "Docker pull failed"; exit 1; }
           cid=$(docker create "$IMAGE")
           docker cp "$cid:/app" ext/Lidarr/_extracted || docker cp "$cid:/opt/lidarr" ext/Lidarr/_extracted
           docker rm "$cid" >/dev/null
-          find ext/Lidarr/_extracted -type f -name "*.dll" -exec cp {} ext/Lidarr/_output/net6.0 \;
-          echo "Extracted $(ls ext/Lidarr/_output/net6.0/*.dll 2>/dev/null | wc -l) assemblies"
+          find ext/Lidarr/_extracted -type f -name "*.dll" -exec cp {} ext/Lidarr/_output/net8.0 \;
+          echo "Extracted $(ls ext/Lidarr/_output/net8.0/*.dll 2>/dev/null | wc -l) assemblies"
 
       - name: Restore and build
         run: |
