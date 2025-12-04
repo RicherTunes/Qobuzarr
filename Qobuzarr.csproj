@@ -167,11 +167,11 @@
        automatic target from running (which fails during CodeQL because Lidarr assemblies aren't available). -->
   <UsingTask TaskName="ILRepack" AssemblyFile="$(PkgILRepack_Lib_MSBuild_Task)\tools\ILRepack.Lib.MSBuild.Task.dll" />
 
-  <!-- Prefer prebuilt assemblies prepared by CI at ext/Lidarr/_output/net6.0; fallback to source-built output if present -->
+  <!-- Prefer prebuilt assemblies prepared by CI at ext/Lidarr/_output/net8.0; fallback to source-built output if present -->
   <PropertyGroup>
-    <LidarrAssembliesPath>ext\Lidarr\_output\net6.0</LidarrAssembliesPath>
-    <LidarrAssembliesPath Condition="!Exists('$(LidarrAssembliesPath)\\Lidarr.dll') and Exists('ext\\Lidarr-source\\_output\\net6.0\\$(RuntimeIdentifier)\\Lidarr.dll')">ext\Lidarr-source\_output\net6.0\$(RuntimeIdentifier)</LidarrAssembliesPath>
-    <LidarrAssembliesPath Condition="!Exists('$(LidarrAssembliesPath)\\Lidarr.dll') and Exists('ext\\Lidarr-source\\_output\\net6.0\\Lidarr.dll')">ext\Lidarr-source\_output\net6.0</LidarrAssembliesPath>
+    <LidarrAssembliesPath>ext\Lidarr\_output\net8.0</LidarrAssembliesPath>
+    <LidarrAssembliesPath Condition="!Exists('$(LidarrAssembliesPath)\\Lidarr.dll') and Exists('ext\\Lidarr-source\\_output\\net8.0\\$(RuntimeIdentifier)\\Lidarr.dll')">ext\Lidarr-source\_output\net8.0\$(RuntimeIdentifier)</LidarrAssembliesPath>
+    <LidarrAssembliesPath Condition="!Exists('$(LidarrAssembliesPath)\\Lidarr.dll') and Exists('ext\\Lidarr-source\\_output\\net8.0\\Lidarr.dll')">ext\Lidarr-source\_output\net8.0</LidarrAssembliesPath>
   </PropertyGroup>
 
   <!-- ✅ SOURCE-BUILT ASSEMBLIES: Use complete assemblies with DownloadProtocol support -->
