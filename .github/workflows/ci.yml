@@ -26,6 +26,16 @@ on:
         required: false
         default: fast
         options: [ fast, full ]
+      enable_live:
+        description: 'Run live integration tests (requires secrets/env)'
+        type: boolean
+        required: false
+        default: false
+      run_qobuzarr_tests:
+        description: 'Run Qobuzarr.Tests (long-running, full mode only)'
+        type: boolean
+        required: false
+        default: false
       max_real_albums:
         description: 'Cap for real-data simulations (full mode)'
         required: false
@@ -174,10 +184,10 @@ jobs:
         dotnet-version: 6.0.x
 
     - name: Cache NuGet packages
-      uses: actions/cache@v3
+      uses: actions/cache@v4
       with:
         path: ~/.nuget/packages
-        key: ${{ runner.os }}-nuget-${{ hashFiles('**/*.csproj') }}
+        key: ${{ runner.os }}-nuget-${{ hashFiles('**/*.csproj', '**/Directory.Packages.props', '**/NuGet.config') }}
         restore-keys: |
           ${{ runner.os }}-nuget-
 
@@ -312,6 +322,8 @@ jobs:
       QOBUZ_TEST_MAX_SIM_SCENARIOS: ${{ github.event_name == 'workflow_dispatch' && inputs.max_sim_scenarios || '200' }}
       QOBUZ_TEST_CONCURRENCY: ${{ github.event_name == 'workflow_dispatch' && inputs.concurrency || '50' }}
       QOBUZ_TEST_TIMEOUT_MS: ${{ github.event_name == 'workflow_dispatch' && inputs.timeout_ms || '120000' }}
+      ENABLE_LIVE_INTEGRATION_TESTS: ${{ github.event_name == 'workflow_dispatch' && inputs.enable_live && 'true' || 'false' }}
+      QOBUZ_RUN_EXTENDED_TESTS: ${{ github.event_name == 'workflow_dispatch' && inputs.run_qobuzarr_tests && 'true' || 'false' }}
     steps:
     - name: Checkout (no submodules)
       uses: actions/checkout@v4
@@ -338,10 +350,10 @@ jobs:
         dotnet-version: '6.0.x'
 
     - name: Cache NuGet packages
-      uses: actions/cache@v3
+      uses: actions/cache@v4
       with:
         path: ~/.nuget/packages
-        key: ${{ runner.os }}-nuget-${{ hashFiles('**/*.csproj') }}
+        key: ${{ runner.os }}-nuget-${{ hashFiles('**/*.csproj', '**/Directory.Packages.props', '**/NuGet.config') }}
         restore-keys: |
           ${{ runner.os }}-nuget-
 
