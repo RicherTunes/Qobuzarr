@@ -57,13 +57,15 @@ jobs:
           dotnet restore Qobuzarr.csproj \
             -p:TargetFramework=net8.0 \
             -p:LidarrAssembliesPath=ext/Lidarr/_output/net8.0
+          # NOTE: PluginPackagingDisable must be FALSE (default) to enable ILRepack.
+          # ILRepack merges Lidarr.Plugin.Common.dll and other dependencies INTO
+          # the main plugin DLL, making it self-contained and loadable by Lidarr.
           dotnet build Qobuzarr.csproj \
             --configuration Release \
             --no-restore \
             -p:TargetFramework=net8.0 \
             -p:LidarrAssembliesPath=ext/Lidarr/_output/net8.0 \
             -p:UsePluginsBranch=true \
-            -p:PluginPackagingDisable=true \
             -p:RunAnalyzersDuringBuild=false \
             -p:EnableNETAnalyzers=false \
             -p:TreatWarningsAsErrors=false
