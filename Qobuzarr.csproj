@@ -157,16 +157,11 @@
     <PackageReference Include="System.Text.Json" />
     <PackageReference Include="System.Net.Http" />
     <PackageReference Include="System.Text.RegularExpressions" />
-    <!-- ILRepack: ExcludeAssets="build" prevents the NuGet package's automatic ILRepack target from running.
-         GeneratePathProperty="true" gives us $(PkgILRepack_Lib_MSBuild_Task) to import just the task DLL.
-         Our PluginPackaging.targets uses the ILRepack task directly for the RepackPlugin target. -->
-    <PackageReference Include="ILRepack.Lib.MSBuild.Task" PrivateAssets="all" ExcludeAssets="build" GeneratePathProperty="true" />
+    <!-- ILRepack: PrivateAssets="all" keeps it out of transitive dependencies.
+         The package provides the ILRepack task definition automatically.
+         Our PluginPackaging.targets uses the ILRepack task from the package. -->
+    <PackageReference Include="ILRepack.Lib.MSBuild.Task" PrivateAssets="all" />
   </ItemGroup>
-
-  <!-- Explicitly import the ILRepack task since ExcludeAssets="build" blocks the automatic import.
-       This makes the task available to PluginPackaging.targets while preventing the NuGet package's
-       automatic target from running (which fails during CodeQL because Lidarr assemblies aren't available). -->
-  <UsingTask TaskName="ILRepack" AssemblyFile="$(PkgILRepack_Lib_MSBuild_Task)\tools\ILRepack.Lib.MSBuild.Task.dll" />
 
   <!-- Prefer prebuilt assemblies prepared by CI at ext/Lidarr/_output/net8.0; fallback to source-built output if present -->
   <PropertyGroup>
