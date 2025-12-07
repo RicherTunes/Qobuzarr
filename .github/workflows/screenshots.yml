@@ -65,7 +65,7 @@ jobs:
             -p:TargetFramework=net6.0 \
             -p:LidarrAssembliesPath=ext/Lidarr/_output/net6.0 \
             -p:UsePluginsBranch=true \
-            -p:PluginPackagingDisable=true \
+            -p:PluginPackagingDisable=false \
             -p:RunAnalyzersDuringBuild=false \
             -p:EnableNETAnalyzers=false \
             -p:TreatWarningsAsErrors=false
