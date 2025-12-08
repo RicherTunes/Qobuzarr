@@ -165,7 +165,7 @@
   <!-- Explicitly import the ILRepack task since ExcludeAssets="build" blocks the automatic import.
        This makes the task available to PluginPackaging.targets while preventing the NuGet package's
        automatic target from running (which fails during CodeQL because Lidarr assemblies aren't available). -->
-  <UsingTask TaskName="ILRepack" AssemblyFile="$(PkgILRepack_Lib_MSBuild_Task)\tools\ILRepack.Lib.MSBuild.Task.dll" />
+  <UsingTask TaskName="ILRepack" AssemblyFile="$(PkgILRepack_Lib_MSBuild_Task)\build\ILRepack.Lib.MSBuild.Task.dll" />
 
   <!-- Prefer prebuilt assemblies prepared by CI at ext/Lidarr/_output/net8.0; fallback to source-built output if present -->
   <PropertyGroup>
