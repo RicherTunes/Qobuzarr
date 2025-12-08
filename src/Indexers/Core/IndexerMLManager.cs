@@ -15,7 +15,10 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers.Core
     public class IndexerMLManager : IIndexerMLManager
     {
         private readonly ISecureMLModelLoader _secureModelLoader;
-        private readonly QobuzIndexerSettings _settings;
+        private readonly Func<QobuzIndexerSettings> _settingsProvider;
+
+        // Lazy accessor for settings - Definition is null during constructor
+        private QobuzIndexerSettings _settings => _settingsProvider();
         private readonly Logger _logger;
         
         // ML Performance tracking
@@ -24,11 +27,11 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers.Core
 
         public IndexerMLManager(
             ISecureMLModelLoader secureModelLoader,
-            QobuzIndexerSettings settings,
+            Func<QobuzIndexerSettings> settingsProvider,
             Logger logger)
         {
             _secureModelLoader = secureModelLoader ?? throw new ArgumentNullException(nameof(secureModelLoader));
-            _settings = settings ?? throw new ArgumentNullException(nameof(settings));
+            _settingsProvider = settingsProvider ?? throw new ArgumentNullException(nameof(settingsProvider));
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         }
 

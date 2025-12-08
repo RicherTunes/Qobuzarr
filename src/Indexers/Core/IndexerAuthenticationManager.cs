@@ -15,16 +15,19 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers.Core
     public class IndexerAuthenticationManager : IIndexerAuthenticationManager
     {
         private readonly IQobuzAuthenticationService _authService;
-        private readonly QobuzIndexerSettings _settings;
+        private readonly Func<QobuzIndexerSettings> _settingsProvider;
+
+        // Lazy accessor for settings - Definition is null during constructor
+        private QobuzIndexerSettings _settings => _settingsProvider();
         private readonly Logger _logger;
 
         public IndexerAuthenticationManager(
             IQobuzAuthenticationService authService,
-            QobuzIndexerSettings settings,
+            Func<QobuzIndexerSettings> settingsProvider,
             Logger logger)
         {
             _authService = authService ?? throw new ArgumentNullException(nameof(authService));
-            _settings = settings ?? throw new ArgumentNullException(nameof(settings));
+            _settingsProvider = settingsProvider ?? throw new ArgumentNullException(nameof(settingsProvider));
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         }
 

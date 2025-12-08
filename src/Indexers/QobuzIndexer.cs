@@ -66,9 +66,9 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
             _apiClient = apiClient ?? throw new ArgumentNullException(nameof(apiClient));
             
             // Initialize decomposed service managers
-            _authManager = new IndexerAuthenticationManager(authService, Settings, logger);
+            _authManager = new IndexerAuthenticationManager(authService, () => Settings, logger);
             _rateLimitManager = new IndexerRateLimitManager(logger);
-            _mlManager = new IndexerMLManager(secureModelLoader, Settings, logger);
+            _mlManager = new IndexerMLManager(secureModelLoader, () => Settings, logger);
             
             // Shared mixin for incremental adoption of common features
             _mixin = new StreamingIndexerMixin(QobuzarrConstants.ServiceName);
