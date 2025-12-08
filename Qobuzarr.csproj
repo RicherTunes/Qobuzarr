@@ -132,17 +132,15 @@
   <ItemGroup>
     <!-- Shared dependencies - provided by Lidarr host, don't bundle -->
     <PackageReference Include="Newtonsoft.Json">
-      <Private>false</Private>
+      
       <ExcludeAssets>runtime</ExcludeAssets>
     </PackageReference>
     <PackageReference Include="NLog">
-      <Private>false</Private>
+      
       <ExcludeAssets>runtime</ExcludeAssets>
     </PackageReference>
-    <PackageReference Include="FluentValidation">
-      <Private>false</Private>
-      <ExcludeAssets>runtime</ExcludeAssets>
-    </PackageReference>
+    <!-- FluentValidation: Will be merged by ILRepack to avoid version conflicts -->
+    <PackageReference Include="FluentValidation" />
     <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" />
     
     <!-- Plugin-specific dependencies - must be bundled -->
@@ -179,23 +177,23 @@
   <ItemGroup>
     <Reference Include="Lidarr">
       <HintPath>$(LidarrAssembliesPath)\Lidarr.dll</HintPath>
-      <Private>false</Private>
+      
     </Reference>
     <Reference Include="Lidarr.Core">
       <HintPath>$(LidarrAssembliesPath)\Lidarr.Core.dll</HintPath>
-      <Private>false</Private>
+      
     </Reference>
     <Reference Include="Lidarr.Common">
       <HintPath>$(LidarrAssembliesPath)\Lidarr.Common.dll</HintPath>
-      <Private>false</Private>
+      
     </Reference>
     <Reference Include="Lidarr.Http">
       <HintPath>$(LidarrAssembliesPath)\Lidarr.Http.dll</HintPath>
-      <Private>false</Private>
+      
     </Reference>
     <Reference Include="Lidarr.SignalR">
       <HintPath>$(LidarrAssembliesPath)\Lidarr.SignalR.dll</HintPath>
-      <Private>false</Private>
+      
     </Reference>
     <!-- Shared library reference - prefer submodule for development -->
     <ProjectReference Include="ext\Lidarr.Plugin.Common\src\Lidarr.Plugin.Common.csproj" Condition="'$(UseCommonStubs)' != 'true' and '$(CommonPackageVersion)' == ''">
