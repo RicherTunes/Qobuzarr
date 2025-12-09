@@ -1,0 +1,378 @@
+name: Multi-Plugin CI Gate
+
+# Enhanced multi-plugin smoke test that acts as a CI gate.
+# Ensures all RicherTunes plugins can co-exist without breaking each other.
+# This runs on push/PR to catch regressions immediately.
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'src/**'
+      - 'Qobuzarr.csproj'
+      - '.github/workflows/multi-plugin-ci-gate.yml'
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'src/**'
+      - 'Qobuzarr.csproj'
+  workflow_dispatch:
+  schedule:
+    # Run daily at 3 AM UTC to catch any drift
+    - cron: '0 3 * * *'
+
+permissions:
+  contents: read
+
+env:
+  DOTNET_VERSION: '8.0.x'
+  LIDARR_DOCKER_VERSION: 'pr-plugins-2.14.2.4786'
+
+jobs:
+  multi-plugin-test:
+    name: Multi-Plugin Co-existence
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    outputs:
+      brainarr_loaded: ${{ steps.verify.outputs.brainarr_loaded }}
+      qobuzarr_loaded: ${{ steps.verify.outputs.qobuzarr_loaded }}
+      tidalarr_loaded: ${{ steps.verify.outputs.tidalarr_loaded }}
+      all_passed: ${{ steps.verify.outputs.all_passed }}
+
+    steps:
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: |
+            6.0.x
+            8.0.x
+
+      - name: Extract Lidarr Assemblies from Docker
+        run: |
+          echo "=== Extracting Lidarr Assemblies ==="
+          docker pull ghcr.io/hotio/lidarr:${{ env.LIDARR_DOCKER_VERSION }}
+          CONTAINER_ID=$(docker create ghcr.io/hotio/lidarr:${{ env.LIDARR_DOCKER_VERSION }})
+
+          mkdir -p lidarr-assemblies
+          docker cp "$CONTAINER_ID:/app/bin/." lidarr-assemblies/ || docker cp "$CONTAINER_ID:/opt/Lidarr/." lidarr-assemblies/
+          docker rm "$CONTAINER_ID"
+
+          echo "Extracted $(ls lidarr-assemblies/*.dll 2>/dev/null | wc -l) DLL files"
+
+      - name: Checkout Brainarr
+        uses: actions/checkout@v4
+        with:
+          repository: RicherTunes/Brainarr
+          ref: main
+          path: plugins/brainarr
+          submodules: recursive
+          token: ${{ secrets.SUBMODULES_TOKEN || github.token }}
+
+      - name: Checkout Qobuzarr
+        uses: actions/checkout@v4
+        with:
+          repository: RicherTunes/Qobuzarr
+          ref: ${{ github.ref }}
+          path: plugins/qobuzarr
+          submodules: recursive
+          token: ${{ secrets.SUBMODULES_TOKEN || github.token }}
+
+      - name: Checkout Tidalarr
+        uses: actions/checkout@v4
+        with:
+          repository: RicherTunes/Tidalarr
+          ref: main
+          path: plugins/tidalarr
+          submodules: recursive
+          token: ${{ secrets.SUBMODULES_TOKEN || github.token }}
+
+      - name: Copy Assemblies to Plugin Locations
+        run: |
+          # Qobuzarr
+          mkdir -p plugins/qobuzarr/ext/Lidarr/_output/net6.0
+          cp lidarr-assemblies/*.dll plugins/qobuzarr/ext/Lidarr/_output/net6.0/ 2>/dev/null || true
+
+          # Tidalarr
+          mkdir -p plugins/tidalarr/ext/Lidarr/_output/net6.0
+          cp lidarr-assemblies/*.dll plugins/tidalarr/ext/Lidarr/_output/net6.0/ 2>/dev/null || true
+
+          # Brainarr
+          mkdir -p plugins/brainarr/ext/Lidarr-docker/_output/net6.0
+          cp lidarr-assemblies/*.dll plugins/brainarr/ext/Lidarr-docker/_output/net6.0/ 2>/dev/null || true
+
+      - name: Build Brainarr
+        run: |
+          cd plugins/brainarr
+          dotnet restore Brainarr.Plugin/Brainarr.Plugin.csproj -p:TargetFramework=net6.0
+          dotnet build Brainarr.Plugin/Brainarr.Plugin.csproj \
+            --configuration Release --no-restore --framework net6.0 \
+            -p:LidarrPath="${{ github.workspace }}/lidarr-assemblies" \
+            -p:PluginPackagingDisable=true -m:1
+          echo "Brainarr build complete"
+
+      - name: Build Qobuzarr
+        run: |
+          cd plugins/qobuzarr
+          dotnet restore Qobuzarr.csproj -p:TargetFramework=net6.0
+          dotnet build Qobuzarr.csproj \
+            --configuration Release --no-restore --framework net6.0 \
+            -p:RunAnalyzersDuringBuild=false -p:EnableNETAnalyzers=false \
+            -p:PluginPackagingDisable=true -m:1
+          echo "Qobuzarr build complete"
+
+      - name: Build Tidalarr
+        run: |
+          cd plugins/tidalarr
+          dotnet restore src/Tidalarr/Tidalarr.csproj -p:TargetFramework=net6.0
+          dotnet build src/Tidalarr/Tidalarr.csproj \
+            --configuration Release --no-restore --framework net6.0 \
+            -p:PluginPackagingDisable=true \
+            -p:RunAnalyzersDuringBuild=false -p:EnableNETAnalyzers=false -m:1
+          echo "Tidalarr build complete"
+
+      - name: Stage All Plugins
+        run: |
+          mkdir -p staged-plugins/RicherTunes/{Brainarr,Qobuzarr,Tidalarr}
+
+          # Brainarr
+          find plugins/brainarr -name 'Lidarr.Plugin.Brainarr.dll' -path '*/bin/*' -exec cp {} staged-plugins/RicherTunes/Brainarr/ \;
+          cp plugins/brainarr/plugin.json staged-plugins/RicherTunes/Brainarr/ 2>/dev/null || true
+
+          # Qobuzarr
+          find plugins/qobuzarr -name 'Lidarr.Plugin.Qobuzarr.dll' -path '*/bin/*' -exec cp {} staged-plugins/RicherTunes/Qobuzarr/ \;
+          cp plugins/qobuzarr/plugin.json staged-plugins/RicherTunes/Qobuzarr/ 2>/dev/null || true
+
+          # Tidalarr
+          find plugins/tidalarr -name 'Lidarr.Plugin.Tidalarr.dll' -path '*/bin/*' -exec cp {} staged-plugins/RicherTunes/Tidalarr/ \;
+          cp plugins/tidalarr/plugin.json staged-plugins/RicherTunes/Tidalarr/ 2>/dev/null || true
+
+          echo "=== Staged Plugins ==="
+          find staged-plugins -type f -name "*.dll" -exec ls -lh {} \;
+
+      - name: Start Lidarr with All Plugins
+        run: |
+          docker run -d --name lidarr-multitest \
+            -p 8686:8686 \
+            -v "${{ github.workspace }}/staged-plugins:/config/plugins:ro" \
+            -e PUID=1000 -e PGID=1000 \
+            ghcr.io/hotio/lidarr:${{ env.LIDARR_DOCKER_VERSION }}
+
+          # Wait for config.xml
+          echo "Waiting for Lidarr to initialize..."
+          for i in {1..60}; do
+            if docker exec lidarr-multitest test -f /config/config.xml 2>/dev/null; then
+              echo "Config ready!"
+              break
+            fi
+            sleep 2
+          done
+
+          # Configure auth
+          docker exec lidarr-multitest sed -i 's|<AuthenticationMethod>.*</AuthenticationMethod>|<AuthenticationMethod>Forms</AuthenticationMethod>|' /config/config.xml
+          docker exec lidarr-multitest sed -i 's|<AuthenticationRequired>.*</AuthenticationRequired>|<AuthenticationRequired>DisabledForLocalAddresses</AuthenticationRequired>|' /config/config.xml
+          docker restart lidarr-multitest
+
+          # Wait for web
+          for i in {1..60}; do
+            if curl -fsS http://localhost:8686 >/dev/null 2>&1; then
+              echo "Lidarr ready!"
+              break
+            fi
+            sleep 2
+          done
+
+      - name: Verify All Plugins via API
+        id: verify
+        run: |
+          set -euo pipefail
+
+          APIKEY=$(docker exec lidarr-multitest sh -c "sed -n 's:.*<ApiKey>\(.*\)</ApiKey>.*:\1:p' /config/config.xml")
+          echo "API Key: ${APIKEY:0:4}..."
+
+          BRAINARR_LOADED="false"
+          QOBUZARR_LOADED="false"
+          TIDALARR_LOADED="false"
+
+          echo ""
+          echo "=== Checking Brainarr (Import List) ==="
+          IMPORTLIST_SCHEMA=$(curl -fsS -H "X-Api-Key: $APIKEY" "http://localhost:8686/api/v1/importlist/schema" 2>&1)
+          if grep -qi "brainarr" <<< "$IMPORTLIST_SCHEMA"; then
+            echo "PASS: Brainarr import list detected"
+            BRAINARR_LOADED="true"
+          else
+            echo "FAIL: Brainarr NOT detected"
+          fi
+
+          echo ""
+          echo "=== Checking Qobuzarr (Indexer + Download Client) ==="
+          INDEXER_OK="false"
+          CLIENT_OK="false"
+
+          INDEXER_SCHEMA=$(curl -fsS -H "X-Api-Key: $APIKEY" "http://localhost:8686/api/v1/indexer/schema" 2>&1)
+          if grep -qi "QobuzIndexer" <<< "$INDEXER_SCHEMA"; then
+            echo "PASS: QobuzIndexer detected"
+            INDEXER_OK="true"
+          else
+            echo "FAIL: QobuzIndexer NOT detected"
+          fi
+
+          DOWNLOADCLIENT_SCHEMA=$(curl -fsS -H "X-Api-Key: $APIKEY" "http://localhost:8686/api/v1/downloadclient/schema" 2>&1)
+          if grep -qi "QobuzDownloadClient" <<< "$DOWNLOADCLIENT_SCHEMA"; then
+            echo "PASS: QobuzDownloadClient detected"
+            CLIENT_OK="true"
+          else
+            echo "FAIL: QobuzDownloadClient NOT detected"
+          fi
+
+          if [ "$INDEXER_OK" = "true" ] && [ "$CLIENT_OK" = "true" ]; then
+            QOBUZARR_LOADED="true"
+          fi
+
+          echo ""
+          echo "=== Checking Tidalarr (Download Client) ==="
+          if grep -qi "TidalarrDownloadClient" <<< "$DOWNLOADCLIENT_SCHEMA"; then
+            echo "PASS: TidalarrDownloadClient detected"
+            TIDALARR_LOADED="true"
+          else
+            echo "FAIL: TidalarrDownloadClient NOT detected"
+          fi
+
+          echo ""
+          echo "=== Checking Delay Profiles (Protocol Registration) ==="
+          PROFILES=$(curl -fsS -H "X-Api-Key: $APIKEY" "http://localhost:8686/api/v1/delayprofile" 2>&1)
+          grep -oE '"protocol":"[^"]+"' <<< "$PROFILES" | sort -u || true
+
+          # Determine overall pass/fail
+          ALL_PASSED="false"
+          if [ "$BRAINARR_LOADED" = "true" ] && [ "$QOBUZARR_LOADED" = "true" ] && [ "$TIDALARR_LOADED" = "true" ]; then
+            ALL_PASSED="true"
+          fi
+
+          echo ""
+          echo "=== SUMMARY ==="
+          echo "Brainarr:  $BRAINARR_LOADED"
+          echo "Qobuzarr:  $QOBUZARR_LOADED"
+          echo "Tidalarr:  $TIDALARR_LOADED"
+          echo "All Passed: $ALL_PASSED"
+
+          # Set outputs
+          echo "brainarr_loaded=$BRAINARR_LOADED" >> $GITHUB_OUTPUT
+          echo "qobuzarr_loaded=$QOBUZARR_LOADED" >> $GITHUB_OUTPUT
+          echo "tidalarr_loaded=$TIDALARR_LOADED" >> $GITHUB_OUTPUT
+          echo "all_passed=$ALL_PASSED" >> $GITHUB_OUTPUT
+
+          # FAIL THE BUILD if any plugin didn't load
+          if [ "$ALL_PASSED" != "true" ]; then
+            echo ""
+            echo "FAILED: Not all plugins loaded correctly!"
+            echo "=== Container Logs (errors) ==="
+            docker logs lidarr-multitest 2>&1 | grep -iE "error|exception|fail" | tail -30 || true
+            exit 1
+          fi
+
+          echo ""
+          echo "SUCCESS: All plugins co-exist without conflicts!"
+
+      - name: Setup Node (for screenshots)
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install Playwright
+        run: |
+          npm i -D playwright@1.48.2
+          npx --yes playwright install --with-deps chromium
+
+      - name: Capture Multi-Plugin Screenshots
+        continue-on-error: true
+        run: |
+          mkdir -p screenshots
+
+          cat > capture.mjs << 'EOF'
+          import { chromium } from 'playwright';
+
+          const url = 'http://localhost:8686';
+
+          async function capture() {
+            const browser = await chromium.launch({ headless: true });
+            const page = await browser.newPage({ viewport: { width: 1400, height: 900 } });
+
+            await page.goto(url, { waitUntil: 'networkidle', timeout: 30000 });
+            await page.waitForTimeout(2000);
+
+            // Settings > Download Clients (shows Qobuzarr & Tidalarr)
+            await page.click('a[href*="/settings"]');
+            await page.waitForTimeout(1000);
+            await page.click('a[href*="/settings/downloadclients"]');
+            await page.waitForTimeout(2000);
+            await page.click('button:has-text("Add"), div[class*="Add"]', { force: true }).catch(() => {});
+            await page.waitForTimeout(2000);
+
+            // Scroll to show streaming clients
+            const modal = await page.$('div[class*="ModalContent"]');
+            if (modal) await modal.evaluate(el => el.scrollTop = el.scrollHeight / 2);
+            await page.waitForTimeout(500);
+
+            await page.screenshot({ path: 'screenshots/multi-plugin-downloadclients.png' });
+            console.log('Captured: multi-plugin-downloadclients.png');
+
+            await page.keyboard.press('Escape');
+            await page.waitForTimeout(500);
+
+            // Settings > Import Lists (shows Brainarr)
+            await page.click('a[href*="/settings/importlists"]');
+            await page.waitForTimeout(2000);
+            await page.click('button:has-text("Add"), div[class*="Add"]', { force: true }).catch(() => {});
+            await page.waitForTimeout(2000);
+
+            await page.screenshot({ path: 'screenshots/multi-plugin-importlists.png' });
+            console.log('Captured: multi-plugin-importlists.png');
+
+            await browser.close();
+          }
+
+          capture().catch(e => { console.error(e); process.exit(1); });
+          EOF
+
+          node capture.mjs
+
+      - name: Upload Screenshots
+        uses: actions/upload-artifact@v4
+        with:
+          name: multi-plugin-screenshots
+          path: screenshots/*.png
+          if-no-files-found: ignore
+
+      - name: Show Logs on Failure
+        if: failure()
+        run: |
+          echo "=== Container Logs ==="
+          docker logs lidarr-multitest 2>&1 | tail -100 || true
+
+      - name: Cleanup
+        if: always()
+        run: docker rm -f lidarr-multitest || true
+
+  # Summary job for branch protection
+  ci-gate-result:
+    name: CI Gate Result
+    runs-on: ubuntu-latest
+    needs: multi-plugin-test
+    if: always()
+    steps:
+      - name: Check Results
+        run: |
+          echo "=== Multi-Plugin CI Gate Results ==="
+          echo "Brainarr:  ${{ needs.multi-plugin-test.outputs.brainarr_loaded }}"
+          echo "Qobuzarr:  ${{ needs.multi-plugin-test.outputs.qobuzarr_loaded }}"
+          echo "Tidalarr:  ${{ needs.multi-plugin-test.outputs.tidalarr_loaded }}"
+          echo "All Passed: ${{ needs.multi-plugin-test.outputs.all_passed }}"
+
+          if [ "${{ needs.multi-plugin-test.outputs.all_passed }}" != "true" ]; then
+            echo ""
+            echo "CI GATE FAILED: Plugin co-existence test did not pass"
+            exit 1
+          fi
+
+          echo ""
+          echo "CI GATE PASSED: All plugins can co-exist"
