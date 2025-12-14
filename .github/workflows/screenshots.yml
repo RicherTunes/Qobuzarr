@@ -36,34 +36,29 @@ jobs:
       - name: Setup .NET
         uses: actions/setup-dotnet@v5
         with:
-          dotnet-version: |
-            6.0.x
-            8.0.x
+          dotnet-version: 8.0.x
 
       - name: Extract Lidarr Assemblies from Docker
         run: |
           docker pull ghcr.io/hotio/lidarr:${{ env.LIDARR_DOCKER_VERSION }}
           docker create --name lidarr-extract ghcr.io/hotio/lidarr:${{ env.LIDARR_DOCKER_VERSION }}
-          # Lidarr plugins branch (v2.x) runs .NET 6.0 runtime - extract to net6.0 folder
-          mkdir -p ext/Lidarr/_output/net6.0
-          docker cp lidarr-extract:/app/bin/. ext/Lidarr/_output/net6.0/
+          # Lidarr 3.x plugins branch runs .NET 8.0 runtime
+          mkdir -p ext/Lidarr/_output/net8.0
+          docker cp lidarr-extract:/app/bin/. ext/Lidarr/_output/net8.0/
           docker rm lidarr-extract
-          ls -la ext/Lidarr/_output/net6.0/ | head -20
+          ls -la ext/Lidarr/_output/net8.0/ | head -20
 
       - name: Build Plugin
         run: |
-          # CRITICAL: Build with net6.0 to match Lidarr plugins branch runtime (.NET 6.0)
-          # The plugins branch (v2.x) still uses .NET 6.0, not .NET 8.0
-          # Building for net8.0 causes ReflectionTypeLoadException when plugin loads
-          # Must restore and build with matching TargetFramework to generate correct assets
+          # Lidarr 3.x plugins branch requires .NET 8.0
           dotnet restore Qobuzarr.csproj \
-            -p:TargetFramework=net6.0 \
-            -p:LidarrAssembliesPath=ext/Lidarr/_output/net6.0
+            -p:TargetFramework=net8.0 \
+            -p:LidarrAssembliesPath=ext/Lidarr/_output/net8.0
           dotnet build Qobuzarr.csproj \
             --configuration Release \
             --no-restore \
-            -p:TargetFramework=net6.0 \
-            -p:LidarrAssembliesPath=ext/Lidarr/_output/net6.0 \
+            -p:TargetFramework=net8.0 \
+            -p:LidarrAssembliesPath=ext/Lidarr/_output/net8.0 \
             -p:UsePluginsBranch=true \
             -p:PluginPackagingDisable=false \
             -p:RunAnalyzersDuringBuild=false \
@@ -178,14 +173,20 @@ jobs:
           fi
           APIKEY=$(docker exec lidarr-ss sh -lc "sed -n 's:.*<ApiKey>\\(.*\\)</ApiKey>.*:\\1:p' /config/config.xml")
           echo "Using API key: ${APIKEY:0:4}..."
+          # Check both indexer and download client schemas for complete plugin detection
           for i in $(seq 1 30); do
-            if curl -fsS -H "X-Api-Key: $APIKEY" http://localhost:8686/api/v1/indexer/schema | grep -qi Qobuzarr; then
-              echo "Qobuzarr plugin detected via API"
+            INDEXER_RESPONSE=$(curl -fsS -H "X-Api-Key: $APIKEY" http://localhost:8686/api/v1/indexer/schema 2>/dev/null || echo "")
+            DOWNLOAD_RESPONSE=$(curl -fsS -H "X-Api-Key: $APIKEY" http://localhost:8686/api/v1/downloadclient/schema 2>/dev/null || echo "")
+            if echo "$INDEXER_RESPONSE" | grep -qi "Qobuzarr" && echo "$DOWNLOAD_RESPONSE" | grep -qi "Qobuzarr"; then
+              echo "Qobuzarr plugin detected (both indexer and download client)"
               exit 0
+            elif echo "$INDEXER_RESPONSE" | grep -qi "Qobuzarr"; then
+              echo "Qobuzarr indexer detected, waiting for download client..."
             fi
             sleep 2
           done
-          echo "Qobuzarr plugin not detected from Lidarr API after waiting" >&2
+          echo "Qobuzarr plugin not fully detected from Lidarr API after waiting" >&2
+          echo "Indexer schema response (first 500 chars): ${INDEXER_RESPONSE:0:500}"
           exit 1
 
       - name: Setup Node

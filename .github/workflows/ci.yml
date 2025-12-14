@@ -173,15 +173,6 @@ jobs:
       uses: actions/setup-dotnet@v4
       with:
         dotnet-version: ${{ env.DOTNET_VERSION }}
-    - name: Setup .NET 6 runtime (tests)
-      uses: actions/setup-dotnet@v4
-      with:
-        dotnet-version: '6.0.x'
-
-    - name: Setup .NET 6.x (test runtime)
-      uses: actions/setup-dotnet@v4
-      with:
-        dotnet-version: 6.0.x
 
     - name: Cache NuGet packages
       uses: actions/cache@v4
@@ -344,10 +335,6 @@ jobs:
       uses: actions/setup-dotnet@v4
       with:
         dotnet-version: ${{ env.DOTNET_VERSION }}
-    - name: Setup .NET 6 runtime (tests)
-      uses: actions/setup-dotnet@v4
-      with:
-        dotnet-version: '6.0.x'
 
     - name: Cache NuGet packages
       uses: actions/cache@v4
