@@ -5,7 +5,31 @@
     <EnableNETAnalyzers>true</EnableNETAnalyzers>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
     <WarningsAsErrors>*</WarningsAsErrors>
-    <NoWarn>CS1591</NoWarn>
+    <!-- Comprehensive NoWarn suppressions for test projects -->
+    <!-- CS0219: Variable assigned but not used (acceptable in test setup) -->
+    <!-- CS0618: Obsolete members (tests may need to use deprecated APIs for coverage) -->
+    <!-- CS1591: Missing XML comment (not needed for tests) -->
+    <!-- CS1998: Async method without await (some test signatures require async) -->
+    <!-- CS8632: Nullable annotations context -->
+    <!-- CA1001: Type owns disposable fields (test fixtures manage lifecycle differently) -->
+    <!-- CA1304/CA1305/CA1310/CA1311: Culture-specific string operations (acceptable in tests) -->
+    <!-- CA1707: Identifiers should not contain underscores (test naming convention) -->
+    <!-- CA1805: Member explicitly initialized to default value (readability in test builders) -->
+    <!-- CA1816: Call GC.SuppressFinalize (overly strict for test dispose patterns) -->
+    <!-- CA1822: Member can be static (test helper methods often non-static) -->
+    <!-- CA1825: Avoid zero-length array allocations (readability in tests) -->
+    <!-- CA1847: Use char instead of string for single-char Contains -->
+    <!-- CA1852: Type can be sealed (test helper classes don't need sealing) -->
+    <!-- CA1854-CA1869: Various perf suggestions (acceptable in tests) -->
+    <!-- CA2201/CA2211: Exception/field visibility (acceptable in test code) -->
+    <!-- SYSLIB1045: Use GeneratedRegex (acceptable in test code) -->
+    <!-- xUnit1026/1031/1042/2020/2021: xUnit specific warnings -->
+    <!-- CS8602/CS8604/CS8625: Nullable reference issues (acceptable in test code with mocks/stubs) -->
+    <!-- CA1711: Naming ends in Collection (acceptable for xUnit collection fixtures) -->
+    <!-- CA1848: Use LoggerMessage delegates (acceptable in tests) -->
+    <!-- xUnit1012: Null for non-nullable params (needed for null-testing scenarios) -->
+    <NoWarn>CS0219;CS0618;CS1591;CS1998;CS8602;CS8604;CS8625;CS8632;CA1001;CA1304;CA1305;CA1310;CA1311;CA1707;CA1711;CA1805;CA1816;CA1822;CA1825;CA1847;CA1848;CA1852;CA1854;CA1859;CA1860;CA1861;CA1862;CA1866;CA1867;CA1869;CA2201;CA2211;SYSLIB1045;xUnit1012;xUnit1026;xUnit1031;xUnit1042;xUnit2020;xUnit2021</NoWarn>
+    <!-- Disable ILRepack for test builds - merged assemblies cause loading issues in test runners -->
+    <PluginPackagingDisable>true</PluginPackagingDisable>
   </PropertyGroup>
 </Project>
-
