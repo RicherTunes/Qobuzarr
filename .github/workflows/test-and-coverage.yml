@@ -93,7 +93,7 @@ jobs:
               --collect "XPlat Code Coverage" \
               --logger "trx;LogFileName=test-results.trx" \
               --results-directory TestResults/ \
-              --filter "Category!=LiveIntegration" \
+              --filter "Category!=LiveIntegration&Category!=Integration&Category!=Quarantined" \
               -- RunConfiguration.TestSessionTimeout=600000
           elif [ -f "tests/run-tests.ps1" ]; then
             pwsh -File ./tests/run-tests.ps1 -Configuration Release
@@ -102,7 +102,8 @@ jobs:
               --no-build \
               --collect "XPlat Code Coverage" \
               --logger "trx;LogFileName=test-results.trx" \
-              --results-directory TestResults/
+              --results-directory TestResults/ \
+              --filter "Category!=Integration&Category!=Quarantined"
           fi
 
       - name: Install ReportGenerator

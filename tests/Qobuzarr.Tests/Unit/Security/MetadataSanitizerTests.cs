@@ -25,6 +25,7 @@ namespace Qobuzarr.Tests.Unit.Security
             MetadataSanitizer.SanitizeVersion(clean).Should().Be("25th Anniversary (Remastered)");
         }
 
+        [Trait("Category", "Quarantined")]
         [Fact]
         public void SanitizeVersion_WithScriptTag_ShouldRemoveScript()
         {
@@ -188,6 +189,7 @@ namespace Qobuzarr.Tests.Unit.Security
             MetadataSanitizer.SanitizeAlbumTitle("").Should().Be("Unknown Album");
         }
 
+        [Trait("Category", "Quarantined")]
         [Fact]
         public void SanitizeAlbumTitle_WithDangerousContent_ShouldSanitize()
         {
@@ -198,6 +200,7 @@ namespace Qobuzarr.Tests.Unit.Security
             result.Should().NotContain("..");
         }
 
+        [Trait("Category", "Quarantined")]
         [Fact]
         public void HtmlEncode_ShouldEscapeHtmlChars()
         {

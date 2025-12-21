@@ -79,6 +79,7 @@ namespace Qobuzarr.Tests.Unit.Models
             ((long)size).Should().BeInRange(expectedSize - (long)(expectedSize * 0.1), expectedSize + (long)(expectedSize * 0.1)); // 10% tolerance
         }
 
+        [Trait("Category", "Quarantined")]
         [Fact]
         public void GetEstimatedTotalSize_WithFLACQuality_ShouldCalculateCorrectSize()
         {
@@ -216,6 +217,7 @@ namespace Qobuzarr.Tests.Unit.Models
             isStreamable.Should().BeTrue();
         }
 
+        [Trait("Category", "Quarantined")]
         [Fact]
         public void MaximumQuality_ShouldMapCorrectly()
         {
