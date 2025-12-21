@@ -14,17 +14,20 @@ namespace Lidarr.Plugin.Qobuzarr.Security
     {
         private static readonly Logger Logger = LogManager.GetCurrentClassLogger();
         
+        // Timeout for regex operations to prevent ReDoS attacks
+        private static readonly TimeSpan RegexTimeout = TimeSpan.FromMilliseconds(250);
+        
         // Regex for safe version strings - alphanumeric plus common punctuation
-        private static readonly Regex SafeVersionRegex = new(@"^[a-zA-Z0-9\s\-_\.\(\)\[\]&',!]+$", RegexOptions.Compiled);
+        private static readonly Regex SafeVersionRegex = new(@"^[a-zA-Z0-9\s\-_\.\(\)\[\]&',!]+$", RegexOptions.Compiled, RegexTimeout);
         
         // Control characters and zero-width characters that should be removed
-        private static readonly Regex ControlCharRegex = new(@"[\x00-\x08\x0B\x0C\x0E-\x1F\x7F\u200B-\u200D\uFEFF]", RegexOptions.Compiled);
+        private static readonly Regex ControlCharRegex = new(@"[\x00-\x08\x0B\x0C\x0E-\x1F\x7F\u200B-\u200D\uFEFF]", RegexOptions.Compiled, RegexTimeout);
         
         // HTML/XML tags that should be stripped
-        private static readonly Regex HtmlTagRegex = new(@"<[^>]*>", RegexOptions.Compiled);
+        private static readonly Regex HtmlTagRegex = new(@"<[^>]*>", RegexOptions.Compiled, RegexTimeout);
         
         // Script tags with their content should be completely removed
-        private static readonly Regex ScriptTagRegex = new(@"<script[^>]*>.*?</script>", RegexOptions.Compiled | RegexOptions.IgnoreCase | RegexOptions.Singleline);
+        private static readonly Regex ScriptTagRegex = new(@"<script[^>]*>.*?</script>", RegexOptions.Compiled | RegexOptions.IgnoreCase | RegexOptions.Singleline, RegexTimeout);
         
         // Dangerous patterns that indicate potential attacks
         private static readonly HashSet<string> DangerousPatterns = new(StringComparer.OrdinalIgnoreCase)
@@ -64,15 +67,24 @@ namespace Lidarr.Plugin.Qobuzarr.Security
                 return string.Empty;
             
             var original = version;
+            string sanitized;
             
-            // Step 1: Remove control characters and zero-width characters
-            var sanitized = ControlCharRegex.Replace(version, "");
-            
-            // Step 2: Remove script tags with their content entirely (XSS prevention)
-            sanitized = ScriptTagRegex.Replace(sanitized, "");
-            
-            // Step 3: Strip remaining HTML/XML tags
-            sanitized = HtmlTagRegex.Replace(sanitized, "");
+            try
+            {
+                // Step 1: Remove control characters and zero-width characters
+                sanitized = ControlCharRegex.Replace(version, "");
+                
+                // Step 2: Remove script tags with their content entirely (XSS prevention)
+                sanitized = ScriptTagRegex.Replace(sanitized, "");
+                
+                // Step 3: Strip remaining HTML/XML tags
+                sanitized = HtmlTagRegex.Replace(sanitized, "");
+            }
+            catch (RegexMatchTimeoutException)
+            {
+                Logger.Warn("Regex timeout while sanitizing version string, returning safe default");
+                return "Version";
+            }
             
             // Step 4: Replace dangerous characters for file system safety
             sanitized = sanitized
@@ -164,11 +176,21 @@ namespace Lidarr.Plugin.Qobuzarr.Security
         /// </summary>
         private static string SanitizeMetadataField(string input, string defaultValue)
         {
-            // Remove control characters
-            var sanitized = ControlCharRegex.Replace(input, "");
+            string sanitized;
             
-            // Strip HTML tags
-            sanitized = HtmlTagRegex.Replace(sanitized, "");
+            try
+            {
+                // Remove control characters
+                sanitized = ControlCharRegex.Replace(input, "");
+                
+                // Strip HTML tags
+                sanitized = HtmlTagRegex.Replace(sanitized, "");
+            }
+            catch (RegexMatchTimeoutException)
+            {
+                Logger.Warn("Regex timeout while sanitizing metadata field, returning safe default");
+                return defaultValue;
+            }
             
             // Basic character replacement for file system safety
             sanitized = sanitized
