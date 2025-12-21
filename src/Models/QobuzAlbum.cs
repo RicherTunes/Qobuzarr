@@ -112,7 +112,7 @@ namespace Lidarr.Plugin.Qobuzarr.Models
         [JsonProperty("maximum_bit_depth")]
         public int? MaximumBitDepth { get; set; }
 
-        [JsonProperty("maximum_sample_rate")]
+        [JsonProperty("maximum_sampling_rate")]
         public double? MaximumSampleRate { get; set; }
 
         [JsonProperty("maximum_channel_count")]
@@ -169,7 +169,7 @@ namespace Lidarr.Plugin.Qobuzarr.Models
         /// </summary>
         public string GetFullTitle()
         {
-            var title = Title ?? "Unknown Album";
+            var title = string.IsNullOrWhiteSpace(Title) ? "Unknown Album" : Title;
             
             // Sanitize version to prevent injection attacks
             var sanitizedVersion = MetadataSanitizer.SanitizeVersion(Version);
