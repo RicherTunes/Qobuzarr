@@ -194,11 +194,6 @@
     <ProjectReference Include="ext\Lidarr.Plugin.Common\src\Lidarr.Plugin.Common.csproj" Condition="'$(UseCommonStubs)' != 'true' and '$(CommonPackageVersion)' == ''">
       <Private>true</Private>
     </ProjectReference>
-    <!-- Abstractions is required for packaging validation/type identity; Common includes it transitively,
-         but keeping an explicit ProjectReference makes tooling and validation unambiguous. -->
-    <ProjectReference Include="ext\Lidarr.Plugin.Common\src\Abstractions\Lidarr.Plugin.Abstractions.csproj" Condition="'$(UseCommonStubs)' != 'true' and Exists('ext\Lidarr.Plugin.Common\src\Abstractions\Lidarr.Plugin.Abstractions.csproj')">
-      <Private>true</Private>
-    </ProjectReference>
     
     <!-- Fallback to NuGet package when submodule is unavailable and version is supplied -->
     <PackageReference Include="Lidarr.Plugin.Common" Version="$(CommonPackageVersion)" Condition="'$(UseCommonStubs)' != 'true' and '$(CommonPackageVersion)' != ''" />
