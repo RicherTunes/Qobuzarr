@@ -327,5 +327,192 @@ namespace Qobuzarr.Tests.Unit.Indexers
         }
 
         #endregion
+
+        #region Canonical Format Contract Tests
+
+        /// <summary>
+        /// Verifies the canonical bracket ordering contract:
+        /// Artist - Album (Year) [Edition] [Explicit] [LIVE] [FORMAT] [WEB]
+        /// 
+        /// This test is resilient to formatting tweaks - it only checks ORDER, not exact strings.
+        /// </summary>
+        [Fact]
+        public void GenerateQualitySpecificTitle_ShouldFollowCanonicalBracketOrder()
+        {
+            // Arrange - album with ALL optional components
+            var album = new QobuzAlbumBuilder()
+                .WithId("order123")
+                .WithTitle("Live at Wembley") // Contains "Live" for [LIVE] marker
+                .WithVersion("Deluxe Edition")
+                .WithArtist("Test Artist", "test-artist")
+                .WithReleaseDate(new DateTime(2023, 1, 1))
+                .AsExplicit()
+                .Build();
+
+            // Act
+            var result = _titleGenerator.GenerateQualitySpecificTitle(album, QobuzAudioQuality.FLACLossless, 2023);
+
+            // Assert - Check ORDER of components using index positions
+            var yearIndex = result.IndexOf("(2023)");
+            var editionIndex = result.IndexOf("[Deluxe Edition]");
+            var explicitIndex = result.IndexOf("[Explicit]");
+            var liveIndex = result.IndexOf("[LIVE]");
+            var formatIndex = result.IndexOf("[FLAC]");
+            var webIndex = result.IndexOf("[WEB]");
+
+            // All components should be present
+            yearIndex.Should().BeGreaterThan(-1, "Year should be present");
+            editionIndex.Should().BeGreaterThan(-1, "Edition should be present");
+            explicitIndex.Should().BeGreaterThan(-1, "Explicit should be present");
+            liveIndex.Should().BeGreaterThan(-1, "LIVE should be present");
+            formatIndex.Should().BeGreaterThan(-1, "Format should be present");
+            webIndex.Should().BeGreaterThan(-1, "WEB should be present");
+
+            // Verify ORDER: Year < Edition < Explicit < LIVE < Format < WEB
+            yearIndex.Should().BeLessThan(editionIndex, "Year should come before Edition");
+            editionIndex.Should().BeLessThan(explicitIndex, "Edition should come before Explicit");
+            explicitIndex.Should().BeLessThan(liveIndex, "Explicit should come before LIVE");
+            liveIndex.Should().BeLessThan(formatIndex, "LIVE should come before Format");
+            formatIndex.Should().BeLessThan(webIndex, "Format should come before WEB");
+        }
+
+        /// <summary>
+        /// Tests that [WEB] is ALWAYS the last bracket, regardless of other components.
+        /// </summary>
+        [Theory]
+        [InlineData(false, false, null)] // No explicit, no live, no edition
+        [InlineData(true, false, null)]  // Explicit only
+        [InlineData(false, true, null)]  // Live only (via title)
+        [InlineData(true, true, null)]   // Both explicit and live
+        [InlineData(false, false, "Deluxe Edition")] // Edition only
+        [InlineData(true, true, "Remastered")] // All components
+        public void GenerateQualitySpecificTitle_WebMarkerShouldAlwaysBeLastBracket(
+            bool isExplicit, bool isLive, string version)
+        {
+            // Arrange
+            var builder = new QobuzAlbumBuilder()
+                .WithId("web-last-test")
+                .WithTitle(isLive ? "Live at Venue" : "Studio Album")
+                .WithArtist("Test Artist", "test-artist")
+                .WithReleaseDate(new DateTime(2023, 1, 1));
+
+            if (isExplicit) builder.AsExplicit();
+            if (!string.IsNullOrEmpty(version)) builder.WithVersion(version);
+
+            var album = builder.Build();
+
+            // Act
+            var result = _titleGenerator.GenerateQualitySpecificTitle(album, QobuzAudioQuality.FLACLossless, 2023);
+
+            // Assert
+            result.Should().EndWith("[WEB]", "WEB marker must always be the last bracket");
+        }
+
+        #endregion
+
+        #region Edge Cases and Interactions
+
+        /// <summary>
+        /// Test album with Explicit + Live + Edition - all components together.
+        /// </summary>
+        [Fact]
+        public void GenerateQualitySpecificTitle_WithAllOptionalComponents_ShouldIncludeAll()
+        {
+            // Arrange
+            var album = new QobuzAlbumBuilder()
+                .WithId("all-components")
+                .WithTitle("Unplugged") // Triggers [LIVE]
+                .WithVersion("25th Anniversary Edition")
+                .WithArtist("Test Artist", "test-artist")
+                .WithReleaseDate(new DateTime(2023, 1, 1))
+                .AsExplicit()
+                .Build();
+
+            // Act
+            var result = _titleGenerator.GenerateQualitySpecificTitle(album, QobuzAudioQuality.FLACHiRes24Bit96kHz, 2023);
+
+            // Assert - All components present
+            result.Should().Contain("[25th Anniversary Edition]");
+            result.Should().Contain("[Explicit]");
+            result.Should().Contain("[LIVE]");
+            result.Should().Contain("[FLAC 24bit 96kHz]");
+            result.Should().Contain("[WEB]");
+            result.Should().Contain("(2023)");
+        }
+
+        /// <summary>
+        /// Test year=0 explicitly (different from very old year).
+        /// </summary>
+        [Fact]
+        public void GenerateQualitySpecificTitle_WithYearZero_ShouldOmitYear()
+        {
+            // Arrange
+            var album = new QobuzAlbumBuilder()
+                .WithId("year-zero")
+                .WithTitle("Unknown Year Album")
+                .WithArtist("Test Artist", "test-artist")
+                .WithReleaseDate(new DateTime(2023, 1, 1)) // Has a date, but we pass year=0
+                .Build();
+
+            // Act
+            var result = _titleGenerator.GenerateQualitySpecificTitle(album, QobuzAudioQuality.FLACLossless, 0);
+
+            // Assert
+            result.Should().NotMatchRegex(@"\(\d{4}\)", "Year should not appear when year=0");
+            result.Should().Be("Test Artist - Unknown Year Album [FLAC] [WEB]");
+        }
+
+        /// <summary>
+        /// Test that edition in title doesn't duplicate with Version field.
+        /// E.g., "Album (Deluxe Edition)" with Version="Deluxe Edition" should not show twice.
+        /// </summary>
+        [Fact]
+        public void GenerateQualitySpecificTitle_WithEditionInBothTitleAndVersion_ShouldNotDuplicate()
+        {
+            // Arrange - Edition appears in both title and Version field
+            var album = new QobuzAlbumBuilder()
+                .WithId("dupe-edition")
+                .WithTitle("Album (Deluxe Edition)")
+                .WithVersion("Deluxe Edition")
+                .WithArtist("Test Artist", "test-artist")
+                .WithReleaseDate(new DateTime(2023, 1, 1))
+                .Build();
+
+            // Act
+            var result = _titleGenerator.GenerateQualitySpecificTitle(album, QobuzAudioQuality.FLACLossless, 2023);
+
+            // Assert - Should only have one [Deluxe Edition] bracket
+            var count = System.Text.RegularExpressions.Regex.Matches(result, @"\[Deluxe Edition\]").Count;
+            count.Should().Be(1, "Edition should not appear twice");
+        }
+
+        /// <summary>
+        /// Test nested brackets in album title are handled gracefully.
+        /// The implementation extracts bracketed content as edition info, which is valid behavior.
+        /// </summary>
+        [Fact]
+        public void GenerateQualitySpecificTitle_WithNestedBracketsInTitle_ShouldNotBreakFormat()
+        {
+            // Arrange
+            var album = new QobuzAlbumBuilder()
+                .WithId("nested-brackets")
+                .WithTitle("Album [Special Mix]") // Pre-existing brackets in title
+                .WithArtist("Test Artist", "test-artist")
+                .WithReleaseDate(new DateTime(2023, 1, 1))
+                .Build();
+
+            // Act
+            var result = _titleGenerator.GenerateQualitySpecificTitle(album, QobuzAudioQuality.FLACLossless, 2023);
+
+            // Assert - Should still end with [WEB] and have proper format
+            result.Should().EndWith("[WEB]");
+            result.Should().Contain("[FLAC]");
+            // The bracketed content may be extracted as edition - that's OK
+            // Key contract: title components are preserved and format is valid
+            result.Should().Contain("Album");
+            result.Should().Contain("[Special Mix]"); // Content preserved (as edition bracket)
+        }
+
+        #endregion
     }
 }
