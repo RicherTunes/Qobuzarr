@@ -77,25 +77,11 @@
     <!-- External consumers get production-ready build unless they explicitly enable this -->
     <IncludeCLIFramework>true</IncludeCLIFramework>
     
-    <!-- Build against Lidarr host API
-         - Plugins branch (string Protocol + IDownloadProtocol) when UsePluginsBranch=true
-         - Release branch (enum DownloadProtocol) when UsePluginsBranch=false
-       These plugins are designed for Lidarr's plugins branch ONLY, so default to true.
-       CI and local builds use plugins branch assemblies exclusively. -->
-    <UsePluginsBranch Condition="'$(UsePluginsBranch)' == ''">true</UsePluginsBranch>
+    <!-- Lidarr 3.x plugins branch is the only supported target (string Protocol) -->
     
     <!-- Optional: consume Common via package when version is provided -->
     <CommonPackageVersion Condition="'$(CommonPackageVersion)' == '' and '$(COMMON_PACKAGE_VERSION)' != ''">$(COMMON_PACKAGE_VERSION)</CommonPackageVersion>
   </PropertyGroup>
-
-  <PropertyGroup Condition="'$(UsePluginsBranch)' == 'true'">
-    <DefineConstants>$(DefineConstants);PLUGIN_PROTOCOL</DefineConstants>
-  </PropertyGroup>
-
-  <!-- Log which Lidarr API branch we are targeting (helps devs and CI understand build context) -->
-  <Target Name="LogBranchSelection" BeforeTargets="Build">
-    <Message Text="Qobuzarr: UsePluginsBranch=$(UsePluginsBranch) (PLUGIN_PROTOCOL defined if true)" Importance="high" />
-  </Target>
 
   <!-- Source files inclusion -->
   <ItemGroup>
@@ -112,21 +98,22 @@
   </ItemGroup>
   
   <!-- Generate plugin.json from template with version from csproj -->
-  <Target Name="GeneratePluginJson" BeforeTargets="BeforeBuild">
+  <!-- Writes to intermediate/output directory to avoid dirtying source tree -->
+  <Target Name="GeneratePluginJson" BeforeTargets="Build" AfterTargets="PrepareForBuild">
     <PropertyGroup>
       <PluginJsonContent>$([System.IO.File]::ReadAllText('$(MSBuildProjectDirectory)\plugin.json.template'))</PluginJsonContent>
       <PluginJsonContent>$(PluginJsonContent.Replace('{VERSION}', '$(AssemblyInformationalVersion)'))</PluginJsonContent>
+      <PluginJsonOutputPath>$(IntermediateOutputPath)plugin.json</PluginJsonOutputPath>
     </PropertyGroup>
-    <WriteLinesToFile File="$(MSBuildProjectDirectory)\plugin.json" Lines="$(PluginJsonContent)" Overwrite="true" />
-    <Message Text="Generated plugin.json with version $(AssemblyInformationalVersion)" Importance="high" />
+    <MakeDir Directories="$(IntermediateOutputPath)" Condition="!Exists('$(IntermediateOutputPath)')" />
+    <WriteLinesToFile File="$(PluginJsonOutputPath)" Lines="$(PluginJsonContent)" Overwrite="true" />
+    <Message Text="Generated plugin.json with version $(AssemblyInformationalVersion) to $(PluginJsonOutputPath)" Importance="high" />
   </Target>
   
-  <!-- Copy generated plugin.json to output -->
-  <ItemGroup>
-    <Content Include="plugin.json" Condition="Exists('plugin.json')">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </Content>
-  </ItemGroup>
+  <!-- Copy generated plugin.json to output after build -->
+  <Target Name="CopyPluginJsonToOutput" AfterTargets="Build" DependsOnTargets="GeneratePluginJson">
+    <Copy SourceFiles="$(IntermediateOutputPath)plugin.json" DestinationFolder="$(OutputPath)" SkipUnchangedFiles="false" />
+  </Target>
 
   <!-- Package dependencies -->
   <ItemGroup>
@@ -139,10 +126,9 @@
       <Private>false</Private>
       <ExcludeAssets>runtime</ExcludeAssets>
     </PackageReference>
-    <PackageReference Include="FluentValidation">
-      <Private>false</Private>
-      <ExcludeAssets>runtime</ExcludeAssets>
-    </PackageReference>
+    <!-- FluentValidation must be shipped (not merged) to maintain type identity with host.
+         The PluginPackaging.targets keeps this DLL while cleaning up others. -->
+    <PackageReference Include="FluentValidation" />
     <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" />
     
     <!-- Plugin-specific dependencies - must be bundled -->
@@ -164,8 +150,15 @@
 
   <!-- Explicitly import the ILRepack task since ExcludeAssets="build" blocks the automatic import.
        This makes the task available to PluginPackaging.targets while preventing the NuGet package's
-       automatic target from running (which fails during CodeQL because Lidarr assemblies aren't available). -->
-  <UsingTask TaskName="ILRepack" AssemblyFile="$(PkgILRepack_Lib_MSBuild_Task)\tools\ILRepack.Lib.MSBuild.Task.dll" />
+       automatic target from running (which fails during CodeQL because Lidarr assemblies aren't available).
+       Support both 'build\' (newer) and 'tools\' (older) package layouts. -->
+  <UsingTask TaskName="ILRepack" 
+             AssemblyFile="$(PkgILRepack_Lib_MSBuild_Task)\build\ILRepack.Lib.MSBuild.Task.dll" 
+             Condition="'$(PkgILRepack_Lib_MSBuild_Task)' != '' and Exists('$(PkgILRepack_Lib_MSBuild_Task)\build\ILRepack.Lib.MSBuild.Task.dll')" />
+  <!-- Fallback for older ILRepack package layouts that use 'tools\' instead of 'build\' -->
+  <UsingTask TaskName="ILRepack" 
+             AssemblyFile="$(PkgILRepack_Lib_MSBuild_Task)\tools\ILRepack.Lib.MSBuild.Task.dll" 
+             Condition="'$(PkgILRepack_Lib_MSBuild_Task)' != '' and !Exists('$(PkgILRepack_Lib_MSBuild_Task)\build\ILRepack.Lib.MSBuild.Task.dll') and Exists('$(PkgILRepack_Lib_MSBuild_Task)\tools\ILRepack.Lib.MSBuild.Task.dll')" />
 
   <!-- Prefer prebuilt assemblies prepared by CI at ext/Lidarr/_output/net8.0; fallback to source-built output if present -->
   <PropertyGroup>
