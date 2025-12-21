@@ -57,13 +57,8 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Clients
 
         public override string Name => QobuzarrConstants.PluginName;
 
-#if PLUGIN_PROTOCOL
-        // Plugins branch host expects string protocol identifier
+        // Lidarr plugins branch host expects string protocol identifier
         public override string Protocol => nameof(QobuzarrDownloadProtocol);
-#else
-        // Release branch host expects enum DownloadProtocol
-        public override DownloadProtocol Protocol => DownloadProtocol.Unknown;
-#endif
 
         public QobuzDownloadClient(IQobuzAuthenticationService authService,
                                   IQobuzApiClient apiClient,
