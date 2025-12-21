@@ -11,9 +11,11 @@
     <NoWarn>$(NoWarn);CA1001;CA1304;CA1305;CA1310;CA1311;CA1707;CA1816;CA1822;CA1825;CA1847;CA1852;CA1854;CA1859;CA1860;CA1861;CA1862;CA1866;CA1869;CA2201;CA2211;SYSLIB1045;xUnit1026;xUnit1031;xUnit1042;xUnit2020;xUnit2021</NoWarn>
   </PropertyGroup>
 
-  <PropertyGroup>
+  <!-- Lidarr assemblies path - can be overridden via MSBuild property or environment variable -->
+  <PropertyGroup Condition="'$(LidarrAssembliesPath)' == ''">
     <LidarrAssembliesPath>..\..\ext\Lidarr\_output\net8.0</LidarrAssembliesPath>
-    <LidarrAssembliesPath Condition="!Exists('$(LidarrAssembliesPath)\\Lidarr.dll') and Exists('..\\..\\ext\\Lidarr-docker\\_output\\net8.0\\Lidarr.dll')">..\..\ext\Lidarr-docker\_output\net8.0</LidarrAssembliesPath>
+    <LidarrAssembliesPath Condition="!Exists('$(LidarrAssembliesPath)\Lidarr.dll') and Exists('..\..\ext\Lidarr-docker\_output\net8.0\Lidarr.dll')">..\..\ext\Lidarr-docker\_output\net8.0</LidarrAssembliesPath>
+    <LidarrAssembliesPath Condition="!Exists('$(LidarrAssembliesPath)\Lidarr.dll') and Exists('..\..\ext\lidarr-assemblies\Lidarr.dll')">..\..\ext\lidarr-assemblies</LidarrAssembliesPath>
   </PropertyGroup>
 
   <ItemGroup>

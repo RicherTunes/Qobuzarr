@@ -39,6 +39,8 @@ jobs:
             
       - name: Extract Lidarr assemblies
         run: |
+          # Cleanup any leftover container from failed runs
+          docker rm -f lidarr 2>/dev/null || true
           mkdir -p ext/lidarr-assemblies
           docker create --name lidarr ghcr.io/hotio/lidarr:${{ inputs.lidarr_version }}
           docker cp lidarr:/app/bin/. ext/lidarr-assemblies/
@@ -56,11 +58,10 @@ jobs:
           dotnet test tests/Qobuzarr.Tests/Qobuzarr.Tests.csproj \
             --no-build \
             -c Release \
+            -p:LidarrAssembliesPath="${{ github.workspace }}/ext/lidarr-assemblies" \
             --filter "Category=Integration" \
             --logger "trx;LogFileName=integration-results.trx" \
             --results-directory ./test-results
-        env:
-          LidarrAssembliesPath: ${{ github.workspace }}/ext/lidarr-assemblies
           
       - name: Upload Test Results
         uses: actions/upload-artifact@v4
