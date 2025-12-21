@@ -36,55 +36,43 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers.Parsing
                 _ => "Unknown"
             };
             
-            // ARCHITECTURAL DECISION: Dual-format title generation based on album type
-            // Edition albums use hyphen format to trigger Lidarr's version extraction (Parser.cs:73)
-            // Standard albums use existing bracket format for backward compatibility
+            // Determine edition string (from Version field or extracted from title)
+            var editionStr = "";
+            var cleanAlbumTitle = albumTitle;
             
-            // Check for edition info in Version field OR album title
+            // Check for edition info in Version field
             var hasVersionField = !string.IsNullOrWhiteSpace(version) && ContainsEditionKeywords(version);
             var hasEditionInTitle = ContainsEditionKeywords(albumTitle);
             
-            _logger.Trace("🔍 EDITION CHECK: Album='{0}', HasEdition={1}", albumTitle, hasVersionField || hasEditionInTitle);
-            
-            if (hasVersionField || hasEditionInTitle)
+            if (hasVersionField)
             {
-                // Extract version from title if not in Version field
-                var versionToUse = version;
-                var cleanAlbumTitle = albumTitle;
-                
-                if (string.IsNullOrWhiteSpace(versionToUse) && hasEditionInTitle)
+                editionStr = $" [{version}]";
+                _logger.Trace("Edition from Version field: '{0}'", version);
+            }
+            else if (hasEditionInTitle)
+            {
+                // Extract edition info from title: "Album (Deluxe Edition)" → version="Deluxe Edition"
+                var extractedVersion = ExtractVersionFromTitle(albumTitle);
+                if (!string.IsNullOrWhiteSpace(extractedVersion))
                 {
-                    // Extract edition info from title: "Album (Deluxe Edition)" → version="Deluxe Edition"
-                    versionToUse = ExtractVersionFromTitle(albumTitle);
-                    cleanAlbumTitle = albumTitle.Replace($"({versionToUse})", "").Replace($"[{versionToUse}]", "").Trim();
+                    editionStr = $" [{extractedVersion}]";
+                    cleanAlbumTitle = albumTitle.Replace($"({extractedVersion})", "").Replace($"[{extractedVersion}]", "").Trim();
                     _logger.Debug("Extracted version from title: '{0}' → album='{1}', version='{2}'", 
-                        albumTitle, cleanAlbumTitle, versionToUse);
+                        albumTitle, cleanAlbumTitle, extractedVersion);
                 }
-                
-                // Test multiple elegant formats to find the best one
-                var formats = new[]
-                {
-                    $"{artist} - {cleanAlbumTitle} [{versionToUse}] - WEB - {year}",           // Bracket format
-                    $"{artist} - {cleanAlbumTitle} ({versionToUse}) - WEB - {year}",          // Parentheses format  
-                    $"{artist} - {cleanAlbumTitle} • {versionToUse} • WEB • {year}",          // Bullet format
-                    $"{artist}-{cleanAlbumTitle}-[{versionToUse}]-WEB-{year}",                // Mixed hyphen-bracket
-                    $"{artist}-{cleanAlbumTitle}-{versionToUse}-WEB-{year}"                   // Original hyphen
-                };
-                
-                // For now, use the first (bracket) format - most elegant and likely to work
-                var chosenFormat = formats[0];
-                _logger.Debug("🎯 EDITION ALBUM: Using elegant format for '{0}'", albumTitle);
-                return chosenFormat;
             }
             
-            // Standard format for non-edition albums
+            // Use clean album title if we extracted edition, otherwise original
+            var titleToUse = string.IsNullOrWhiteSpace(editionStr) ? albumTitle : cleanAlbumTitle;
+            
+            // Build canonical format: Artist - Album (Year) [Edition] [Explicit] [LIVE] [FORMAT] [WEB]
             var yearStr = year > 0 ? $" ({year})" : "";
             var explicitStr = album.ParentalWarning ? " [Explicit]" : "";
             var liveIndicator = IsLiveAlbum(albumTitle) ? " [LIVE]" : "";
             
-            var standardTitle = $"{artist} - {albumTitle}{yearStr}{explicitStr}{liveIndicator} [{formatStr}] [WEB]";
-            _logger.Trace("Standard album format: '{0}'", standardTitle);
-            return standardTitle;
+            var title = $"{artist} - {titleToUse}{yearStr}{editionStr}{explicitStr}{liveIndicator} [{formatStr}] [WEB]";
+            _logger.Trace("Generated title: '{0}'", title);
+            return title;
         }
 
         public string GenerateHyphenFormatTitle(string artist, string albumTitle, string version, string formatStr, int year)
