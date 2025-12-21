@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using System.Linq;
@@ -23,6 +24,20 @@ namespace Lidarr.Plugin.Qobuzarr.Security
         private static readonly Regex SafeQueryRegex = new Regex(@"^[a-zA-Z0-9\s\-_\.\,\'()\[\]&!]+$", RegexOptions.Compiled);
         private static readonly Regex CountryCodeRegex = new(@"^[A-Z]{2}$", RegexOptions.Compiled);
         private static readonly Regex AppIdRegex = new(@"^[a-zA-Z0-9_-]{1,50}$", RegexOptions.Compiled);
+        
+        // Windows reserved file names (case-insensitive)
+        private static readonly HashSet<string> WindowsReservedNames = new(StringComparer.OrdinalIgnoreCase)
+        {
+            "CON", "PRN", "AUX", "NUL",
+            "COM1", "COM2", "COM3", "COM4", "COM5", "COM6", "COM7", "COM8", "COM9",
+            "LPT1", "LPT2", "LPT3", "LPT4", "LPT5", "LPT6", "LPT7", "LPT8", "LPT9"
+        };
+        
+        // Common multi-part extensions to preserve during truncation
+        private static readonly HashSet<string> MultiPartExtensions = new(StringComparer.OrdinalIgnoreCase)
+        {
+            ".tar.gz", ".tar.bz2", ".tar.xz", ".tar.zst"
+        };
         
         // Maximum lengths for various input types (centralized)
         private const int MaxEmailLength = LimitConstants.Limits.MaxEmailLength;
@@ -363,8 +378,8 @@ namespace Lidarr.Plugin.Qobuzarr.Security
         #region Consolidated Sanitization Methods
 
         /// <summary>
-        /// Sanitizes file names to be safe for file system operations
-        /// Consolidated from FileNameSanitizer
+        /// Sanitizes file names to be safe for file system operations.
+        /// Handles empty results, Windows reserved names, multi-dot extensions, and length limits.
         /// </summary>
         public static string SanitizeFileName(string fileName)
         {
@@ -373,7 +388,61 @@ namespace Lidarr.Plugin.Qobuzarr.Security
 
             // Delegate to the shared library's sanitizer for consistent cross-platform rules
             var sanitized = LPCFileNameSanitizer.SanitizeFileName(fileName);
-            return string.IsNullOrWhiteSpace(sanitized) ? "unknown_file" : sanitized;
+            
+            if (string.IsNullOrWhiteSpace(sanitized))
+                return "unknown_file";
+            
+            // Handle Windows reserved names (CON, PRN, AUX, NUL, COM1-9, LPT1-9)
+            var extension = GetFullExtension(sanitized);
+            var nameWithoutExt = extension.Length > 0 
+                ? sanitized.Substring(0, sanitized.Length - extension.Length)
+                : sanitized;
+            
+            // Only prefix reserved names on Windows - they're valid on Linux/macOS
+            if (OperatingSystem.IsWindows() && WindowsReservedNames.Contains(nameWithoutExt))
+            {
+                sanitized = "_" + sanitized;
+                nameWithoutExt = "_" + nameWithoutExt;
+            }
+            
+            // Enforce 255-char limit with extension preservation
+            const int MaxFileNameLength = 255;
+            if (sanitized.Length > MaxFileNameLength)
+            {
+                var maxNameLength = MaxFileNameLength - extension.Length;
+                if (maxNameLength > 0)
+                {
+                    sanitized = nameWithoutExt.Substring(0, Math.Min(nameWithoutExt.Length, maxNameLength)) + extension;
+                }
+                else
+                {
+                    // Extension alone is too long, truncate the whole thing
+                    sanitized = sanitized.Substring(0, MaxFileNameLength);
+                }
+            }
+            
+            return sanitized;
+        }
+        
+        /// <summary>
+        /// Gets the full extension including multi-part extensions like .tar.gz
+        /// </summary>
+        private static string GetFullExtension(string fileName)
+        {
+            if (string.IsNullOrEmpty(fileName))
+                return string.Empty;
+            
+            // Check for known multi-part extensions first
+            foreach (var multiExt in MultiPartExtensions)
+            {
+                if (fileName.EndsWith(multiExt, StringComparison.OrdinalIgnoreCase))
+                {
+                    return fileName.Substring(fileName.Length - multiExt.Length);
+                }
+            }
+            
+            // Fall back to standard extension
+            return Path.GetExtension(fileName);
         }
 
         /// <summary>

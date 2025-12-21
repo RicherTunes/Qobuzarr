@@ -104,13 +104,79 @@ namespace Qobuzarr.Tests.Unit.Security
 
         #endregion
 
+        #region SanitizeFileName Edge Cases
+
+        [Fact]
+        public void SanitizeFileName_WithWindowsReservedName_ShouldPrefixOnWindows()
+        {
+            // CON, PRN, AUX, NUL, COM1-9, LPT1-9 are reserved on Windows
+            var result = InputSanitizer.SanitizeFileName("CON.txt");
+            
+            if (OperatingSystem.IsWindows())
+            {
+                result.Should().Be("_CON.txt", "Windows reserved names should be prefixed");
+            }
+            else
+            {
+                result.Should().Be("CON.txt", "Reserved names are valid on non-Windows");
+            }
+        }
+
+        [Fact]
+        public void SanitizeFileName_WithReservedNameNoExtension_ShouldHandleCorrectly()
+        {
+            var result = InputSanitizer.SanitizeFileName("NUL");
+            
+            if (OperatingSystem.IsWindows())
+            {
+                result.Should().Be("_NUL");
+            }
+            else
+            {
+                result.Should().Be("NUL");
+            }
+        }
+
+        [Fact]
+        public void SanitizeFileName_WithLongNameAndTarGzExtension_ShouldPreserveFullExtension()
+        {
+            var longName = new string('a', 260) + ".tar.gz";
+            var result = InputSanitizer.SanitizeFileName(longName);
+            
+            result.Length.Should().BeLessOrEqualTo(255);
+            result.Should().EndWith(".tar.gz", "Multi-part extensions should be preserved");
+        }
+
+        [Fact]
+        public void SanitizeFileName_WithMultiDotExtension_ShouldPreserveKnownExtensions()
+        {
+            var result = InputSanitizer.SanitizeFileName("archive.tar.bz2");
+            result.Should().Be("archive.tar.bz2");
+        }
+
+        [Fact]
+        public void SanitizeFileName_WithTrailingDot_ShouldBeSanitized()
+        {
+            // Trailing dots are stripped by Windows file system
+            var result = InputSanitizer.SanitizeFileName("filename.");
+            result.Should().NotEndWith(".", "Trailing dots should be handled");
+        }
+
+        [Fact]
+        public void SanitizeFileName_WithTrailingSpace_ShouldBeTrimmed()
+        {
+            var result = InputSanitizer.SanitizeFileName("filename ");
+            result.Should().NotEndWith(" ", "Trailing spaces should be trimmed");
+        }
+
+        #endregion
+
         #region 🐒 CHAOS MONKEY ROBUSTNESS TESTS 🐒
 
         /// <summary>
         /// 🐒💥 Chaos Monkey test for file name sanitization using extreme edge cases
         /// Tests robustness against malicious file names and path traversal attempts
         /// </summary>
-        [Trait("Category", "Quarantined")]
         [Fact]
         public void SanitizeFileName_WithChaosMonkeyFilePaths_ShouldHandleRobustly()
         {
