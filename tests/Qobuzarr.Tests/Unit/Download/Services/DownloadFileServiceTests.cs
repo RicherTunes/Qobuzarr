@@ -83,7 +83,7 @@ namespace Qobuzarr.Tests.Unit.Download.Services
             var result = _sut.BuildOutputPath(remoteAlbum, settings);
 
             // Assert
-            result.Should().Be(@"C:\Music\Test Artist - Test Album");
+            result.Should().Be(@"C:\Music\Test Artist\Test Album");
         }
 
         [Fact]
@@ -115,8 +115,8 @@ namespace Qobuzarr.Tests.Unit.Download.Services
             result.Should().NotContain("?");
             result.Should().NotContain("\"");
             result.Should().NotContain("|");
-            result.Should().Contain("Test_Artist");
-            result.Should().Contain("Test_Album_File");
+            result.Should().Contain("TestArtist");
+            result.Should().Contain("TestAlbumFile");
         }
 
         [Fact]
