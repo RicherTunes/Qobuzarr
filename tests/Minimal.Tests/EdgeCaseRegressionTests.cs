@@ -8,6 +8,7 @@ namespace Minimal.Tests
     /// <summary>
     /// Comprehensive edge case tests to prevent regression of search failures
     /// These tests cover the complex real-world album naming patterns that our expert identified
+    /// Note: These are functional regression tests, not performance benchmarks
     /// </summary>
     [Trait("Category", "Performance")]
     public class EdgeCaseRegressionTests
