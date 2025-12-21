@@ -231,7 +231,7 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
                 DownloadUrl = GenerateDownloadUrl(album, quality),
                 InfoUrl = GenerateInfoUrl(album),
                 PublishDate = album.ReleaseDate,
-                Indexer = nameof(QobuzarrDownloadProtocol),
+                Indexer = QobuzarrConstants.PluginName,
                 
                 // Note: Codec and Container properties are ignored by Lidarr's quality detection
                 // Quality is determined solely from the Title using regex patterns
@@ -356,105 +356,6 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
             return standardTitle;
         }
         
-        /// <summary>
-        /// Generates hyphen-format title for edition albums to trigger Lidarr's version extraction
-        /// </summary>
-        /// <remarks>
-        /// Format validation:
-        /// - Matches Parser.cs:73 regex pattern for version extraction
-        /// - Sanitizes components to prevent parser confusion
-        /// - Validates length constraints for robust parsing
-        /// - Handles edge cases like missing years or special characters
-        /// </remarks>
-        private string GenerateHyphenFormatTitle(string artist, string albumTitle, string version, string formatStr, int year)
-        {
-            // Sanitize components to prevent parser issues
-            artist = SanitizeForHyphenFormat(artist);
-            albumTitle = SanitizeForHyphenFormat(albumTitle);
-            version = SanitizeForHyphenFormat(version);
-            
-            // Handle missing year gracefully
-            var yearStr = year > 1900 ? year.ToString() : DateTime.Now.Year.ToString();
-            
-            // Primary format: Artist-Album-Version-Source-Year
-            // This matches the regex at Parser.cs:73 for version extraction
-            var primaryFormat = $"{artist}-{albumTitle}-{version}-WEB-{yearStr}";
-            
-            // Validate format won't break parser (basic sanity checks)
-            if (primaryFormat.Length > 500) // Excessive length might cause issues
-            {
-                _logger.Warn("Hyphen format title too long ({0} chars), truncating components", primaryFormat.Length);
-                
-                // Intelligently truncate to preserve important info
-                if (version.Length > 50)
-                {
-                    version = version.Substring(0, 47) + "...";
-                }
-                if (albumTitle.Length > 100)
-                {
-                    albumTitle = albumTitle.Substring(0, 97) + "...";
-                }
-                
-                primaryFormat = $"{artist}-{albumTitle}-{version}-WEB-{yearStr}";
-            }
-            
-            // Final validation pass
-            primaryFormat = ValidateHyphenFormat(primaryFormat);
-            
-            // Log format for debugging
-            _logger.Trace("Hyphen format components: Artist='{0}', Album='{1}', Version='{2}', Year='{3}'",
-                artist, albumTitle, version, yearStr);
-            
-            return primaryFormat;
-        }
-        
-        /// <summary>
-        /// Sanitizes text for use in hyphen-format titles
-        /// </summary>
-        private string SanitizeForHyphenFormat(string text)
-        {
-            if (string.IsNullOrWhiteSpace(text))
-                return "Unknown";
-                
-            // Replace problematic characters that might confuse parser
-            text = text.Replace("/", " ");
-            text = text.Replace("\\", " ");
-            text = text.Replace(":", " ");
-            text = text.Replace("|", " ");
-            text = text.Replace("?", "");
-            text = text.Replace("*", "");
-            text = text.Replace("<", "");
-            text = text.Replace(">", "");
-            text = text.Replace("\"", "'");
-            
-            // Normalize whitespace
-            text = System.Text.RegularExpressions.Regex.Replace(text, @"\s+", " ").Trim();
-            
-            // Ensure no leading/trailing hyphens
-            text = text.Trim('-');
-            
-            return text;
-        }
-        
-        /// <summary>
-        /// Final validation of hyphen format to ensure parser compatibility
-        /// </summary>
-        private string ValidateHyphenFormat(string format)
-        {
-            // Ensure no double hyphens that might confuse parser
-            format = System.Text.RegularExpressions.Regex.Replace(format, @"-{2,}", "-");
-            
-            // Ensure format has expected structure (at least 4 hyphens for Artist-Album-Version-Source-Year)
-            var hyphenCount = format.Count(c => c == '-');
-            if (hyphenCount < 4)
-            {
-                _logger.Warn("Hyphen format has insufficient delimiters ({0}), format may not parse correctly: '{1}'",
-                    hyphenCount, format);
-            }
-            
-            return format;
-        }
-
         /// <summary>
         /// Comprehensive edition detection for all album variant types
         /// Identifies albums requiring special title formatting for Lidarr parser compatibility

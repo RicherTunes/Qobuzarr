@@ -14,6 +14,7 @@ using NzbDrone.Core.Indexers;
 using NzbDrone.Core.IndexerSearch.Definitions;
 using NzbDrone.Common.Http;
 using Lidarr.Plugin.Qobuzarr.Download;
+using Lidarr.Plugin.Qobuzarr.Indexers.Parsing;
 
 namespace Qobuzarr.Tests.Unit.Indexers
 {
@@ -74,11 +75,12 @@ namespace Qobuzarr.Tests.Unit.Indexers
         /// <summary>
         /// Test explicit content handling in titles
         /// </summary>
-        [Trait("Category", "Quarantined")]
         [Fact]
         public void GenerateQualitySpecificTitle_WithExplicitContent_ShouldIncludeExplicitTag()
         {
             // Arrange
+            var logger = LogManager.GetCurrentClassLogger();
+            var titleGenerator = new TitleGenerator(logger);
             var album = new QobuzAlbumBuilder()
                 .WithId("explicit123")
                 .WithTitle("Explicit Album")
@@ -88,9 +90,7 @@ namespace Qobuzarr.Tests.Unit.Indexers
                 .Build();
 
             // Act
-            var method = typeof(QobuzParser).GetMethod("GenerateQualitySpecificTitle", 
-                System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
-            var result = (string)method.Invoke(_parser, new object[] { album, QobuzAudioQuality.MP3320, 2023 });
+            var result = titleGenerator.GenerateQualitySpecificTitle(album, QobuzAudioQuality.MP3320, 2023);
 
             // Assert
             result.Should().Contain("[Explicit]", "Explicit content should be marked in the title");

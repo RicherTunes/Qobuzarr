@@ -1,0 +1,73 @@
+# EditorConfig for test projects
+# Relaxes analyzer rules that are too strict for test code
+
+root = false
+
+[*.cs]
+# CA1707: Identifiers should not contain underscores
+# Test methods commonly use underscores for readability (e.g., Method_Scenario_Expected)
+dotnet_diagnostic.CA1707.severity = none
+
+# CA1861: Prefer 'static readonly' fields over constant array arguments
+# Less critical in test code
+dotnet_diagnostic.CA1861.severity = suggestion
+
+# CA1305: Specify IFormatProvider
+# Test code often doesn't need culture-specific formatting
+dotnet_diagnostic.CA1305.severity = suggestion
+
+# CA1304: Specify CultureInfo  
+# Test code often doesn't need culture-specific string operations
+dotnet_diagnostic.CA1304.severity = suggestion
+
+# CA1311: Specify a culture or use an invariant version
+dotnet_diagnostic.CA1311.severity = suggestion
+
+# CA1805: Do not initialize unnecessarily
+# Explicit initialization can improve test readability
+dotnet_diagnostic.CA1805.severity = suggestion
+
+# CA1822: Mark members as static
+# Test helper methods don't need to be static
+dotnet_diagnostic.CA1822.severity = suggestion
+
+# CA1852: Seal internal types
+dotnet_diagnostic.CA1852.severity = suggestion
+
+# CA2211: Non-constant fields should not be visible
+# Test data fields are often non-constant
+dotnet_diagnostic.CA2211.severity = suggestion
+
+# CS1998: Async method lacks 'await' operators
+# Test stubs may have empty async methods
+dotnet_diagnostic.CS1998.severity = suggestion
+
+# CS0618: Member is obsolete
+# Tests may intentionally test obsolete code paths
+dotnet_diagnostic.CS0618.severity = suggestion
+
+# CS0219: Variable is assigned but never used
+# Test setup code may have unused variables
+dotnet_diagnostic.CS0219.severity = suggestion
+
+# CS8632: Nullable annotation context
+dotnet_diagnostic.CS8632.severity = suggestion
+
+# SYSLIB1045: Use GeneratedRegexAttribute
+# Not critical for test utilities
+dotnet_diagnostic.SYSLIB1045.severity = suggestion
+
+# CA1716: Identifiers should not match keywords
+dotnet_diagnostic.CA1716.severity = suggestion
+
+# CA1816: Call GC.SuppressFinalize correctly
+dotnet_diagnostic.CA1816.severity = suggestion
+
+# CA1848: Use LoggerMessage delegates
+dotnet_diagnostic.CA1848.severity = suggestion
+
+# CA1845: Use span-based string.Concat
+dotnet_diagnostic.CA1845.severity = suggestion
+
+# CA1860: Prefer comparing Count to 0
+dotnet_diagnostic.CA1860.severity = suggestion
