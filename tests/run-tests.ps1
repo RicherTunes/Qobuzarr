@@ -7,6 +7,7 @@ param(
     [switch]$Verbose = $false,
     [switch]$Full = $false,
     [string]$RunSettings = "",
+    [string]$Filter = "",
     [switch]$Live = $false
 )
 
@@ -67,6 +68,14 @@ if (Test-Path $RunSettings) {
     Write-Host "[INFO] Using runsettings: $RunSettings" -ForegroundColor Gray
 }
 
+# Allow CI to control the test filter (e.g., exclude Integration/Performance)
+if (-not $Filter -or [string]::IsNullOrWhiteSpace($Filter)) {
+    $Filter = $env:CI_TEST_FILTER
+}
+if ($Filter -and -not [string]::IsNullOrWhiteSpace($Filter)) {
+    Write-Host "[INFO] Using test filter: $Filter" -ForegroundColor Gray
+}
+
 # Lower log volume during tests to speed runs
 $env:LOG_LEVEL = "Error"
 
@@ -81,7 +90,13 @@ foreach ($proj in $TestProjects) {
         "--results-directory", $OutputDir
     )
     if (Test-Path $RunSettings) { $args += @("--settings", $RunSettings) }
-    if (-not $Full -and -not $Live) { $args += @("--filter", "Category!=LiveIntegration") }
+    if (-not $Live) {
+        if ($Filter -and -not [string]::IsNullOrWhiteSpace($Filter)) {
+            $args += @("--filter", $Filter)
+        } elseif (-not $Full) {
+            $args += @("--filter", "Category!=LiveIntegration")
+        }
+    }
     if ($Live) { $env:ENABLE_LIVE_INTEGRATION_TESTS = "true" }
     if ($Coverage) { $args += @("--collect", "XPlat Code Coverage", "--settings", (Join-Path $PSScriptRoot "coverlet.runsettings")) }
     $args += @("--verbosity", $(if ($Verbose) { "detailed" } else { "normal" }))
