@@ -202,6 +202,13 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
 
         private ReleaseInfo CreateReleaseInfoForQuality(QobuzAlbum album, QobuzAudioQuality quality, string originalQuery)
         {
+            // Validate required album data - check raw Title before GetFullTitle() which returns "Unknown Album" for empty titles
+            if (string.IsNullOrWhiteSpace(album?.Title))
+            {
+                _logger.Warn("Album has no title, skipping release creation");
+                return null;
+            }
+
             var year = album.ReleaseDate.Year > 1900 ? album.ReleaseDate.Year : 0;
             
             var artistName = album.GetArtistName();

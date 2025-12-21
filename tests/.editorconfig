@@ -71,3 +71,39 @@ dotnet_diagnostic.CA1845.severity = suggestion
 
 # CA1860: Prefer comparing Count to 0
 dotnet_diagnostic.CA1860.severity = suggestion
+
+# CA1847: Use string.Contains(char) instead of string.Contains(string)
+dotnet_diagnostic.CA1847.severity = suggestion
+
+# CA1859: Change type for improved performance
+dotnet_diagnostic.CA1859.severity = suggestion
+
+# CA1310: Specify StringComparison
+dotnet_diagnostic.CA1310.severity = suggestion
+
+# CA1825: Avoid zero-length array allocations
+dotnet_diagnostic.CA1825.severity = suggestion
+
+# CA2201: Exception type not sufficiently specific
+dotnet_diagnostic.CA2201.severity = suggestion
+
+# CA1001: Types that own disposable fields should be disposable
+dotnet_diagnostic.CA1001.severity = suggestion
+
+# CA1862: Use StringComparison for case-insensitive comparison
+dotnet_diagnostic.CA1862.severity = suggestion
+
+# xUnit1026: Theory method does not use parameter
+dotnet_diagnostic.xUnit1026.severity = suggestion
+
+# xUnit1031: Test methods should not use blocking task operations
+dotnet_diagnostic.xUnit1031.severity = suggestion
+
+# xUnit1042: MemberData returns untyped data rows
+dotnet_diagnostic.xUnit1042.severity = suggestion
+
+# xUnit2020: Do not use Assert.True(false, message)
+dotnet_diagnostic.xUnit2020.severity = suggestion
+
+# xUnit2021: Assert.ThrowsAsync should be awaited
+dotnet_diagnostic.xUnit2021.severity = suggestion
