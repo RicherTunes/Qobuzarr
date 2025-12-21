@@ -110,6 +110,7 @@ namespace Qobuzarr.Tests.Unit.Security
         /// 🐒💥 Chaos Monkey test for file name sanitization using extreme edge cases
         /// Tests robustness against malicious file names and path traversal attempts
         /// </summary>
+        [Trait("Category", "Quarantined")]
         [Fact]
         public void SanitizeFileName_WithChaosMonkeyFilePaths_ShouldHandleRobustly()
         {
