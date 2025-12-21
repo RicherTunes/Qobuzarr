@@ -13,6 +13,10 @@ permissions:
 env:
   DOTNET_SKIP_FIRST_TIME_EXPERIENCE: true
   DOTNET_CLI_TELEMETRY_OPTOUT: true
+  # Single source of truth for CI test filtering
+  # Excludes: LiveIntegration (needs live Lidarr), Integration (needs assemblies),
+  #           Performance (benchmarks), Quarantined (known issues)
+  CI_TEST_FILTER: "Category!=LiveIntegration&Category!=Integration&Category!=Performance&Category!=Quarantined"
 
 jobs:
   test:
@@ -85,25 +89,29 @@ jobs:
 
       - name: Run tests with coverage
         run: |
-          mkdir -p TestResults
+          mkdir -p test-results/coverage
           if [ -f "tests/Minimal.Tests/Minimal.Tests.csproj" ]; then
             dotnet test tests/Minimal.Tests/Minimal.Tests.csproj \
-              --configuration Release \
               --no-build \
+              --configuration Release \
+              --settings tests/Default.runsettings \
               --collect "XPlat Code Coverage" \
-              --logger "trx;LogFileName=test-results.trx" \
-              --results-directory TestResults/ \
-              --filter "Category!=LiveIntegration&Category!=Integration&Category!=Quarantined" \
-              -- RunConfiguration.TestSessionTimeout=600000
+              --filter "${{ env.CI_TEST_FILTER }}" \
+              --logger "trx;LogFileName=coverage-tests.trx" \
+              --results-directory ./test-results/coverage \
+              --blame-hang-timeout 60s
           elif [ -f "tests/run-tests.ps1" ]; then
             pwsh -File ./tests/run-tests.ps1 -Configuration Release
           else
-            dotnet test --configuration Release \
+            dotnet test \
               --no-build \
+              --configuration Release \
+              --settings tests/Default.runsettings \
               --collect "XPlat Code Coverage" \
-              --logger "trx;LogFileName=test-results.trx" \
-              --results-directory TestResults/ \
-              --filter "Category!=Integration&Category!=Quarantined"
+              --filter "${{ env.CI_TEST_FILTER }}" \
+              --logger "trx;LogFileName=coverage-tests.trx" \
+              --results-directory ./test-results/coverage \
+              --blame-hang-timeout 60s
           fi
 
       - name: Install ReportGenerator
@@ -112,7 +120,7 @@ jobs:
       - name: Generate coverage summary
         run: |
           export PATH="$PATH:$HOME/.dotnet/tools"
-          COV=$(find TestResults -name "coverage.cobertura.xml" -type f | head -1)
+          COV=$(find test-results -name "coverage.cobertura.xml" -type f | head -1)
           if [ -n "$COV" ] && [ -f "$COV" ]; then
             reportgenerator \
               -reports:"$COV" \
@@ -130,7 +138,7 @@ jobs:
         with:
           name: test-and-coverage
           path: |
-            TestResults/**/*.trx
-            TestResults/**/coverage.cobertura.xml
-            coverage-report/**
+            test-results/coverage/
+            tests/TestResults/
+            coverage-report/
           retention-days: 14
