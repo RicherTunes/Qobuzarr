@@ -6,7 +6,6 @@ namespace Qobuzarr.Tests.Unit.Utilities
 {
     public class PreviewDetectionUtilityTests
     {
-        [Trait("Category", "Quarantined")]
         [Theory]
         [InlineData("https://stream.qobuz.com/track_preview_123456.mp3", true)]
         [InlineData("https://stream.qobuz.com/track_sample_123456.mp3", true)]

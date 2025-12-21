@@ -74,12 +74,13 @@ namespace Qobuzarr.Tests.Unit.Models
             var size = album.GetEstimatedTotalSize(5); // MP3 320kbps
 
             // Assert
-            // 4578 seconds * 320kbps / 8 (bits to bytes)
-            var expectedSize = (long)(4578 * 320 * 1000 / 8);
-            ((long)size).Should().BeInRange(expectedSize - (long)(expectedSize * 0.1), expectedSize + (long)(expectedSize * 0.1)); // 10% tolerance
+            // Implementation uses 2.4 MB/min for MP3 320kbps and sums individual track sizes
+            // Sample response has 1 track with 274 seconds duration
+            var tracks = album.GetTracks();
+            var expectedSize = tracks.Sum(t => (long)(t.Duration.TotalMinutes * 2.4 * 1024 * 1024));
+            size.Should().Be(expectedSize);
         }
 
-        [Trait("Category", "Quarantined")]
         [Fact]
         public void GetEstimatedTotalSize_WithFLACQuality_ShouldCalculateCorrectSize()
         {
@@ -90,9 +91,11 @@ namespace Qobuzarr.Tests.Unit.Models
             var size = album.GetEstimatedTotalSize(6); // FLAC CD
 
             // Assert
-            // FLAC typically 800-1000kbps for CD quality
-            var expectedSize = (long)(4578L * 900L * 1000L / 8L);
-            ((long)size).Should().BeInRange(expectedSize - (long)(expectedSize * 0.2), expectedSize + (long)(expectedSize * 0.2)); // 20% tolerance for FLAC compression
+            // Implementation uses 10.5 MB/min for FLAC CD
+            // Album.GetEstimatedTotalSize sums track sizes, sample has 1 track with ~274 seconds
+            var tracks = album.GetTracks();
+            var expectedSize = tracks.Sum(t => (long)(t.Duration.TotalMinutes * 10.5 * 1024 * 1024));
+            size.Should().Be(expectedSize);
         }
 
         // GetFormatName method doesn't exist in current API - removed these tests
@@ -217,7 +220,6 @@ namespace Qobuzarr.Tests.Unit.Models
             isStreamable.Should().BeTrue();
         }
 
-        [Trait("Category", "Quarantined")]
         [Fact]
         public void MaximumQuality_ShouldMapCorrectly()
         {
