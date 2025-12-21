@@ -371,22 +371,51 @@ namespace Qobuzarr.Tests.Unit.Security
         #region Injection Attack Prevention Tests
 
         [Theory]
+        [InlineData("../../etc/passwd")]       // Path traversal - REJECT
+        [InlineData("C:\\Windows\\system32")]  // Windows absolute path - REJECT
+        [InlineData("./config/secrets.json")]  // Relative path - REJECT
+        [InlineData("file:///etc/passwd")]     // File URI - REJECT
+        [InlineData("%USERPROFILE%")]          // Windows env var - REJECT
+        public void ValidateCredentialSecurity_WithObviousFilePaths_ShouldReject(string maliciousInput)
+        {
+            // Act - Obvious file paths are HARD REJECTED (definitely not credentials)
+            var result = _credentialManager.ValidateCredentialSecurity(maliciousInput, "TestCredential");
+
+            // Assert
+            result.Should().BeFalse($"'{maliciousInput}' should be rejected as obvious file path/env var");
+        }
+
+        [Theory]
+        [InlineData("/abcdef123456")]          // Could be valid token starting with /
+        [InlineData("$2a$10$abcdefghijk")]     // bcrypt hash starts with $
+        [InlineData("/api/v1/token")]          // API path-like but could be token
+        public void ValidateCredentialSecurity_WithTokensStartingWithSpecialChars_ShouldNotReject(string tokenLikeInput)
+        {
+            // Act - Tokens can legitimately start with / or $
+            var result = _credentialManager.ValidateCredentialSecurity(tokenLikeInput, "TestCredential");
+
+            // Assert - these should pass (opaque tokens can start with any character)
+            result.Should().BeTrue($"'{tokenLikeInput}' looks like a valid opaque token and should be accepted");
+        }
+
+        [Theory]
         [InlineData("'; DROP TABLE users; --")]
         [InlineData("\" OR \"1\"=\"1")]
         [InlineData("<script>alert('xss')</script>")]
-        [InlineData("../../etc/passwd")]
         [InlineData("javascript:alert(1)")]
-        public void ValidateCredentialSecurity_WithInjectionAttempts_ShouldNotCauseVulnerability(string maliciousInput)
+        [InlineData("$HOME/.ssh/id_rsa")]      // Looks like env var + path, but warn only
+        [InlineData("/etc/passwd")]            // Looks like path but could be token, warn only
+        public void ValidateCredentialSecurity_WithSuspiciousPatterns_ShouldWarnButNotReject(string suspiciousInput)
         {
-            // Act
-            Action act = () => _credentialManager.ValidateCredentialSecurity(maliciousInput, "TestCredential");
+            // Act - Suspicious patterns warn but don't reject (opaque tokens might contain these)
+            Action act = () => _credentialManager.ValidateCredentialSecurity(suspiciousInput, "TestCredential");
 
-            // Assert
-            act.Should().NotThrow("Validation should safely handle malicious input");
+            // Assert - should not throw
+            act.Should().NotThrow("Validation should safely handle suspicious input");
             
-            // The validation should fail for suspicious input
-            var result = _credentialManager.ValidateCredentialSecurity(maliciousInput, "TestCredential");
-            result.Should().BeFalse("Malicious patterns should be detected");
+            // These patterns are logged as warnings but allowed (opaque auth tokens can contain anything)
+            var result = _credentialManager.ValidateCredentialSecurity(suspiciousInput, "TestCredential");
+            result.Should().BeTrue("Suspicious patterns are warned about but not rejected (could be valid opaque tokens)");
         }
 
         #endregion
