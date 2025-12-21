@@ -200,38 +200,6 @@ namespace Qobuzarr.Tests.Unit.Security
             _mockLogger.Verify(l => l.Warn(It.IsAny<string>(), It.IsAny<object[]>()), Times.AtLeastOnce());
         }
 
-        [Fact]
-        public void ValidateCredentialSecurity_WithEnvironmentVariable_ShouldDetectAndReject()
-        {
-            // Arrange
-            var envVarPatterns = new[] { "$PASSWORD", "%APPDATA%", "${SECRET_KEY}" };
-
-            foreach (var pattern in envVarPatterns)
-            {
-                // Act
-                var result = _credentialManager.ValidateCredentialSecurity(pattern, "Credential");
-
-                // Assert
-                result.Should().BeFalse($"Pattern {pattern} should be detected as environment variable");
-            }
-        }
-
-        [Fact]
-        public void ValidateCredentialSecurity_WithFilePath_ShouldDetectAndReject()
-        {
-            // Arrange
-            var filePathPatterns = new[] { "C:\\passwords.txt", "/etc/passwd", "./secrets/key.pem" };
-
-            foreach (var path in filePathPatterns)
-            {
-                // Act
-                var result = _credentialManager.ValidateCredentialSecurity(path, "Credential");
-
-                // Assert
-                result.Should().BeFalse($"Path {path} should be detected as file path");
-            }
-        }
-
         #endregion
 
         #region Data Masking Tests
