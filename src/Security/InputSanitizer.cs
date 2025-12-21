@@ -398,7 +398,8 @@ namespace Lidarr.Plugin.Qobuzarr.Security
                 ? sanitized.Substring(0, sanitized.Length - extension.Length)
                 : sanitized;
             
-            if (WindowsReservedNames.Contains(nameWithoutExt))
+            // Only prefix reserved names on Windows - they're valid on Linux/macOS
+            if (OperatingSystem.IsWindows() && WindowsReservedNames.Contains(nameWithoutExt))
             {
                 sanitized = "_" + sanitized;
                 nameWithoutExt = "_" + nameWithoutExt;
