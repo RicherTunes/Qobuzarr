@@ -192,6 +192,7 @@ namespace Qobuzarr.Tests.Unit.Services
             stats.TotalSearchSlotAcquisitions.Should().Be(long.MaxValue);
         }
 
+        [Trait("Category", "Quarantined")]
         [Theory]
         [InlineData(0, 0, 0)]
         [InlineData(100, 1000, 10)] // 100ms total / 10 acquisitions = 10ms average

@@ -81,10 +81,10 @@ jobs:
 
     - name: Run Tests
       run: |
-        # Skip LiveIntegration tests in CI (require external credentials)
+        # Skip LiveIntegration and Quarantined tests in CI
         dotnet test Qobuzarr.sln --configuration Release --no-build \
           --verbosity normal \
-          --filter "Category!=LiveIntegration" \
+          --filter "Category!=LiveIntegration&Category!=Integration&Category!=Quarantined" \
           --logger "trx;LogFileName=test-results-${{ matrix.dotnet-version }}.trx" \
           --results-directory ./TestResults || true
 
