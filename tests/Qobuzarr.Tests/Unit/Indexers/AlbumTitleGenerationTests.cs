@@ -11,7 +11,8 @@ namespace Qobuzarr.Tests.Unit.Indexers
     /// <summary>
     /// Tests for album title generation following Redacted indexer patterns.
     /// Ensures proper bracket formatting for editions and quality information.
-    /// Pattern: "Artist - Album (Year) [Edition] [Quality WEB]"
+    /// Canonical Pattern: "Artist - Album (Year) [Edition] [FORMAT] [WEB]"
+    /// FORMAT options: "MP3 320kbps", "FLAC", "FLAC 24bit 96kHz", "FLAC 24bit 192kHz"
     /// </summary>
     public class AlbumTitleGenerationTests
     {
@@ -32,7 +33,7 @@ namespace Qobuzarr.Tests.Unit.Indexers
             var title = GenerateRedactedStyleTitle(album);
 
             // Assert
-            title.Should().Be("Daft Punk - Random Access Memories (2013) [FLAC WEB]");
+            title.Should().Be("Daft Punk - Random Access Memories (2013) [FLAC] [WEB]");
         }
 
         [Theory]
@@ -55,21 +56,21 @@ namespace Qobuzarr.Tests.Unit.Indexers
             // Assert
             if (!string.IsNullOrWhiteSpace(version))
             {
-                title.Should().Be($"Test Artist - Live Album (2023) [{version}] [FLAC WEB]");
+                title.Should().Be($"Test Artist - Live Album (2023) [{version}] [FLAC] [WEB]");
                 
                 // Verify bracket structure
                 title.Should().Contain($"[{version}]");
-                title.Should().Contain("[FLAC WEB]");
+                title.Should().Contain("[FLAC]");
+                title.Should().Contain("[WEB]");
                 title.Should().NotContain("[["); // No double brackets
                 title.Should().NotContain("]]"); // No double brackets
             }
             else
             {
-                title.Should().Be("Test Artist - Live Album (2023) [FLAC WEB]");
+                title.Should().Be("Test Artist - Live Album (2023) [FLAC] [WEB]");
             }
         }
 
-        [Trait("Category", "Quarantined")]
         [Theory]
         [MemberData(nameof(AlbumEditionTestData.EditionVariants), MemberType = typeof(AlbumEditionTestData))]
         public void GenerateTitle_WithEditionVariants_ShouldFormatCorrectly(
@@ -87,19 +88,21 @@ namespace Qobuzarr.Tests.Unit.Indexers
             // Act
             var title = GenerateRedactedStyleTitle(album);
 
-            // Assert
-            title.Should().Be($"Test Artist - Test Album (2020) [{version}] [FLAC WEB]");
+            // Assert - Canonical format: [Edition] [FORMAT] [WEB]
+            title.Should().Be($"Test Artist - Test Album (2020) [{version}] [FLAC] [WEB]");
             
             // Verify proper bracket separation
             var editionBracketIndex = title.IndexOf($"[{version}]");
-            var qualityBracketIndex = title.IndexOf("[FLAC WEB]");
+            var formatBracketIndex = title.IndexOf("[FLAC]");
+            var webBracketIndex = title.IndexOf("[WEB]");
             
             editionBracketIndex.Should().BeGreaterThan(0);
-            qualityBracketIndex.Should().BeGreaterThan(editionBracketIndex);
+            formatBracketIndex.Should().BeGreaterThan(editionBracketIndex);
+            webBracketIndex.Should().BeGreaterThan(formatBracketIndex);
             
-            // There should be a space between edition and quality brackets
-            var spaceBetweenBrackets = title.Substring(editionBracketIndex + version.Length + 1, 1);
-            spaceBetweenBrackets.Should().Be(" ");
+            // There should be a space between edition and format brackets
+            var spaceBetweenEditionAndFormat = title.Substring(editionBracketIndex + version.Length + 2, 1);
+            spaceBetweenEditionAndFormat.Should().Be("[");
         }
 
         #endregion
@@ -121,7 +124,7 @@ namespace Qobuzarr.Tests.Unit.Indexers
             var title = GenerateRedactedStyleTitle(album);
 
             // Assert
-            title.Should().EndWith("[FLAC WEB]");
+            title.Should().EndWith("[FLAC] [WEB]");
             title.Should().NotContain("MP3");
         }
 
@@ -140,7 +143,7 @@ namespace Qobuzarr.Tests.Unit.Indexers
             var title = GenerateRedactedStyleTitle(album);
 
             // Assert
-            title.Should().EndWith("[FLAC WEB]");
+            title.Should().EndWith("[FLAC] [WEB]");
         }
 
         [Fact]
@@ -158,7 +161,7 @@ namespace Qobuzarr.Tests.Unit.Indexers
             var title = GenerateRedactedStyleTitle(album);
 
             // Assert
-            title.Should().EndWith("[MP3 WEB]");
+            title.Should().EndWith("[MP3 320kbps] [WEB]");
             title.Should().NotContain("FLAC");
         }
 
@@ -181,7 +184,7 @@ namespace Qobuzarr.Tests.Unit.Indexers
             var title = GenerateRedactedStyleTitle(album);
 
             // Assert
-            title.Should().Be("AC/DC - Test Album (1980) [FLAC WEB]");
+            title.Should().Be("AC/DC - Test Album (1980) [FLAC] [WEB]");
             title.Should().Contain("AC/DC"); // Forward slash preserved
         }
 
@@ -200,7 +203,7 @@ namespace Qobuzarr.Tests.Unit.Indexers
             var title = GenerateRedactedStyleTitle(album);
 
             // Assert
-            title.Should().Be("Red Hot Chili Peppers - Blood Sugar Sex Magik (1991) [FLAC WEB]");
+            title.Should().Be("Red Hot Chili Peppers - Blood Sugar Sex Magik (1991) [FLAC] [WEB]");
         }
 
         [Fact]
@@ -219,7 +222,7 @@ namespace Qobuzarr.Tests.Unit.Indexers
             var title = GenerateRedactedStyleTitle(album);
 
             // Assert
-            title.Should().Be("José Padilla - Café del Mar (1994) [Édition Spéciale] [FLAC WEB]");
+            title.Should().Be("José Padilla - Café del Mar (1994) [Édition Spéciale] [FLAC] [WEB]");
             title.Should().Contain("José"); // Accented characters preserved
             title.Should().Contain("Café");
             title.Should().Contain("Édition");
@@ -244,10 +247,10 @@ namespace Qobuzarr.Tests.Unit.Indexers
             // Should handle nested brackets gracefully - could sanitize or escape
             title.Should().Contain("Live");
             title.Should().Contain("Acoustic Set");
-            title.Should().EndWith("[FLAC WEB]");
+            title.Should().EndWith("[FLAC] [WEB]");
             
             // Verify the structure is still parseable
-            title.Should().MatchRegex(@"^.+ - .+ \(\d{4}\) \[.+\] \[FLAC WEB\]$");
+            title.Should().MatchRegex(@"^.+ - .+ \(\d{4}\) \[.+\] \[FLAC\] \[WEB\]$");
         }
 
         #endregion
@@ -272,7 +275,7 @@ namespace Qobuzarr.Tests.Unit.Indexers
             var title = GenerateRedactedStyleTitle(album);
 
             // Assert
-            title.Should().Be($"Test Artist - Test Album (1990) [{version}] [FLAC WEB]");
+            title.Should().Be($"Test Artist - Test Album (1990) [{version}] [FLAC] [WEB]");
             
             // Specific validations based on complex scenarios
             switch (scenario)
@@ -317,7 +320,7 @@ namespace Qobuzarr.Tests.Unit.Indexers
             // Assert
             title.Should().StartWith("Various Artists - ");
             title.Should().Contain("Greatest Hits of the 80s");
-            title.Should().EndWith("[FLAC WEB]");
+            title.Should().EndWith("[FLAC] [WEB]");
         }
 
         [Fact]
@@ -335,7 +338,7 @@ namespace Qobuzarr.Tests.Unit.Indexers
             var title = GenerateRedactedStyleTitle(album);
 
             // Assert
-            title.Should().Be("Various Artists - The Matrix Soundtrack (1999) [FLAC WEB]");
+            title.Should().Be("Various Artists - The Matrix Soundtrack (1999) [FLAC] [WEB]");
         }
 
         #endregion
@@ -343,8 +346,9 @@ namespace Qobuzarr.Tests.Unit.Indexers
         #region Helper Methods
 
         /// <summary>
-        /// Generates a title following Redacted indexer patterns
-        /// Pattern: "Artist - Album (Year) [Edition] [Quality WEB]"
+        /// Generates a title following the canonical Redacted indexer pattern.
+        /// Canonical Pattern: "Artist - Album (Year) [Edition] [FORMAT] [WEB]"
+        /// FORMAT options: "MP3 320kbps", "FLAC", "FLAC 24bit 96kHz", "FLAC 24bit 192kHz"
         /// </summary>
         private string GenerateRedactedStyleTitle(QobuzAlbum album)
         {
@@ -352,11 +356,19 @@ namespace Qobuzarr.Tests.Unit.Indexers
             var albumTitle = album.Title;
             var year = album.ReleaseDate.Year;
             
-            // Determine quality based on bit depth
-            var quality = album.MaximumBitDepth >= 24 || album.MaximumBitDepth == 16 ? "FLAC" : "MP3";
+            // Determine format based on bit depth - matching TitleGenerator canonical formats
+            string format;
             if (album.MaximumBitDepth < 16)
             {
-                quality = "MP3";
+                format = "MP3 320kbps";
+            }
+            else if (album.MaximumBitDepth >= 24 || album.MaximumBitDepth == 16)
+            {
+                format = "FLAC";
+            }
+            else
+            {
+                format = "MP3 320kbps";
             }
             
             // Build title: "Artist - Album (Year)"
@@ -370,8 +382,8 @@ namespace Qobuzarr.Tests.Unit.Indexers
                 titleBuilder += $" [{sanitizedVersion}]";
             }
             
-            // Add quality bracket: "[Quality WEB]"
-            titleBuilder += $" [{quality} WEB]";
+            // Add format and source brackets separately: "[FORMAT] [WEB]"
+            titleBuilder += $" [{format}] [WEB]";
 
             return titleBuilder;
         }
