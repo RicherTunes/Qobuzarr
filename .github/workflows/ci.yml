@@ -63,6 +63,9 @@ env:
   PLUGIN_NAME: Lidarr.Plugin.Qobuzarr
   MINIMUM_LIDARR_VERSION: 2.13.2.4685
   DOTNET_VERSION: 8.0.x
+  # Single source of truth for CI test filtering
+  # Excludes: Integration (needs Lidarr), Performance (benchmarks), Quarantined (known issues)
+  CI_TEST_FILTER: "Category!=Integration&Category!=Performance&Category!=Quarantined"
 
 jobs:
   validate:
@@ -297,7 +300,7 @@ jobs:
         if [ -f "tests/run-tests.ps1" ]; then
           pwsh -File ./tests/run-tests.ps1 -Configuration Release
         else
-          dotnet test --settings tests/Default.runsettings --configuration Release --logger "console;verbosity=normal" --filter "Category!=Integration&Category!=Quarantined"
+          dotnet test --configuration Release --logger "console;verbosity=normal" --filter "${{ env.CI_TEST_FILTER }}"
         fi
 
     - name: Upload test results (fast)
@@ -418,7 +421,7 @@ jobs:
           # run-tests.ps1 uses Full.runsettings by -Full; coverage config is embedded there
           pwsh -File ./tests/run-tests.ps1 -Configuration Release -Full
         else
-          dotnet test --settings tests/Full.runsettings --collect "XPlat Code Coverage" --configuration Release --logger "console;verbosity=normal" --filter "Category!=Integration&Category!=Quarantined"
+          dotnet test --settings tests/Full.runsettings --collect "XPlat Code Coverage" --configuration Release --logger "console;verbosity=normal" --filter "${{ env.CI_TEST_FILTER }}"
         fi
     - name: Verify plugin output
       run: |

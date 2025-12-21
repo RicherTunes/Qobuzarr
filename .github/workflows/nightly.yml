@@ -12,6 +12,9 @@ permissions:
 env:
   DOTNET_VERSION: 8.0.x
   MINIMUM_LIDARR_VERSION: 2.13.2.4685
+  # Single source of truth for CI test filtering
+  # Excludes: Integration (needs Lidarr), Performance (benchmarks), Quarantined (known issues)
+  CI_TEST_FILTER: "Category!=Integration&Category!=Performance&Category!=Quarantined"
 
 jobs:
   nightly-tests:
@@ -81,10 +84,10 @@ jobs:
 
     - name: Run Tests
       run: |
-        # Skip LiveIntegration and Quarantined tests in CI
+        # Use shared CI_TEST_FILTER for consistent category exclusion
         dotnet test Qobuzarr.sln --configuration Release --no-build \
           --verbosity normal \
-          --filter "Category!=LiveIntegration&Category!=Integration&Category!=Quarantined" \
+          --filter "${{ env.CI_TEST_FILTER }}" \
           --logger "trx;LogFileName=test-results-${{ matrix.dotnet-version }}.trx" \
           --results-directory ./TestResults || true
 
