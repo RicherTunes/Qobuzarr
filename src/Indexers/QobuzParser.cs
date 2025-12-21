@@ -15,6 +15,7 @@ using NzbDrone.Core.Qualities;
 using Lidarr.Plugin.Qobuzarr.Models;
 using Lidarr.Plugin.Qobuzarr.Configuration;
 using Lidarr.Plugin.Qobuzarr.Constants;
+using Lidarr.Plugin.Qobuzarr.Indexers.Parsing;
 using NzbDrone.Core.IndexerSearch.Definitions;
 
 namespace Lidarr.Plugin.Qobuzarr.Indexers
@@ -23,12 +24,14 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
     {
         private readonly QobuzIndexerSettings _settings;
         private readonly Logger _logger;
+        private readonly ITitleGenerator _titleGenerator;
         private SearchCriteriaBase _currentSearchCriteria;
 
         public QobuzParser(QobuzIndexerSettings settings, Logger logger)
         {
             _settings = settings;
             _logger = logger;
+            _titleGenerator = new TitleGenerator(logger);
         }
 
         /// <summary>
@@ -241,7 +244,7 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
             };
 
             // Generate quality-specific title
-            release.Title = GenerateQualitySpecificTitle(album, quality, year);
+            release.Title = _titleGenerator.GenerateQualitySpecificTitle(album, quality, year);
             
             // Critical debugging for album mapping (only during troubleshooting)
             _logger.Debug("≡ƒöì ALBUM MAPPING: Qobuz '{0}' ({1}) ΓåÆ Title '{2}' ΓåÆ Album '{3}'", 
@@ -265,160 +268,8 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
         }
 
         /// <summary>
-        /// Generates title formatted for optimal Lidarr parser compatibility
-        /// Uses dual-format approach: hyphen format for editions, bracket format for standard albums
+        /// Checks if album title indicates a live recording
         /// </summary>
-        /// <remarks>
-        /// Architecture rationale:
-        /// - Edition albums use hyphen format to match Parser.cs:73 regex pattern
-        /// - Standard albums use bracket format for backward compatibility
-        /// - Context-aware matching preserves exact Lidarr titles when available
-        /// - Fallback mechanisms ensure robustness when parsing fails
-        /// </remarks>
-        private string GenerateQualitySpecificTitle(QobuzAlbum album, QobuzAudioQuality quality, int year)
-        {
-            var artist = MetadataSanitizer.SanitizeArtistName(album.GetArtistName());
-            var albumTitle = album.Title; // Use base title without version
-            var version = album.Version?.Trim(); // Get version separately
-            
-            // CONTEXT-AWARE: Use exact Lidarr title if available
-            if (_currentSearchCriteria?.Albums?.Any() == true)
-            {
-                var targetAlbum = FindBestMatchingAlbum(album, _currentSearchCriteria.Albums, year);
-                if (targetAlbum != null)
-                {
-                    _logger.Debug("Using exact Lidarr title for album {0}: '{1}' -> '{2}'",
-                        album.Id, album.Title, targetAlbum.Title);
-                    albumTitle = targetAlbum.Title; // Use EXACT title from Lidarr
-                    year = targetAlbum.ReleaseDate?.Year ?? year;
-                    version = null; // Don't double-add version if Lidarr title already has it
-                }
-            }
-            
-            // Generate quality string
-            var formatStr = quality switch
-            {
-                QobuzAudioQuality.MP3320 => "MP3 320kbps",
-                QobuzAudioQuality.FLACLossless => "FLAC",
-                QobuzAudioQuality.FLACHiRes24Bit96kHz => "FLAC 24bit 96kHz",
-                QobuzAudioQuality.FLACHiRes24Bit192Khz => "FLAC 24bit 192kHz",
-                _ => "Unknown"
-            };
-            
-            // ARCHITECTURAL DECISION: Dual-format title generation based on album type
-            // Edition albums use hyphen format to trigger Lidarr's version extraction (Parser.cs:73)
-            // Standard albums use existing bracket format for backward compatibility
-            
-            // Check for edition info in Version field OR album title
-            var hasVersionField = !string.IsNullOrWhiteSpace(version) && ContainsEditionKeywords(version);
-            var hasEditionInTitle = ContainsEditionKeywords(albumTitle);
-            
-            _logger.Trace("≡ƒöì EDITION CHECK: Album='{0}', HasEdition={1}", albumTitle, hasVersionField || hasEditionInTitle);
-            
-            if (hasVersionField || hasEditionInTitle)
-            {
-                // Extract version from title if not in Version field
-                var versionToUse = version;
-                var cleanAlbumTitle = albumTitle;
-                
-                if (string.IsNullOrWhiteSpace(versionToUse) && hasEditionInTitle)
-                {
-                    // Extract edition info from title: "Album (Deluxe Edition)" ΓåÆ version="Deluxe Edition"
-                    versionToUse = ExtractVersionFromTitle(albumTitle);
-                    cleanAlbumTitle = albumTitle.Replace($"({versionToUse})", "").Replace($"[{versionToUse}]", "").Trim();
-                    _logger.Debug("Extracted version from title: '{0}' ΓåÆ album='{1}', version='{2}'", 
-                        albumTitle, cleanAlbumTitle, versionToUse);
-                }
-                
-                // Test multiple elegant formats to find the best one
-                var formats = new[]
-                {
-                    $"{artist} - {cleanAlbumTitle} [{versionToUse}] - WEB - {year}",           // Bracket format
-                    $"{artist} - {cleanAlbumTitle} ({versionToUse}) - WEB - {year}",          // Parentheses format  
-                    $"{artist} - {cleanAlbumTitle} ΓÇó {versionToUse} ΓÇó WEB ΓÇó {year}",          // Bullet format
-                    $"{artist}-{cleanAlbumTitle}-[{versionToUse}]-WEB-{year}",                // Mixed hyphen-bracket
-                    $"{artist}-{cleanAlbumTitle}-{versionToUse}-WEB-{year}"                   // Original hyphen
-                };
-                
-                // For now, use the first (bracket) format - most elegant and likely to work
-                var yearStrEd = year > 0 ? $" ({year})" : string.Empty; var sanitizedVersion = (versionToUse ?? string.Empty).Replace("[", "(").Replace("]", ")"); var chosenFormat = $"{artist} - {cleanAlbumTitle}{yearStrEd} [{sanitizedVersion}] [" + (formatStr.StartsWith("MP3") ? "MP3" : "FLAC") + " WEB]";
-                _logger.Debug("≡ƒÄ» EDITION ALBUM: Using elegant format for '{0}'", albumTitle);
-                return chosenFormat;
-            }
-            
-            // Standard format for non-edition albums
-            var yearStr = year > 0 ? $" ({year})" : "";
-            var explicitStr = album.ParentalWarning ? " [Explicit]" : "";
-            var liveIndicator = IsLiveAlbum(albumTitle) ? " [LIVE]" : "";
-            
-            var standardTitle = $"{artist} - {albumTitle}{yearStr}{explicitStr}{liveIndicator} [" + (formatStr.StartsWith("MP3") ? "MP3" : "FLAC") + " WEB]";
-            _logger.Trace("Standard album format: '{0}'", standardTitle);
-            return standardTitle;
-        }
-        
-        /// <summary>
-        /// Comprehensive edition detection for all album variant types
-        /// Identifies albums requiring special title formatting for Lidarr parser compatibility
-        /// </summary>
-        private bool ContainsEditionKeywords(string text)
-        {
-            if (string.IsNullOrWhiteSpace(text))
-                return false;
-                
-            // Comprehensive edition patterns based on production data analysis
-            var editionKeywords = new[] 
-            { 
-                // Core edition types
-                "deluxe", "edition", "remaster", "anniversary", "expanded", 
-                "special", "collector", "limited", "bonus",
-                
-                // Live album indicators
-                "live at", "live in", "live", "concert", "unplugged", "acoustic",
-                
-                // Format variants  
-                "remix", "instrumental", "extended", "radio",
-                
-                // Special releases
-                "legacy", "archive", "complete", "sessions", "demos"
-            };
-            
-            var hasEdition = editionKeywords.Any(keyword => text.Contains(keyword, StringComparison.OrdinalIgnoreCase));
-            
-            if (hasEdition)
-            {
-                _logger.Trace("Edition keywords detected in '{0}'", text);
-            }
-            
-            return hasEdition;
-        }
-
-        private string ExtractVersionFromTitle(string title)
-        {
-            // Extract content from parentheses: "Album (Deluxe Edition)" ΓåÆ "Deluxe Edition"
-            var parenthesesMatch = System.Text.RegularExpressions.Regex.Match(title, @"\(([^)]+)\)");
-            if (parenthesesMatch.Success)
-            {
-                var content = parenthesesMatch.Groups[1].Value;
-                if (ContainsEditionKeywords(content))
-                {
-                    return content;
-                }
-            }
-            
-            // Extract content from brackets: "Album [Live at Venue]" ΓåÆ "Live at Venue"  
-            var bracketsMatch = System.Text.RegularExpressions.Regex.Match(title, @"\[([^\]]+)\]");
-            if (bracketsMatch.Success)
-            {
-                var content = bracketsMatch.Groups[1].Value;
-                if (ContainsEditionKeywords(content))
-                {
-                    return content;
-                }
-            }
-            
-            return "";
-        }
-
         private bool IsLiveAlbum(string albumTitle)
         {
             var liveTerms = new[] { " live", "(live)", "[live]", "live at", "live in", "concert", "unplugged" };

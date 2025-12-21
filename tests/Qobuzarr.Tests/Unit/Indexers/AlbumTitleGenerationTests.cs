@@ -2,7 +2,9 @@ using System;
 using System.Collections.Generic;
 using FluentAssertions;
 using Xunit;
+using NLog;
 using Lidarr.Plugin.Qobuzarr.Models;
+using Lidarr.Plugin.Qobuzarr.Indexers.Parsing;
 using Qobuzarr.Tests.Builders;
 using Qobuzarr.Tests.TestData;
 
@@ -16,6 +18,12 @@ namespace Qobuzarr.Tests.Unit.Indexers
     /// </summary>
     public class AlbumTitleGenerationTests
     {
+        private readonly ITitleGenerator _titleGenerator;
+        
+        public AlbumTitleGenerationTests()
+        {
+            _titleGenerator = new TitleGenerator(LogManager.GetCurrentClassLogger());
+        }
         #region Redacted Pattern Compliance
 
         [Fact]
@@ -101,8 +109,8 @@ namespace Qobuzarr.Tests.Unit.Indexers
             webBracketIndex.Should().BeGreaterThan(formatBracketIndex);
             
             // There should be a space between edition and format brackets
-            var spaceBetweenEditionAndFormat = title.Substring(editionBracketIndex + version.Length + 2, 1);
-            spaceBetweenEditionAndFormat.Should().Be("[");
+            var charAfterEditionBracket = title.Substring(editionBracketIndex + version.Length + 2, 1);
+            charAfterEditionBracket.Should().Be(" ", "there should be a space between [Edition] and [FORMAT] brackets");
         }
 
         #endregion
@@ -154,11 +162,10 @@ namespace Qobuzarr.Tests.Unit.Indexers
                 .WithTitle("Test Album")
                 .WithArtist("Test Artist")
                 .WithReleaseYear(2023)
-                .AsMp3Only()
                 .Build();
 
-            // Act
-            var title = GenerateRedactedStyleTitle(album);
+            // Act - Use TitleGenerator with explicit MP3 quality
+            var title = _titleGenerator.GenerateQualitySpecificTitle(album, QobuzAudioQuality.MP3320, 2023);
 
             // Assert
             title.Should().EndWith("[MP3 320kbps] [WEB]");
