@@ -2,6 +2,9 @@
 # Qobuzarr Plugin - Comprehensive .gitignore
 # =============================================================================
 
+# Generated plugin manifest (generated from plugin.json.template during build)
+plugin.json
+
 # Build results and artifacts
 [Dd]ebug/
 [Dd]ebugPublic/

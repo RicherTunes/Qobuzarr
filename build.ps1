@@ -1,4 +1,4 @@
-# =============================================================================
+﻿# =============================================================================
 # Qobuzarr Build Script (PowerShell)
 # =============================================================================
 # Quick and easy building with deployment options for development
@@ -11,6 +11,7 @@ param(
     [switch]$Deploy,
     [string]$DeployPath = "",
     
+    [switch]$Package,
     [switch]$Clean,
     [switch]$Restore,
     [switch]$NoBuild,
@@ -36,6 +37,7 @@ function Show-Help {
     Write-Host "  -Clean                Clean before building" -ForegroundColor White
     Write-Host "  -Restore              Force restore packages" -ForegroundColor White
     Write-Host "  -NoBuild              Skip build (for clean/restore only)" -ForegroundColor White
+    Write-Host "  -Package              Create distributable zip using shared tooling" -ForegroundColor White
     Write-Host "  -VerboseOutput        Show detailed build output" -ForegroundColor White
     Write-Host "  -UsePrebuiltAssemblies Use pre-built Lidarr assemblies (CI approach)" -ForegroundColor White
     Write-Host "  -LidarrVersion        Lidarr version for pre-built assemblies" -ForegroundColor White
@@ -49,6 +51,7 @@ function Show-Help {
     Write-Host "  .\build.ps1 -Clean -Restore          # Clean, restore, and build" -ForegroundColor Gray
     Write-Host "  .\build.ps1 -DeployPath C:\Custom    # Deploy to custom location" -ForegroundColor Gray
     Write-Host "  .\build.ps1 -UsePrebuiltAssemblies   # Use CI approach with pre-built assemblies" -ForegroundColor Gray
+    Write-Host "  .\build.ps1 Release -Package         # Create distributable package" -ForegroundColor Gray
     Write-Host ""
     Write-Host "DEFAULT DEPLOY PATH:" -ForegroundColor Cyan
     Write-Host "  X:\lidarr-hotio-test2\plugins\RicherTunes\Qobuzarr" -ForegroundColor Gray
@@ -154,6 +157,47 @@ if (-not $NoBuild) {
                 Write-Host "🚀 Plugin deployed and ready for testing" -ForegroundColor Green
                 Write-Host "💡 Restart Lidarr to load the updated plugin" -ForegroundColor Yellow
             }
+            
+            if ($Package) {
+                Write-Host ""
+                Write-Host "📦 Packaging plugin..." -ForegroundColor Blue
+                $scriptRoot = $PSScriptRoot
+                $modulePath = Join-Path $scriptRoot 'ext/Lidarr.Plugin.Common/tools/PluginPack.psm1'
+                Import-Module $modulePath -Force
+                # Use the generated plugin.json from bin/ (has version substituted)
+                $manifestPath = Join-Path $scriptRoot 'bin/plugin.json'
+                $packagePath = New-PluginPackage -Csproj 'Qobuzarr.csproj' -Manifest $manifestPath -Framework 'net8.0' -Configuration $Configuration
+                Write-Host "✅ Package created: $packagePath" -ForegroundColor Green
+
+                # Write packaging metadata (hash + assembly list for smoke tests)
+                try {
+                    $hashPath = "$packagePath.sha256"
+                    $metadataPath = "$packagePath.metadata.json"
+                    
+                    # Compute SHA256 hash
+                    $hash = (Get-FileHash -Path $packagePath -Algorithm SHA256).Hash.ToLowerInvariant()
+                    Set-Content -Path $hashPath -Value $hash -Encoding UTF8
+                    
+                    # Extract assembly list from package
+                    $zip = [System.IO.Compression.ZipFile]::OpenRead($packagePath)
+                    $dlls = $zip.Entries | Where-Object { $_.Name -like '*.dll' } | ForEach-Object { $_.Name }
+                    $zip.Dispose()
+                    
+                    # Create metadata JSON
+                    $metadata = @{
+                        packageName = [System.IO.Path]::GetFileName($packagePath)
+                        sha256 = $hash
+                        assemblies = $dlls
+                        createdAt = (Get-Date -Format 'o')
+                    } | ConvertTo-Json -Depth 3
+                    Set-Content -Path $metadataPath -Value $metadata -Encoding UTF8
+                    
+                    Write-Host "📝 Hash written to: $hashPath" -ForegroundColor Gray
+                    Write-Host "📝 Metadata written to: $metadataPath" -ForegroundColor Gray
+                } catch {
+                    Write-Host "⚠️ Failed to write packaging metadata: $_" -ForegroundColor Yellow
+                }
+            }
         } else {
             Write-Host ""
             Write-Host "❌ Build failed!" -ForegroundColor Red
@@ -171,10 +215,12 @@ Write-Host ""
 Write-Host "🎉 Build script completed!" -ForegroundColor Green
 
 # Show next steps
-if (-not $Deploy -and -not $NoBuild) {
+if (-not $Deploy -and -not $NoBuild -and -not $Package) {
     Write-Host ""
     Write-Host "💡 Next steps:" -ForegroundColor Cyan
     Write-Host "• To deploy: .\build.ps1 $Configuration -Deploy" -ForegroundColor White
+    Write-Host "• To package: .\build.ps1 $Configuration -Package" -ForegroundColor White
     Write-Host "• Plugin location: bin\Lidarr.Plugin.Qobuzarr.dll" -ForegroundColor White
     Write-Host "• Manual deploy: Copy bin\* to Lidarr plugins folder" -ForegroundColor White
 }
+
