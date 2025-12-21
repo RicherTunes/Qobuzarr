@@ -11,7 +11,7 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers.Parsing
     /// Implementation of title generation logic.
     /// Extracted from QobuzParser god class to follow Single Responsibility Principle.
     /// </summary>
-    internal class TitleGenerator : ITitleGenerator
+    public class TitleGenerator : ITitleGenerator
     {
         private readonly Logger _logger;
 
