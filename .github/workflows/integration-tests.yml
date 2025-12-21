@@ -39,12 +39,27 @@ jobs:
             
       - name: Extract Lidarr assemblies
         run: |
+          set -euo pipefail
+          
           # Cleanup any leftover container from failed runs
           docker rm -f lidarr 2>/dev/null || true
+          
+          # Ensure container is removed even if extraction fails
+          cleanup() { docker rm -f lidarr 2>/dev/null || true; }
+          trap cleanup EXIT
+          
           mkdir -p ext/lidarr-assemblies
           docker create --name lidarr ghcr.io/hotio/lidarr:${{ inputs.lidarr_version }}
           docker cp lidarr:/app/bin/. ext/lidarr-assemblies/
-          docker rm lidarr
+          
+          # Sanity check: verify critical assembly exists
+          if [ ! -f ext/lidarr-assemblies/Lidarr.dll ]; then
+            echo "::error::Lidarr.dll not found after extraction"
+            ls -la ext/lidarr-assemblies/
+            exit 1
+          fi
+          
+          echo "Extracted assemblies:"
           ls -la ext/lidarr-assemblies/
           
       - name: Restore dependencies
