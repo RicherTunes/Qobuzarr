@@ -7,6 +7,11 @@
     <IsTestProject>true</IsTestProject>
   </PropertyGroup>
 
+  <PropertyGroup>
+    <LidarrAssembliesPath>..\..\ext\Lidarr\_output\net8.0</LidarrAssembliesPath>
+    <LidarrAssembliesPath Condition="!Exists('$(LidarrAssembliesPath)\\Lidarr.dll') and Exists('..\\..\\ext\\Lidarr-docker\\_output\\net8.0\\Lidarr.dll')">..\..\ext\Lidarr-docker\_output\net8.0</LidarrAssembliesPath>
+  </PropertyGroup>
+
   <ItemGroup>
     <PackageReference Include="xunit" />
     <PackageReference Include="xunit.runner.visualstudio">
@@ -45,58 +50,37 @@
   <!-- Lidarr host assemblies for test compilation (plugins branch) -->
   <ItemGroup>
     <Reference Include="Lidarr">
-      <HintPath>..\..\ext\Lidarr\_output\net6.0\Lidarr.dll</HintPath>
+      <HintPath>$(LidarrAssembliesPath)\Lidarr.dll</HintPath>
       <Private>true</Private>
       <CopyLocal>true</CopyLocal>
     </Reference>
     <Reference Include="Lidarr.Common">
-      <HintPath>..\..\ext\Lidarr\_output\net6.0\Lidarr.Common.dll</HintPath>
+      <HintPath>$(LidarrAssembliesPath)\Lidarr.Common.dll</HintPath>
       <Private>true</Private>
       <CopyLocal>true</CopyLocal>
     </Reference>
     <Reference Include="Lidarr.Core">
-      <HintPath>..\..\ext\Lidarr\_output\net6.0\Lidarr.Core.dll</HintPath>
+      <HintPath>$(LidarrAssembliesPath)\Lidarr.Core.dll</HintPath>
       <Private>true</Private>
       <CopyLocal>true</CopyLocal>
     </Reference>
     <Reference Include="Lidarr.Api.V1">
-      <HintPath>..\..\ext\Lidarr\_output\net6.0\Lidarr.Api.V1.dll</HintPath>
+      <HintPath>$(LidarrAssembliesPath)\Lidarr.Api.V1.dll</HintPath>
       <Private>true</Private>
       <CopyLocal>true</CopyLocal>
     </Reference>
     <Reference Include="Lidarr.Http">
-      <HintPath>..\..\ext\Lidarr\_output\net6.0\Lidarr.Http.dll</HintPath>
+      <HintPath>$(LidarrAssembliesPath)\Lidarr.Http.dll</HintPath>
       <Private>true</Private>
       <CopyLocal>true</CopyLocal>
     </Reference>
     <Reference Include="Lidarr.Host">
-      <HintPath>..\..\ext\Lidarr\_output\net6.0\Lidarr.Host.dll</HintPath>
+      <HintPath>$(LidarrAssembliesPath)\Lidarr.Host.dll</HintPath>
       <Private>true</Private>
       <CopyLocal>true</CopyLocal>
     </Reference>
     <Reference Include="Lidarr.SignalR">
-      <HintPath>..\..\ext\Lidarr\_output\net6.0\Lidarr.SignalR.dll</HintPath>
-      <Private>true</Private>
-      <CopyLocal>true</CopyLocal>
-    </Reference>
-    <!-- Some tests use legacy NzbDrone namespaces; include these host assemblies -->
-    <Reference Include="NzbDrone.Core">
-      <HintPath>..\..\ext\Lidarr\_output\net6.0\NzbDrone.Core.dll</HintPath>
-      <Private>true</Private>
-      <CopyLocal>true</CopyLocal>
-    </Reference>
-    <Reference Include="NzbDrone.Common">
-      <HintPath>..\..\ext\Lidarr\_output\net6.0\NzbDrone.Common.dll</HintPath>
-      <Private>true</Private>
-      <CopyLocal>true</CopyLocal>
-    </Reference>
-    <Reference Include="NzbDrone.Host">
-      <HintPath>..\..\ext\Lidarr\_output\net6.0\NzbDrone.Host.dll</HintPath>
-      <Private>true</Private>
-      <CopyLocal>true</CopyLocal>
-    </Reference>
-    <Reference Include="NzbDrone.Api">
-      <HintPath>..\..\ext\Lidarr\_output\net6.0\NzbDrone.Api.dll</HintPath>
+      <HintPath>$(LidarrAssembliesPath)\Lidarr.SignalR.dll</HintPath>
       <Private>true</Private>
       <CopyLocal>true</CopyLocal>
     </Reference>
