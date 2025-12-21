@@ -12,6 +12,7 @@ Quick commands
 Categories
 - Category=LiveIntegration: Tests that talk to a live Lidarr instance; skipped by default via runsettings.
 - Category=Slow: Stress/perf tests; skipped by default via runsettings (same filter excludes them if desired; adjust TestCaseFilter).
+- Category=Performance: ML optimization and benchmark tests; excluded from default CI runs to reduce build times. Run with: `dotnet test --filter "Category=Performance"`
 
 Skipping live tests automatically
 - Live tests skip (do not fail) when required env vars are missing or endpoint is unreachable. Messages indicate what to set.

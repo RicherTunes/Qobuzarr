@@ -8,6 +8,7 @@ using Xunit.Abstractions;
 
 namespace Qobuzarr.Tests.Indexers
 {
+    [Trait("Category", "Performance")]
     public class MLPerformanceMetricsTests : IDisposable
     {
         private readonly ITestOutputHelper _output;

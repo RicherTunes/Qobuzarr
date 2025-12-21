@@ -13,6 +13,7 @@ namespace Minimal.Tests
     /// These tests ensure the system performs adequately under production load conditions.
     /// CRITICAL: These tests prevent performance regressions in production.
     /// </summary>
+    [Trait("Category", "Performance")]
     public class PerformanceBenchmarkTests
     {
         private readonly AlbumComponentClassifier _classifier;
