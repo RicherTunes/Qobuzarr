@@ -5,6 +5,10 @@
     <LangVersion>latest</LangVersion>
     <IsPackable>false</IsPackable>
     <IsTestProject>true</IsTestProject>
+    <!-- Relax analyzer rules for test projects -->
+    <!-- Disable TreatWarningsAsErrors that may be inherited and suppress common test-related analyzer warnings -->
+    <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
+    <NoWarn>$(NoWarn);CA1001;CA1304;CA1305;CA1310;CA1311;CA1707;CA1816;CA1822;CA1825;CA1847;CA1852;CA1854;CA1859;CA1860;CA1861;CA1862;CA1866;CA1869;CA2201;CA2211;SYSLIB1045;xUnit1026;xUnit1031;xUnit1042;xUnit2020;xUnit2021</NoWarn>
   </PropertyGroup>
 
   <PropertyGroup>

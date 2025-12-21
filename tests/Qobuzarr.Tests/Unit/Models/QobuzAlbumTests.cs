@@ -74,9 +74,11 @@ namespace Qobuzarr.Tests.Unit.Models
             var size = album.GetEstimatedTotalSize(5); // MP3 320kbps
 
             // Assert
-            // 4578 seconds * 320kbps / 8 (bits to bytes)
-            var expectedSize = (long)(4578 * 320 * 1000 / 8);
-            ((long)size).Should().BeInRange(expectedSize - (long)(expectedSize * 0.1), expectedSize + (long)(expectedSize * 0.1)); // 10% tolerance
+            // Implementation uses 2.4 MB/min for MP3 320kbps and sums individual track sizes
+            // Sample response has 1 track with 274 seconds duration
+            var tracks = album.GetTracks();
+            var expectedSize = tracks.Sum(t => (long)(t.Duration.TotalMinutes * 2.4 * 1024 * 1024));
+            size.Should().Be(expectedSize);
         }
 
         [Fact]

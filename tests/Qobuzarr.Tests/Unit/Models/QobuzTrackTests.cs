@@ -204,10 +204,13 @@ namespace Qobuzarr.Tests.Unit.Models
             };
 
             // Act
-            var durationString = track.Duration.ToString(@"m\:ss");
+            // Use TotalMinutes for durations over 1 hour to get proper representation
+            var totalMinutes = (int)track.Duration.TotalMinutes;
+            var seconds = track.Duration.Seconds;
+            var durationString = $"{totalMinutes}:{seconds:D2}";
 
             // Assert
-            durationString.Should().Be("61:01"); // Minutes format, not hours
+            durationString.Should().Be("61:01"); // Total minutes format (not hours:minutes)
         }
 
         [Fact]

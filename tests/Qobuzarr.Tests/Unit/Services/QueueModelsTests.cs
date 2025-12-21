@@ -194,7 +194,7 @@ namespace Qobuzarr.Tests.Unit.Services
 
         [Theory]
         [InlineData(0, 0, 0)]
-        [InlineData(100, 1000, 10)] // 100ms total / 10 acquisitions = 10ms average
+        [InlineData(100, 10, 10)] // 100ms total / 10 acquisitions = 10ms average
         [InlineData(5000, 50, 100)] // 5000ms total / 50 acquisitions = 100ms average
         public void QueueStatistics_AverageWaitTime_CalculationLogic(long totalWaitMs, long acquisitions, long expectedAverageMs)
         {
