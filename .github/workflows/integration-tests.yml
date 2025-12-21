@@ -1,0 +1,70 @@
+name: Integration Tests
+
+on:
+  workflow_dispatch:
+    inputs:
+      lidarr_version:
+        description: 'Lidarr plugins branch version (e.g., pr-plugins-4)'
+        required: true
+        default: 'pr-plugins-4'
+        type: string
+
+env:
+  DOTNET_NOLOGO: true
+  DOTNET_CLI_TELEMETRY_OPTOUT: true
+
+jobs:
+  integration-test:
+    name: Integration Tests
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+          
+      - name: Cache NuGet packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.nuget/packages
+          key: ${{ runner.os }}-nuget-${{ hashFiles('**/*.csproj') }}
+          restore-keys: |
+            ${{ runner.os }}-nuget-
+            
+      - name: Extract Lidarr assemblies
+        run: |
+          mkdir -p ext/lidarr-assemblies
+          docker create --name lidarr ghcr.io/hotio/lidarr:${{ inputs.lidarr_version }}
+          docker cp lidarr:/app/bin/. ext/lidarr-assemblies/
+          docker rm lidarr
+          ls -la ext/lidarr-assemblies/
+          
+      - name: Restore dependencies
+        run: dotnet restore
+        
+      - name: Build
+        run: dotnet build --no-restore -c Release
+        
+      - name: Run Integration Tests
+        run: |
+          dotnet test tests/Qobuzarr.Tests/Qobuzarr.Tests.csproj \
+            --no-build \
+            -c Release \
+            --filter "Category=Integration" \
+            --logger "trx;LogFileName=integration-results.trx" \
+            --results-directory ./test-results
+        env:
+          LidarrAssembliesPath: ${{ github.workspace }}/ext/lidarr-assemblies
+          
+      - name: Upload Test Results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: integration-test-results
+          path: ./test-results/*.trx
