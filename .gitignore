@@ -26,6 +26,19 @@ _temp/
 .vs/
 .vscode/
 
+# =============================================================================
+# Local tooling artifacts (do not commit)
+# =============================================================================
+node_modules/
+.opencode/
+.screenshot-tools/
+.docker/
+temp-screenshots/
+temp-new-screenshots/
+temp_*.dll
+QobuzCLI/*.old.cs
+QobuzCLI/Program.old.cs
+
 # User-specific files
 *.rsuser
 *.suo
