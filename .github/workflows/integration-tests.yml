@@ -54,7 +54,9 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ${{ env.LIDARR_ASSEMBLIES_PATH }}
-          key: lidarr-assemblies-${{ inputs.lidarr_version }}
+          key: ${{ runner.os }}-lidarr-assemblies-${{ inputs.lidarr_version }}
+          restore-keys: |
+            ${{ runner.os }}-lidarr-assemblies-
           
       - name: Extract Lidarr assemblies
         if: steps.cache-lidarr.outputs.cache-hit != 'true' || inputs.force_extract
