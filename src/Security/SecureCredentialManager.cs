@@ -153,14 +153,42 @@ namespace Lidarr.Plugin.Qobuzarr.Security
                 return false;
             }
 
-            // Check for accidentally pasted environment variables or file paths
-            if (credential.StartsWith("$") || 
-                credential.StartsWith("%") ||
-                credential.Contains(":\\") ||
-                credential.Contains("/."))
+            // HARD REJECT: Obvious file paths and Windows environment variables
+            // These are clear indicators of misconfiguration (user pasted wrong value)
+            // Note: We do NOT reject $ or / prefixes since opaque tokens can legitimately start with these
+            if (credential.StartsWith("%") && credential.EndsWith("%") ||  // Windows env vars: %VAR%
+                credential.Contains(":\\") ||           // Windows absolute paths: C:\...
+                credential.StartsWith("./") ||          // Unix relative paths: ./path
+                credential.Contains("../") ||           // Path traversal: ../../../etc/passwd
+                credential.Contains("..\\") ||          // Windows path traversal: ..\..\..\
+                credential.StartsWith("file:", StringComparison.OrdinalIgnoreCase))  // File URI
             {
-                _logger.Warn("Credential appears to contain environment variable or file path instead of actual credential");
+                _logger.Warn("Credential appears to contain file path or environment variable instead of actual credential");
                 return false;
+            }
+            
+            // WARN ONLY: These patterns might appear in legitimate opaque tokens
+            // Log a warning but don't reject - modern auth tokens can contain any characters
+            // (including /, $, SQL keywords, etc.)
+            var lowerCred = credential.ToLowerInvariant();
+            bool hasSuspiciousPatterns = 
+                credential.StartsWith("javascript:", StringComparison.OrdinalIgnoreCase) ||
+                credential.StartsWith("data:", StringComparison.OrdinalIgnoreCase) ||
+                credential.Contains("<script", StringComparison.OrdinalIgnoreCase) ||
+                lowerCred.Contains("drop ") ||
+                lowerCred.Contains("delete ") ||
+                credential.Contains("--") ||
+                credential.Contains("' or ", StringComparison.OrdinalIgnoreCase) ||
+                credential.Contains("'='") ||
+                // Warn on likely env var/path patterns but don't reject
+                (credential.StartsWith("$") && credential.Contains("/")) ||  // Likely $HOME/path
+                (credential.StartsWith("/") && credential.Contains("/etc"));  // Likely /etc/passwd
+            
+            if (hasSuspiciousPatterns)
+            {
+                _logger.Warn("Credential contains patterns that may indicate a misconfiguration. " +
+                    "If this is a valid auth token, this warning can be ignored.");
+                // Don't return false - opaque tokens might legitimately contain these patterns
             }
 
             return true;
