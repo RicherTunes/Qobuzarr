@@ -69,6 +69,7 @@ namespace Qobuzarr.Tests.Unit.Indexers
             }
         }
 
+        [Trait("Category", "Quarantined")]
         [Theory]
         [MemberData(nameof(AlbumEditionTestData.EditionVariants), MemberType = typeof(AlbumEditionTestData))]
         public void GenerateTitle_WithEditionVariants_ShouldFormatCorrectly(

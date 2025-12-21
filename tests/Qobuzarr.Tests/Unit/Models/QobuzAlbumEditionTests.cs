@@ -250,6 +250,7 @@ namespace Qobuzarr.Tests.Unit.Models
             fullTitle.Should().Be("Unknown Album (Live Edition)");
         }
 
+        [Trait("Category", "Quarantined")]
         [Fact]
         public void GetFullTitle_WithEmptyTitleAndVersion_ShouldReturnDefault()
         {

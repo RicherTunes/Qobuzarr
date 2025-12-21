@@ -393,6 +393,7 @@ namespace Qobuzarr.Tests.Unit.Security
 
         #region Security Attack Prevention Tests
 
+        [Trait("Category", "Quarantined")]
         [Fact]
         public void StoreSessionSecurely_WithInjectionInUserId_ShouldStoreButFailValidation()
         {

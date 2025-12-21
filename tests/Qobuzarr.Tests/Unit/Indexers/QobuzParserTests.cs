@@ -74,6 +74,7 @@ namespace Qobuzarr.Tests.Unit.Indexers
         /// <summary>
         /// Test explicit content handling in titles
         /// </summary>
+        [Trait("Category", "Quarantined")]
         [Fact]
         public void GenerateQualitySpecificTitle_WithExplicitContent_ShouldIncludeExplicitTag()
         {

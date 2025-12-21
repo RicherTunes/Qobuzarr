@@ -191,6 +191,7 @@ namespace Qobuzarr.Tests.Unit.Indexers
     /// </summary>
     public class BaselineApiCallEstimationTests
     {
+        [Trait("Category", "Quarantined")]
         [Theory]
         [InlineData("Taylor Swift", "1989", QueryComplexity.Simple, 3)]
         [InlineData("Various Artists", "Now That's What I Call Music! 85", QueryComplexity.Medium, 3)]

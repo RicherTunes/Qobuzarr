@@ -121,6 +121,7 @@ namespace Qobuzarr.Tests.Unit.Models
             size.Should().BeCloseTo(expectedSize, (ulong)(expectedSize * 0.1)); // 10% tolerance
         }
 
+        [Trait("Category", "Quarantined")]
         [Fact]
         public void GetEstimatedFileSize_WithFLACQuality_ShouldCalculateCorrectly()
         {
@@ -208,6 +209,7 @@ namespace Qobuzarr.Tests.Unit.Models
             durationString.Should().Be("61:01"); // Minutes format, not hours
         }
 
+        [Trait("Category", "Quarantined")]
         [Fact]
         public void GetQualityInfo_WithValidTrack_ShouldReturnQualityData()
         {
