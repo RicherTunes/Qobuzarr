@@ -23,6 +23,9 @@ namespace Lidarr.Plugin.Qobuzarr.Security
         // HTML/XML tags that should be stripped
         private static readonly Regex HtmlTagRegex = new(@"<[^>]*>", RegexOptions.Compiled);
         
+        // Script tags with their content should be completely removed
+        private static readonly Regex ScriptTagRegex = new(@"<script[^>]*>.*?</script>", RegexOptions.Compiled | RegexOptions.IgnoreCase | RegexOptions.Singleline);
+        
         // Dangerous patterns that indicate potential attacks
         private static readonly HashSet<string> DangerousPatterns = new(StringComparer.OrdinalIgnoreCase)
         {
@@ -65,10 +68,13 @@ namespace Lidarr.Plugin.Qobuzarr.Security
             // Step 1: Remove control characters and zero-width characters
             var sanitized = ControlCharRegex.Replace(version, "");
             
-            // Step 2: Strip HTML/XML tags completely
+            // Step 2: Remove script tags with their content entirely (XSS prevention)
+            sanitized = ScriptTagRegex.Replace(sanitized, "");
+            
+            // Step 3: Strip remaining HTML/XML tags
             sanitized = HtmlTagRegex.Replace(sanitized, "");
             
-            // Step 3: Replace dangerous characters for file system safety
+            // Step 4: Replace dangerous characters for file system safety
             sanitized = sanitized
                 .Replace("..", "_")  // Path traversal
                 .Replace("~/", "_")  // Home directory access
@@ -85,17 +91,17 @@ namespace Lidarr.Plugin.Qobuzarr.Security
                 .Replace("\n", " ")  // Newline
                 .Replace("\t", " "); // Tab
             
-            // Step 4: Collapse multiple spaces
+            // Step 5: Collapse multiple spaces
             sanitized = Regex.Replace(sanitized, @"\s+", " ");
             
-            // Step 5: Trim and enforce length limit
+            // Step 6: Trim and enforce length limit
             sanitized = sanitized.Trim();
             if (sanitized.Length > MaxVersionLength)
             {
                 sanitized = sanitized.Substring(0, MaxVersionLength).TrimEnd();
             }
             
-            // Step 6: Check for dangerous patterns
+            // Step 7: Check for dangerous patterns
             foreach (var pattern in DangerousPatterns)
             {
                 if (sanitized.Contains(pattern, StringComparison.OrdinalIgnoreCase))
@@ -108,7 +114,7 @@ namespace Lidarr.Plugin.Qobuzarr.Security
                 }
             }
             
-            // Step 7: Final validation - ensure result is safe
+            // Step 8: Final validation - ensure result is safe
             if (string.IsNullOrWhiteSpace(sanitized))
             {
                 return string.Empty;

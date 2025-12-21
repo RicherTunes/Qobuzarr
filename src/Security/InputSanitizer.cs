@@ -373,7 +373,30 @@ namespace Lidarr.Plugin.Qobuzarr.Security
 
             // Delegate to the shared library's sanitizer for consistent cross-platform rules
             var sanitized = LPCFileNameSanitizer.SanitizeFileName(fileName);
-            return string.IsNullOrWhiteSpace(sanitized) ? "unknown_file" : sanitized;
+            
+            if (string.IsNullOrWhiteSpace(sanitized))
+                return "unknown_file";
+            
+            // Enforce OS file name length limits (255 chars is the common limit)
+            const int MaxFileNameLength = 255;
+            if (sanitized.Length > MaxFileNameLength)
+            {
+                // Preserve extension if present
+                var extension = Path.GetExtension(sanitized);
+                var nameWithoutExt = Path.GetFileNameWithoutExtension(sanitized);
+                var maxNameLength = MaxFileNameLength - extension.Length;
+                
+                if (maxNameLength > 0 && nameWithoutExt.Length > maxNameLength)
+                {
+                    sanitized = nameWithoutExt.Substring(0, maxNameLength) + extension;
+                }
+                else
+                {
+                    sanitized = sanitized.Substring(0, MaxFileNameLength);
+                }
+            }
+            
+            return sanitized;
         }
 
         /// <summary>
