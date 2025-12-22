@@ -183,9 +183,9 @@ namespace Minimal.Tests
             strategy.CleaningLevel.Should().Be(expectedLevel, reason);
             
             // Edition markers should NOT be classified as version descriptors
-            if (components.ContainsKey(editionMarker))
+            if (components.TryGetValue(editionMarker, out var componentType))
             {
-                components[editionMarker].Should().NotBe(AlbumComponentType.VersionDescriptor, 
+                componentType.Should().NotBe(AlbumComponentType.VersionDescriptor, 
                     $"{editionMarker} should remain as edition marker, not version descriptor");
             }
         }

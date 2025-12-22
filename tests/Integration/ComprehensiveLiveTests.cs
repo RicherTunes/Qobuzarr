@@ -16,8 +16,8 @@ namespace Qobuzarr.IntegrationTests
     public class ComprehensiveLiveTests : IAsyncLifetime
     {
         private readonly ITestOutputHelper _output;
-        private LiveLidarrIntegrationFramework _framework;
-        private string _skipReason;
+        private LiveLidarrIntegrationFramework? _framework;
+        private string? _skipReason;
 
         public ComprehensiveLiveTests(ITestOutputHelper output)
         {
@@ -59,7 +59,7 @@ namespace Qobuzarr.IntegrationTests
         [Trait("Priority", "Critical")]
         public async Task Test_01_Plugin_Loading_And_Configuration()
         {
-            if (_skipReason != null) return;
+            if (_skipReason != null || _framework == null) return;
             _output.WriteLine("🧪 TEST 1: Plugin Loading & Configuration Validation");
             
             var result = await _framework.ValidateBasicConnectivityAsync();
@@ -81,7 +81,7 @@ namespace Qobuzarr.IntegrationTests
         [Trait("Priority", "Critical")]
         public async Task Test_02_Search_Functionality_With_Known_Album()
         {
-            if (_skipReason != null) return;
+            if (_skipReason != null || _framework == null) return;
             _output.WriteLine("🧪 TEST 2: Search Functionality with Known Album");
             
             var searchResult = await _framework.TestSearchFunctionalityAsync();
@@ -90,9 +90,9 @@ namespace Qobuzarr.IntegrationTests
             searchResult.IsSuccess.Should().BeTrue("Search should complete successfully");
             
             // If releases were found, that's excellent
-            if (searchResult.Data.ContainsKey("FoundReleases"))
+            if (searchResult.Data.TryGetValue("FoundReleases", out var foundReleasesObj))
             {
-                var releases = searchResult.Data["FoundReleases"] as List<dynamic>;
+                var releases = foundReleasesObj as List<dynamic>;
                 releases.Should().NotBeEmpty("Should find at least one release for wanted albums");
                 _output.WriteLine($"✅ Found {releases?.Count} releases - search is working correctly!");
             }
@@ -107,7 +107,7 @@ namespace Qobuzarr.IntegrationTests
         [Trait("Priority", "High")]
         public async Task Test_03_Plugin_Error_Handling()
         {
-            if (_skipReason != null) return;
+            if (_skipReason != null || _framework == null) return;
             _output.WriteLine("🧪 TEST 3: Plugin Error Handling & Resilience");
             
             // Monitor logs for any errors during normal operations
@@ -132,7 +132,7 @@ namespace Qobuzarr.IntegrationTests
         [Trait("Priority", "Medium")]
         public async Task Test_04_Download_Queue_Integration()
         {
-            if (_skipReason != null) return;
+            if (_skipReason != null || _framework == null) return;
             _output.WriteLine("🧪 TEST 4: Download Queue Integration");
             
             // This test validates that downloads can be queued successfully
@@ -156,7 +156,7 @@ namespace Qobuzarr.IntegrationTests
         [Trait("Priority", "Critical")]
         public async Task Test_05_Plugin_Restart_Resilience()
         {
-            if (_skipReason != null) return;
+            if (_skipReason != null || _framework == null) return;
             _output.WriteLine("🧪 TEST 5: Plugin Restart Resilience");
             
             // Test that the plugin survives Lidarr restarts
@@ -185,7 +185,7 @@ namespace Qobuzarr.IntegrationTests
         [Trait("Priority", "High")]
         public async Task Test_06_Security_Input_Validation()
         {
-            if (_skipReason != null) return;
+            if (_skipReason != null || _framework == null) return;
             _output.WriteLine("🧪 TEST 6: Security Input Validation (NEW)");
             
             // Test that our new InputSanitizer prevents malicious inputs
@@ -230,7 +230,7 @@ namespace Qobuzarr.IntegrationTests
         [Trait("Priority", "Medium")]
         public async Task Test_07_Performance_And_Resource_Usage()
         {
-            if (_skipReason != null) return;
+            if (_skipReason != null || _framework == null) return;
             _output.WriteLine("🧪 TEST 7: Performance & Resource Usage");
             
             var startTime = DateTime.UtcNow;
@@ -263,7 +263,7 @@ namespace Qobuzarr.IntegrationTests
         [Trait("Priority", "High")]
         public async Task Test_08_End_To_End_Workflow()
         {
-            if (_skipReason != null) return;
+            if (_skipReason != null || _framework == null) return;
             _output.WriteLine("🧪 TEST 8: Complete End-to-End Workflow");
             
             var e2eResult = await _framework.RunEndToEndTestAsync();
@@ -291,7 +291,7 @@ namespace Qobuzarr.IntegrationTests
     /// Collection definition for live integration tests to ensure they run sequentially
     /// </summary>
     [CollectionDefinition("LiveIntegration", DisableParallelization = true)]
-    public class LiveIntegrationCollection
+    public class LiveIntegrationTestDefinition
     {
         // This class is used to group tests that shouldn't run in parallel
         // since they interact with the same live Lidarr instance

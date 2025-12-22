@@ -85,10 +85,10 @@ namespace Qobuzarr.IntegrationTests
             response.IsSuccessStatusCode.Should().BeTrue($"Should be able to get artists. Status: {response.StatusCode}");
             
             var content = await response.Content.ReadAsStringAsync();
-            var artists = JsonConvert.DeserializeObject<dynamic[]>(content);
+            var artists = JsonConvert.DeserializeObject<dynamic[]>(content) ?? Array.Empty<dynamic>();
             
             artists.Should().NotBeNull("Artists response should not be null");
-            artists.Length.Should().BeGreaterThan(0, "Should have at least some artists configured for testing");
+            artists.Should().NotBeEmpty("Should have at least some artists configured for testing");
             
             _output.WriteLine($"Found {artists.Length} artists:");
             
