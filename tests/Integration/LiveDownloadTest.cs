@@ -78,7 +78,8 @@ namespace Qobuzarr.IntegrationTests
             
             // Pick the first album
             var album = albums[0];
-            var albumId = album["id"]?.ToObject<int>() ?? 0;
+            var albumId = album["id"]?.ToObject<int>() 
+                ?? throw new InvalidOperationException("Album 'id' field missing from wanted albums response");
             var albumTitle = album["title"]?.ToString();
             var artistName = album["artist"]?["artistName"]?.ToString();
             

@@ -105,7 +105,8 @@ namespace Qobuzarr.IntegrationTests
                     if (qobuzIndexer != null)
                     {
                         result.AddSuccess($"Qobuzarr indexer found (ID: {qobuzIndexer["id"]})");
-                        result.Data["QobuzIndexerId"] = qobuzIndexer["id"]?.ToObject<int>() ?? 0;
+                        result.Data["QobuzIndexerId"] = qobuzIndexer["id"]?.ToObject<int>() 
+                            ?? throw new InvalidOperationException("Qobuz indexer 'id' field missing from API response");
                         result.Data["QobuzIndexerEnabled"] = qobuzIndexer["enable"]?.ToObject<bool>() ?? false;
                     }
                     else
@@ -125,7 +126,8 @@ namespace Qobuzarr.IntegrationTests
                     if (qobuzDownloadClient != null)
                     {
                         result.AddSuccess($"Qobuzarr download client found (ID: {qobuzDownloadClient["id"]})");
-                        result.Data["QobuzDownloadClientId"] = qobuzDownloadClient["id"]?.ToObject<int>() ?? 0;
+                        result.Data["QobuzDownloadClientId"] = qobuzDownloadClient["id"]?.ToObject<int>() 
+                            ?? throw new InvalidOperationException("Qobuz download client 'id' field missing from API response");
                         result.Data["QobuzDownloadClientEnabled"] = qobuzDownloadClient["enable"]?.ToObject<bool>() ?? false;
                     }
                     else
@@ -370,7 +372,8 @@ namespace Qobuzarr.IntegrationTests
                 }
                 
                 var testAlbum = albums[0];
-                var albumId = testAlbum["id"]?.ToObject<int>() ?? 0;
+                var albumId = testAlbum["id"]?.ToObject<int>() 
+                    ?? throw new InvalidOperationException("Album 'id' field missing from wanted albums response");
                 var albumTitle = testAlbum["title"]?.ToString();
                 var artistName = testAlbum["artist"]?["artistName"]?.ToString();
                 
@@ -390,7 +393,8 @@ namespace Qobuzarr.IntegrationTests
                 {
                     var searchResult = await searchResponse.Content.ReadAsStringAsync();
                     var searchResultData = JsonConvert.DeserializeObject<JObject>(searchResult);
-                    var commandId = searchResultData?["id"]?.ToObject<int>() ?? 0;
+                    var commandId = searchResultData?["id"]?.ToObject<int>() 
+                        ?? throw new InvalidOperationException("Command 'id' field missing from search response");
                     
                     // Monitor search progress
                     var progressResult = await MonitorCommandProgressAsync(commandId);
@@ -460,11 +464,13 @@ namespace Qobuzarr.IntegrationTests
                 _output.WriteLine($"🎯 Testing download for: {releaseTitle}");
                 
                 // Trigger download
+                var releaseAlbumId = testRelease["albumId"]?.ToObject<int>() 
+                    ?? throw new InvalidOperationException("Release 'albumId' field missing from release response");
                 var downloadPayload = JsonConvert.SerializeObject(new 
                 { 
                     name = "DownloadSearch",
                     indexerId = result.Data.GetValueOrDefault("QobuzIndexerId", 1),
-                    albumIds = new[] { testRelease["albumId"]?.ToObject<int>() ?? 0 }
+                    albumIds = new[] { releaseAlbumId }
                 });
                 var downloadContent = new StringContent(downloadPayload, Encoding.UTF8, "application/json");
                 
