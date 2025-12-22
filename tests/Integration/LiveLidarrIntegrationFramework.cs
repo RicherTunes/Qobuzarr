@@ -25,9 +25,9 @@ namespace Qobuzarr.IntegrationTests
         private readonly HttpClient _httpClient;
         private readonly string _lidarrUrl;
         private readonly string _lidarrApiKey;
-        private readonly string _dockerContainerName;
-        private readonly string _unraidHost;
-        private readonly string _unraidApiKey;
+        private readonly string? _dockerContainerName;
+        private readonly string? _unraidHost;
+        private readonly string? _unraidApiKey;
         private readonly bool _isDockerEnvironment;
         private readonly bool _isUnraidEnvironment;
 
@@ -101,12 +101,12 @@ namespace Qobuzarr.IntegrationTests
                     var indexerContent = await indexerResponse.Content.ReadAsStringAsync();
                     var indexers = JsonConvert.DeserializeObject<JArray>(indexerContent);
                     
-                    var qobuzIndexer = indexers.FirstOrDefault(i => i["implementation"]?.ToString() == "QobuzIndexer");
+                    var qobuzIndexer = indexers?.FirstOrDefault(i => i["implementation"]?.ToString() == "QobuzIndexer");
                     if (qobuzIndexer != null)
                     {
                         result.AddSuccess($"Qobuzarr indexer found (ID: {qobuzIndexer["id"]})");
-                        result.Data["QobuzIndexerId"] = (int)qobuzIndexer["id"];
-                        result.Data["QobuzIndexerEnabled"] = (bool)qobuzIndexer["enable"];
+                        result.Data["QobuzIndexerId"] = qobuzIndexer["id"]?.ToObject<int>() ?? 0;
+                        result.Data["QobuzIndexerEnabled"] = qobuzIndexer["enable"]?.ToObject<bool>() ?? false;
                     }
                     else
                     {
@@ -121,12 +121,12 @@ namespace Qobuzarr.IntegrationTests
                     var downloadContent = await downloadClientResponse.Content.ReadAsStringAsync();
                     var downloadClients = JsonConvert.DeserializeObject<JArray>(downloadContent);
                     
-                    var qobuzDownloadClient = downloadClients.FirstOrDefault(d => d["implementation"]?.ToString() == "QobuzDownloadClient");
+                    var qobuzDownloadClient = downloadClients?.FirstOrDefault(d => d["implementation"]?.ToString() == "QobuzDownloadClient");
                     if (qobuzDownloadClient != null)
                     {
                         result.AddSuccess($"Qobuzarr download client found (ID: {qobuzDownloadClient["id"]})");
-                        result.Data["QobuzDownloadClientId"] = (int)qobuzDownloadClient["id"];
-                        result.Data["QobuzDownloadClientEnabled"] = (bool)qobuzDownloadClient["enable"];
+                        result.Data["QobuzDownloadClientId"] = qobuzDownloadClient["id"]?.ToObject<int>() ?? 0;
+                        result.Data["QobuzDownloadClientEnabled"] = qobuzDownloadClient["enable"]?.ToObject<bool>() ?? false;
                     }
                     else
                     {
@@ -147,7 +147,7 @@ namespace Qobuzarr.IntegrationTests
         /// <summary>
         /// Deploys the plugin to the live Lidarr instance
         /// </summary>
-        public async Task<ValidationResult> DeployPluginAsync(string pluginPath = null)
+        public async Task<ValidationResult> DeployPluginAsync(string? pluginPath = null)
         {
             var result = new ValidationResult("Plugin Deployment");
             
@@ -370,7 +370,7 @@ namespace Qobuzarr.IntegrationTests
                 }
                 
                 var testAlbum = albums[0];
-                var albumId = (int)testAlbum["id"];
+                var albumId = testAlbum["id"]?.ToObject<int>() ?? 0;
                 var albumTitle = testAlbum["title"]?.ToString();
                 var artistName = testAlbum["artist"]?["artistName"]?.ToString();
                 
@@ -389,8 +389,8 @@ namespace Qobuzarr.IntegrationTests
                 if (searchResponse.IsSuccessStatusCode)
                 {
                     var searchResult = await searchResponse.Content.ReadAsStringAsync();
-                    var commandData = JsonConvert.DeserializeObject<dynamic>(searchResult);
-                    var commandId = (int)commandData?.id;
+                    var searchResultData = JsonConvert.DeserializeObject<JObject>(searchResult);
+                    var commandId = searchResultData?["id"]?.ToObject<int>() ?? 0;
                     
                     // Monitor search progress
                     var progressResult = await MonitorCommandProgressAsync(commandId);
@@ -464,7 +464,7 @@ namespace Qobuzarr.IntegrationTests
                 { 
                     name = "DownloadSearch",
                     indexerId = result.Data.GetValueOrDefault("QobuzIndexerId", 1),
-                    albumIds = new[] { (int)testRelease["albumId"] }
+                    albumIds = new[] { testRelease["albumId"]?.ToObject<int>() ?? 0 }
                 });
                 var downloadContent = new StringContent(downloadPayload, Encoding.UTF8, "application/json");
                 
@@ -501,7 +501,7 @@ namespace Qobuzarr.IntegrationTests
         /// <summary>
         /// Gets Docker logs for the Lidarr container
         /// </summary>
-        private async Task<List<string>> GetDockerLogsAsync(string filter = null)
+        private async Task<List<string>> GetDockerLogsAsync(string? filter = null)
         {
             var logs = new List<string>();
             
@@ -815,7 +815,7 @@ namespace Qobuzarr.IntegrationTests
         /// <summary>
         /// Gets Lidarr logs via API (if available)
         /// </summary>
-        private async Task<List<string>> GetLidarrLogsViaApiAsync(string filter = null)
+        private async Task<List<string>> GetLidarrLogsViaApiAsync(string? filter = null)
         {
             var logs = new List<string>();
             

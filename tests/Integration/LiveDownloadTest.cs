@@ -74,11 +74,11 @@ namespace Qobuzarr.IntegrationTests
             var albums = wantedData?.records as Newtonsoft.Json.Linq.JArray;
             
             albums.Should().NotBeNull("Should have wanted albums");
-            albums.Count.Should().BeGreaterThan(0, "Should have at least one wanted album");
+            albums!.Count.Should().BeGreaterThan(0, "Should have at least one wanted album");
             
             // Pick the first album
             var album = albums[0];
-            var albumId = (int)album["id"];
+            var albumId = album["id"]?.ToObject<int>() ?? 0;
             var albumTitle = album["title"]?.ToString();
             var artistName = album["artist"]?["artistName"]?.ToString();
             
@@ -260,12 +260,13 @@ namespace Qobuzarr.IntegrationTests
             indexerResponse.IsSuccessStatusCode.Should().BeTrue();
             
             var indexerContent = await indexerResponse.Content.ReadAsStringAsync();
-            var indexers = JsonConvert.DeserializeObject<dynamic[]>(indexerContent);
+            var indexers = JsonConvert.DeserializeObject<dynamic[]>(indexerContent) ?? Array.Empty<dynamic>();
             
-            var qobuzIndexer = Array.Find(indexers, i => i?.implementation?.ToString() == "QobuzIndexer");
-            qobuzIndexer.Should().NotBeNull("Qobuzarr indexer should be found");
+            dynamic? qobuzIndexer = Array.Find(indexers, i => i?.implementation?.ToString() == "QobuzIndexer");
+            ((object?)qobuzIndexer).Should().NotBeNull("Qobuzarr indexer should be found");
+            if (qobuzIndexer == null) return;
             
-            var indexerId = (int)qobuzIndexer.id;
+            var indexerId = (int)(qobuzIndexer.id ?? 0);
             _output.WriteLine($"Found Qobuzarr indexer with ID: {indexerId}");
             
             // Test indexer with a simple search
