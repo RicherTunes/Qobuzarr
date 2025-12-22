@@ -1,6 +1,10 @@
 namespace Lidarr.Plugin.Qobuzarr.Constants
 {
-    internal static class QobuzarrConstants
+    /// <summary>
+    /// Public constants for plugin identification and configuration.
+    /// These are safe to expose as they contain no sensitive information.
+    /// </summary>
+    public static class QobuzarrConstants
     {
         // General identifiers used across the plugin
         public const string PluginName = "Qobuzarr";
@@ -11,7 +15,10 @@ namespace Lidarr.Plugin.Qobuzarr.Constants
         public const string PluginFolderName = PluginVendor + "/" + PluginName;
         public const string DownloadCategory = "qobuz";
 
-        internal static class Limits
+        /// <summary>
+        /// Validation limits for input fields.
+        /// </summary>
+        public static class Limits
         {
             public const int MaxEmailLength = 254;
             public const int MaxPasswordLength = 128;
@@ -22,7 +29,10 @@ namespace Lidarr.Plugin.Qobuzarr.Constants
             public const int MaxAlbumTitleLength = 2000; // protects classifier from pathological inputs
         }
 
-        internal static class Defaults
+        /// <summary>
+        /// Default configuration values.
+        /// </summary>
+        public static class Defaults
         {
             // Concurrency
             public const int DefaultConcurrentDownloads = 3;
