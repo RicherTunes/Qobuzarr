@@ -93,23 +93,12 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Clients
         }
 
         /// <summary>
-        /// Gets effective settings, supporting both production (base Settings) and test (subclass override) scenarios.
-        /// Uses reflection to support testable subclasses that shadow the Settings property.
+        /// Gets effective settings. In production, returns base Settings property.
+        /// Test subclasses can override this to provide mock settings.
         /// </summary>
         protected virtual QobuzDownloadSettings GetEffectiveSettings()
         {
-            QobuzDownloadSettings effectiveSettings = null;
-            try
-            {
-                var prop = GetType().GetProperty("Settings", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Public);
-                if (prop != null && typeof(QobuzDownloadSettings).IsAssignableFrom(prop.PropertyType))
-                {
-                    effectiveSettings = prop.GetValue(this) as QobuzDownloadSettings;
-                }
-            }
-            catch { }
-
-            return effectiveSettings ?? new QobuzDownloadSettings();
+            return Settings ?? new QobuzDownloadSettings();
         }
 
         /// <summary>

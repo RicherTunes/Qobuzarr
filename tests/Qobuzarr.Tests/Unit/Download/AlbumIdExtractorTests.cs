@@ -54,10 +54,10 @@ namespace Qobuzarr.Tests.Unit.Download
         [Theory]
         [InlineData("qobuz-0060254788359", "0060254788359")]
         [InlineData("qobuz-1234567890123", "1234567890123")]
-        public void ExtractAlbumId_WithValidGuid_ShouldReturnAlbumId(string guid, string expectedId)
+        public void ExtractAlbumId_WithValidGuid_ShouldReturnAlbumId(string releaseGuid, string expectedId)
         {
             // Arrange
-            var release = new ReleaseInfo { Guid = guid };
+            var release = new ReleaseInfo { Guid = releaseGuid };
 
             // Act
             var albumId = AlbumIdExtractor.ExtractAlbumId(release);
@@ -70,10 +70,10 @@ namespace Qobuzarr.Tests.Unit.Download
         [InlineData("qobuz-0060254788359-5", "0060254788359")]
         [InlineData("qobuz-1234567890123-27", "1234567890123")]
         public void ExtractAlbumId_WithGuidAndQuality_ShouldReturnAlbumIdWithoutQuality(
-            string guid, string expectedId)
+            string releaseGuid, string expectedId)
         {
             // Arrange
-            var release = new ReleaseInfo { Guid = guid };
+            var release = new ReleaseInfo { Guid = releaseGuid };
 
             // Act
             var albumId = AlbumIdExtractor.ExtractAlbumId(release);
@@ -151,10 +151,10 @@ namespace Qobuzarr.Tests.Unit.Download
         [InlineData("some-random-guid")]
         [InlineData("1234567890")]
         [InlineData("")]
-        public void ExtractAlbumId_WithInvalidGuid_ShouldReturnNull(string guid)
+        public void ExtractAlbumId_WithInvalidGuid_ShouldReturnNull(string releaseGuid)
         {
             // Arrange
-            var release = new ReleaseInfo { Guid = guid };
+            var release = new ReleaseInfo { Guid = releaseGuid };
 
             // Act
             var albumId = AlbumIdExtractor.ExtractAlbumId(release);
