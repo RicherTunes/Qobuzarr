@@ -36,6 +36,7 @@ namespace Qobuzarr.IntegrationTests
         }
 
         [Fact]
+        [Trait("Category", "Integration")]
         public async Task Should_Explore_Available_Commands()
         {
             using var httpClient = new HttpClient();
@@ -62,6 +63,7 @@ namespace Qobuzarr.IntegrationTests
         }
 
         [Fact]
+        [Trait("Category", "Integration")]
         public async Task Should_Trigger_Album_Search_And_Monitor_Results()
         {
             using var httpClient = new HttpClient();
@@ -255,6 +257,7 @@ namespace Qobuzarr.IntegrationTests
         }
 
         [Fact]
+        [Trait("Category", "Integration")]
         public async Task Should_Test_Qobuzarr_Indexer_Directly()
         {
             using var httpClient = new HttpClient();
