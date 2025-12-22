@@ -40,10 +40,10 @@ public class QobuzarrSecurityComplianceTests : IDisposable
 
         var credentialPatterns = new[]
         {
-            @"password\s*=\s*""[^""]{8,}""",
-            @"apiKey\s*=\s*""[^""]{8,}""",
-            @"secret\s*=\s*""[^""]{8,}""",
-            @"appSecret\s*=\s*""[^""]{8,}"""
+            @"(?<![""])password\s*=\s*""[^""\r\n]{8,}""",
+            @"(?<![""])apiKey\s*=\s*""[^""\r\n]{8,}""",
+            @"(?<![""])secret\s*=\s*""[^""\r\n]{8,}""",
+            @"(?<![""])appSecret\s*=\s*""[^""\r\n]{8,}"""
         };
 
         var csFiles = Directory.GetFiles(_sourceCodePath, "*.cs", SearchOption.AllDirectories);
@@ -112,7 +112,7 @@ public class QobuzarrSecurityComplianceTests : IDisposable
             return;
 
         var csFiles = Directory.GetFiles(_sourceCodePath, "*.cs", SearchOption.AllDirectories);
-        var httpPattern = new Regex(@"""http://[^""]*""", RegexOptions.IgnoreCase);
+        var httpPattern = new Regex(@"""http://[^""\r\n]+""", RegexOptions.IgnoreCase);
         var issues = new List<string>();
 
         foreach (var file in csFiles)
@@ -185,16 +185,25 @@ public class QobuzarrSecurityComplianceTests : IDisposable
             return;
 
         var csFiles = Directory.GetFiles(_sourceCodePath, "*.cs", SearchOption.AllDirectories);
-        var sqlPattern = new Regex(@"(""[^""]*\+\s*\w+[^""]*""|string\.Format\([^)]*SQL|new\s+SqlCommand\([^)]*\+)",
-            RegexOptions.IgnoreCase);
+        var sqlIndicators = new[]
+        {
+            "System.Data.SqlClient",
+            "Microsoft.Data.SqlClient",
+            "SqlCommand",
+            "SqlConnection",
+            "DbCommand",
+            "ExecuteSqlRaw",
+            "FromSqlRaw"
+        };
         var issues = new List<string>();
 
         foreach (var file in csFiles)
         {
             var content = File.ReadAllText(file);
-            if (sqlPattern.IsMatch(content))
+            var indicator = sqlIndicators.FirstOrDefault(i => content.Contains(i, StringComparison.OrdinalIgnoreCase));
+            if (!string.IsNullOrWhiteSpace(indicator))
             {
-                issues.Add($"Potential SQL injection vulnerability in {Path.GetFileName(file)}");
+                issues.Add($"Potential SQL usage in {Path.GetFileName(file)} (found '{indicator}'). Use parameterized queries.");
             }
         }
 

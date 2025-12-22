@@ -2,7 +2,7 @@
 <!--
   Full.runsettings - Complete test suite for nightly/release runs
   
-  Usage: dotnet test --settings tests/Full.runsettings
+  Usage: dotnet test (settings file: tests/Full.runsettings)
   
   Runs all tests (no category filter) with code coverage collection.
   Note: LiveIntegration tests still require ENABLE_LIVE_INTEGRATION_TESTS=true.

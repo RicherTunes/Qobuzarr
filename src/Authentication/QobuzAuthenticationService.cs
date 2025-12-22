@@ -349,18 +349,18 @@ namespace Lidarr.Plugin.Qobuzarr.Authentication
         {
             try
             {
-                var session = _sessionCache.Find(SESSION_CACHE_KEY);
-                
+                var session = _sessionCache.Find(SESSION_CACHE_KEY);      
+
                 if (session == null || !session.IsValid())
                 {
                     return null;
                 }
 
-                return session;
+                return CloneSession(session);
             }
             catch (Exception ex)
             {
-                _logger.Debug(ex, "Failed to retrieve cached session");
+                _logger.Debug(ex, "Failed to retrieve cached session");   
                 return null;
             }
         }
@@ -369,17 +369,43 @@ namespace Lidarr.Plugin.Qobuzarr.Authentication
         {
             try
             {
-                if (session != null && session.IsValid())
+                if (session == null || !session.IsValid())
                 {
-                    // Cache the session for 24 hours
-                    _sessionCache.Set(SESSION_CACHE_KEY, session, TimeSpan.FromHours(24));
-                    _logger.Debug("Session stored in cache");
+                    _sessionCache.Remove(SESSION_CACHE_KEY);
+                    return;
                 }
+
+                _sessionCache.Set(SESSION_CACHE_KEY, CloneSession(session), TimeSpan.FromHours(24));
+                _logger.Debug("Session stored in cache");
             }
             catch (Exception ex)
             {
                 _logger.Warn(ex, "Failed to store session in cache");
             }
+        }
+
+        private static QobuzSession CloneSession(QobuzSession session)
+        {
+            return new QobuzSession
+            {
+                UserId = session.UserId,
+                AuthToken = session.AuthToken,
+                ExpiresAt = session.ExpiresAt,
+                AppId = session.AppId,
+                AppSecret = session.AppSecret,
+                CreatedAt = session.CreatedAt,
+                Subscription = session.Subscription == null
+                    ? null
+                    : new QobuzSubscription
+                    {
+                        Type = session.Subscription.Type,
+                        IsHiRes = session.Subscription.IsHiRes,
+                        MaxSampleRate = session.Subscription.MaxSampleRate,
+                        MaxBitDepth = session.Subscription.MaxBitDepth,
+                        CanStream = session.Subscription.CanStream,
+                        CanDownload = session.Subscription.CanDownload
+                    }
+            };
         }
 
         // Optional: factory to create a StreamingTokenManager wired to this service

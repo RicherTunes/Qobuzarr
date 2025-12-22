@@ -8,6 +8,9 @@ using System.Threading.Tasks;
 using FluentAssertions;
 using Moq;
 using Moq.Protected;
+using NLog;
+using NLog.Config;
+using NLog.Targets;
 using Xunit;
 using NzbDrone.Common.Http;
 using Lidarr.Plugin.Qobuzarr.Authentication;
@@ -138,19 +141,35 @@ namespace Qobuzarr.Tests.Unit.Security
             };
 
             // Act
-            _authService.StoreSession(session);
+            var memoryTarget = new MemoryTarget("qobuzauth-mem")
+            {
+                Layout = "${message}"
+            };
 
-            // Assert
-            // Verify that sensitive tokens are never logged in plain text
-            MockLogger.Verify(l => l.Debug(
-                It.Is<string>(s => !s.Contains("super_secret_token_12345")),
-                It.IsAny<object[]>()),
-                Times.AtLeastOnce());
-            
-            MockLogger.Verify(l => l.Debug(
-                It.Is<string>(s => !s.Contains("very_secret_app_key")),
-                It.IsAny<object[]>()),
-                Times.AtLeastOnce());
+            var config = new LoggingConfiguration();
+            config.AddRule(LogLevel.Debug, LogLevel.Fatal, memoryTarget);
+
+            var factory = new LogFactory(config);
+            try
+            {
+                var logger = factory.GetLogger("QobuzAuthenticationSecurityTests");
+                var authService = new QobuzAuthenticationService(
+                    MockHttpClient.Object,
+                    MockConfigService.Object,
+                    MockLocalizationService.Object,
+                    MockCacheManager,
+                    logger);
+
+                authService.StoreSession(session);
+
+                // Assert - sensitive tokens are never logged in plain text
+                memoryTarget.Logs.Should().NotContain(s => s.Contains("super_secret_token_12345", StringComparison.Ordinal));
+                memoryTarget.Logs.Should().NotContain(s => s.Contains("very_secret_app_key", StringComparison.Ordinal));
+            }
+            finally
+            {
+                factory.Shutdown();
+            }
         }
 
         [Fact]
@@ -275,7 +294,7 @@ namespace Qobuzarr.Tests.Unit.Security
             var credentials = new QobuzCredentials
             {
                 Email = "user@example.com",
-                MD5Password = "wrongpassword"
+                MD5Password = "0123456789abcdef0123456789abcdef"
             };
 
             // Setup mock to simulate authentication failure
@@ -391,7 +410,7 @@ namespace Qobuzarr.Tests.Unit.Security
             // Note: MD5 is required for Qobuz API compatibility, not for security
             // Arrange
             var password = "testpassword123";
-            var expectedMD5 = "482c811da5d5b4bc6d497ffa98491e38"; // MD5 of "testpassword123"
+            var expectedMD5 = "b3e508d6e62e50b49eefa3c464d79e00"; // MD5 of "testpassword123"
 
             // Act
             var hash = QobuzAuthenticationService.HashPassword(password);

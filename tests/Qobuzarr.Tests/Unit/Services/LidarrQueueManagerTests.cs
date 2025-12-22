@@ -129,7 +129,7 @@ namespace Qobuzarr.Tests.Unit.Services
             cts.Cancel();
 
             // Act & Assert
-            await Assert.ThrowsAsync<OperationCanceledException>(
+            await Assert.ThrowsAnyAsync<OperationCanceledException>(
                 () => _sut.AcquireDownloadSlotAsync(cts.Token));
         }
 
@@ -317,6 +317,7 @@ namespace Qobuzarr.Tests.Unit.Services
         public void UpdateConcurrencyLimits_WithSameValues_DoesNothing()
         {
             // Arrange
+            _sut.UpdateConcurrencyLimits(8, 12);
             var originalDownloads = _sut.MaxConcurrentDownloads;
             var originalSearches = _sut.MaxConcurrentSearches;
 

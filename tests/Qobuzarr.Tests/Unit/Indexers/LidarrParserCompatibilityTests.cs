@@ -20,7 +20,8 @@ namespace Qobuzarr.Tests.Unit.Indexers
 {
     /// <summary>
     /// Critical tests for Lidarr parser-compatible album title generation.
-    /// Tests the dual-format approach: hyphen format for editions, space format for standard albums.
+    /// Ensures titles are generated in a stable bracket format and do not
+    /// collide with Lidarr's legacy hyphen parser regex.
     /// </summary>
     public class LidarrParserCompatibilityTests : TestFixtureBase
     {
@@ -39,7 +40,7 @@ namespace Qobuzarr.Tests.Unit.Indexers
             _parser = new QobuzParser(_settings, _logger);
         }
 
-        #region Hyphen Format Generation for Edition Albums
+        #region Bracket Format Generation for Edition Albums
 
         [Theory]
         [InlineData("Deluxe Edition", "Spoon-They Want My Soul-Deluxe Edition-WEB-2014")]
@@ -49,7 +50,7 @@ namespace Qobuzarr.Tests.Unit.Indexers
         [InlineData("Anniversary Edition", "Pink Floyd-The Wall-Anniversary Edition-WEB-1979")]
         [InlineData("Expanded Edition", "Nirvana-Nevermind-Expanded Edition-WEB-1991")]
         [InlineData("Special Edition", "Michael Jackson-Thriller-Special Edition-WEB-1982")]
-        public void GenerateTitle_WithEditionKeywords_ShouldUseHyphenFormat(string version, string expectedPattern)
+        public void GenerateTitle_WithEditionKeywords_ShouldIncludeEditionBracket(string version, string expectedPattern)
         {
             // Arrange
             var album = CreateEditionAlbum(version);
@@ -61,21 +62,15 @@ namespace Qobuzarr.Tests.Unit.Indexers
             // Assert
             flacRelease.Should().NotBeNull();
             var actualTitle = flacRelease.Title;
-            
-            // Verify hyphen format structure
-            actualTitle.Should().MatchRegex(@"^[^-]+-[^-]+-[^-]+-WEB-\d{4}$", 
-                "Edition albums should use hyphen format: Artist-Album-Version-Source-Year");
-            
-            // Verify contains all expected components
-            actualTitle.Should().Contain(album.GetArtistName());
-            actualTitle.Should().Contain(album.Title);
-            actualTitle.Should().Contain(version);
-            actualTitle.Should().EndWith($"-WEB-{album.ReleaseDate.Year}");
+
+            actualTitle.Should().Contain($"[{version}]");
+            actualTitle.Should().MatchRegex(@"^.+ - .+ \(\d{4}\) \[[^\]]+\] \[[^\]]+\] \[WEB\]$",
+                "Edition albums should use bracket format: Artist - Album (Year) [Edition] [Quality] [WEB]");
         }
 
         [Theory]
         [MemberData(nameof(AlbumEditionTestData.EditionVariants), MemberType = typeof(AlbumEditionTestData))]
-        public void GenerateTitle_WithAllEditionVariants_ShouldUseHyphenFormat(string version, string expectedPattern, string scenario)
+        public void GenerateTitle_WithAllEditionVariants_ShouldIncludeEditionBracket(string version, string expectedPattern, string scenario)
         {
             // Arrange
             var album = CreateEditionAlbum(version);
@@ -86,8 +81,8 @@ namespace Qobuzarr.Tests.Unit.Indexers
             
             // Assert
             flacRelease.Should().NotBeNull();
-            flacRelease.Title.Should().MatchRegex(@"^[^-]+-[^-]+-[^-]+-WEB-\d{4}$");
-            flacRelease.Title.Should().Contain(version);
+            flacRelease.Title.Should().Contain($"[{version}]");
+            flacRelease.Title.Should().MatchRegex(@"^.+ - .+ \(\d{4}\) \[[^\]]+\] \[[^\]]+\] \[WEB\]$");
         }
 
         #endregion
@@ -181,13 +176,19 @@ namespace Qobuzarr.Tests.Unit.Indexers
             // Act & Assert
             if (expectedIsEdition)
             {
-                flacRelease.Title.Should().MatchRegex(@"^[^-]+-[^-]+-[^-]+-WEB-\d{4}$",
-                    $"Version '{version}' should trigger hyphen format");
+                flacRelease.Title.Should().Contain($"[{version}]");
+                flacRelease.Title.Should().MatchRegex(@"^.+ - .+ \(\d{4}\) \[[^\]]+\] \[[^\]]+\] \[WEB\]$",
+                    $"Version '{version}' should include an edition bracket");
             }
             else
             {
-                flacRelease.Title.Should().MatchRegex(@"^.+ - .+ \(\d{4}\) \[.+\] \[WEB\]$",
-                    $"Version '{version}' should use standard space format");
+                if (!string.IsNullOrWhiteSpace(version))
+                {
+                    flacRelease.Title.Should().NotContain($"[{version}]");
+                }
+
+                flacRelease.Title.Should().MatchRegex(@"^.+ - .+ \(\d{4}\) \[[^\]]+\] \[WEB\]$",
+                    $"Version '{version}' should not include an edition bracket");
             }
         }
 
@@ -196,27 +197,22 @@ namespace Qobuzarr.Tests.Unit.Indexers
         #region Lidarr Parser Regex Simulation
 
         [Fact]
-        public void HyphenFormat_ShouldMatchLidarrParserRegex()
+        public void EditionBracketFormat_ShouldNotMatchLidarrParserHyphenRegex()
         {
             // Arrange - Simulate Lidarr's Parser.cs line 73 regex
             var lidarrParserRegex = @"^(?<artist>[a-z0-9,\(\)\.\&''_]+)-(?<album>[a-z0-9,\(\)\.\&''_]+)-(?<version>[a-z0-9,\(\)\.\&''_\s]+)-(?<source>WEB|CD|Vinyl)-(?<year>\d{4})$";
-            
+
             var album = CreateEditionAlbum("Deluxe More Soul Edition");
             var releases = ConvertAlbumToReleases(album);
             var flacRelease = releases.FirstOrDefault(r => r.Title.Contains("FLAC"));
 
             // Act
             var title = flacRelease.Title.Replace(" ", "").ToLowerInvariant();
-            var match = System.Text.RegularExpressions.Regex.Match(title, lidarrParserRegex, 
+            var match = System.Text.RegularExpressions.Regex.Match(title, lidarrParserRegex,
                 System.Text.RegularExpressions.RegexOptions.IgnoreCase);
 
             // Assert
-            match.Success.Should().BeTrue("Hyphen format should match Lidarr's parser regex");
-            match.Groups["artist"].Value.Should().NotBeNullOrEmpty();
-            match.Groups["album"].Value.Should().NotBeNullOrEmpty(); 
-            match.Groups["version"].Value.Should().NotBeNullOrEmpty();
-            match.Groups["source"].Value.Should().Be("web");
-            match.Groups["year"].Value.Should().MatchRegex(@"\d{4}");
+            match.Success.Should().BeFalse("Bracket format should not match Lidarr's legacy hyphen parser regex");
         }
 
         [Fact]
@@ -261,9 +257,11 @@ namespace Qobuzarr.Tests.Unit.Indexers
                 }
             };
 
-            var searchCriteria = Substitute.For<AlbumSearchCriteria>();
-            searchCriteria.Albums.Returns(lidarrAlbums);
-            searchCriteria.Artist.Returns(new Artist { Name = "Spoon" });
+            var searchCriteria = new AlbumSearchCriteria
+            {
+                Albums = lidarrAlbums,
+                Artist = new Artist { Name = "Spoon" }
+            };
 
             // Set search context
             _parser.SetSearchContext(searchCriteria);
@@ -291,25 +289,17 @@ namespace Qobuzarr.Tests.Unit.Indexers
         public void GenerateTitle_WithDifferentQualities_ShouldFormatCorrectly(QobuzAudioQuality quality, string expectedQualityString)
         {
             // Arrange
-            var album = CreateEditionAlbum("Deluxe Edition");
+            var album = CreateEditionAlbum("Deluxe Edition", quality);
             var releases = ConvertAlbumToReleases(album);
 
             // Act
-            var qualityRelease = releases.FirstOrDefault(r => r.Title.Contains(expectedQualityString.Split(' ')[0]));
+            var qualityRelease = releases.FirstOrDefault(r => r.Title.Contains($"[{expectedQualityString}]"));
 
             // Assert
             qualityRelease.Should().NotBeNull($"Should have release for quality {quality}");
-            
-            if (expectedQualityString.Contains("FLAC") && album.Version == "Deluxe Edition")
-            {
-                // Edition albums should use hyphen format
-                qualityRelease.Title.Should().MatchRegex(@"^[^-]+-[^-]+-[^-]+-WEB-\d{4}$");
-            }
-            else
-            {
-                // MP3 or standard should use space format
-                qualityRelease.Title.Should().Contain(expectedQualityString);
-            }
+            qualityRelease.Title.Should().Contain("[Deluxe Edition]");
+            qualityRelease.Title.Should().Contain($"[{expectedQualityString}]");
+            qualityRelease.Title.Should().MatchRegex(@"^.+ - .+ \(\d{4}\) \[[^\]]+\] \[[^\]]+\] \[WEB\]$");
         }
 
         #endregion
@@ -317,7 +307,7 @@ namespace Qobuzarr.Tests.Unit.Indexers
         #region Edge Cases and Error Handling
 
         [Fact]
-        public void GenerateTitle_WithEmptyVersion_ShouldNotUseHyphenFormat()
+        public void GenerateTitle_WithEmptyVersion_ShouldNotIncludeEditionBracket()
         {
             // Arrange
             var album = QobuzAlbumBuilder.New()
@@ -335,7 +325,7 @@ namespace Qobuzarr.Tests.Unit.Indexers
 
             // Assert
             flacRelease.Should().NotBeNull();
-            flacRelease.Title.Should().MatchRegex(@"^.+ - .+ \(\d{4}\) \[.+\] \[WEB\]$",
+            flacRelease.Title.Should().MatchRegex(@"^.+ - .+ \(\d{4}\) \[[^\]]+\] \[WEB\]$",
                 "Empty version should use standard format");
         }
 
@@ -352,10 +342,10 @@ namespace Qobuzarr.Tests.Unit.Indexers
             // Assert
             flacRelease.Should().NotBeNull();
             flacRelease.Title.Should().Contain("Live");
-            flacRelease.Title.Should().Contain("Madison Square Garden");
+            flacRelease.Title.Should().Contain("Madison Square Garden");  
             flacRelease.Title.Should().Contain("Deluxe");
-            // Should handle special characters without breaking format
-            flacRelease.Title.Should().MatchRegex(@"^[^-]+-[^-]+-.+-WEB-\d{4}$");
+            // Should handle special characters without breaking format   
+            flacRelease.Title.Should().MatchRegex(@"^.+ - .+ \(\d{4}\).+\[WEB\]$");
         }
 
         [Fact]
@@ -378,14 +368,23 @@ namespace Qobuzarr.Tests.Unit.Indexers
 
         #region Helper Methods
 
-        private QobuzAlbum CreateEditionAlbum(string version)
+        private QobuzAlbum CreateEditionAlbum(string version, QobuzAudioQuality? quality = null)
         {
-            var album = QobuzAlbumBuilder.New()
+            var builder = QobuzAlbumBuilder.New()
                 .WithTitle("They Want My Soul")
                 .WithArtist("Spoon")
                 .WithReleaseYear(2014)
-                .AsCdQualityFlac()
-                .Build();
+                .AsCdQualityFlac();
+
+            builder = quality switch
+            {
+                QobuzAudioQuality.MP3320 => builder.AsMp3Only(),
+                QobuzAudioQuality.FLACHiRes24Bit96kHz => builder.WithQuality(24, 96000),
+                QobuzAudioQuality.FLACHiRes24Bit192Khz => builder.WithQuality(24, 192000),
+                _ => builder
+            };
+
+            var album = builder.Build();
             album.Version = version;
             return album;
         }

@@ -19,11 +19,11 @@ namespace Lidarr.Plugin.Qobuzarr.Security
         // Security patterns and validation rules
         private static readonly Regex EmailPattern = new Regex(@"^[^@\s]+@[^@\s]+\.[^@\s]+$", RegexOptions.Compiled);
         private static readonly Regex NumericPattern = new Regex(@"^\d+$", RegexOptions.Compiled);
-        private static readonly string[] SuspiciousPatterns = 
+        private static readonly string[] SuspiciousPatterns =
         {
-            "javascript:", "<script", "eval(", "document.", "window.",
+            "javascript:", "<script", "<img", "onerror=", "onload=", "eval(", "document.", "window.",
             "../", "..\\", "/etc/", "c:\\", "%2e%2e", "0x",
-            "union select", "' or ", "\" or ", "; drop ", "; delete "
+            "union select", "' or ", "\" or ", "; drop ", "; delete "     
         };
 
         public SecurityConfigValidator(IQobuzLogger logger, SecureCredentialManager credentialManager = null)

@@ -173,12 +173,49 @@ namespace Lidarr.Plugin.Qobuzarr.Models
             
             // Sanitize version to prevent injection attacks
             var sanitizedVersion = MetadataSanitizer.SanitizeVersion(Version);
-            
-            if (!string.IsNullOrWhiteSpace(sanitizedVersion) && !title.Contains(sanitizedVersion))
+
+            if (!string.IsNullOrWhiteSpace(sanitizedVersion) && !ContainsStandaloneVersion(title, sanitizedVersion))
             {
                 return $"{title} ({sanitizedVersion})";
             }
             return title;
+        }
+
+        private static bool ContainsStandaloneVersion(string title, string version)
+        {
+            if (string.IsNullOrWhiteSpace(title) || string.IsNullOrWhiteSpace(version))
+            {
+                return false;
+            }
+
+            if (title.Contains($"({version})", StringComparison.OrdinalIgnoreCase) ||
+                title.Contains($"[{version}]", StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+
+            var index = 0;
+            while (true)
+            {
+                index = title.IndexOf(version, index, StringComparison.OrdinalIgnoreCase);
+                if (index < 0)
+                {
+                    return false;
+                }
+
+                var beforeIndex = index - 1;
+                var afterIndex = index + version.Length;
+
+                var beforeOk = beforeIndex < 0 || !char.IsLetterOrDigit(title[beforeIndex]);
+                var afterOk = afterIndex >= title.Length || !char.IsLetterOrDigit(title[afterIndex]);
+
+                if (beforeOk && afterOk)
+                {
+                    return true;
+                }
+
+                index++;
+            }
         }
 
         /// <summary>

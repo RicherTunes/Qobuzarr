@@ -184,15 +184,41 @@ try {
     $script:ContainerStarted = $true
     Write-Host "  Container started" -ForegroundColor Green
 
+    # Step 3b: Wait for config.xml and extract API key
+    Write-Host "  Waiting for config.xml..." -ForegroundColor Gray
+    $configReady = $false
+    $apiKey = $null
+    for ($i = 1; $i -le 30; $i++) {
+        $configExists = docker exec $ContainerName sh -c "test -f /config/config.xml" 2>&1
+        if ($LASTEXITCODE -eq 0) {
+            $configReady = $true
+            # Extract API key from config.xml (same technique as screenshots.yml)
+            $apiKey = docker exec $ContainerName sh -c "sed -n 's:.*<ApiKey>\(.*\)</ApiKey>.*:\1:p' /config/config.xml" 2>&1
+            if ($apiKey) {
+                Write-Host "  API key extracted: $($apiKey.Substring(0,4))..." -ForegroundColor Gray
+            }
+            break
+        }
+        Start-Sleep -Seconds 2
+    }
+
+    if (-not $configReady) {
+        Write-Host "  Warning: config.xml not found, API calls may fail" -ForegroundColor Yellow
+    }
+
     # Step 4: Wait for Lidarr health
     Write-Host "`n[4/5] Waiting for Lidarr to start (max ${TimeoutSeconds}s)..." -ForegroundColor Yellow
     $lidarrUrl = "http://localhost:$Port"
     $startTime = Get-Date
     $healthy = $false
+    $headers = @{}
+    if ($apiKey) {
+        $headers["X-Api-Key"] = $apiKey
+    }
 
     while ((Get-Date) - $startTime -lt [TimeSpan]::FromSeconds($TimeoutSeconds)) {
         try {
-            $response = Invoke-WebRequest -Uri "$lidarrUrl/api/v1/system/status" -TimeoutSec 5 -ErrorAction Stop
+            $response = Invoke-WebRequest -Uri "$lidarrUrl/api/v1/system/status" -Headers $headers -TimeoutSec 5 -ErrorAction Stop
             if ($response.StatusCode -eq 200) {
                 $status = $response.Content | ConvertFrom-Json
                 Write-Host "  Lidarr is online (v$($status.version))" -ForegroundColor Green
@@ -226,12 +252,12 @@ try {
     for ($i = 1; $i -le $schemaRetries; $i++) {
         try {
             # Check indexer schema
-            $schemaResponse = Invoke-WebRequest -Uri "$lidarrUrl/api/v1/indexer/schema" -TimeoutSec 10 -ErrorAction Stop
+            $schemaResponse = Invoke-WebRequest -Uri "$lidarrUrl/api/v1/indexer/schema" -Headers $headers -TimeoutSec 10 -ErrorAction Stop
             $schemas = $schemaResponse.Content | ConvertFrom-Json
             $qobuzIndexer = $schemas | Where-Object { $_.implementation -eq "QobuzIndexer" }
 
             # Check download client schema
-            $downloadSchemaResponse = Invoke-WebRequest -Uri "$lidarrUrl/api/v1/downloadclient/schema" -TimeoutSec 10 -ErrorAction Stop
+            $downloadSchemaResponse = Invoke-WebRequest -Uri "$lidarrUrl/api/v1/downloadclient/schema" -Headers $headers -TimeoutSec 10 -ErrorAction Stop
             $downloadSchemas = $downloadSchemaResponse.Content | ConvertFrom-Json
             $qobuzDownloader = $downloadSchemas | Where-Object { $_.implementation -eq "QobuzDownloadClient" }
 

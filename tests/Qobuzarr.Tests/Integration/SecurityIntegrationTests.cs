@@ -47,8 +47,8 @@ namespace Qobuzarr.Tests.Integration
             // Arrange
             var settings = new QobuzIndexerSettings
             {
-                Email = "realuser@example.com",
-                Password = "VerySecure@Password123!",
+                Email = "realuser@secure.com",
+                Password = "VerySecureP@ssw0rd123!",
                 BaseUrl = "https://www.qobuz.com",
                 CountryCode = "US"
             };
@@ -268,22 +268,22 @@ namespace Qobuzarr.Tests.Integration
             var configurations = new List<(QobuzIndexerSettings settings, string description)>
             {
                 (new QobuzIndexerSettings
-                {
-                    Email = "secure@example.com",
-                    Password = "VerySecure@Pass123!",
-                    BaseUrl = "https://www.qobuz.com",
-                    CountryCode = "US",
-                    ConnectionTimeout = 30
-                }, "Perfect configuration"),
+                 {
+                     Email = "secure@secure.com",
+                     Password = "VerySecure@Pass123!",
+                     BaseUrl = "https://www.qobuz.com",
+                     CountryCode = "US",
+                     ConnectionTimeout = 30
+                 }, "Perfect configuration"),
 
                 (new QobuzIndexerSettings
-                {
-                    Email = "secure@example.com",
-                    Password = "SimplePass123",
-                    BaseUrl = "https://www.qobuz.com",
-                    CountryCode = "US",
-                    ConnectionTimeout = 30
-                }, "Weaker password"),
+                 {
+                     Email = "secure@secure.com",
+                     Password = "SimplePass123",
+                     BaseUrl = "https://www.qobuz.com",
+                     CountryCode = "US",
+                     ConnectionTimeout = 30
+                 }, "Weaker password"),
 
                 (new QobuzIndexerSettings
                 {

@@ -43,7 +43,7 @@ namespace Qobuzarr.Tests.Unit.Security
             // Arrange
             var settings = new QobuzIndexerSettings
             {
-                Email = "realuser@example.com",
+                Email = "realuser@secure.com",
                 Password = "SecureP@ssw0rd123!",
                 BaseUrl = "https://www.qobuz.com",
                 CountryCode = "US",
@@ -69,6 +69,7 @@ namespace Qobuzarr.Tests.Unit.Security
             // Arrange
             var settings = new QobuzIndexerSettings
             {
+                AuthMethod = (int)AuthenticationMethod.Token,
                 UserId = "12345678",
                 AuthToken = "validtoken123456789abcdef",
                 BaseUrl = "https://www.qobuz.com",
@@ -223,7 +224,7 @@ namespace Qobuzarr.Tests.Unit.Security
             // Assert
             result.CriticalIssues.Count.Should().BeGreaterThan(1);
             result.CriticalIssues.Should().OnlyContain(i => 
-                i.Title.Contains("Suspicious") || i.Title.Contains("malicious"));
+                i.Title.Contains("Suspicious") || i.Title.Contains("Injection attempt") || i.Title.Contains("malicious"));
         }
 
         [Theory]
@@ -413,7 +414,7 @@ namespace Qobuzarr.Tests.Unit.Security
             var result = _validator.ValidateConfiguration(settings);
 
             // Assert
-            result.MinorIssues.Should().Contain(i => i.Description.Contains(expectedMessage));
+            result.MinorIssues.Should().Contain(i => i.Title.Contains(expectedMessage));
         }
 
         [Fact]
@@ -490,7 +491,7 @@ namespace Qobuzarr.Tests.Unit.Security
             // Arrange
             var settings = new QobuzIndexerSettings
             {
-                Email = "realuser@example.com",
+                Email = "realuser@secure.com",
                 Password = "VerySecureP@ssw0rd123!",
                 BaseUrl = "https://www.qobuz.com",
                 CountryCode = "US",

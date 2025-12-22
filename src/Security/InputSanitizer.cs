@@ -391,7 +391,12 @@ namespace Lidarr.Plugin.Qobuzarr.Security
             
             if (string.IsNullOrWhiteSpace(sanitized))
                 return "unknown_file";
-            
+
+            // Windows does not allow trailing dots/spaces in file names; trim for cross-platform safety.
+            sanitized = sanitized.TrimEnd('.', ' ');
+            if (string.IsNullOrWhiteSpace(sanitized))
+                return "unknown_file";
+
             // Handle Windows reserved names (CON, PRN, AUX, NUL, COM1-9, LPT1-9)
             var extension = GetFullExtension(sanitized);
             var nameWithoutExt = extension.Length > 0 
@@ -445,6 +450,65 @@ namespace Lidarr.Plugin.Qobuzarr.Security
             return Path.GetExtension(fileName);
         }
 
+        private static string NormalizeSafe(string value)
+        {
+            if (string.IsNullOrEmpty(value))
+            {
+                return string.Empty;
+            }
+
+            try
+            {
+                return value.Normalize(NormalizationForm.FormC);
+            }
+            catch (ArgumentException)
+            {
+                var cleaned = RemoveInvalidSurrogates(value);
+                try
+                {
+                    return cleaned.Normalize(NormalizationForm.FormC);
+                }
+                catch
+                {
+                    return cleaned;
+                }
+            }
+        }
+
+        private static string RemoveInvalidSurrogates(string value)
+        {
+            if (string.IsNullOrEmpty(value))
+            {
+                return string.Empty;
+            }
+
+            var builder = new StringBuilder(value.Length);
+            for (var i = 0; i < value.Length; i++)
+            {
+                var current = value[i];
+                if (char.IsHighSurrogate(current))
+                {
+                    if (i + 1 < value.Length && char.IsLowSurrogate(value[i + 1]))
+                    {
+                        builder.Append(current);
+                        builder.Append(value[i + 1]);
+                        i++;
+                    }
+
+                    continue;
+                }
+
+                if (char.IsLowSurrogate(current))
+                {
+                    continue;
+                }
+
+                builder.Append(current);
+            }
+
+            return builder.ToString();
+        }
+
         /// <summary>
         /// Sanitizes artist names for metadata
         /// Consolidated from MetadataSanitizer
@@ -468,7 +532,7 @@ namespace Lidarr.Plugin.Qobuzarr.Security
             sanitized = Regex.Replace(sanitized, @"[\x00-\x1F\x7F]", "");
             
             // Unicode normalization
-            sanitized = sanitized.Normalize(NormalizationForm.FormC);
+            sanitized = NormalizeSafe(sanitized);
             
             // Collapse multiple spaces
             sanitized = Regex.Replace(sanitized, @"\s+", " ").Trim();
@@ -508,7 +572,7 @@ namespace Lidarr.Plugin.Qobuzarr.Security
             sanitized = Regex.Replace(sanitized, @"[\x00-\x1F\x7F]", "");
             
             // Unicode normalization
-            sanitized = sanitized.Normalize(NormalizationForm.FormC);
+            sanitized = NormalizeSafe(sanitized);
             
             // Collapse spaces and trim
             sanitized = Regex.Replace(sanitized, @"\s+", " ").Trim();

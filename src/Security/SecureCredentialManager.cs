@@ -123,7 +123,7 @@ namespace Lidarr.Plugin.Qobuzarr.Security
         /// <param name="credential">Credential to validate</param>
         /// <param name="credentialType">Type of credential for logging</param>
         /// <returns>True if credential passes basic security validation</returns>
-        public bool ValidateCredentialSecurity(string credential, string credentialType)
+        public virtual bool ValidateCredentialSecurity(string credential, string credentialType)
         {
             if (string.IsNullOrWhiteSpace(credential))
             {
@@ -150,6 +150,13 @@ namespace Lidarr.Plugin.Qobuzarr.Security
             if (credentialType.ToLowerInvariant().Contains("password") && credential.Length < 8)
             {
                 _logger.Warn("Password appears to be too short for security best practices");
+                return false;
+            }
+
+            // HARD REJECT: Obvious environment variable placeholders (plugin does not expand env vars)
+            if (IsEnvironmentVariablePlaceholder(credential))
+            {
+                _logger.Warn("Credential appears to be an environment variable placeholder instead of actual credential");
                 return false;
             }
 
@@ -189,6 +196,65 @@ namespace Lidarr.Plugin.Qobuzarr.Security
                 _logger.Warn("Credential contains patterns that may indicate a misconfiguration. " +
                     "If this is a valid auth token, this warning can be ignored.");
                 // Don't return false - opaque tokens might legitimately contain these patterns
+            }
+
+            return true;
+        }
+
+        private static bool IsEnvironmentVariablePlaceholder(string credential)
+        {
+            if (string.IsNullOrWhiteSpace(credential))
+            {
+                return false;
+            }
+
+            if (credential.Length >= 3 &&
+                credential.StartsWith("%", StringComparison.Ordinal) &&
+                credential.EndsWith("%", StringComparison.Ordinal))
+            {
+                return IsValidEnvVarName(credential.AsSpan(1, credential.Length - 2));
+            }
+
+            if (credential.Length >= 2 && credential.StartsWith("$", StringComparison.Ordinal))
+            {
+                if (credential.Length >= 4 &&
+                    credential.StartsWith("${", StringComparison.Ordinal) &&
+                    credential.EndsWith("}", StringComparison.Ordinal))
+                {
+                    return IsValidEnvVarName(credential.AsSpan(2, credential.Length - 3));
+                }
+
+                return IsValidEnvVarName(credential.AsSpan(1));
+            }
+
+            if (credential.StartsWith("%(", StringComparison.Ordinal) && credential.EndsWith(")s", StringComparison.Ordinal))
+            {
+                return IsValidEnvVarName(credential.AsSpan(2, credential.Length - 4));
+            }
+
+            return false;
+        }
+
+        private static bool IsValidEnvVarName(ReadOnlySpan<char> name)
+        {
+            if (name.IsEmpty)
+            {
+                return false;
+            }
+
+            var first = name[0];
+            if (!(char.IsLetter(first) || first == '_'))
+            {
+                return false;
+            }
+
+            for (int i = 1; i < name.Length; i++)
+            {
+                var c = name[i];
+                if (!(char.IsLetterOrDigit(c) || c == '_'))
+                {
+                    return false;
+                }
             }
 
             return true;

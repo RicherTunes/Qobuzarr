@@ -332,19 +332,31 @@ namespace Qobuzarr.Tests.LibraryLinking
         [Fact]
         public void Plugin_Objects_Should_Be_GC_Eligible_After_Unload()
         {
-            // Arrange
-            var pluginState = new object();
-            var weakRef = new WeakReference(pluginState);
+            // Arrange - keep the object creation in a separate method so the JIT can't keep locals alive.
+            var weakRef = CreateUnrootedWeakReference();
 
             // Act - Simulate plugin unload
-            pluginState = null!;
-            GC.Collect();
-            GC.WaitForPendingFinalizers();
-            GC.Collect();
+            ForceGc();
 
             // Assert
             weakRef.IsAlive.Should().BeFalse(
                 "Plugin objects should be eligible for garbage collection after unload");
+        }
+
+        private static WeakReference CreateUnrootedWeakReference()
+        {
+            var pluginState = new object();
+            return new WeakReference(pluginState);
+        }
+
+        private static void ForceGc()
+        {
+            for (var i = 0; i < 5; i++)
+            {
+                GC.Collect();
+                GC.WaitForPendingFinalizers();
+                GC.Collect();
+            }
         }
 
         [Fact]

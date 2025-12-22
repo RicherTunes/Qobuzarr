@@ -2,7 +2,7 @@
 <!--
   Default.runsettings - Fast unit test runs
   
-  Usage: dotnet test --settings tests/Default.runsettings
+  Usage: dotnet test (settings file: tests/Default.runsettings)
   
   Excludes slow categories (Integration, Performance, etc.) for quick feedback.
   BlameHangTimeout set to 60s to avoid false positives on slower machines.
