@@ -261,6 +261,7 @@ namespace Qobuzarr.IntegrationTests
         }
 
         [SkippableFact]
+        [Trait("Category", "Integration")]
         [Trait("Category", "Security")]
         [Trait("Priority", "High")]
         public async Task Test_Security_During_Live_Operations()
@@ -328,6 +329,7 @@ namespace Qobuzarr.IntegrationTests
         }
 
         [SkippableFact]
+        [Trait("Category", "Integration")]
         [Trait("Category", "Security")]
         [Trait("Priority", "Medium")]
         public async Task Test_Dangerous_Content_Detection()
@@ -371,6 +373,7 @@ namespace Qobuzarr.IntegrationTests
         }
 
         [SkippableFact]
+        [Trait("Category", "Integration")]
         [Trait("Category", "Security")]
         [Trait("Priority", "High")]
         public async Task Test_URL_Parameter_Sanitization()
@@ -483,6 +486,7 @@ namespace Qobuzarr.IntegrationTests
         }
 
         [SkippableFact]
+        [Trait("Category", "Integration")]
         [Trait("Category", "Security")]
         [Trait("Priority", "Low")]
         public async Task Test_Security_Documentation_And_Guidelines()
