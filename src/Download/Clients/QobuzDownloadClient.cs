@@ -93,9 +93,10 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Clients
         }
 
         /// <summary>
-        /// Updates the concurrency manager with current settings.
+        /// Gets effective settings, supporting both production (base Settings) and test (subclass override) scenarios.
+        /// Uses reflection to support testable subclasses that shadow the Settings property.
         /// </summary>
-        private void UpdateConcurrencySettings()
+        protected virtual QobuzDownloadSettings GetEffectiveSettings()
         {
             QobuzDownloadSettings effectiveSettings = null;
             try
@@ -108,7 +109,15 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Clients
             }
             catch { }
 
-            effectiveSettings ??= new QobuzDownloadSettings();
+            return effectiveSettings ?? new QobuzDownloadSettings();
+        }
+
+        /// <summary>
+        /// Updates the concurrency manager with current settings.
+        /// </summary>
+        private void UpdateConcurrencySettings()
+        {
+            var effectiveSettings = GetEffectiveSettings();
 
             var desired = effectiveSettings.GetEffectiveConcurrency();
             var newLimit = Math.Max(1, Math.Min(desired, Constants.QobuzarrConstants.Defaults.MaxConcurrentDownloads));
@@ -217,6 +226,15 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Clients
         {
             try
             {
+                // Always try to remove from internal tracking (for tests and edge cases)
+                _activeDownloads.TryRemove(downloadId, out var activeItem);
+                
+                // Clear _lastQueuedItem if it matches
+                if (_lastQueuedItem?.DownloadId == downloadId)
+                {
+                    _lastQueuedItem = null;
+                }
+                
                 if (_queueService.TryGetDownload(downloadId, out var downloadItem))
                 {
                     // Cancel if still downloading
@@ -227,8 +245,17 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Clients
 
                     // Remove from queue with data deletion option
                     _queueService.RemoveDownload(downloadId, deleteData);
-                    _activeDownloads.TryRemove(downloadId, out _);
                     _logger.Debug("Removed download item: {0}", downloadId);
+                }
+                else if (activeItem != null)
+                {
+                    // Item was in internal tracking but not in queue service
+                    // Cancel if still downloading
+                    if (activeItem.Status == DownloadItemStatus.Downloading)
+                    {
+                        activeItem.Cancel();
+                    }
+                    _logger.Debug("Removed download item from internal tracking: {0}", downloadId);
                 }
             }
             catch (Exception ex)
@@ -285,6 +312,9 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Clients
             {
                 _logger.Info("Testing Qobuz download client connection...");
                 
+                // Get effective settings (supports test subclasses)
+                var settings = GetEffectiveSettings();
+                
                 // Test authentication - use async-safe pattern to avoid deadlocks
                 try
                 {
@@ -305,9 +335,9 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Clients
                 }
                 
                 // Test download path accessibility using file service
-                if (!string.IsNullOrWhiteSpace(Settings.DownloadPath))
+                if (!string.IsNullOrWhiteSpace(settings.DownloadPath))
                 {
-                    if (!_fileService.ValidateDownloadPath(Settings.DownloadPath))
+                    if (!_fileService.ValidateDownloadPath(settings.DownloadPath))
                     {
                         failures.Add(new ValidationFailure("DownloadPath", "Download path is not accessible or has insufficient space"));
                         return;
@@ -315,7 +345,7 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Clients
 
                     try
                     {
-                        _fileService.EnsureOutputDirectory(Settings.DownloadPath);
+                        _fileService.EnsureOutputDirectory(settings.DownloadPath);
                     }
                     catch (Exception ex)
                     {
@@ -335,10 +365,11 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Clients
 
         public override DownloadClientInfo GetStatus()
         {
+            var settings = GetEffectiveSettings();
             return new DownloadClientInfo
             {
                 IsLocalhost = true,
-                OutputRootFolders = new List<OsPath> { new OsPath(Settings.DownloadPath ?? "") }
+                OutputRootFolders = new List<OsPath> { new OsPath(settings.DownloadPath ?? "") }
             };
         }
 
@@ -364,6 +395,9 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Clients
                 downloadItem.Status = DownloadItemStatus.Downloading;
                 _logger.Info("🎵 Starting download: {0} - {1}", downloadItem.Artist, downloadItem.Title);
 
+                // Get effective settings (supports test subclasses)
+                var settings = GetEffectiveSettings();
+
                 // Ensure we have authentication
                 await EnsureAuthenticatedAsync().ConfigureAwait(false);
 
@@ -375,13 +409,13 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Clients
                 }
 
                 downloadItem.Album = album;
-                downloadItem.TotalSize = album.GetEstimatedTotalSize(Settings.PreferredQuality);
+                downloadItem.TotalSize = album.GetEstimatedTotalSize(settings.PreferredQuality);
 
                 // Create output directory using file service
                 _fileService.EnsureOutputDirectory(downloadItem.OutputPath);
 
                 // Download tracks (delegated to service)
-                await _trackDownloadService.DownloadAlbumAsync(downloadItem, album, Settings, downloadItem.CancellationTokenSource.Token).ConfigureAwait(false);
+                await _trackDownloadService.DownloadAlbumAsync(downloadItem, album, settings, downloadItem.CancellationTokenSource.Token).ConfigureAwait(false);
 
                 // Mark as completed
                 downloadItem.Status = DownloadItemStatus.Completed;
@@ -414,8 +448,9 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Clients
             _apiClient.SetSession(session);
             
             // Simple check if subscription supports preferred quality
-            if (Settings != null && session.Subscription != null && 
-                !session.Subscription.SupportsQuality(Settings.PreferredQuality))
+            var settings = GetEffectiveSettings();
+            if (settings != null && session.Subscription != null && 
+                !session.Subscription.SupportsQuality(settings.PreferredQuality))
             {
                 var maxQuality = session.Subscription.GetMaxFormatId();
                 _logger.Warn("Preferred quality exceeds subscription: will use {0} instead", 
