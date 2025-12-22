@@ -1,6 +1,8 @@
 using FluentAssertions;
 using Microsoft.Extensions.Configuration;
 using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
+using Qobuzarr.IntegrationTests.Helpers;
 using System;
 using System.Net.Http;
 using System.Threading.Tasks;
@@ -70,18 +72,22 @@ namespace Qobuzarr.IntegrationTests
             wantedResponse.IsSuccessStatusCode.Should().BeTrue();
             
             var wantedContent = await wantedResponse.Content.ReadAsStringAsync();
-            var wantedData = JsonConvert.DeserializeObject<dynamic>(wantedContent);
-            var albums = wantedData?.records as Newtonsoft.Json.Linq.JArray;
-            
-            albums.Should().NotBeNull("Should have wanted albums");
-            albums!.Count.Should().BeGreaterThan(0, "Should have at least one wanted album");
+            var wantedData = JsonConvert.DeserializeObject<JObject>(wantedContent);
+            var albums = JsonExtractor.RequireNonEmptyArray(
+                wantedData?["records"], 
+                "records", 
+                "/api/v1/wanted/missing", 
+                wantedContent);
             
             // Pick the first album
             var album = albums[0];
-            var albumId = album["id"]?.ToObject<int>() 
-                ?? throw new InvalidOperationException("Album 'id' field missing from wanted albums response");
-            var albumTitle = album["title"]?.ToString();
-            var artistName = album["artist"]?["artistName"]?.ToString();
+            var albumId = JsonExtractor.RequireInt(
+                album["id"], 
+                "records[0].id", 
+                "/api/v1/wanted/missing", 
+                wantedContent);
+            var albumTitle = JsonExtractor.TryGetString(album["title"]);
+            var artistName = JsonExtractor.TryGetString(album["artist"]?["artistName"]);
             
             _output.WriteLine($"🎯 Selected album: {artistName} - {albumTitle} (ID: {albumId})");
             
