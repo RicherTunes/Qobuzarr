@@ -11,14 +11,17 @@ namespace Lidarr.Plugin.Qobuzarr.Security
     /// Validates plugin configuration for security best practices and potential vulnerabilities.
     /// Provides comprehensive security assessment of user-provided settings.
     /// </summary>
-    public class SecurityConfigValidator
+    public partial class SecurityConfigValidator
     {
         private readonly IQobuzLogger _logger;
         private readonly SecureCredentialManager _credentialManager;
 
-        // Security patterns and validation rules
-        private static readonly Regex EmailPattern = new Regex(@"^[^@\s]+@[^@\s]+\.[^@\s]+$", RegexOptions.Compiled);
-        private static readonly Regex NumericPattern = new Regex(@"^\d+$", RegexOptions.Compiled);
+        // Security patterns and validation rules (GeneratedRegex for SYSLIB1045)
+        [GeneratedRegex(@"^[^@\s]+@[^@\s]+\.[^@\s]+$")]
+        private static partial Regex EmailPattern();
+        
+        [GeneratedRegex(@"^\d+$")]
+        private static partial Regex NumericPattern();
         private static readonly string[] SuspiciousPatterns =
         {
             "javascript:", "<script", "<img", "onerror=", "onload=", "eval(", "document.", "window.",
@@ -103,7 +106,7 @@ namespace Lidarr.Plugin.Qobuzarr.Security
                         "Password appears weak or contains placeholder data");
                 }
 
-                if (!EmailPattern.IsMatch(settings.Email ?? ""))
+                if (!EmailPattern().IsMatch(settings.Email ?? ""))
                 {
                     result.AddMajorIssue("Invalid email format",
                         "Email address format appears invalid");
@@ -177,7 +180,7 @@ namespace Lidarr.Plugin.Qobuzarr.Security
             else if (hasAppId && hasAppSecret)
             {
                 // Validate App ID format (should be numeric)
-                if (!NumericPattern.IsMatch(settings.AppId))
+                if (!NumericPattern().IsMatch(settings.AppId))
                 {
                     result.AddMajorIssue("Invalid App ID format",
                         "App ID should be numeric");
