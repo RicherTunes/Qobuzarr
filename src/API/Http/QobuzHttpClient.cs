@@ -103,7 +103,18 @@ namespace Lidarr.Plugin.Qobuzarr.API.Http
                     while (true)
                     {
                         attempt++;
-                        var response = await ExecuteWithRateLimitHandling(request).ConfigureAwait(false);
+                        HttpException? lastHttpException = null;
+                        HttpResponse response;
+                        try
+                        {
+                            response = await ExecuteWithRateLimitHandling(request).ConfigureAwait(false);
+                        }
+                        catch (HttpException ex)
+                        {
+                            // Preserve exception type for callers, but allow retry logic to run based on status code.
+                            lastHttpException = ex;
+                            response = ex.Response;
+                        }
 
                         if (response.StatusCode != System.Net.HttpStatusCode.TooManyRequests && !response.HasHttpError)
                         {
@@ -128,6 +139,11 @@ namespace Lidarr.Plugin.Qobuzarr.API.Http
                                 var msgFail = new HttpResponseMessage(response.StatusCode);
                                 _adaptiveRateLimiter.RecordResponse(QobuzarrConstants.ServiceName, endpoint, msgFail);
                             }
+                            if (lastHttpException != null)
+                            {
+                                throw lastHttpException;
+                            }
+
                             return response;
                         }
 

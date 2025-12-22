@@ -63,14 +63,12 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Services
     /// </summary>
     internal class ConcurrencySlot : IDisposable
     {
-        private readonly SemaphoreSlim _semaphore;
-        private readonly Action _onRelease;
+        private readonly Action _release;
         private volatile bool _disposed = false;
 
-        public ConcurrencySlot(SemaphoreSlim semaphore, Action onRelease = null)
+        public ConcurrencySlot(Action release)
         {
-            _semaphore = semaphore ?? throw new ArgumentNullException(nameof(semaphore));
-            _onRelease = onRelease;
+            _release = release ?? throw new ArgumentNullException(nameof(release));
         }
 
         public void Dispose()
@@ -80,21 +78,7 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Services
 
             try
             {
-                // Only release if the semaphore hasn't been disposed
-                try
-                {
-                    _semaphore.Release();
-                }
-                catch (ObjectDisposedException)
-                {
-                    // Semaphore was disposed (likely during limit update), ignore
-                }
-                catch (SemaphoreFullException)
-                {
-                    // Semaphore is full (can happen during concurrent updates), ignore
-                }
-                
-                _onRelease?.Invoke();
+                _release.Invoke();
             }
             finally
             {

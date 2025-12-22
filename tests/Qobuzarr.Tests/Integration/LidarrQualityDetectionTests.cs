@@ -3,9 +3,9 @@ using System.Text.RegularExpressions;
 using FluentAssertions;
 using Xunit;
 using Lidarr.Plugin.Qobuzarr.Models;
-using Lidarr.Plugin.Qobuzarr.Indexers;
 using Qobuzarr.Tests.Builders;
 using NLog;
+using Lidarr.Plugin.Qobuzarr.Indexers.Parsing;
 
 namespace Qobuzarr.Tests.Integration
 {
@@ -13,9 +13,10 @@ namespace Qobuzarr.Tests.Integration
     /// Integration tests that verify our releases will be correctly parsed by Lidarr's quality detection
     /// These tests simulate Lidarr's actual QualityParser.ParseQuality() logic using the same regex patterns
     /// </summary>
+    [Trait("Category", "Simulations")]
     public class LidarrQualityDetectionTests
     {
-        private readonly QobuzParser _parser;
+        private readonly ITitleGenerator _titleGenerator;
 
         // These are the EXACT regex patterns from Lidarr's QualityParser
         private static readonly Regex BitRateRegex = new(@"\b(?:(?<B096>96[ ]?kbps|96|[\[\(].*96.*[\]\)])|
@@ -38,9 +39,8 @@ namespace Qobuzarr.Tests.Integration
 
         public LidarrQualityDetectionTests()
         {
-            var settings = new QobuzIndexerSettings();
             var logger = LogManager.GetCurrentClassLogger();
-            _parser = new QobuzParser(settings, logger);
+            _titleGenerator = new TitleGenerator(logger);
         }
 
         #region Critical Quality Detection Tests
@@ -230,10 +230,7 @@ namespace Qobuzarr.Tests.Integration
 
         private string GenerateTitleForQuality(QobuzAlbum album, QobuzAudioQuality quality)
         {
-            // Use reflection to call the private method
-            var method = typeof(QobuzParser).GetMethod("GenerateQualitySpecificTitle", 
-                System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
-            return (string)method.Invoke(_parser, new object[] { album, quality, 2023 });
+            return _titleGenerator.GenerateQualitySpecificTitle(album, quality, 2023);
         }
 
         /// <summary>

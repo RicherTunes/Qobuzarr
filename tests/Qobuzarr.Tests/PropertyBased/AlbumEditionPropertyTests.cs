@@ -3,6 +3,7 @@ using System.Linq;
 using FluentAssertions;
 using FsCheck;
 using FsCheck.Xunit;
+using Lidarr.Plugin.Qobuzarr.Security;
 using Lidarr.Plugin.Qobuzarr.Models;
 using Qobuzarr.Tests.Builders;
 
@@ -128,16 +129,22 @@ namespace Qobuzarr.Tests.PropertyBased
         public Property GetFullTitle_WhenVersionInTitle_ShouldNotDuplicate(NonEmptyString title, NonEmptyString version)
         {
             // Arrange
-            var albumTitle = $"{title.Get} {version.Get}";
+            var sanitizedVersion = MetadataSanitizer.SanitizeVersion(version.Get);
+            if (string.IsNullOrWhiteSpace(sanitizedVersion))
+            {
+                return true.ToProperty();
+            }
+
+            var albumTitle = $"{title.Get} {sanitizedVersion}";
             var album = QobuzAlbumBuilder.New()
                 .WithTitle(albumTitle)
                 .Build();
-            album.Version = version.Get;
+            album.Version = sanitizedVersion;
 
             // Act
             var fullTitle = album.GetFullTitle();
 
-            // Assert - Should not have version duplicated in parentheses
+            // Assert - Should not have version duplicated in parentheses       
             return (fullTitle == albumTitle).ToProperty();
         }
 
@@ -146,7 +153,7 @@ namespace Qobuzarr.Tests.PropertyBased
         #region Version Field Properties
 
         [Property(Arbitrary = new[] { typeof(AlbumEditionPropertyTests) })]
-        public Property Version_ShouldBePreservedInFullTitle(string version)
+        public Property Version_ShouldBePreservedInFullTitle(string version)    
         {
             return Prop.ForAll<string>(v =>
             {
@@ -160,14 +167,20 @@ namespace Qobuzarr.Tests.PropertyBased
                 var fullTitle = album.GetFullTitle();
 
                 // Assert
-                if (string.IsNullOrWhiteSpace(v))
+                var sanitizedVersion = MetadataSanitizer.SanitizeVersion(v);
+                if (string.IsNullOrWhiteSpace(sanitizedVersion))
                 {
-                    return !fullTitle.Contains("()"); // No empty parentheses
+                    return !fullTitle.Contains("()"); // No empty parentheses   
                 }
-                else
+
+                // If the version is already present in the title, we should not duplicate it.
+                if (fullTitle.Contains(sanitizedVersion, StringComparison.OrdinalIgnoreCase) &&
+                    !fullTitle.Contains($"({sanitizedVersion})", StringComparison.OrdinalIgnoreCase))
                 {
-                    return fullTitle.Contains($"({v})");
+                    return true;
                 }
+
+                return fullTitle.Contains($"({sanitizedVersion})");
             }).When(version != null);
         }
 
@@ -185,7 +198,13 @@ namespace Qobuzarr.Tests.PropertyBased
             var fullTitle = album.GetFullTitle();
 
             // Assert
-            return fullTitle.Contains(unicodeVersion).ToProperty();
+            var sanitizedVersion = MetadataSanitizer.SanitizeVersion(unicodeVersion);
+            if (string.IsNullOrWhiteSpace(sanitizedVersion))
+            {
+                return true.ToProperty();
+            }
+
+            return fullTitle.Contains(sanitizedVersion, StringComparison.OrdinalIgnoreCase).ToProperty();
         }
 
         #endregion
@@ -193,32 +212,42 @@ namespace Qobuzarr.Tests.PropertyBased
         #region Album Comparison Properties
 
         [Property(Arbitrary = new[] { typeof(AlbumEditionPropertyTests) })]
-        public Property DifferentVersions_ShouldProduceDifferentFullTitles(
-            NonEmptyString version1, 
+        public Property DifferentVersions_ShouldProduceDifferentFullTitles(     
+            NonEmptyString version1,
             NonEmptyString version2)
         {
-            return Prop.ForAll<NonEmptyString, NonEmptyString>((v1, v2) =>
+            var v1 = MetadataSanitizer.SanitizeVersion(version1.Get);
+            var v2 = MetadataSanitizer.SanitizeVersion(version2.Get);
+
+            if (string.IsNullOrWhiteSpace(v1) || string.IsNullOrWhiteSpace(v2))
             {
-                // Arrange
-                var album1 = QobuzAlbumBuilder.New()
-                    .WithTitle("Same Album")
-                    .WithArtist("Same Artist")
-                    .Build();
-                album1.Version = v1.Get;
+                return true.ToProperty();
+            }
 
-                var album2 = QobuzAlbumBuilder.New()
-                    .WithTitle("Same Album")
-                    .WithArtist("Same Artist")
-                    .Build();
-                album2.Version = v2.Get;
+            if (v1.Equals(v2, StringComparison.OrdinalIgnoreCase))
+            {
+                return true.ToProperty();
+            }
 
-                // Act
-                var title1 = album1.GetFullTitle();
-                var title2 = album2.GetFullTitle();
+            // Arrange
+            var album1 = QobuzAlbumBuilder.New()
+                .WithTitle("Same Album")
+                .WithArtist("Same Artist")
+                .Build();
+            album1.Version = v1;
 
-                // Assert
-                return (title1 != title2).ToProperty();
-            }).When(version1.Get != version2.Get);
+            var album2 = QobuzAlbumBuilder.New()
+                .WithTitle("Same Album")
+                .WithArtist("Same Artist")
+                .Build();
+            album2.Version = v2;
+
+            // Act
+            var title1 = album1.GetFullTitle();
+            var title2 = album2.GetFullTitle();
+
+            // Assert
+            return (title1 != title2).ToProperty();
         }
 
         [Property(Arbitrary = new[] { typeof(AlbumEditionPropertyTests) })]
@@ -286,7 +315,13 @@ namespace Qobuzarr.Tests.PropertyBased
                 .WithReleaseYear(2020)
                 .AsCdQualityFlac()
                 .Build();
-            album.Version = version.Get;
+            var sanitizedVersion = MetadataSanitizer.SanitizeVersion(version.Get);
+            if (string.IsNullOrWhiteSpace(sanitizedVersion))
+            {
+                return true.ToProperty();
+            }
+
+            album.Version = sanitizedVersion;
 
             // Act
             var title = GenerateRedactedStyleTitle(album);

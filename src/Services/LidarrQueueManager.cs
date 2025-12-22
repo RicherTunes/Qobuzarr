@@ -118,8 +118,15 @@ namespace Lidarr.Plugin.Qobuzarr.Services
         {
             ThrowIfDisposed();
 
-            _downloadSemaphore.Release();
-            
+            try
+            {
+                _downloadSemaphore.Release();
+            }
+            catch (SemaphoreFullException ex)
+            {
+                _logger.Warn(ex, "ReleaseDownloadSlot called when no slot was acquired; ignoring");
+            }
+
             _logger.Debug("Download slot released - Active: {0}/{1}", ActiveDownloadCount, _maxConcurrentDownloads);
         }
 
@@ -165,8 +172,15 @@ namespace Lidarr.Plugin.Qobuzarr.Services
         {
             ThrowIfDisposed();
 
-            _searchSemaphore.Release();
-            
+            try
+            {
+                _searchSemaphore.Release();
+            }
+            catch (SemaphoreFullException ex)
+            {
+                _logger.Warn(ex, "ReleaseSearchSlot called when no slot was acquired; ignoring");
+            }
+
             _logger.Debug("Search slot released - Active: {0}/{1}", ActiveSearchCount, _maxConcurrentSearches);
         }
 
@@ -296,8 +310,8 @@ namespace Lidarr.Plugin.Qobuzarr.Services
         private int GetEffectiveConcurrency(int requestedConcurrency)
         {
             if (requestedConcurrency <= 0)
-                return Math.Max(MIN_CONCURRENCY, Environment.ProcessorCount);
-            
+                return Math.Min(MAX_CONCURRENCY, Math.Max(MIN_CONCURRENCY, Environment.ProcessorCount));
+
             return Math.Min(MAX_CONCURRENCY, Math.Max(MIN_CONCURRENCY, requestedConcurrency));
         }
 

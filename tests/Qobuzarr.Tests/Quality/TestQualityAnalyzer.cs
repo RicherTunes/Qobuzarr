@@ -5,6 +5,7 @@ using System.Linq;
 using System.Reflection;
 using System.Text.Json;
 using System.Text.RegularExpressions;
+using FsCheck.Xunit;
 using Xunit;
 using FluentAssertions;
 
@@ -108,8 +109,9 @@ namespace Qobuzarr.Tests.Quality
                 report.TestCategoryCounts["Performance"] = report.TestCategoryCounts.GetValueOrDefault("Performance", 0) + 1;
             }
 
-            // Property-based tests (Theory tests with InlineData)
-            if (method.GetCustomAttributes<TheoryAttribute>().Any())
+            // Property-based tests (xUnit Theory + FsCheck [Property])
+            if (method.GetCustomAttributes<TheoryAttribute>().Any() ||
+                method.GetCustomAttributes<PropertyAttribute>().Any())
             {
                 report.PropertyBasedTests++;
                 report.TestCategoryCounts["PropertyBased"] = report.TestCategoryCounts.GetValueOrDefault("PropertyBased", 0) + 1;

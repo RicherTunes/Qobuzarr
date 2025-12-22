@@ -17,10 +17,12 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Services
         private readonly object _lockObject = new object();
         private readonly List<DateTime> _acquisitionTimes = new List<DateTime>();
         
-        private SemaphoreSlim _semaphore;
+        private readonly SemaphoreSlim _semaphore;
         private int _currentLimit;
         private int _activeSlots = 0; // Track active slots explicitly
         private volatile bool _disposed = false;
+        private int _reservedPermits = 0;
+        private int _pendingPermitReductions = 0;
         private long _totalSlotsUsed = 0;
 
         public ConcurrencyManager(Logger logger, int initialLimit = 4)
@@ -30,7 +32,7 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Services
 
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
             _currentLimit = initialLimit;
-            _semaphore = new SemaphoreSlim(initialLimit, initialLimit);
+            _semaphore = new SemaphoreSlim(initialLimit, int.MaxValue);
 
             _logger.Debug("ConcurrencyManager initialized with limit: {0}", initialLimit);
         }
@@ -60,14 +62,7 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Services
 
                 _logger.Debug("Acquired concurrency slot (waited: {0}ms)", waitTime.TotalMilliseconds);
 
-                return new ConcurrencySlot(_semaphore, () =>
-                {
-                    lock (_lockObject)
-                    {
-                        _activeSlots = Math.Max(0, _activeSlots - 1);
-                    }
-                    _logger.Debug("Released concurrency slot");
-                });
+                return new ConcurrencySlot(ReleaseSlot);
             }
             catch (OperationCanceledException)
             {
@@ -98,35 +93,57 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Services
                 }
 
                 var oldLimit = _currentLimit;
-                var currentActive = _activeSlots; // Use tracked active slots
-                
-                // Always create a new semaphore with the new max count
-                // Calculate initial count based on currently active operations
-                var initialCount = Math.Max(0, newLimit - currentActive);
-                var newSemaphore = new SemaphoreSlim(initialCount, newLimit);
-                
-                var oldSemaphore = _semaphore;
-                _semaphore = newSemaphore;
+
+                if (newLimit > oldLimit)
+                {
+                    var delta = newLimit - oldLimit;
+                    _currentLimit = newLimit;
+
+                    // Increasing the limit: first cancel any pending reductions, then release reserved permits,
+                    // and finally release new permits.
+                    if (_pendingPermitReductions > 0)
+                    {
+                        var cancelReductions = Math.Min(delta, _pendingPermitReductions);
+                        _pendingPermitReductions -= cancelReductions;
+                        delta -= cancelReductions;
+                    }
+
+                    if (delta > 0 && _reservedPermits > 0)
+                    {
+                        var releaseFromReserved = Math.Min(delta, _reservedPermits);
+                        _reservedPermits -= releaseFromReserved;
+                        _semaphore.Release(releaseFromReserved);
+                        delta -= releaseFromReserved;
+                    }
+
+                    if (delta > 0)
+                    {
+                        _semaphore.Release(delta);
+                    }
+
+                    _logger.Info("Updated concurrency limit: {0} -> {1} (active: {2})",
+                        oldLimit, newLimit, _activeSlots);
+                    return;
+                }
+
+                // Decreasing the limit: drain available permits immediately and track any remaining debt.
                 _currentLimit = newLimit;
 
-                // Schedule old semaphore disposal without blocking
-                // Use ThreadPool instead of Task.Run for better resource management
-                ThreadPool.QueueUserWorkItem(_ =>
+                var reduction = oldLimit - newLimit;
+                for (var i = 0; i < reduction; i++)
                 {
-                    try
+                    if (_semaphore.Wait(0))
                     {
-                        // Brief delay for cleanup - Thread.Sleep acceptable here since it's in background ThreadPool
-                        Thread.Sleep(100);
-                        oldSemaphore?.Dispose();
+                        _reservedPermits++;
                     }
-                    catch (Exception ex)
+                    else
                     {
-                        _logger.Debug(ex, "Error disposing old semaphore during limit change");
+                        _pendingPermitReductions++;
                     }
-                }, null);
+                }
 
-                _logger.Info("Updated concurrency limit: {0} -> {1} (active: {2}, available: {3})", 
-                    oldLimit, newLimit, currentActive, initialCount);
+                _logger.Info("Updated concurrency limit: {0} -> {1} (active: {2}, reserved: {3}, pendingReductions: {4})",
+                    oldLimit, newLimit, _activeSlots, _reservedPermits, _pendingPermitReductions);
             }
         }
 
@@ -198,6 +215,35 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Services
             }
         }
 
+        private void ReleaseSlot()
+        {
+            lock (_lockObject)
+            {
+                _activeSlots = Math.Max(0, _activeSlots - 1);
+
+                if (_pendingPermitReductions > 0)
+                {
+                    _pendingPermitReductions--;
+                    _logger.Debug("Released concurrency slot (consumed pending reduction)");
+                    return;
+                }
+            }
+
+            try
+            {
+                _semaphore.Release();
+                _logger.Debug("Released concurrency slot");
+            }
+            catch (SemaphoreFullException)
+            {
+                _logger.Debug("Semaphore full while releasing concurrency slot, ignoring");
+            }
+            catch (ObjectDisposedException)
+            {
+                // Ignore disposal races during shutdown.
+            }
+        }
+
         private void ThrowIfDisposed()
         {
             if (_disposed)
@@ -211,7 +257,7 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Services
 
             try
             {
-                _semaphore?.Dispose();
+                _semaphore.Dispose();
                 _logger.Debug("ConcurrencyManager disposed");
             }
             catch (Exception ex)
