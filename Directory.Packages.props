@@ -14,10 +14,17 @@
   <ItemGroup>
     <!-- Core Framework -->
     <PackageVersion Include="Newtonsoft.Json" Version="13.0.3" />
-    <!-- NLog 6.0.3 - latest version with breaking changes -->
-    <PackageVersion Include="NLog" Version="6.0.3" />
+    <!-- CRITICAL: NLog MUST match Lidarr host version (5.4.0).
+         NLog.Logger types cross the plugin boundary via constructors and ILogger<T> injection.
+         Version mismatch causes "Could not load file or assembly 'NLog, Version=6.0.0.0'" at runtime.
+         Do NOT upgrade without verifying the Lidarr host version first (check ext/Lidarr/_output/*/NLog.dll). -->
+    <PackageVersion Include="NLog" Version="5.4.0" />
     <PackageVersion Include="NLog.Extensions.Logging" Version="5.3.14" />
-    <PackageVersion Include="FluentValidation" Version="11.11.0" />
+    <!-- CRITICAL: FluentValidation MUST match Lidarr host version (9.5.4).
+         ValidationFailure crosses the plugin boundary via DownloadClientBase.Test(List<ValidationFailure>).
+         Version mismatch causes "Method 'Test' does not have an implementation" at runtime.
+         Do NOT upgrade without verifying the Lidarr host version first. -->
+    <PackageVersion Include="FluentValidation" Version="9.5.4" />
     <PackageVersion Include="System.Resources.Extensions" Version="8.0.0" />
     
     <!-- Audio Processing -->
