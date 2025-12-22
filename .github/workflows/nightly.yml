@@ -12,6 +12,10 @@ permissions:
 env:
   DOTNET_VERSION: 8.0.x
   MINIMUM_LIDARR_VERSION: 2.13.2.4685
+  # Single source of truth for CI test filtering
+  # Excludes: LiveIntegration (needs live Lidarr), Integration (needs assemblies),
+  #           Performance (benchmarks), Quarantined (known issues)
+  CI_TEST_FILTER: "Category!=LiveIntegration&Category!=Integration&Category!=Performance&Category!=Quarantined"
 
 jobs:
   nightly-tests:
@@ -81,17 +85,23 @@ jobs:
 
     - name: Run Tests
       run: |
-        # Skip LiveIntegration and Quarantined tests in CI
-        dotnet test Qobuzarr.sln --configuration Release --no-build \
+        dotnet test Qobuzarr.sln \
+          --no-build \
+          --configuration Release \
+          --settings tests/Full.runsettings \
           --verbosity normal \
-          --filter "Category!=LiveIntegration&Category!=Integration&Category!=Quarantined" \
-          --logger "trx;LogFileName=test-results-${{ matrix.dotnet-version }}.trx" \
-          --results-directory ./TestResults || true
+          --filter "${{ env.CI_TEST_FILTER }}" \
+          --logger "trx;LogFileName=nightly-${{ matrix.dotnet-version }}.trx" \
+          --results-directory ./test-results/nightly-${{ matrix.dotnet-version }} \
+          --blame-hang-timeout 120s \
+          || true
 
     - name: Upload test results
       uses: actions/upload-artifact@v4
       if: always()
       with:
         name: nightly-test-results-${{ matrix.dotnet-version }}
-        path: ./TestResults/*.trx
+        path: |
+          ./test-results/nightly-${{ matrix.dotnet-version }}/
+          tests/TestResults/
         retention-days: 7
