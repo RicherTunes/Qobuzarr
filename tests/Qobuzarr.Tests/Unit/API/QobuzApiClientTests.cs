@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using FluentAssertions;
 using Moq;
 using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 using NzbDrone.Common.Http;
 using Xunit;
 using Lidarr.Plugin.Qobuzarr.API;
@@ -310,7 +311,8 @@ namespace Qobuzarr.Tests.Unit.API
                          .ReturnsAsync(httpResponse);
 
             // Act
-            var result = await _apiClient.PostAsync<dynamic>(endpoint, requestData);
+            // Avoid `dynamic` here: extension methods like FluentAssertions' `Should()` are resolved at compile-time.
+            var result = await _apiClient.PostAsync<JObject>(endpoint, requestData);
 
             // Assert
             result.Should().NotBeNull("POST request should return a valid response");
@@ -383,7 +385,9 @@ namespace Qobuzarr.Tests.Unit.API
                          .ReturnsAsync(httpResponse);
 
             // Act - No session set
-            var result = await _apiClient.GetAsync<dynamic>(endpoint, parameters);
+            // Avoid `dynamic` here: extension methods like FluentAssertions' `Should()` are resolved at compile-time,
+            // and `dynamic` dispatch bypasses them.
+            var result = await _apiClient.GetAsync<JObject>(endpoint, parameters);
 
             // Assert
             result.Should().NotBeNull("request should succeed even without session");
