@@ -1,11 +1,14 @@
 <#
 .SYNOPSIS
-    Validates that all tests in tests/Integration/ that use SkippableFact or access Framework
-    have the Category=Integration trait.
+    Validates trait hygiene for integration tests.
 
 .DESCRIPTION
-    This script ensures trait hygiene: any test that requires the live Lidarr environment
-    must be tagged with Category=Integration so CI can filter appropriately.
+    This script ensures trait hygiene: tests that require a live Lidarr environment must be tagged
+    with Category=Integration so CI can filter appropriately.
+
+    Rules enforced (tests/Integration/*.cs):
+    - If a test file contains [SkippableFact]/[SkippableTheory], it must contain Trait("Category","Integration")
+    - If a test file references live prerequisites (LIDARR_URL, Framework, etc.), it must contain Trait("Category","Integration")
 
 .EXAMPLE
     .\scripts\lint-test-traits.ps1
@@ -34,28 +37,44 @@ $testFiles = Get-ChildItem -Path $integrationTestPath -Filter "*.cs" -File
 foreach ($file in $testFiles) {
     $content = Get-Content -Path $file.FullName -Raw
     $lines = Get-Content -Path $file.FullName
-    
-    # Skip files that don't have SkippableFact (they don't need Integration trait)
-    if ($content -notmatch '\[SkippableFact\]') {
+
+    # Ignore XML doc comments which can contain example attributes like [SkippableFact]
+    $contentWithoutXmlDocs = $content -replace '(?m)^\s*///.*$', ''
+
+    $hasAnyTestAttribute = $contentWithoutXmlDocs -match '\[(Fact|Theory|SkippableFact|SkippableTheory)\b'
+    if (-not $hasAnyTestAttribute) {
         continue
     }
-    
+
+    $hasIntegrationTrait = $contentWithoutXmlDocs -match 'Trait\("Category",\s*"Integration"\)'
+    $usesSkippable = $contentWithoutXmlDocs -match '\[(SkippableFact|SkippableTheory)\b'
+    $referencesLivePrereq = $contentWithoutXmlDocs -match '(LIDARR_URL|LIDARR_API_KEY|ENABLE_LIVE_INTEGRATION_TESTS|LiveLidarrIntegrationFramework|IntegrationTestBase|SkipIfNotReady|Framework\b)'
+
+    if (($usesSkippable -or $referencesLivePrereq) -and -not $hasIntegrationTrait) {
+        $issues += [PSCustomObject]@{
+            File = $file.Name
+            Line = 1
+            Method = "(file-level)"
+        }
+        continue
+    }
+
     # Find all SkippableFact occurrences and check if they have Integration trait
     for ($i = 0; $i -lt $lines.Count; $i++) {
         # Skip XML documentation comments
         if ($lines[$i] -match '^\s*///' ) {
             continue
         }
-        if ($lines[$i] -match '\[SkippableFact\]') {
+        if ($lines[$i] -match '\[(SkippableFact|SkippableTheory)\]') {
             # Look at the next few lines for traits
             $hasIntegration = $false
             $methodName = ""
-            
+
             for ($j = $i; $j -lt [Math]::Min($i + 10, $lines.Count); $j++) {
                 if ($lines[$j] -match 'Trait.*"Category".*"Integration"') {
                     $hasIntegration = $true
                 }
-                if ($lines[$j] -match 'public\s+async\s+Task\s+(\w+)') {
+                if ($lines[$j] -match 'public\s+.*\s+(\w+)\s*\(') {
                     $methodName = $Matches[1]
                     break
                 }
@@ -73,13 +92,13 @@ foreach ($file in $testFiles) {
 }
 
 if ($issues.Count -gt 0) {
-    Write-Host "`n❌ Found $($issues.Count) test(s) with SkippableFact but missing Category=Integration:" -ForegroundColor Red
+    Write-Host "`n❌ Found $($issues.Count) trait hygiene issue(s):" -ForegroundColor Red
     foreach ($issue in $issues) {
         Write-Host "  - $($issue.File):$($issue.Line) - $($issue.Method)" -ForegroundColor Yellow
     }
-    Write-Host "`nRule: Any test using [SkippableFact] requires [Trait(`"Category`", `"Integration`")]" -ForegroundColor Cyan
+    Write-Host "`nRule: Any live-environment integration test must include [Trait(`"Category`", `"Integration`")]" -ForegroundColor Cyan
     exit 1
 }
 
-Write-Host "`n✅ All SkippableFact tests have Category=Integration trait" -ForegroundColor Green
+Write-Host "`n✅ Integration trait hygiene OK" -ForegroundColor Green
 exit 0
