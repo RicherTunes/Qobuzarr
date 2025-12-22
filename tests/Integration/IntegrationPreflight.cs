@@ -5,9 +5,13 @@ using Xunit.Abstractions;
 namespace Qobuzarr.IntegrationTests
 {
     /// <summary>
-    /// Exception thrown to skip integration tests when preconditions are not met.
-    /// xUnit 2.x doesn't have Assert.Skip, so we use a custom exception that tests can catch.
+    /// Exception thrown by framework initialization when preconditions are not met.
+    /// Caught by <see cref="IntegrationTestBase"/> and converted to Assert.Skip().
     /// </summary>
+    /// <remarks>
+    /// This is internal to the integration test infrastructure. Test methods should
+    /// call <see cref="IntegrationTestBase.SkipIfNotReady"/> rather than catching this directly.
+    /// </remarks>
     public class IntegrationTestSkipException : Exception
     {
         public IntegrationTestSkipException(string message) : base(message) { }

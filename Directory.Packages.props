@@ -1,15 +1,12 @@
 <Project>
-  
   <!-- Enable centralized package management for plugin projects only -->
   <PropertyGroup>
     <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
   </PropertyGroup>
-  
   <!-- Disable central package management for Lidarr source projects -->
   <PropertyGroup Condition="$(MSBuildProjectDirectory.Contains('ext\Lidarr-source')) OR $(MSBuildProjectDirectory.Contains('ext/Lidarr-source'))">
     <ManagePackageVersionsCentrally>false</ManagePackageVersionsCentrally>
   </PropertyGroup>
-
   <!-- Production Dependencies -->
   <ItemGroup>
     <!-- Core Framework -->
@@ -26,23 +23,18 @@
          Do NOT upgrade without verifying the Lidarr host version first. -->
     <PackageVersion Include="FluentValidation" Version="9.5.4" />
     <PackageVersion Include="System.Resources.Extensions" Version="8.0.0" />
-    
     <!-- Audio Processing -->
     <PackageVersion Include="TagLibSharp-Lidarr" Version="2.2.0.27" />
-    
     <!-- Machine Learning -->
     <PackageVersion Include="Microsoft.ML" Version="4.0.2" />
-    
     <PackageVersion Include="ILRepack.Lib.MSBuild.Task" Version="2.0.34.2" />
-
     <!-- Build Tools -->
     <PackageVersion Include="Microsoft.SourceLink.GitHub" Version="8.0.0" />
-    
     <!-- Shared Plugin Ecosystem -->
     <!-- Pin to latest verified release of the shared library -->
     <PackageVersion Include="Lidarr.Plugin.Common" Version="1.1.7" />
+    <PackageVersion Include="Xunit.SkippableFact" Version="1.5.23" />
   </ItemGroup>
-
   <!-- Security Updates for Transitive Dependencies -->
   <ItemGroup>
     <!-- Updated System.Text.Json to latest version -->
@@ -50,7 +42,6 @@
     <PackageVersion Include="System.Net.Http" Version="4.3.4" />
     <PackageVersion Include="System.Text.RegularExpressions" Version="4.3.1" />
   </ItemGroup>
-
   <!-- CLI Application Dependencies -->
   <ItemGroup>
     <!-- CLI Framework -->
@@ -59,7 +50,6 @@
     <PackageVersion Include="Spectre.Console.Cli" Version="0.50.0" />
     <PackageVersion Include="Newtonsoft.Json.Schema" Version="3.0.15" />
     <PackageVersion Include="DotNetEnv" Version="3.1.1" />
-    
     <!-- Microsoft Extensions (mix of versions based on compatibility requirements) -->
     <PackageVersion Include="Microsoft.Extensions.DependencyInjection" Version="8.0.1" />
     <PackageVersion Include="Microsoft.Extensions.Configuration" Version="8.0.0" />
@@ -71,7 +61,6 @@
     <PackageVersion Include="Microsoft.Extensions.Http" Version="8.0.1" />
     <!-- NLog.Extensions.Logging removed - use Lidarr's built-in logging -->
   </ItemGroup>
-
   <!-- Test Dependencies -->
   <ItemGroup>
     <!-- Test Framework -->
@@ -79,24 +68,19 @@
     <PackageVersion Include="xunit" Version="2.9.2" />
     <PackageVersion Include="xunit.runner.visualstudio" Version="2.8.2" />
     <PackageVersion Include="coverlet.collector" Version="6.0.2" />
-
     <!-- Assertions and Mocking (standardized on Moq, but keep NSubstitute for compatibility) -->
     <PackageVersion Include="FluentAssertions" Version="6.12.2" />
     <PackageVersion Include="Moq" Version="4.20.72" />
     <PackageVersion Include="NSubstitute" Version="5.1.0" />
-    
     <!-- Missing Test Dependencies for Lidarr assemblies compatibility -->
     <PackageVersion Include="System.IO.Abstractions" Version="17.2.3" />
     <PackageVersion Include="System.IO.Abstractions.TestingHelpers" Version="17.2.3" />
     <PackageVersion Include="Equ" Version="2.3.0" />
     <PackageVersion Include="FsCheck" Version="2.16.5" />
     <PackageVersion Include="FsCheck.Xunit" Version="2.16.5" />
-    
     <!-- Integration Test Dependencies -->
     <PackageVersion Include="Docker.DotNet" Version="3.125.15" />
-    
     <!-- Advanced Quality Testing (Sprint 6) -->
     <PackageVersion Include="BenchmarkDotNet" Version="0.13.12" />
   </ItemGroup>
-
 </Project>

@@ -32,6 +32,7 @@
     <PackageReference Include="Docker.DotNet" />
     <PackageReference Include="DotNetEnv" />
     <PackageReference Include="System.CommandLine" />
+    <PackageReference Include="Xunit.SkippableFact" />
   </ItemGroup>
 
   <ItemGroup>

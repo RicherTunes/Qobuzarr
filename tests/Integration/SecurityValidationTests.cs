@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using FluentAssertions;
 using Xunit;
 using Xunit.Abstractions;
+
 using Lidarr.Plugin.Qobuzarr.Security;
 
 namespace Qobuzarr.IntegrationTests
@@ -14,54 +15,22 @@ namespace Qobuzarr.IntegrationTests
     /// Validates that InputSanitizer and other security measures work correctly in live scenarios.
     /// </summary>
     [Collection("LiveIntegration")]
-    public class SecurityValidationTests : IAsyncLifetime
+    public class SecurityValidationTests : IntegrationTestBase
     {
-        private readonly ITestOutputHelper _output;
-        private LiveLidarrIntegrationFramework? _framework;
-        private string? _skipReason;
-
-        public SecurityValidationTests(ITestOutputHelper output)
+        public SecurityValidationTests(ITestOutputHelper output) : base(output)
         {
-            _output = output;
         }
 
-        public async Task InitializeAsync()
-        {
-            try
-            {
-                _framework = new LiveLidarrIntegrationFramework(_output);
-                var connectivityResult = await _framework.ValidateBasicConnectivityAsync();
-                if (!connectivityResult.IsSuccess)
-                {
-                    _skipReason = "⏭️ Skipping: Lidarr not reachable (set LIDARR_URL and LIDARR_API_KEY)";
-                    _output.WriteLine(_skipReason);
-                }
-            }
-            catch (IntegrationTestSkipException ex)
-            {
-                _skipReason = ex.Message;
-                _output.WriteLine(_skipReason);
-            }
-            catch (Exception ex)
-            {
-                _skipReason = $"⏭️ Skipping: Live integration not configured ({ex.Message})";
-                _output.WriteLine(_skipReason);
-            }
-        }
+        // InitializeAsync and DisposeAsync inherited from IntegrationTestBase
 
-        public async Task DisposeAsync()
-        {
-            _framework?.Dispose();
-        }
-
-        [Fact]
+        [SkippableFact]
         [Trait("Category", "LiveIntegration")]
         [Trait("Category", "Security")]
         [Trait("Priority", "Critical")]
         public async Task Test_InputSanitizer_Email_Validation()
         {
-            if (_skipReason != null || _framework == null) return;
-            _output.WriteLine("🛡️ Testing InputSanitizer Email Validation");
+            SkipIfNotReady();
+            Output.WriteLine("🛡️ Testing InputSanitizer Email Validation");
             
             // Test valid emails
             var validEmails = new[] { "test@example.com", "user.name+tag@domain.co.uk", "123@test.org" };
@@ -69,7 +38,7 @@ namespace Qobuzarr.IntegrationTests
             {
                 var result = InputSanitizer.SanitizeEmail(email);
                 result.Should().NotBeNullOrEmpty($"Valid email '{email}' should be sanitized successfully");
-                _output.WriteLine($"✅ Valid email handled correctly: {email} → {result}");
+                Output.WriteLine($"✅ Valid email handled correctly: {email} → {result}");
             }
             
             // Test invalid emails (should throw exceptions)
@@ -82,22 +51,22 @@ namespace Qobuzarr.IntegrationTests
             
             foreach (var email in invalidEmails)
             {
-                _output.WriteLine($"🧪 Testing malicious email: {email}");
+                Output.WriteLine($"🧪 Testing malicious email: {email}");
                 
                 Action act = () => InputSanitizer.SanitizeEmail(email);
                 act.Should().Throw<ArgumentException>($"Malicious email '{email}' should be rejected");
-                _output.WriteLine($"✅ Malicious email correctly rejected: {email}");
+                Output.WriteLine($"✅ Malicious email correctly rejected: {email}");
             }
         }
 
-        [Fact]
+        [SkippableFact]
         [Trait("Category", "LiveIntegration")]
         [Trait("Category", "Security")]
         [Trait("Priority", "Critical")]
         public async Task Test_InputSanitizer_Query_Sanitization()
         {
-            if (_skipReason != null || _framework == null) return;
-            _output.WriteLine("🛡️ Testing InputSanitizer Query Sanitization");
+            SkipIfNotReady();
+            Output.WriteLine("🛡️ Testing InputSanitizer Query Sanitization");
             
             // Test legitimate search queries
             var validQueries = new[] { 
@@ -112,7 +81,7 @@ namespace Qobuzarr.IntegrationTests
             {
                 var result = InputSanitizer.SanitizeSearchQuery(query);
                 result.Should().NotBeNullOrEmpty($"Valid query '{query}' should be sanitized");
-                _output.WriteLine($"✅ Valid query sanitized: {query} → {result}");
+                Output.WriteLine($"✅ Valid query sanitized: {query} → {result}");
             }
             
             // Test potentially dangerous queries
@@ -127,7 +96,7 @@ namespace Qobuzarr.IntegrationTests
             
             foreach (var query in dangerousQueries)
             {
-                _output.WriteLine($"🧪 Testing dangerous query: {query}");
+                Output.WriteLine($"🧪 Testing dangerous query: {query}");
                 
                 var result = InputSanitizer.SanitizeSearchQuery(query);
                 
@@ -138,18 +107,18 @@ namespace Qobuzarr.IntegrationTests
                 result.Should().NotContain("exec", "Commands should be removed");
                 result.Should().NotContain("onclick", "Events should be removed");
                 
-                _output.WriteLine($"✅ Dangerous query sanitized: {query} → {result}");
+                Output.WriteLine($"✅ Dangerous query sanitized: {query} → {result}");
             }
         }
 
-        [Fact]
+        [SkippableFact]
         [Trait("Category", "LiveIntegration")]
         [Trait("Category", "Security")]
         [Trait("Priority", "Critical")]
         public async Task Test_InputSanitizer_Path_Traversal_Prevention()
         {
-            if (_skipReason != null || _framework == null) return;
-            _output.WriteLine("🛡️ Testing InputSanitizer Path Traversal Prevention");
+            SkipIfNotReady();
+            Output.WriteLine("🛡️ Testing InputSanitizer Path Traversal Prevention");
             
             // Test legitimate paths
             var validPaths = new[] {
@@ -165,11 +134,11 @@ namespace Qobuzarr.IntegrationTests
                 {
                     var result = InputSanitizer.SanitizeFilePath(path);
                     result.Should().NotBeNullOrEmpty($"Valid path '{path}' should be sanitized");
-                    _output.WriteLine($"✅ Valid path sanitized: {path} → {result}");
+                    Output.WriteLine($"✅ Valid path sanitized: {path} → {result}");
                 }
                 catch (ArgumentException ex)
                 {
-                    _output.WriteLine($"⚠️ Valid path rejected (may be OS-specific): {path} - {ex.Message}");
+                    Output.WriteLine($"⚠️ Valid path rejected (may be OS-specific): {path} - {ex.Message}");
                 }
             }
             
@@ -185,22 +154,22 @@ namespace Qobuzarr.IntegrationTests
             
             foreach (var path in dangerousQueries)
             {
-                _output.WriteLine($"🧪 Testing dangerous path: {path}");
+                Output.WriteLine($"🧪 Testing dangerous path: {path}");
                 
                 Action act = () => InputSanitizer.SanitizeFilePath(path);
                 act.Should().Throw<ArgumentException>($"Dangerous path '{path}' should be rejected");
-                _output.WriteLine($"✅ Dangerous path correctly rejected: {path}");
+                Output.WriteLine($"✅ Dangerous path correctly rejected: {path}");
             }
         }
 
-        [Fact]
+        [SkippableFact]
         [Trait("Category", "LiveIntegration")]
         [Trait("Category", "Security")]
         [Trait("Priority", "High")]
         public async Task Test_InputSanitizer_Credential_Validation()
         {
-            if (_skipReason != null || _framework == null) return;
-            _output.WriteLine("🛡️ Testing InputSanitizer Credential Validation");
+            SkipIfNotReady();
+            Output.WriteLine("🛡️ Testing InputSanitizer Credential Validation");
             
             // Test App ID validation
             var validAppIds = new[] { "123456789", "app_id_test", "valid-app-id" };
@@ -210,11 +179,11 @@ namespace Qobuzarr.IntegrationTests
                 {
                     var result = InputSanitizer.SanitizeAppId(appId);
                     result.Should().Be(appId, "Valid App ID should pass through unchanged");
-                    _output.WriteLine($"✅ Valid App ID accepted: {appId}");
+                    Output.WriteLine($"✅ Valid App ID accepted: {appId}");
                 }
                 catch (ArgumentException ex)
                 {
-                    _output.WriteLine($"⚠️ Valid App ID rejected: {appId} - {ex.Message}");
+                    Output.WriteLine($"⚠️ Valid App ID rejected: {appId} - {ex.Message}");
                 }
             }
             
@@ -228,11 +197,11 @@ namespace Qobuzarr.IntegrationTests
             
             foreach (var appId in invalidAppIds)
             {
-                _output.WriteLine($"🧪 Testing invalid App ID: {appId}");
+                Output.WriteLine($"🧪 Testing invalid App ID: {appId}");
                 
                 Action act = () => InputSanitizer.SanitizeAppId(appId);
                 act.Should().Throw<ArgumentException>($"Invalid App ID '{appId}' should be rejected");
-                _output.WriteLine($"✅ Invalid App ID correctly rejected: {appId}");
+                Output.WriteLine($"✅ Invalid App ID correctly rejected: {appId}");
             }
             
             // Test password validation
@@ -241,7 +210,7 @@ namespace Qobuzarr.IntegrationTests
             {
                 var result = InputSanitizer.ValidatePassword(password);
                 result.Should().Be(password, "Valid password should pass through unchanged");
-                _output.WriteLine($"✅ Valid password accepted (length: {password.Length})");
+                Output.WriteLine($"✅ Valid password accepted (length: {password.Length})");
             }
             
             // Test dangerous passwords
@@ -253,22 +222,22 @@ namespace Qobuzarr.IntegrationTests
             
             foreach (var password in dangerousPasswords)
             {
-                _output.WriteLine($"🧪 Testing dangerous password (length: {password.Length})");
+                Output.WriteLine($"🧪 Testing dangerous password (length: {password.Length})");
                 
                 Action act = () => InputSanitizer.ValidatePassword(password);
                 act.Should().Throw<ArgumentException>($"Dangerous password should be rejected");
-                _output.WriteLine($"✅ Dangerous password correctly rejected");
+                Output.WriteLine($"✅ Dangerous password correctly rejected");
             }
         }
 
-        [Fact]
+        [SkippableFact]
         [Trait("Category", "LiveIntegration")]
         [Trait("Category", "Security")]
         [Trait("Priority", "High")]
         public async Task Test_InputSanitizer_Country_Code_Validation()
         {
-            if (_skipReason != null || _framework == null) return;
-            _output.WriteLine("🛡️ Testing InputSanitizer Country Code Validation");
+            SkipIfNotReady();
+            Output.WriteLine("🛡️ Testing InputSanitizer Country Code Validation");
             
             // Test valid country codes
             var validCodes = new[] { "US", "CA", "GB", "FR", "DE", "JP", "AU" };
@@ -276,44 +245,44 @@ namespace Qobuzarr.IntegrationTests
             {
                 var result = InputSanitizer.SanitizeCountryCode(code.ToLowerInvariant());
                 result.Should().Be(code, $"Valid country code '{code}' should be normalized to uppercase");
-                _output.WriteLine($"✅ Valid country code: {code.ToLowerInvariant()} → {result}");
+                Output.WriteLine($"✅ Valid country code: {code.ToLowerInvariant()} → {result}");
             }
             
             // Test invalid country codes
             var invalidCodes = new[] { "USA", "123", "GB'; DROP--", "<script>", "", "X" };
             foreach (var code in invalidCodes)
             {
-                _output.WriteLine($"🧪 Testing invalid country code: {code}");
+                Output.WriteLine($"🧪 Testing invalid country code: {code}");
                 
                 Action act = () => InputSanitizer.SanitizeCountryCode(code);
                 act.Should().Throw<ArgumentException>($"Invalid country code '{code}' should be rejected");
-                _output.WriteLine($"✅ Invalid country code correctly rejected: {code}");
+                Output.WriteLine($"✅ Invalid country code correctly rejected: {code}");
             }
         }
 
-        [Fact]
+        [SkippableFact]
         [Trait("Category", "Security")]
         [Trait("Priority", "High")]
         public async Task Test_Security_During_Live_Operations()
         {
-            if (_skipReason != null || _framework == null) return;
-            _output.WriteLine("🛡️ Testing Security During Live Operations");
+            SkipIfNotReady();
+            Output.WriteLine("🛡️ Testing Security During Live Operations");
             
             // Start monitoring for security-related log entries
-            var logMonitoringTask = _framework.MonitorLogsAsync(TimeSpan.FromMinutes(1), "");
+            var logMonitoringTask = Framework!.MonitorLogsAsync(TimeSpan.FromMinutes(1), "");
             
             // Perform normal operations that should trigger our security validations
-            _output.WriteLine("Performing normal operations with security validations active...");
+            Output.WriteLine("Performing normal operations with security validations active...");
             
             try
             {
                 // This will internally use our InputSanitizer for all inputs
-                await _framework.TestSearchFunctionalityAsync();
-                _output.WriteLine("✅ Search operations completed with security validations");
+                await Framework!.TestSearchFunctionalityAsync();
+                Output.WriteLine("✅ Search operations completed with security validations");
             }
             catch (Exception ex)
             {
-                _output.WriteLine($"⚠️ Search operations failed: {ex.Message}");
+                Output.WriteLine($"⚠️ Search operations failed: {ex.Message}");
             }
             
             // Check logs for security issues
@@ -328,10 +297,10 @@ namespace Qobuzarr.IntegrationTests
                 log.Contains("security", StringComparison.OrdinalIgnoreCase)
             ).ToList();
             
-            _output.WriteLine($"📊 Found {securityLogs.Count} security-related log entries:");
+            Output.WriteLine($"📊 Found {securityLogs.Count} security-related log entries:");
             foreach (var log in securityLogs.Take(10))
             {
-                _output.WriteLine($"  {log}");
+                Output.WriteLine($"  {log}");
             }
             
             // Check for any security exceptions
@@ -346,25 +315,25 @@ namespace Qobuzarr.IntegrationTests
             
             if (securityErrors.Any())
             {
-                _output.WriteLine("🚨 SECURITY ISSUES DETECTED:");
+                Output.WriteLine("🚨 SECURITY ISSUES DETECTED:");
                 foreach (var error in securityErrors)
                 {
-                    _output.WriteLine($"  {error}");
+                    Output.WriteLine($"  {error}");
                 }
             }
             else
             {
-                _output.WriteLine("✅ No security issues detected during live operations");
+                Output.WriteLine("✅ No security issues detected during live operations");
             }
         }
 
-        [Fact]
+        [SkippableFact]
         [Trait("Category", "Security")]
         [Trait("Priority", "Medium")]
         public async Task Test_Dangerous_Content_Detection()
         {
-            if (_skipReason != null || _framework == null) return;
-            _output.WriteLine("🛡️ Testing Dangerous Content Detection");
+            SkipIfNotReady();
+            Output.WriteLine("🛡️ Testing Dangerous Content Detection");
             
             // Test obviously safe content
             var safeInputs = new[] {
@@ -378,7 +347,7 @@ namespace Qobuzarr.IntegrationTests
             {
                 var isDangerous = InputSanitizer.ContainsDangerousContent(input);
                 isDangerous.Should().BeFalse($"Safe input '{input}' should not be flagged as dangerous");
-                _output.WriteLine($"✅ Safe input correctly identified: {input}");
+                Output.WriteLine($"✅ Safe input correctly identified: {input}");
             }
             
             // Test obviously dangerous content
@@ -397,17 +366,17 @@ namespace Qobuzarr.IntegrationTests
             {
                 var isDangerous = InputSanitizer.ContainsDangerousContent(input);
                 isDangerous.Should().BeTrue($"Dangerous input '{input}' should be flagged as dangerous");
-                _output.WriteLine($"✅ Dangerous input correctly identified: {input}");
+                Output.WriteLine($"✅ Dangerous input correctly identified: {input}");
             }
         }
 
-        [Fact]
+        [SkippableFact]
         [Trait("Category", "Security")]
         [Trait("Priority", "High")]
         public async Task Test_URL_Parameter_Sanitization()
         {
-            if (_skipReason != null || _framework == null) return;
-            _output.WriteLine("🛡️ Testing URL Parameter Sanitization");
+            SkipIfNotReady();
+            Output.WriteLine("🛡️ Testing URL Parameter Sanitization");
             
             // Test normal parameters
             var normalParams = new Dictionary<string, string>
@@ -422,7 +391,7 @@ namespace Qobuzarr.IntegrationTests
             {
                 var result = InputSanitizer.SanitizeQueryParam(param.Key, param.Value);
                 result.Should().NotBeNullOrEmpty($"Normal parameter '{param.Key}={param.Value}' should be sanitized");
-                _output.WriteLine($"✅ Normal parameter sanitized: {param.Key}={param.Value} → {result}");
+                Output.WriteLine($"✅ Normal parameter sanitized: {param.Key}={param.Value} → {result}");
             }
             
             // Test potentially dangerous parameters
@@ -436,7 +405,7 @@ namespace Qobuzarr.IntegrationTests
             
             foreach (var param in dangerousParams)
             {
-                _output.WriteLine($"🧪 Testing dangerous parameter: {param.Key}={param.Value}");
+                Output.WriteLine($"🧪 Testing dangerous parameter: {param.Key}={param.Value}");
                 
                 try
                 {
@@ -447,45 +416,45 @@ namespace Qobuzarr.IntegrationTests
                     result.Should().NotContain("script", "Script tags should be removed");
                     result.Should().NotContain("exec", "Commands should be removed");
                     
-                    _output.WriteLine($"✅ Dangerous parameter sanitized: {param.Key}={param.Value} → {result}");
+                    Output.WriteLine($"✅ Dangerous parameter sanitized: {param.Key}={param.Value} → {result}");
                 }
                 catch (ArgumentException)
                 {
-                    _output.WriteLine($"✅ Dangerous parameter correctly rejected: {param.Key}={param.Value}");
+                    Output.WriteLine($"✅ Dangerous parameter correctly rejected: {param.Key}={param.Value}");
                 }
             }
         }
 
-        [Fact]
+        [SkippableFact]
         [Trait("Category", "LiveIntegration")]
         [Trait("Category", "Security")]
         [Trait("Priority", "Medium")]
         public async Task Test_Authentication_Security_In_Live_Environment()
         {
-            if (_skipReason != null || _framework == null) return;
-            _output.WriteLine("🛡️ Testing Authentication Security in Live Environment");
+            SkipIfNotReady();
+            Output.WriteLine("🛡️ Testing Authentication Security in Live Environment");
             
             // Monitor logs during authentication operations
-            var logMonitoringTask = _framework.MonitorLogsAsync(TimeSpan.FromSeconds(30), "auth");
+            var logMonitoringTask = Framework!.MonitorLogsAsync(TimeSpan.FromSeconds(30), "auth");
             
             // Trigger operations that would use authentication
-            _output.WriteLine("Triggering authentication-related operations...");
+            Output.WriteLine("Triggering authentication-related operations...");
             
             try
             {
                 // Any search operation will trigger authentication
-                await _framework.TestSearchFunctionalityAsync();
-                _output.WriteLine("✅ Authentication operations completed");
+                await Framework!.TestSearchFunctionalityAsync();
+                Output.WriteLine("✅ Authentication operations completed");
             }
             catch (Exception ex)
             {
-                _output.WriteLine($"⚠️ Authentication operations failed: {ex.Message}");
+                Output.WriteLine($"⚠️ Authentication operations failed: {ex.Message}");
             }
             
             var logResult = await logMonitoringTask;
             var authLogs = logResult.Data.GetValueOrDefault("LogEntries", new List<string>()) as List<string> ?? new();
             
-            _output.WriteLine($"📊 Authentication-related logs: {authLogs.Count}");
+            Output.WriteLine($"📊 Authentication-related logs: {authLogs.Count}");
             
             // Check that no credentials are leaked in logs
             var credentialLeaks = authLogs.Where(log =>
@@ -501,25 +470,25 @@ namespace Qobuzarr.IntegrationTests
             
             if (credentialLeaks.Any())
             {
-                _output.WriteLine("🚨 CREDENTIAL LEAK DETECTED:");
+                Output.WriteLine("🚨 CREDENTIAL LEAK DETECTED:");
                 foreach (var leak in credentialLeaks)
                 {
-                    _output.WriteLine($"  {leak}");
+                    Output.WriteLine($"  {leak}");
                 }
             }
             else
             {
-                _output.WriteLine("✅ No credential leaks detected in logs");
+                Output.WriteLine("✅ No credential leaks detected in logs");
             }
         }
 
-        [Fact]
+        [SkippableFact]
         [Trait("Category", "Security")]
         [Trait("Priority", "Low")]
         public async Task Test_Security_Documentation_And_Guidelines()
         {
-            if (_skipReason != null || _framework == null) return;
-            _output.WriteLine("📚 Validating Security Documentation");
+            SkipIfNotReady();
+            Output.WriteLine("📚 Validating Security Documentation");
             
             // This test validates that security measures are properly documented
             var securityFiles = new[]
@@ -536,15 +505,15 @@ namespace Qobuzarr.IntegrationTests
                 
                 if (exists)
                 {
-                    _output.WriteLine($"✅ Security file exists: {file}");
+                    Output.WriteLine($"✅ Security file exists: {file}");
                 }
                 else
                 {
-                    _output.WriteLine($"❌ Security file missing: {file}");
+                    Output.WriteLine($"❌ Security file missing: {file}");
                 }
             }
             
-            _output.WriteLine("✅ Security documentation validation completed");
+            Output.WriteLine("✅ Security documentation validation completed");
         }
     }
 }
