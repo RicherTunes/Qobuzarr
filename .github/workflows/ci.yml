@@ -63,6 +63,10 @@ env:
   PLUGIN_NAME: Lidarr.Plugin.Qobuzarr
   MINIMUM_LIDARR_VERSION: 2.13.2.4685
   DOTNET_VERSION: 8.0.x
+  # Single source of truth for CI test filtering
+  # Excludes: LiveIntegration (needs live Lidarr), Integration (needs assemblies), 
+  #           Performance (benchmarks), Quarantined (known issues)
+  CI_TEST_FILTER: "Category!=LiveIntegration&Category!=Integration&Category!=Performance&Category!=Quarantined"
 
 jobs:
   validate:
@@ -297,7 +301,15 @@ jobs:
         if [ -f "tests/run-tests.ps1" ]; then
           pwsh -File ./tests/run-tests.ps1 -Configuration Release
         else
-          dotnet test --settings tests/Default.runsettings --configuration Release --logger "console;verbosity=normal" --filter "Category!=Integration&Category!=Quarantined"
+          dotnet test \
+            --no-build \
+            --configuration Release \
+            --settings tests/Default.runsettings \
+            --filter "${{ env.CI_TEST_FILTER }}" \
+            --logger "console;verbosity=normal" \
+            --logger "trx;LogFileName=fast-tests.trx" \
+            --results-directory ./test-results/fast-tests \
+            --blame-hang-timeout 60s
         fi
 
     - name: Upload test results (fast)
@@ -306,8 +318,8 @@ jobs:
       with:
         name: test-results-fast
         path: |
+          ./test-results/fast-tests/
           tests/TestResults/
-          **/*.trx
         if-no-files-found: warn
         retention-days: 7
 
@@ -418,8 +430,18 @@ jobs:
           # run-tests.ps1 uses Full.runsettings by -Full; coverage config is embedded there
           pwsh -File ./tests/run-tests.ps1 -Configuration Release -Full
         else
-          dotnet test --settings tests/Full.runsettings --collect "XPlat Code Coverage" --configuration Release --logger "console;verbosity=normal" --filter "Category!=Integration&Category!=Quarantined"
+          dotnet test \
+            --no-build \
+            --configuration Release \
+            --settings tests/Full.runsettings \
+            --collect "XPlat Code Coverage" \
+            --filter "${{ env.CI_TEST_FILTER }}" \
+            --logger "console;verbosity=normal" \
+            --logger "trx;LogFileName=full-tests.trx" \
+            --results-directory ./test-results/full-tests \
+            --blame-hang-timeout 120s
         fi
+
     - name: Verify plugin output
       run: |
         echo "🔍 Checking plugin output..."
@@ -446,8 +468,8 @@ jobs:
       with:
         name: test-results-full
         path: |
+          ./test-results/full-tests/
           tests/TestResults/
-          **/*.trx
         if-no-files-found: warn
         retention-days: 14
 
@@ -457,7 +479,7 @@ jobs:
       with:
         name: coverage-cobertura
         path: |
+          ./test-results/full-tests/**/coverage.cobertura.xml
           tests/TestResults/**/coverage.cobertura.xml
-          **/TestResults/**/coverage.cobertura.xml
         if-no-files-found: warn
         retention-days: 14
