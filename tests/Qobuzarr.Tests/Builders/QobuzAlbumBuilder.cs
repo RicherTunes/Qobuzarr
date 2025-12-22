@@ -124,6 +124,24 @@ namespace Qobuzarr.Tests.Builders
         }
 
         /// <summary>
+        /// Sets the total duration directly
+        /// </summary>
+        public QobuzAlbumBuilder WithDuration(TimeSpan duration)
+        {
+            _durationSeconds = (int)duration.TotalSeconds;
+            return this;
+        }
+
+        /// <summary>
+        /// Sets the track count without changing duration
+        /// </summary>
+        public QobuzAlbumBuilder WithTracksCount(int count)
+        {
+            _tracksCount = count;
+            return this;
+        }
+
+        /// <summary>
         /// Sets audio quality specifications
         /// </summary>
         public QobuzAlbumBuilder WithQuality(int bitDepth, int sampleRate)
