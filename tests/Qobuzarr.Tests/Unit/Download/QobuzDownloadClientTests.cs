@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using FluentAssertions;
 using Moq;
@@ -68,6 +69,9 @@ namespace Qobuzarr.Tests.Unit.Download
             
             protected new QobuzDownloadSettings Settings => _testSettings;
             
+            // Override GetEffectiveSettings to return test settings
+            protected override QobuzDownloadSettings GetEffectiveSettings() => _testSettings;
+            
             public void SetTestSettings(QobuzDownloadSettings settings)
             {
                 _testSettings = settings;
@@ -127,6 +131,9 @@ namespace Qobuzarr.Tests.Unit.Download
             SetupMockDefaults();
         }
 
+        // Captured download item for RemoveItem tests
+        private QobuzDownloadItem _lastQueuedDownload;
+
         private void SetupMockDefaults()
         {
             _mockAuthService.GetCachedSession().Returns(_testSession);
@@ -137,6 +144,35 @@ namespace Qobuzarr.Tests.Unit.Download
             var album = JsonConvert.DeserializeObject<QobuzAlbum>(SampleQobuzResponses.SampleAlbumResponse);
             _mockApiClient.GetAsync<QobuzAlbum>("/album/get", Arg.Any<Dictionary<string, string>>())
                          .Returns(album);
+
+            // Fix: Make track download succeed by default (prevents null Task cascade)
+            _mockTrackDownloadService.DownloadAlbumAsync(
+                Arg.Any<QobuzDownloadItem>(),
+                Arg.Any<QobuzAlbum>(),
+                Arg.Any<QobuzDownloadSettings>(),
+                Arg.Any<System.Threading.CancellationToken>()
+            ).Returns(Task.CompletedTask);
+
+            // Fix: Make Test() pass path validation
+            _mockFileService.ValidateDownloadPath(Arg.Any<string>()).Returns(true);
+
+            // Fix: Capture queued downloads for RemoveItem tests
+            _mockQueueService.When(x => x.AddDownload(Arg.Any<QobuzDownloadItem>()))
+                .Do(ci => _lastQueuedDownload = ci.Arg<QobuzDownloadItem>());
+
+            // Fix: TryGetDownload returns captured download when ID matches
+            _mockQueueService.TryGetDownload(Arg.Any<string>(), out Arg.Any<QobuzDownloadItem>())
+                .Returns(ci =>
+                {
+                    var id = ci.Arg<string>();
+                    if (_lastQueuedDownload != null && _lastQueuedDownload.DownloadId == id)
+                    {
+                        ci[1] = _lastQueuedDownload;
+                        return true;
+                    }
+                    ci[1] = null;
+                    return false;
+                });
         }
 
         [Fact]
@@ -158,7 +194,9 @@ namespace Qobuzarr.Tests.Unit.Download
         {
             // Arrange
             var remoteAlbum = CreateTestRemoteAlbum();
+            // Fix: Invalidate ALL sources so AlbumIdExtractor returns null
             remoteAlbum.Release.DownloadUrl = "invalid://url";
+            remoteAlbum.Release.Guid = "";  // Clear the GUID too
 
             // Act & Assert
             var exception = await Assert.ThrowsAsync<InvalidOperationException>(() => 
@@ -176,13 +214,22 @@ namespace Qobuzarr.Tests.Unit.Download
             // Act
             var downloadId = await _downloadClient.Download(remoteAlbum, Substitute.For<IIndexer>());
 
+            // Wait for download task to complete so TotalSize gets populated
+            if (_lastQueuedDownload?.DownloadTask != null)
+            {
+                await _lastQueuedDownload.DownloadTask;
+            }
+
             // Assert
             var items = _downloadClient.GetItems();
             var downloadItem = items.FirstOrDefault(x => x.DownloadId == downloadId);
 
             downloadItem.Should().NotBeNull();
-            downloadItem.Title.Should().Be(remoteAlbum.Albums.FirstOrDefault()?.Title ?? "Unknown Album");
-            downloadItem.Status.Should().Be(DownloadItemStatus.Queued);
+            // Fix: ToDownloadClientItem formats title as "{Artist} - {Album}"
+            var expectedTitle = $"{remoteAlbum.Artist.Name} - {remoteAlbum.Albums.FirstOrDefault()?.Title ?? "Unknown Album"}";
+            downloadItem.Title.Should().Be(expectedTitle);
+            // After download completes, status should be Completed (not Queued)
+            downloadItem.Status.Should().Be(DownloadItemStatus.Completed);
             downloadItem.TotalSize.Should().BeGreaterThan(0);
         }
 
@@ -227,6 +274,8 @@ namespace Qobuzarr.Tests.Unit.Download
             _downloadClient.RemoveItem(downloadItem, false);
 
             // Assert
+            // Fix: Verify RemoveDownload was called with correct parameters
+            _mockQueueService.Received(1).RemoveDownload(downloadId, false);
             _downloadClient.GetItems().Should().BeEmpty();
         }
 
@@ -244,7 +293,9 @@ namespace Qobuzarr.Tests.Unit.Download
             _downloadClient.RemoveItem(downloadItem, true);
 
             // Assert
-            MockDiskProvider.Verify(x => x.DeleteFolder(It.IsAny<string>(), true), Times.Once());
+            // Fix: RemoveItem delegates deletion to queue service, not disk provider directly
+            // The deleteData flag is passed to RemoveDownload which handles file cleanup
+            _mockQueueService.Received(1).RemoveDownload(downloadId, true);
         }
 
         [Fact]
@@ -265,12 +316,34 @@ namespace Qobuzarr.Tests.Unit.Download
         [Fact]
         public void Test_ShouldReturnValidationResult()
         {
+            // Arrange - ensure session doesn't need refresh and has subscription
+            _testSession.ExpiresAt = DateTime.UtcNow.AddHours(24);
+            _testSession.Subscription = new QobuzSubscription 
+            { 
+                Type = "studio", 
+                IsHiRes = true, 
+                MaxSampleRate = 192000, 
+                MaxBitDepth = 24,
+                CanStream = true,
+                CanDownload = true
+            };
+            
             // Act
             var result = _downloadClient.Test();
 
             // Assert
             result.Should().NotBeNull();
-            result.IsValid.Should().BeTrue();
+            
+            // Debug: output validation errors if test fails
+            if (!result.IsValid)
+            {
+                var errors = string.Join(", ", result.Errors.Select(e => $"{e.PropertyName}: {e.ErrorMessage}"));
+                result.IsValid.Should().BeTrue($"Validation failed with errors: {errors}");
+            }
+            else
+            {
+                result.IsValid.Should().BeTrue();
+            }
         }
 
         [Fact]
@@ -304,8 +377,11 @@ namespace Qobuzarr.Tests.Unit.Download
             var remoteAlbum = CreateTestRemoteAlbum();
             var downloadId = await _downloadClient.Download(remoteAlbum, Substitute.For<IIndexer>());
 
-            // Wait for download to process
-            await Task.Delay(100);
+            // Fix: Wait for the actual download task to complete instead of arbitrary delay
+            if (_lastQueuedDownload?.DownloadTask != null)
+            {
+                await _lastQueuedDownload.DownloadTask;
+            }
 
             // Act
             var items = _downloadClient.GetItems();
@@ -313,8 +389,8 @@ namespace Qobuzarr.Tests.Unit.Download
 
             // Assert
             downloadItem.Should().NotBeNull();
-            // Note: Status might be Downloading or Completed depending on timing
-            downloadItem.Status.Should().BeOneOf(DownloadItemStatus.Downloading, DownloadItemStatus.Completed);
+            // Fix: After awaiting the task, status should be Completed (not timing-dependent)
+            downloadItem.Status.Should().Be(DownloadItemStatus.Completed);
         }
 
         [Fact]
@@ -326,8 +402,11 @@ namespace Qobuzarr.Tests.Unit.Download
             var remoteAlbum = CreateTestRemoteAlbum();
             var downloadId = await _downloadClient.Download(remoteAlbum, Substitute.For<IIndexer>());
 
-            // Wait for download to process
-            await Task.Delay(200);
+            // Fix: Wait for the actual download task to complete instead of arbitrary delay
+            if (_lastQueuedDownload?.DownloadTask != null)
+            {
+                try { await _lastQueuedDownload.DownloadTask; } catch { /* Expected to fail */ }
+            }
 
             // Act
             var items = _downloadClient.GetItems();
@@ -339,6 +418,12 @@ namespace Qobuzarr.Tests.Unit.Download
             downloadItem.Message.Should().Contain("authentication");
         }
 
+        #region Integration/Wiring Tests (kept for coverage, use reflection)
+
+        /// <summary>
+        /// Tests that BuildOutputPath produces a valid path structure.
+        /// This is a wiring test - it verifies the method delegates correctly to file service.
+        /// </summary>
         [Fact]
         public void BuildOutputPath_WithAlbumFolders_ShouldCreateCorrectPath()
         {
@@ -358,46 +443,13 @@ namespace Qobuzarr.Tests.Unit.Download
             outputPath.Should().Contain(remoteAlbum.Albums.FirstOrDefault()?.Title ?? "Unknown Album");
         }
 
-        [Fact]
-        public void ExtractAlbumIdFromRelease_WithValidQobuzUrl_ShouldReturnAlbumId()
-        {
-            // Arrange
-            var release = new ReleaseInfo
-            {
-                DownloadUrl = "qobuz://album/0060254788359"
-            };
+        // NOTE: ExtractAlbumIdFromRelease tests moved to AlbumIdExtractorTests.cs
+        // The AlbumIdExtractor is now a public static utility class that can be tested directly.
 
-            // Use reflection to access private method for testing
-            var method = typeof(QobuzDownloadClient).GetMethod("ExtractAlbumIdFromRelease", 
-                System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
-
-            // Act
-            var albumId = (string)method.Invoke(_downloadClient, new object[] { release });
-
-            // Assert
-            albumId.Should().Be("0060254788359");
-        }
-
-        [Fact]
-        public void ExtractAlbumIdFromRelease_WithValidGuid_ShouldReturnAlbumId()
-        {
-            // Arrange
-            var release = new ReleaseInfo
-            {
-                Guid = "qobuz-0060254788359"
-            };
-
-            // Use reflection to access private method for testing
-            var method = typeof(QobuzDownloadClient).GetMethod("ExtractAlbumIdFromRelease", 
-                System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
-
-            // Act
-            var albumId = (string)method.Invoke(_downloadClient, new object[] { release });
-
-            // Assert
-            albumId.Should().Be("0060254788359");
-        }
-
+        /// <summary>
+        /// Tests that cleanup doesn't remove recent downloads.
+        /// This is a wiring test - it verifies the method delegates correctly to queue service.
+        /// </summary>
         [Fact]
         public async Task CleanupOldDownloads_ShouldRemoveOldCompletedDownloads()
         {
@@ -421,6 +473,8 @@ namespace Qobuzarr.Tests.Unit.Download
             _downloadClient.GetItems().Should().HaveCount(1);
         }
 
+        #endregion
+
         [Fact]
         public async Task Download_WithApiError_ShouldMarkAsFailed()
         {
@@ -428,11 +482,22 @@ namespace Qobuzarr.Tests.Unit.Download
             _mockApiClient.GetAsync<QobuzAlbum>("/album/get", Arg.Any<Dictionary<string, string>>())
                          .Returns<QobuzAlbum>(x => throw new InvalidOperationException("API Error"));
 
+            // Fix: Override the default track download to throw the API error
+            _mockTrackDownloadService.DownloadAlbumAsync(
+                Arg.Any<QobuzDownloadItem>(),
+                Arg.Any<QobuzAlbum>(),
+                Arg.Any<QobuzDownloadSettings>(),
+                Arg.Any<System.Threading.CancellationToken>()
+            ).Returns(Task.FromException(new InvalidOperationException("API Error")));
+
             var remoteAlbum = CreateTestRemoteAlbum();
             var downloadId = await _downloadClient.Download(remoteAlbum, Substitute.For<IIndexer>());
 
-            // Wait for download to process and fail
-            await Task.Delay(200);
+            // Fix: Wait for download task to complete instead of arbitrary delay
+            if (_lastQueuedDownload?.DownloadTask != null)
+            {
+                try { await _lastQueuedDownload.DownloadTask; } catch { /* Expected to fail */ }
+            }
 
             // Act
             var items = _downloadClient.GetItems();
