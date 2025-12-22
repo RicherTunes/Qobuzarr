@@ -19,8 +19,10 @@ using Lidarr.Plugin.Qobuzarr.Indexers.Parsing;
 namespace Qobuzarr.Tests.Unit.Indexers
 {
     /// <summary>
-    /// Critical tests for QobuzParser quality detection and title generation
-    /// These tests verify that releases will be properly recognized by Lidarr's quality detection
+    /// Tests for QobuzParser - focusing on ReleaseInfo creation, album filtering, and size calculation.
+    /// 
+    /// NOTE: Title generation logic is tested in TitleGeneratorTests.cs which tests TitleGenerator directly.
+    /// These tests focus on QobuzParser's integration with TitleGenerator and other internal methods.
     /// </summary>
     public class QobuzParserTests
     {
@@ -39,158 +41,35 @@ namespace Qobuzarr.Tests.Unit.Indexers
             _parser = new QobuzParser(_settings, logger);
         }
 
-        #region Title Generation Tests - Critical for Lidarr Quality Detection
+        #region QobuzParser Integration - Verifies wiring to TitleGenerator
 
         /// <summary>
-        /// Test that verifies our release titles match Lidarr's regex patterns exactly
-        /// This is THE most critical test - if these fail, quality detection won't work
-        /// </summary>
-        [Theory]
-        [InlineData(QobuzAudioQuality.MP3320, "Test Artist - Test Album (2023) [MP3 320kbps] [WEB]")]
-        [InlineData(QobuzAudioQuality.FLACLossless, "Test Artist - Test Album (2023) [FLAC] [WEB]")]
-        [InlineData(QobuzAudioQuality.FLACHiRes24Bit96kHz, "Test Artist - Test Album (2023) [FLAC 24bit 96kHz] [WEB]")]
-        [InlineData(QobuzAudioQuality.FLACHiRes24Bit192Khz, "Test Artist - Test Album (2023) [FLAC 24bit 192kHz] [WEB]")]
-        public void GenerateQualitySpecificTitle_WithDifferentQualities_ShouldMatchLidarrRegexPatterns(
-            QobuzAudioQuality quality, string expectedTitle)
-        {
-            // Arrange
-            var album = new QobuzAlbumBuilder()
-                .WithId("test123")
-                .WithTitle("Test Album")
-                .WithArtist("Test Artist", "test-artist")
-                .WithReleaseDate(new DateTime(2023, 1, 1))
-                .WithTracks(10, 270) // 10 tracks, ~4.5 minutes each = 45 minutes total
-                .Build();
-
-            // Act - Using reflection to test private method
-            var method = typeof(QobuzParser).GetMethod("GenerateQualitySpecificTitle", 
-                System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
-            var result = (string)method.Invoke(_parser, new object[] { album, quality, 2023 });
-
-            // Assert
-            result.Should().Be(expectedTitle, 
-                $"Title for {quality} must exactly match expected format for Lidarr quality detection");
-        }
-
-        /// <summary>
-        /// Test explicit content handling in titles
+        /// Verify QobuzParser correctly delegates title generation to TitleGenerator.
+        /// This is a wiring test - detailed title format tests are in TitleGeneratorTests.
         /// </summary>
         [Fact]
-        public void GenerateQualitySpecificTitle_WithExplicitContent_ShouldIncludeExplicitTag()
+        public void ConvertAlbumToReleases_ShouldGenerateTitlesWithExpectedQualityMarkers()
         {
             // Arrange
-            var logger = LogManager.GetCurrentClassLogger();
-            var titleGenerator = new TitleGenerator(logger);
             var album = new QobuzAlbumBuilder()
-                .WithId("explicit123")
-                .WithTitle("Explicit Album")
+                .WithId("wiring123")
+                .WithTitle("Wiring Test Album")
                 .WithArtist("Test Artist", "test-artist")
                 .WithReleaseDate(new DateTime(2023, 1, 1))
-                .AsExplicit() // Mark as explicit content
+                .AsHiResFlac()
                 .Build();
 
             // Act
-            var result = titleGenerator.GenerateQualitySpecificTitle(album, QobuzAudioQuality.MP3320, 2023);
-
-            // Assert
-            result.Should().Contain("[Explicit]", "Explicit content should be marked in the title");
-            result.Should().Be("Test Artist - Explicit Album (2023) [Explicit] [MP3 320kbps] [WEB]");
-        }
-
-        /// <summary>
-        /// Test handling of albums without release year
-        /// </summary>
-        [Fact]
-        public void GenerateQualitySpecificTitle_WithoutReleaseYear_ShouldNotIncludeYearInTitle()
-        {
-            // Arrange
-            var album = new QobuzAlbumBuilder()
-                .WithId("noyear123")
-                .WithTitle("No Year Album")
-                .WithArtist("Test Artist", "test-artist")
-                .WithReleaseDate(new DateTime(1800, 1, 1)) // Very old date
-                .Build();
-
-            // Act
-            var method = typeof(QobuzParser).GetMethod("GenerateQualitySpecificTitle", 
+            var method = typeof(QobuzParser).GetMethod("ConvertAlbumToReleases", 
                 System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
-            var result = (string)method.Invoke(_parser, new object[] { album, QobuzAudioQuality.FLACLossless, 0 });
+            var releases = (IEnumerable<ReleaseInfo>)method.Invoke(_parser, new object[] { album, "test query" });
+            var releaseList = releases.ToList();
 
-            // Assert
-            result.Should().NotContain("(1800)", "Very old years should be excluded");
-            result.Should().Be("Test Artist - No Year Album [FLAC] [WEB]");
-        }
-
-        #endregion
-
-        #region Lidarr Quality Pattern Verification Tests
-
-        /// <summary>
-        /// Critical test: Verify that our generated titles will be parsed correctly by Lidarr
-        /// This simulates Lidarr's quality detection logic
-        /// </summary>
-        [Theory]
-        [InlineData(QobuzAudioQuality.MP3320, "320kbps", "Lidarr should detect 320kbps bitrate")]
-        [InlineData(QobuzAudioQuality.FLACLossless, "FLAC", "Lidarr should detect FLAC codec")]
-        [InlineData(QobuzAudioQuality.FLACHiRes24Bit96kHz, "24bit", "Lidarr should detect 24bit sample size")]
-        [InlineData(QobuzAudioQuality.FLACHiRes24Bit192Khz, "24bit", "Lidarr should detect 24bit sample size")]
-        public void GeneratedTitles_ShouldContainLidarrQualityMarkers(
-            QobuzAudioQuality quality, string expectedMarker, string reason)
-        {
-            // Arrange
-            var album = new QobuzAlbumBuilder()
-                .WithId("quality123")
-                .WithTitle("Quality Test Album")
-                .WithArtist("Test Artist", "test-artist")
-                .WithReleaseDate(new DateTime(2023, 1, 1))
-                .Build();
-
-            // Act
-            var method = typeof(QobuzParser).GetMethod("GenerateQualitySpecificTitle", 
-                System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
-            var result = (string)method.Invoke(_parser, new object[] { album, quality, 2023 });
-
-            // Assert
-            result.Should().Contain(expectedMarker, reason);
-        }
-
-        /// <summary>
-        /// Test that verifies all quality markers are present in generated titles
-        /// This ensures Lidarr's regex patterns will match
-        /// </summary>
-        [Fact]
-        public void GeneratedTitles_AllQualities_ShouldMatchLidarrExpectedPatterns()
-        {
-            // Arrange
-            var album = new QobuzAlbumBuilder()
-                .WithId("patterns123")
-                .WithTitle("Pattern Test")
-                .WithArtist("Artist", "artist")
-                .WithReleaseDate(new DateTime(2023, 1, 1))
-                .Build();
-
-            var qualityExpectations = new Dictionary<QobuzAudioQuality, string[]>
-            {
-                { QobuzAudioQuality.MP3320, new[] { "MP3", "320kbps" } },
-                { QobuzAudioQuality.FLACLossless, new[] { "FLAC" } },
-                { QobuzAudioQuality.FLACHiRes24Bit96kHz, new[] { "FLAC", "24bit", "96kHz" } },
-                { QobuzAudioQuality.FLACHiRes24Bit192Khz, new[] { "FLAC", "24bit", "192kHz" } }
-            };
-
-            var method = typeof(QobuzParser).GetMethod("GenerateQualitySpecificTitle", 
-                System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
-
-            // Act & Assert
-            foreach (var (quality, expectedMarkers) in qualityExpectations)
-            {
-                var result = (string)method.Invoke(_parser, new object[] { album, quality, 2023 });
-
-                foreach (var marker in expectedMarkers)
-                {
-                    result.Should().Contain(marker, 
-                        $"Title for {quality} should contain '{marker}' for Lidarr quality detection");
-                }
-            }
+            // Assert - Verify titles contain quality markers (wiring is correct)
+            releaseList.Should().NotBeEmpty("QobuzParser should generate releases");
+            releaseList.Should().Contain(r => r.Title.Contains("[WEB]"), "All releases should have [WEB] marker");
+            releaseList.Should().Contain(r => r.Title.Contains("FLAC") || r.Title.Contains("MP3"), 
+                "Releases should have format markers");
         }
 
         #endregion
@@ -422,117 +301,14 @@ namespace Qobuzarr.Tests.Unit.Indexers
 
         #endregion
 
-        #region Context-Aware Title Generation Tests (Regression Prevention)
+        #region Unique Album ID Preservation Tests
 
         /// <summary>
-        /// CRITICAL REGRESSION TEST: Ensures context-aware logic doesn't apply same title to all albums
-        /// This test would have caught the duplicate title bug where all search results showed identical titles
+        /// Test that each album generates releases with unique GUIDs based on album ID.
+        /// This is a critical integration test for QobuzParser's release generation.
         /// </summary>
         [Fact]
-        public void ContextAware_WithMultipleAlbums_ShouldGenerateUniqueTitle()
-        {
-            // Arrange: Create multiple DIFFERENT Qobuz albums
-            var album1 = new QobuzAlbumBuilder()
-                .WithId("album1")
-                .WithTitle("First Album Title")
-                .WithArtist("Test Artist", "test-artist")
-                .WithReleaseDate(new DateTime(2023, 1, 1))
-                .Build();
-
-            var album2 = new QobuzAlbumBuilder()
-                .WithId("album2")
-                .WithTitle("Second Album Title") // DIFFERENT title
-                .WithArtist("Test Artist", "test-artist")
-                .WithReleaseDate(new DateTime(2023, 2, 1))
-                .Build();
-
-            var album3 = new QobuzAlbumBuilder()
-                .WithId("album3")
-                .WithTitle("Third Album Title") // DIFFERENT title
-                .WithArtist("Test Artist", "test-artist")
-                .WithReleaseDate(new DateTime(2023, 3, 1))
-                .Build();
-
-            // Mock search criteria with ONE specific album (simulates typical Lidarr search)
-            var mockAlbum = new NzbDrone.Core.Music.Album
-            {
-                Id = 1,
-                Title = "I Had the Blues but I Shook Them Loose (live at Brixton)",
-                ReleaseDate = new DateTime(2020, 1, 1)
-            };
-            
-            // Set search criteria context (this triggers the bug scenario)
-            _parser.SetSearchContext(new AlbumSearchCriteria
-            {
-                Albums = new List<NzbDrone.Core.Music.Album> { mockAlbum }
-            });
-
-            // Act: Process each album individually
-            var method = typeof(QobuzParser).GetMethod("GenerateQualitySpecificTitle", 
-                System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
-
-            var title1 = (string)method.Invoke(_parser, new object[] { album1, QobuzAudioQuality.FLACLossless, 2023 });
-            var title2 = (string)method.Invoke(_parser, new object[] { album2, QobuzAudioQuality.FLACLossless, 2023 });
-            var title3 = (string)method.Invoke(_parser, new object[] { album3, QobuzAudioQuality.FLACLossless, 2023 });
-
-            // Assert: Each album should get ITS OWN title, not the context title
-            title1.Should().Contain("First Album Title", "Album 1 should keep its own title");
-            title2.Should().Contain("Second Album Title", "Album 2 should keep its own title");
-            title3.Should().Contain("Third Album Title", "Album 3 should keep its own title");
-
-            // Critical: Titles should NOT all be the same (this is the bug)
-            title1.Should().NotBe(title2, "Different albums should have different titles");
-            title2.Should().NotBe(title3, "Different albums should have different titles");
-            title1.Should().NotBe(title3, "Different albums should have different titles");
-
-            // Should NOT all contain the context album title
-            var contextTitle = "I Had the Blues but I Shook Them Loose (live at Brixton)";
-            var allTitlesHaveContextTitle = new[] { title1, title2, title3 }.All(t => t.Contains(contextTitle));
-            allTitlesHaveContextTitle.Should().BeFalse("Context title should not be applied to every album");
-        }
-
-        /// <summary>
-        /// Test that context-aware logic only applies when there's an actual match
-        /// </summary>
-        [Fact]
-        public void ContextAware_WithNoMatchingAlbum_ShouldUseOriginalTitle()
-        {
-            // Arrange: Create album that won't match context
-            var unmatchedAlbum = new QobuzAlbumBuilder()
-                .WithId("unmatched")
-                .WithTitle("Completely Different Album")
-                .WithArtist("Different Artist", "different")
-                .WithReleaseDate(new DateTime(2019, 1, 1))
-                .Build();
-
-            // Set context for a completely different album
-            var mockAlbum = new NzbDrone.Core.Music.Album
-            {
-                Id = 1,
-                Title = "Specific Context Album",
-                ReleaseDate = new DateTime(2020, 1, 1)
-            };
-            
-            _parser.SetSearchContext(new AlbumSearchCriteria
-            {
-                Albums = new List<NzbDrone.Core.Music.Album> { mockAlbum }
-            });
-
-            // Act
-            var method = typeof(QobuzParser).GetMethod("GenerateQualitySpecificTitle", 
-                System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
-            var result = (string)method.Invoke(_parser, new object[] { unmatchedAlbum, QobuzAudioQuality.FLACLossless, 2019 });
-
-            // Assert: Should use original album title, not context title
-            result.Should().Contain("Completely Different Album", "Should use original album title");
-            result.Should().NotContain("Specific Context Album", "Should not use context title for unmatched album");
-        }
-
-        /// <summary>
-        /// Test album ID uniqueness preservation in context-aware mode
-        /// </summary>
-        [Fact]
-        public void ContextAware_WithMultipleAlbums_ShouldPreserveAlbumIdUniqueness()
+        public void ConvertAlbumToReleases_MultipleAlbums_ShouldPreserveUniqueAlbumIds()
         {
             // Arrange: Multiple albums with different IDs
             var albums = new[]
@@ -541,15 +317,6 @@ namespace Qobuzarr.Tests.Unit.Indexers
                 new QobuzAlbumBuilder().WithId("unique2").WithTitle("Album Two").WithArtist("Artist", "artist").Build(),
                 new QobuzAlbumBuilder().WithId("unique3").WithTitle("Album Three").WithArtist("Artist", "artist").Build()
             };
-
-            // Set context
-            _parser.SetSearchContext(new AlbumSearchCriteria
-            {
-                Albums = new List<NzbDrone.Core.Music.Album> 
-                { 
-                    new NzbDrone.Core.Music.Album { Id = 1, Title = "Context Album", ReleaseDate = new DateTime(2020, 1, 1) }
-                }
-            });
 
             // Act: Create releases for each album
             var releases = new List<ReleaseInfo>();
