@@ -73,7 +73,7 @@ namespace Lidarr.Plugin.Qobuzarr.Authentication
             }
         }
 
-        async Task<QobuzSession> IStreamingAuthenticationService<QobuzSession, QobuzCredentials>.GetValidSessionAsync()
+        async Task<QobuzSession?> IStreamingAuthenticationService<QobuzSession, QobuzCredentials>.GetValidSessionAsync()
         {
             var session = GetCachedSession();
             if (session == null) return null;
