@@ -11,6 +11,7 @@ using FluentAssertions;
 using Microsoft.Extensions.Configuration;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
+using Qobuzarr.IntegrationTests.Helpers;
 using Xunit.Abstractions;
 
 namespace Qobuzarr.IntegrationTests
@@ -104,10 +105,15 @@ namespace Qobuzarr.IntegrationTests
                     var qobuzIndexer = indexers?.FirstOrDefault(i => i["implementation"]?.ToString() == "QobuzIndexer");
                     if (qobuzIndexer != null)
                     {
-                        result.AddSuccess($"Qobuzarr indexer found (ID: {qobuzIndexer["id"]})");
-                        result.Data["QobuzIndexerId"] = qobuzIndexer["id"]?.ToObject<int>() 
-                            ?? throw new InvalidOperationException("Qobuz indexer 'id' field missing from API response");
-                        result.Data["QobuzIndexerEnabled"] = qobuzIndexer["enable"]?.ToObject<bool>() ?? false;
+                        var indexerId = JsonExtractor.RequireInt(
+                            qobuzIndexer["id"], 
+                            "indexer.id", 
+                            "/api/v1/indexer", 
+                            indexerContent);
+                        
+                        result.AddSuccess($"Qobuzarr indexer found (ID: {indexerId})");
+                        result.Data["QobuzIndexerId"] = indexerId;
+                        result.Data["QobuzIndexerEnabled"] = JsonExtractor.TryGetBool(qobuzIndexer["enable"]);
                     }
                     else
                     {
@@ -125,10 +131,15 @@ namespace Qobuzarr.IntegrationTests
                     var qobuzDownloadClient = downloadClients?.FirstOrDefault(d => d["implementation"]?.ToString() == "QobuzDownloadClient");
                     if (qobuzDownloadClient != null)
                     {
-                        result.AddSuccess($"Qobuzarr download client found (ID: {qobuzDownloadClient["id"]})");
-                        result.Data["QobuzDownloadClientId"] = qobuzDownloadClient["id"]?.ToObject<int>() 
-                            ?? throw new InvalidOperationException("Qobuz download client 'id' field missing from API response");
-                        result.Data["QobuzDownloadClientEnabled"] = qobuzDownloadClient["enable"]?.ToObject<bool>() ?? false;
+                        var clientId = JsonExtractor.RequireInt(
+                            qobuzDownloadClient["id"], 
+                            "downloadclient.id", 
+                            "/api/v1/downloadclient", 
+                            downloadContent);
+                        
+                        result.AddSuccess($"Qobuzarr download client found (ID: {clientId})");
+                        result.Data["QobuzDownloadClientId"] = clientId;
+                        result.Data["QobuzDownloadClientEnabled"] = JsonExtractor.TryGetBool(qobuzDownloadClient["enable"]);
                     }
                     else
                     {
@@ -362,8 +373,8 @@ namespace Qobuzarr.IntegrationTests
                 }
                 
                 var wantedContent = await wantedResponse.Content.ReadAsStringAsync();
-                var wantedData = JsonConvert.DeserializeObject<dynamic>(wantedContent);
-                var albums = wantedData?.records as JArray;
+                var wantedData = JsonConvert.DeserializeObject<JObject>(wantedContent);
+                var albums = wantedData?["records"] as JArray;
                 
                 if (albums == null || albums.Count == 0)
                 {
@@ -372,10 +383,13 @@ namespace Qobuzarr.IntegrationTests
                 }
                 
                 var testAlbum = albums[0];
-                var albumId = testAlbum["id"]?.ToObject<int>() 
-                    ?? throw new InvalidOperationException("Album 'id' field missing from wanted albums response");
-                var albumTitle = testAlbum["title"]?.ToString();
-                var artistName = testAlbum["artist"]?["artistName"]?.ToString();
+                var albumId = JsonExtractor.RequireInt(
+                    testAlbum["id"], 
+                    "records[0].id", 
+                    "/api/v1/wanted/missing", 
+                    wantedContent);
+                var albumTitle = JsonExtractor.TryGetString(testAlbum["title"]);
+                var artistName = JsonExtractor.TryGetString(testAlbum["artist"]?["artistName"]);
                 
                 _output.WriteLine($"🎯 Testing search for: {artistName} - {albumTitle}");
                 
@@ -393,8 +407,11 @@ namespace Qobuzarr.IntegrationTests
                 {
                     var searchResult = await searchResponse.Content.ReadAsStringAsync();
                     var searchResultData = JsonConvert.DeserializeObject<JObject>(searchResult);
-                    var commandId = searchResultData?["id"]?.ToObject<int>() 
-                        ?? throw new InvalidOperationException("Command 'id' field missing from search response");
+                    var commandId = JsonExtractor.RequireInt(
+                        searchResultData?["id"], 
+                        "id", 
+                        "/api/v1/command", 
+                        searchResult);
                     
                     // Monitor search progress
                     var progressResult = await MonitorCommandProgressAsync(commandId);
@@ -459,13 +476,16 @@ namespace Qobuzarr.IntegrationTests
                 }
                 
                 var testRelease = releases[0];
-                var releaseTitle = testRelease["title"]?.ToString();
+                var releaseTitle = JsonExtractor.TryGetString(testRelease["title"]);
                 
                 _output.WriteLine($"🎯 Testing download for: {releaseTitle}");
                 
                 // Trigger download
-                var releaseAlbumId = testRelease["albumId"]?.ToObject<int>() 
-                    ?? throw new InvalidOperationException("Release 'albumId' field missing from release response");
+                var releaseAlbumId = JsonExtractor.RequireInt(
+                    testRelease["albumId"], 
+                    "[0].albumId", 
+                    "/api/v1/release", 
+                    releasesContent);
                 var downloadPayload = JsonConvert.SerializeObject(new 
                 { 
                     name = "DownloadSearch",
