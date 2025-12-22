@@ -29,25 +29,23 @@ namespace Lidarr.Plugin.Qobuzarr.Security
         // Script tags with their content should be completely removed
         private static readonly Regex ScriptTagRegex = new(@"<script[^>]*>.*?</script>", RegexOptions.Compiled | RegexOptions.IgnoreCase | RegexOptions.Singleline, RegexTimeout);
         
-        // Dangerous patterns that indicate potential attacks
-        private static readonly HashSet<string> DangerousPatterns = new(StringComparer.OrdinalIgnoreCase)
+        // Dangerous patterns that indicate potential attacks and should result in a safe default.
+        // Note: Path traversal is handled via normalization/replacement, not rejection, to avoid false positives.
+        private static readonly HashSet<string> DangerousPatternsReturnSafeDefault = new(StringComparer.OrdinalIgnoreCase)
         {
             // XSS patterns
             "<script", "</script", "javascript:", "vbscript:", "onload=", "onerror=", "onclick=",
-            
-            // Path traversal
-            "../", "..\\", "~", 
-            
+
             // SQL injection indicators
             "';", "--", "/*", "*/", "xp_", "sp_execute", "exec(", "execute(",
-            "union select", "drop table", "insert into", "delete from",
-            
+            "union select", "drop table", "insert into", "delete from",   
+
             // Command injection
-            "&&", "||", "|", ";", "`", "$(", "${",
-            
+            "&&", "||", "|", "`", "$(", "${",
+
             // LDAP injection
             ")(", "(&", "(|",
-            
+
             // XML injection - use more specific patterns
             "<!ENTITY", "<!DOCTYPE", "SYSTEM\"", "SYSTEM '"
         };
@@ -72,13 +70,17 @@ namespace Lidarr.Plugin.Qobuzarr.Security
             try
             {
                 // Step 1: Remove control characters and zero-width characters
-                sanitized = ControlCharRegex.Replace(version, "");
-                
+                sanitized = ControlCharRegex.Replace(version, "");        
+
                 // Step 2: Remove script tags with their content entirely (XSS prevention)
-                sanitized = ScriptTagRegex.Replace(sanitized, "");
-                
-                // Step 3: Strip remaining HTML/XML tags
-                sanitized = HtmlTagRegex.Replace(sanitized, "");
+                sanitized = ScriptTagRegex.Replace(sanitized, "");        
+
+                // Step 3: Reject clearly malicious inputs before normalization alters detection (e.g., ':' -> '-')
+                if (IsPotentiallyDangerousForVersion(sanitized))
+                {
+                    Logger.Warn("Potentially malicious version string detected before normalization: '{0}'", original);
+                    return "Version";
+                }
             }
             catch (RegexMatchTimeoutException)
             {
@@ -95,6 +97,7 @@ namespace Lidarr.Plugin.Qobuzarr.Security
                 .Replace(":", "-")   // Windows drive separator
                 .Replace("*", "_")   // Wildcard
                 .Replace("?", "_")   // Wildcard
+                .Replace("&", "_")   // Ampersand
                 .Replace("\"", "'")  // Quote
                 .Replace("<", "(")   // Less than
                 .Replace(">", ")")   // Greater than
@@ -102,9 +105,19 @@ namespace Lidarr.Plugin.Qobuzarr.Security
                 .Replace("\r", " ")  // Carriage return
                 .Replace("\n", " ")  // Newline
                 .Replace("\t", " "); // Tab
-            
+
             // Step 5: Collapse multiple spaces
-            sanitized = Regex.Replace(sanitized, @"\s+", " ");
+            try
+            {
+                // Avoid runaway underscore growth from path traversal cleanup: "____" -> "___"
+                sanitized = Regex.Replace(sanitized, @"_{3,}", "___", RegexOptions.None, RegexTimeout);
+                sanitized = Regex.Replace(sanitized, @"\s+", " ", RegexOptions.None, RegexTimeout);
+            }
+            catch (RegexMatchTimeoutException)
+            {
+                Logger.Warn("Regex timeout while normalizing whitespace in version string, returning safe default");
+                return "Version";
+            }
             
             // Step 6: Trim and enforce length limit
             sanitized = sanitized.Trim();
@@ -113,17 +126,12 @@ namespace Lidarr.Plugin.Qobuzarr.Security
                 sanitized = sanitized.Substring(0, MaxVersionLength).TrimEnd();
             }
             
-            // Step 7: Check for dangerous patterns
-            foreach (var pattern in DangerousPatterns)
+            // Step 7: Re-check after normalization for patterns that may survive replacement.
+            // Keep this list focused to avoid false positives (path traversal is handled above).
+            if (IsPotentiallyDangerousForVersion(sanitized))
             {
-                if (sanitized.Contains(pattern, StringComparison.OrdinalIgnoreCase))
-                {
-                    Logger.Warn("Potentially malicious version string detected: Pattern '{0}' found in '{1}'", 
-                        pattern, original);
-                    
-                    // Return a safe default rather than the suspicious content
-                    return "Version";
-                }
+                Logger.Warn("Potentially malicious version string detected after normalization: '{0}'", original);
+                return "Version";
             }
             
             // Step 8: Final validation - ensure result is safe
@@ -182,7 +190,10 @@ namespace Lidarr.Plugin.Qobuzarr.Security
             {
                 // Remove control characters
                 sanitized = ControlCharRegex.Replace(input, "");
-                
+
+                // Remove script tags with their content entirely (XSS prevention)
+                sanitized = ScriptTagRegex.Replace(sanitized, "");
+
                 // Strip HTML tags
                 sanitized = HtmlTagRegex.Replace(sanitized, "");
             }
@@ -206,7 +217,16 @@ namespace Lidarr.Plugin.Qobuzarr.Security
                 .Replace("|", "_");
             
             // Normalize whitespace
-            sanitized = Regex.Replace(sanitized, @"\s+", " ").Trim();
+            try
+            {
+                sanitized = Regex.Replace(sanitized, @"_{3,}", "___", RegexOptions.None, RegexTimeout);
+                sanitized = Regex.Replace(sanitized, @"\s+", " ", RegexOptions.None, RegexTimeout).Trim();
+            }
+            catch (RegexMatchTimeoutException)
+            {
+                Logger.Warn("Regex timeout while normalizing whitespace in metadata field, returning safe default");
+                return defaultValue;
+            }
             
             // Length limit
             if (sanitized.Length > 200)
@@ -215,6 +235,24 @@ namespace Lidarr.Plugin.Qobuzarr.Security
             }
             
             return string.IsNullOrWhiteSpace(sanitized) ? defaultValue : sanitized;
+        }
+
+        private static bool IsPotentiallyDangerousForVersion(string input)
+        {
+            if (string.IsNullOrWhiteSpace(input))
+            {
+                return false;
+            }
+
+            foreach (var pattern in DangerousPatternsReturnSafeDefault)
+            {
+                if (input.Contains(pattern, StringComparison.OrdinalIgnoreCase))
+                {
+                    return true;
+                }
+            }
+
+            return false;
         }
         
         /// <summary>
@@ -240,11 +278,15 @@ namespace Lidarr.Plugin.Qobuzarr.Security
         {
             if (string.IsNullOrWhiteSpace(input))
                 return false;
-            
-            var lowerInput = input.ToLowerInvariant();
-            
-            return DangerousPatterns.Any(pattern => 
-                lowerInput.Contains(pattern.ToLowerInvariant()));
+
+            if (IsPotentiallyDangerousForVersion(input))
+            {
+                return true;
+            }
+
+            // Path traversal indicators are "dangerous" but typically sanitized rather than rejected.
+            return input.Contains("../", StringComparison.OrdinalIgnoreCase) ||
+                   input.Contains("..\\", StringComparison.OrdinalIgnoreCase);
         }
     }
 }

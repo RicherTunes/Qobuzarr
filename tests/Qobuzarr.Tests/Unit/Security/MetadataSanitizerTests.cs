@@ -101,11 +101,11 @@ namespace Qobuzarr.Tests.Unit.Security
         }
 
         [Fact]
-        public void SanitizeVersion_WithControlCharacters_ShouldRemove()
+        public void SanitizeVersion_WithControlCharacters_ShouldRemove()        
         {
-            var input = "Deluxe\x00Edition\x07Remastered\x1F";
+            var input = "Deluxe\u0000Edition\u0007Remastered\u001F";
             var result = MetadataSanitizer.SanitizeVersion(input);
-            
+
             result.Should().Be("DeluxeEditionRemastered");
         }
 

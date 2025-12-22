@@ -201,11 +201,15 @@ public class QobuzarrPluginComplianceTests : IDisposable
     [Fact]
     public void Dependencies_ReferencesCommonLibrary()
     {
-        var references = _pluginAssembly.GetReferencedAssemblies();
+        var references = _pluginAssembly.GetReferencedAssemblies();       
         var hasCommon = references.Any(r =>
             r.Name?.Contains("Plugin.Common", StringComparison.OrdinalIgnoreCase) == true);
 
-        Assert.True(hasCommon, "Plugin should reference Lidarr.Plugin.Common");
+        var hasCommonTypes = _pluginAssembly.GetTypes().Any(t =>
+            t.Namespace?.StartsWith("Lidarr.Plugin.Common", StringComparison.OrdinalIgnoreCase) == true);
+
+        Assert.True(hasCommon || hasCommonTypes,
+            "Plugin should include Lidarr.Plugin.Common either as a direct reference or as merged types");
     }
 
     [Fact]

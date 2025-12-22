@@ -191,12 +191,14 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers.Parsing
                 return false;
                 
             // Comprehensive edition patterns based on production data analysis
-            var editionKeywords = new[] 
-            { 
+            var editionKeywords = new[]
+            {
                 // Core edition types
-                "deluxe", "edition", "remaster", "anniversary", "expanded", 
+                "deluxe", "remaster", "anniversary", "expanded",
                 "special", "collector", "limited", "bonus",
-                
+                "box set",
+                "édition", "spécial",
+
                 // Live album indicators
                 "live at", "live in", "live", "concert", "unplugged", "acoustic",
                 
