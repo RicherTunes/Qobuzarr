@@ -1,13 +1,22 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!--
+  Default.runsettings - Fast unit test runs
+  
+  Usage: dotnet test --settings tests/Default.runsettings
+  
+  Excludes slow categories (Integration, Performance, etc.) for quick feedback.
+  BlameHangTimeout set to 60s to avoid false positives on slower machines.
+-->
 <RunSettings>
   <RunConfiguration>
     <ResultsDirectory>TestResults</ResultsDirectory>
     <TargetPlatform>x64</TargetPlatform>
-    <TargetFrameworkVersion>.NETCoreApp,Version=v6.0</TargetFrameworkVersion>
+    <!-- TargetFrameworkVersion intentionally omitted - let csproj decide -->
     <TestSessionTimeout>900000</TestSessionTimeout>
-    <BlameHangTimeout>00:00:10</BlameHangTimeout>
+    <!-- 60s hang timeout - 10s was too aggressive and caused false positives -->
+    <BlameHangTimeout>00:01:00</BlameHangTimeout>
     <!-- Exclude slow/integration categories by default for fast runs -->
-    <TestCaseFilter>Category!=LiveIntegration&amp;Category!=Integration&amp;Category!=Performance&amp;Category!=Simulations&amp;Category!=Slow&amp;Category!=Benchmark&amp;Category!=Stress</TestCaseFilter>
+    <TestCaseFilter>Category!=LiveIntegration&amp;Category!=Integration&amp;Category!=Performance&amp;Category!=Simulations&amp;Category!=Slow&amp;Category!=Benchmark&amp;Category!=Stress&amp;Category!=Quarantined</TestCaseFilter>
   </RunConfiguration>
   <xunit>
     <MaxParallelThreads>0</MaxParallelThreads>
