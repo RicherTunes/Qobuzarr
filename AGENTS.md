@@ -102,6 +102,38 @@ Dynamic credential extraction from Qobuz web player:
 public class QobuzDownloadProtocol : IDownloadProtocol { }
 ```
 
+### Host-Version-Coupled Dependencies
+
+**Critical**: FluentValidation and NLog versions must match the Lidarr host exactly.
+
+**Why this coupling exists**: These aren't arbitrary pins—types from these assemblies cross the
+plugin boundary at runtime:
+- `FluentValidation.Results.ValidationFailure` is returned by `DownloadClientBase.Test()`
+- `NLog.Logger` is injected into plugin constructors by Lidarr's DI container
+
+When plugin and host have different versions, .NET sees them as incompatible types, causing
+`MissingMethodException` or assembly load failures. Do not "optimize" these pins away.
+
+**How versions are enforced**: Guard tests in `tests/Qobuzarr.Tests/Unit/Packaging/PluginPackagingTests.cs`
+read actual assembly versions from `ext/Lidarr/_output/*/` and fail if `Directory.Packages.props` doesn't match.
+
+#### Update Procedure (when Lidarr bumps versions)
+
+```bash
+# 1. Update host assemblies from new Lidarr container
+docker create --name lidarr-temp ghcr.io/hotio/lidarr:pr-plugins-NEW_VERSION
+docker cp lidarr-temp:/app/bin ext/lidarr-assemblies-new
+docker rm lidarr-temp
+
+# 2. Check what changed
+.\scripts\check-host-versions.ps1  # Shows current vs new versions
+
+# 3. Update Directory.Packages.props to match new host versions
+
+# 4. Run guard tests to verify
+dotnet test --filter "FullyQualifiedName~PluginPackagingTests"
+```
+
 ### ILRepack Configuration
 ```xml
 <ILRepack Internalize="true">
