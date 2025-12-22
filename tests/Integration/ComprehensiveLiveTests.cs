@@ -23,7 +23,7 @@ namespace Qobuzarr.IntegrationTests
         // InitializeAsync and DisposeAsync inherited from IntegrationTestBase
 
         [SkippableFact]
-        [Trait("Category", "LiveIntegration")]
+        [Trait("Category", "Integration")]
         [Trait("Priority", "Critical")]
         public async Task Test_01_Plugin_Loading_And_Configuration()
         {
@@ -45,7 +45,7 @@ namespace Qobuzarr.IntegrationTests
         }
 
         [SkippableFact]
-        [Trait("Category", "LiveIntegration")]
+        [Trait("Category", "Integration")]
         [Trait("Priority", "Critical")]
         public async Task Test_02_Search_Functionality_With_Known_Album()
         {
@@ -71,7 +71,7 @@ namespace Qobuzarr.IntegrationTests
         }
 
         [SkippableFact]
-        [Trait("Category", "LiveIntegration")]
+        [Trait("Category", "Integration")]
         [Trait("Priority", "High")]
         public async Task Test_03_Plugin_Error_Handling()
         {
@@ -96,7 +96,7 @@ namespace Qobuzarr.IntegrationTests
         }
 
         [SkippableFact]
-        [Trait("Category", "LiveIntegration")]
+        [Trait("Category", "Integration")]
         [Trait("Priority", "Medium")]
         public async Task Test_04_Download_Queue_Integration()
         {
@@ -120,7 +120,7 @@ namespace Qobuzarr.IntegrationTests
         }
 
         [SkippableFact]
-        [Trait("Category", "LiveIntegration")]
+        [Trait("Category", "Integration")]
         [Trait("Priority", "Critical")]
         public async Task Test_05_Plugin_Restart_Resilience()
         {
@@ -149,7 +149,7 @@ namespace Qobuzarr.IntegrationTests
         }
 
         [SkippableFact]
-        [Trait("Category", "LiveIntegration")]
+        [Trait("Category", "Integration")]
         [Trait("Priority", "High")]
         public async Task Test_06_Security_Input_Validation()
         {
@@ -194,7 +194,7 @@ namespace Qobuzarr.IntegrationTests
         }
 
         [SkippableFact]
-        [Trait("Category", "LiveIntegration")]
+        [Trait("Category", "Integration")]
         [Trait("Priority", "Medium")]
         public async Task Test_07_Performance_And_Resource_Usage()
         {
@@ -227,7 +227,7 @@ namespace Qobuzarr.IntegrationTests
         }
 
         [SkippableFact]
-        [Trait("Category", "LiveIntegration")]
+        [Trait("Category", "Integration")]
         [Trait("Priority", "High")]
         public async Task Test_08_End_To_End_Workflow()
         {

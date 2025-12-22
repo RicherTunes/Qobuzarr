@@ -33,6 +33,7 @@ namespace Qobuzarr.IntegrationTests
         }
 
         [Fact]
+        [Trait("Category", "Integration")]
         public async Task Should_Connect_To_Lidarr_Successfully()
         {
             using var httpClient = new HttpClient();
@@ -51,6 +52,7 @@ namespace Qobuzarr.IntegrationTests
         }
 
         [Fact]
+        [Trait("Category", "Integration")]
         public async Task Should_Retrieve_System_Health()
         {
             using var httpClient = new HttpClient();
@@ -75,6 +77,7 @@ namespace Qobuzarr.IntegrationTests
         }
 
         [Fact]
+        [Trait("Category", "Integration")]
         public async Task Should_Retrieve_Artists()
         {
             using var httpClient = new HttpClient();
@@ -99,6 +102,7 @@ namespace Qobuzarr.IntegrationTests
         }
 
         [Fact]
+        [Trait("Category", "Integration")]
         public async Task Should_Retrieve_Wanted_Albums()
         {
             using var httpClient = new HttpClient();
@@ -136,6 +140,7 @@ namespace Qobuzarr.IntegrationTests
         }
 
         [Fact]
+        [Trait("Category", "Integration")]
         public async Task Should_Check_Indexer_Configuration()
         {
             using var httpClient = new HttpClient();
@@ -213,6 +218,7 @@ namespace Qobuzarr.IntegrationTests
         }
 
         [Fact]
+        [Trait("Category", "Integration")]
         public async Task Should_Check_Download_Client_Configuration()
         {
             using var httpClient = new HttpClient();
@@ -269,6 +275,7 @@ namespace Qobuzarr.IntegrationTests
         }
 
         [Fact]
+        [Trait("Category", "Integration")]
         public async Task Should_Validate_Qobuz_Configuration()
         {
             // Load Qobuz configuration
