@@ -40,16 +40,16 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
         public override bool SupportsSearch => true;
         public override int PageSize => 100;
 
-        // Decomposed service dependencies
-        private readonly IIndexerAuthenticationManager _authManager;
+        // Decomposed service dependencies (lazy to avoid accessing Settings in constructor)
+        private readonly Lazy<IIndexerAuthenticationManager> _authManager;
         private readonly IIndexerRateLimitManager _rateLimitManager;
-        private readonly IIndexerMLManager _mlManager;
+        private readonly Lazy<IIndexerMLManager> _mlManager;
         private readonly IQobuzApiClient _apiClient;
         private readonly StreamingIndexerMixin _mixin;
         
         // Cached instances for context sharing
-        private QobuzRequestGenerator _requestGenerator;
-        private QobuzParser _parser;
+        private QobuzRequestGenerator? _requestGenerator;
+        private QobuzParser? _parser;
         private readonly Lazy<IPatternLearningEngine> _patternLearningEngine;
 
         public QobuzIndexer(
@@ -65,19 +65,26 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
         {
             _apiClient = apiClient ?? throw new ArgumentNullException(nameof(apiClient));
             
-            // Initialize decomposed service managers
-            _authManager = new IndexerAuthenticationManager(authService, Settings, logger);
+            // CRITICAL: Do NOT access Settings property in constructor!
+            // Settings requires Definition to be set first, which happens after DI construction.
+            // Use GetSettingsSafe() or lazy initialization for anything that needs settings.
+            
+            // Initialize decomposed service managers with lazy evaluation to defer Settings access
+            _authManager = new Lazy<IIndexerAuthenticationManager>(() => 
+                new IndexerAuthenticationManager(authService, GetSettingsSafe(), logger));
             _rateLimitManager = new IndexerRateLimitManager(logger);
-            _mlManager = new IndexerMLManager(secureModelLoader, Settings, logger);
+            _mlManager = new Lazy<IIndexerMLManager>(() => 
+                new IndexerMLManager(secureModelLoader, GetSettingsSafe(), logger));
             
             // Shared mixin for incremental adoption of common features
             _mixin = new StreamingIndexerMixin(QobuzarrConstants.ServiceName);
 
-            // Initialize ML optimizer lazily
+            // Initialize ML optimizer lazily (depends on _mlManager which is also lazy)
             _patternLearningEngine = new Lazy<IPatternLearningEngine>(() => 
-                _mlManager.CreateMLOptimizer(logger));
+                _mlManager.Value.CreateMLOptimizer(logger));
 
-            // Wire API client with auth service and a credentials provider for re-auth (no behavior change for Qobuz)
+            // Wire API client with auth service and a credentials provider for re-auth
+            // Note: Credentials provider uses GetSettingsSafe() which is safe for deferred execution
             try
             {
                 if (_apiClient is API.QobuzApiClient concrete)
@@ -98,6 +105,13 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
                 _logger.Warn(ex, "Non-fatal: Failed to wire auth service/credentials provider to API client");
             }
         }
+        
+        /// <summary>
+        /// Safely retrieves settings without throwing if Definition is not yet set.
+        /// Use this instead of Settings property in any code path reachable during construction.
+        /// </summary>
+        private QobuzIndexerSettings GetSettingsSafe() => 
+            Definition?.Settings as QobuzIndexerSettings ?? new QobuzIndexerSettings();
 
         #region Lidarr Integration Points
 
@@ -106,9 +120,9 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
             if (_requestGenerator == null)
             {
                 _requestGenerator = new QobuzRequestGenerator(
-                    Settings, 
+                    GetSettingsSafe(), 
                     _logger, 
-                    () => _authManager.GetCachedSession(), 
+                    () => _authManager.Value.GetCachedSession(), 
                     _patternLearningEngine.Value);
             }
             return _requestGenerator;
@@ -116,24 +130,25 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
 
         private Models.Authentication.QobuzCredentials BuildFallbackCredentialsFromSettings()
         {
+            var settings = GetSettingsSafe();
             var creds = new Models.Authentication.QobuzCredentials();
 
             // Prefer email + password if provided (hash to MD5 as required by Qobuz)
-            if (!string.IsNullOrWhiteSpace(Settings?.Email) && !string.IsNullOrWhiteSpace(Settings?.Password))
+            if (!string.IsNullOrWhiteSpace(settings.Email) && !string.IsNullOrWhiteSpace(settings.Password))
             {
-                creds.Email = Settings.Email;
-                creds.MD5Password = Utilities.HashingUtility.ComputePasswordMD5Hash(Settings.Password);
+                creds.Email = settings.Email;
+                creds.MD5Password = Utilities.HashingUtility.ComputePasswordMD5Hash(settings.Password);
             }
-            else if (!string.IsNullOrWhiteSpace(Settings?.UserId) && !string.IsNullOrWhiteSpace(Settings?.AuthToken))
+            else if (!string.IsNullOrWhiteSpace(settings.UserId) && !string.IsNullOrWhiteSpace(settings.AuthToken))
             {
                 // Fallback to UserId + AuthToken
-                creds.UserId = Settings.UserId;
-                creds.AuthToken = Settings.AuthToken;
+                creds.UserId = settings.UserId;
+                creds.AuthToken = settings.AuthToken;
             }
 
             // Optional app credentials (used if configured)
-            if (!string.IsNullOrWhiteSpace(Settings?.AppId)) creds.AppId = Settings.AppId;
-            if (!string.IsNullOrWhiteSpace(Settings?.AppSecret)) creds.AppSecret = Settings.AppSecret;
+            if (!string.IsNullOrWhiteSpace(settings.AppId)) creds.AppId = settings.AppId;
+            if (!string.IsNullOrWhiteSpace(settings.AppSecret)) creds.AppSecret = settings.AppSecret;
 
             return creds;
         }
@@ -142,7 +157,7 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
         {
             if (_parser == null)
             {
-                _parser = new QobuzParser(Settings, _logger);
+                _parser = new QobuzParser(GetSettingsSafe(), _logger);
             }
             
             // Update context from request generator if available
@@ -167,7 +182,7 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
             try
             {
                 // Ensure authentication via delegated manager
-                await _authManager.EnsureAuthenticatedAsync().ConfigureAwait(false);
+                await _authManager.Value.EnsureAuthenticatedAsync().ConfigureAwait(false);
 
                 // Apply rate limiting via delegated manager
                 await _rateLimitManager.ApplyRateLimitAsync().ConfigureAwait(false);
@@ -197,8 +212,8 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
                             {
                                 releases.AddRange(parsedReleases);
                                 
-                                // Log ML optimization metrics via delegated manager
-                                _mlManager.LogMLPerformanceSummary();
+                            // Log ML optimization metrics via delegated manager
+                            _mlManager.Value.LogMLPerformanceSummary();
                             }
                         }
                         catch (Exception ex)
@@ -223,7 +238,7 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
             try
             {
                 // Test authentication via delegated manager
-                var (authSuccess, authError) = await _authManager.TestAuthenticationAsync().ConfigureAwait(false);
+                var (authSuccess, authError) = await _authManager.Value.TestAuthenticationAsync().ConfigureAwait(false);
                 if (!authSuccess)
                 {
                     failures.Add(new ValidationFailure("Authentication", authError));
@@ -267,13 +282,13 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
                     return TestAuthentication();
 
                 case "getmlperformance":
-                    return _mlManager.GetMLPerformanceMetrics();
+                    return _mlManager.Value.GetMLPerformanceMetrics();
 
                 case "getmlhealth":
-                    return _mlManager.GetMLHealthStatus();
+                    return _mlManager.Value.GetMLHealthStatus();
 
                 case "getmlreport":
-                    return _mlManager.GetMLDiagnosticReport();
+                    return _mlManager.Value.GetMLDiagnosticReport();
 
                 default:
                     return new { error = $"Unknown action: {action}" };
@@ -296,7 +311,7 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
         {
             try
             {
-                var (success, error) = await _authManager.TestAuthenticationAsync().ConfigureAwait(false);
+                var (success, error) = await _authManager.Value.TestAuthenticationAsync().ConfigureAwait(false);
                 return new
                 {
                     success = success,
