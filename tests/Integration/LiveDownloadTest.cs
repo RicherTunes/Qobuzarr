@@ -4,6 +4,7 @@ using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using Qobuzarr.IntegrationTests.Helpers;
 using System;
+using System.Linq;
 using System.Net.Http;
 using System.Threading.Tasks;
 using Xunit;
@@ -267,13 +268,12 @@ namespace Qobuzarr.IntegrationTests
             indexerResponse.IsSuccessStatusCode.Should().BeTrue();
             
             var indexerContent = await indexerResponse.Content.ReadAsStringAsync();
-            var indexers = JsonConvert.DeserializeObject<dynamic[]>(indexerContent) ?? Array.Empty<dynamic>();
-            
-            dynamic? qobuzIndexer = Array.Find(indexers, i => i?.implementation?.ToString() == "QobuzIndexer");
-            ((object?)qobuzIndexer).Should().NotBeNull("Qobuzarr indexer should be found");
+            var indexersArray = JArray.Parse(indexerContent);
+            var qobuzIndexer = indexersArray.FirstOrDefault(i => i["implementation"]?.ToString() == "QobuzIndexer");
+            qobuzIndexer.Should().NotBeNull("Qobuzarr indexer should be found");
             if (qobuzIndexer == null) return;
             
-            var indexerId = (int)(qobuzIndexer.id ?? 0);
+            var indexerId = JsonExtractor.RequireInt(qobuzIndexer["id"], "id", "/api/v1/indexer", indexerContent);
             _output.WriteLine($"Found Qobuzarr indexer with ID: {indexerId}");
             
             // Test indexer with a simple search
@@ -294,8 +294,8 @@ namespace Qobuzarr.IntegrationTests
                 var testResult = await testResponse.Content.ReadAsStringAsync();
                 _output.WriteLine($"✅ Indexer test command sent successfully: {testResult}");
                 
-                var testCommandData = JsonConvert.DeserializeObject<dynamic>(testResult);
-                var testCommandId = (int)testCommandData?.id;
+                var testCommandData = JObject.Parse(testResult);
+                var testCommandId = JsonExtractor.RequireInt(testCommandData["id"], "id", "/api/v1/command", testResult);
                 
                 // Monitor this test command
                 await MonitorCommandProgressAsync(httpClient, testCommandId);
