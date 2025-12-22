@@ -212,7 +212,8 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
             var year = album.ReleaseDate.Year > 1900 ? album.ReleaseDate.Year : 0;
             
             var artistName = album.GetArtistName();
-            var albumTitle = album.GetFullTitle();
+            var albumTitle = album.Title;
+            var albumFullTitle = album.GetFullTitle();
             
             // Ensure we have valid non-empty names
             if (string.IsNullOrWhiteSpace(artistName))
@@ -252,10 +253,20 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
 
             // Generate quality-specific title
             release.Title = _titleGenerator.GenerateQualitySpecificTitle(album, quality, year);
+
+            // Prefer Lidarr's exact requested album title when available to improve Decision Engine matching.
+            if (_currentSearchCriteria?.Albums?.Any() == true)
+            {
+                var bestMatch = FindBestMatchingAlbum(album, _currentSearchCriteria.Albums, year);
+                if (!string.IsNullOrWhiteSpace(bestMatch?.Title))
+                {
+                    release.Album = bestMatch.Title;
+                }
+            }
             
             // Critical debugging for album mapping (only during troubleshooting)
             _logger.Debug("≡ƒöì ALBUM MAPPING: Qobuz '{0}' ({1}) ΓåÆ Title '{2}' ΓåÆ Album '{3}'", 
-                album.Id, album.Title, release.Title, release.Album);
+                album.Id, albumFullTitle, release.Title, release.Album);
             
             // Debug context-aware matching for edition albums
             if (_currentSearchCriteria?.Albums?.Any() == true)
@@ -551,7 +562,6 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
         }
     }
 }
-
 
 
 

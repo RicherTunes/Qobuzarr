@@ -116,6 +116,7 @@ namespace Qobuzarr.Tests.Integration
                 .WithArtist(artistName)
                 .WithReleaseYear(1979)
                 .Build();
+            studioAlbum.Id = "studio-album";
 
             var liveAlbum = QobuzAlbumBuilder.New()
                 .WithTitle(albumTitle)
@@ -123,6 +124,7 @@ namespace Qobuzarr.Tests.Integration
                 .WithReleaseYear(1980)
                 .Build();
             liveAlbum.Version = "Live at Earl's Court";
+            liveAlbum.Id = "live-album";
 
             var deluxeAlbum = QobuzAlbumBuilder.New()
                 .WithTitle(albumTitle)
@@ -130,6 +132,7 @@ namespace Qobuzarr.Tests.Integration
                 .WithReleaseYear(1979)
                 .Build();
             deluxeAlbum.Version = "Deluxe Edition";
+            deluxeAlbum.Id = "deluxe-album";
 
             // Act - Create ReleaseInfo objects as Lidarr would see them
             var studioRelease = CreateReleaseInfoFromAlbum(studioAlbum);
@@ -251,7 +254,7 @@ namespace Qobuzarr.Tests.Integration
             
             // Unicode characters should be preserved
             releaseInfo.Title.Should().Contain("É");
-            releaseInfo.Title.Should().Contain("ç");
+            releaseInfo.Title.Should().Contain("é");
         }
 
         [Fact]

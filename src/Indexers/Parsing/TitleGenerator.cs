@@ -39,15 +39,28 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers.Parsing
             // Determine edition string (from Version field or extracted from title)
             var editionStr = "";
             var cleanAlbumTitle = albumTitle;
-            
-            // Check for edition info in Version field
-            var hasVersionField = !string.IsNullOrWhiteSpace(version) && ContainsEditionKeywords(version);
-            var hasEditionInTitle = ContainsEditionKeywords(albumTitle);
-            
+
+            // Version field comes from Qobuz metadata and is the safest source of edition information.
+            // Do not gate this on keyword detection: real-world values can be arbitrary (e.g. "Boys Don't Cry Magazine").
+            var hasVersionField = !string.IsNullOrWhiteSpace(version);
+            var hasEditionInTitle = ContainsEditionKeywords(albumTitle);  
+
             if (hasVersionField)
             {
-                editionStr = $" [{version}]";
-                _logger.Trace("Edition from Version field: '{0}'", version);
+                var sanitizedVersion = MetadataSanitizer.SanitizeVersion(version);
+                if (!string.IsNullOrWhiteSpace(sanitizedVersion))
+                {
+                    editionStr = $" [{sanitizedVersion}]";
+                    _logger.Trace("Edition from Version field: '{0}'", sanitizedVersion);
+
+                    // Avoid duplication if the title already contains the same version in parentheses/brackets.
+                    cleanAlbumTitle = albumTitle
+                        .Replace($"({version})", "", StringComparison.OrdinalIgnoreCase)
+                        .Replace($"[{version}]", "", StringComparison.OrdinalIgnoreCase)
+                        .Replace($"({sanitizedVersion})", "", StringComparison.OrdinalIgnoreCase)
+                        .Replace($"[{sanitizedVersion}]", "", StringComparison.OrdinalIgnoreCase)
+                        .Trim();
+                }
             }
             else if (hasEditionInTitle)
             {
