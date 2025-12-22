@@ -772,35 +772,12 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Clients
 
         private string? ExtractAlbumIdFromRelease(ReleaseInfo release)
         {
-            // Parse album ID from custom Qobuz URL format: "qobuz://album/{albumId}/{quality}"
-            if (release.DownloadUrl?.StartsWith("qobuz://album/") == true)
+            var albumId = AlbumIdExtractor.ExtractAlbumId(release);
+            if (albumId == null)
             {
-                var urlPart = release.DownloadUrl.Substring("qobuz://album/".Length);
-                // Split by last slash to separate album ID from quality
-                var lastSlashIndex = urlPart.LastIndexOf('/');
-                if (lastSlashIndex > 0)
-                {
-                    return urlPart.Substring(0, lastSlashIndex);
-                }
-                // Fallback if no slash found (shouldn't happen with current format)
-                return urlPart;
+                _logger.Warn("Could not extract album ID from release: {0}", release.Title);
             }
-
-            // Try to extract from GUID if it contains the album ID
-            if (release.Guid?.StartsWith("qobuz-") == true)
-            {
-                var guidPart = release.Guid.Substring("qobuz-".Length);
-                // GUID format is "qobuz-{albumId}-{quality}", extract just album ID
-                var lastDashIndex = guidPart.LastIndexOf('-');
-                if (lastDashIndex > 0)
-                {
-                    return guidPart.Substring(0, lastDashIndex);
-                }
-                return guidPart;
-            }
-
-            _logger.Warn("Could not extract album ID from release: {0}", release.Title);
-            return null;
+            return albumId;
         }
 
         private void LogAlbumDownloadSummary(string artistName, string albumTitle, QobuzAlbum album, 

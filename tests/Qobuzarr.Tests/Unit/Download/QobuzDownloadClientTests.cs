@@ -339,6 +339,12 @@ namespace Qobuzarr.Tests.Unit.Download
             downloadItem.Message.Should().Contain("authentication");
         }
 
+        #region Integration/Wiring Tests (kept for coverage, use reflection)
+
+        /// <summary>
+        /// Tests that BuildOutputPath produces a valid path structure.
+        /// This is a wiring test - it verifies the method delegates correctly to file service.
+        /// </summary>
         [Fact]
         public void BuildOutputPath_WithAlbumFolders_ShouldCreateCorrectPath()
         {
@@ -358,46 +364,13 @@ namespace Qobuzarr.Tests.Unit.Download
             outputPath.Should().Contain(remoteAlbum.Albums.FirstOrDefault()?.Title ?? "Unknown Album");
         }
 
-        [Fact]
-        public void ExtractAlbumIdFromRelease_WithValidQobuzUrl_ShouldReturnAlbumId()
-        {
-            // Arrange
-            var release = new ReleaseInfo
-            {
-                DownloadUrl = "qobuz://album/0060254788359"
-            };
+        // NOTE: ExtractAlbumIdFromRelease tests moved to AlbumIdExtractorTests.cs
+        // The AlbumIdExtractor is now a public static utility class that can be tested directly.
 
-            // Use reflection to access private method for testing
-            var method = typeof(QobuzDownloadClient).GetMethod("ExtractAlbumIdFromRelease", 
-                System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
-
-            // Act
-            var albumId = (string)method.Invoke(_downloadClient, new object[] { release });
-
-            // Assert
-            albumId.Should().Be("0060254788359");
-        }
-
-        [Fact]
-        public void ExtractAlbumIdFromRelease_WithValidGuid_ShouldReturnAlbumId()
-        {
-            // Arrange
-            var release = new ReleaseInfo
-            {
-                Guid = "qobuz-0060254788359"
-            };
-
-            // Use reflection to access private method for testing
-            var method = typeof(QobuzDownloadClient).GetMethod("ExtractAlbumIdFromRelease", 
-                System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
-
-            // Act
-            var albumId = (string)method.Invoke(_downloadClient, new object[] { release });
-
-            // Assert
-            albumId.Should().Be("0060254788359");
-        }
-
+        /// <summary>
+        /// Tests that cleanup doesn't remove recent downloads.
+        /// This is a wiring test - it verifies the method delegates correctly to queue service.
+        /// </summary>
         [Fact]
         public async Task CleanupOldDownloads_ShouldRemoveOldCompletedDownloads()
         {
@@ -420,6 +393,8 @@ namespace Qobuzarr.Tests.Unit.Download
             // Cleanup shouldn't remove recent downloads
             _downloadClient.GetItems().Should().HaveCount(1);
         }
+
+        #endregion
 
         [Fact]
         public async Task Download_WithApiError_ShouldMarkAsFailed()
