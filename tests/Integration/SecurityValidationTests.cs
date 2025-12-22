@@ -24,7 +24,7 @@ namespace Qobuzarr.IntegrationTests
         // InitializeAsync and DisposeAsync inherited from IntegrationTestBase
 
         [SkippableFact]
-        [Trait("Category", "LiveIntegration")]
+        [Trait("Category", "Integration")]
         [Trait("Category", "Security")]
         [Trait("Priority", "Critical")]
         public async Task Test_InputSanitizer_Email_Validation()
@@ -60,7 +60,7 @@ namespace Qobuzarr.IntegrationTests
         }
 
         [SkippableFact]
-        [Trait("Category", "LiveIntegration")]
+        [Trait("Category", "Integration")]
         [Trait("Category", "Security")]
         [Trait("Priority", "Critical")]
         public async Task Test_InputSanitizer_Query_Sanitization()
@@ -112,7 +112,7 @@ namespace Qobuzarr.IntegrationTests
         }
 
         [SkippableFact]
-        [Trait("Category", "LiveIntegration")]
+        [Trait("Category", "Integration")]
         [Trait("Category", "Security")]
         [Trait("Priority", "Critical")]
         public async Task Test_InputSanitizer_Path_Traversal_Prevention()
@@ -163,7 +163,7 @@ namespace Qobuzarr.IntegrationTests
         }
 
         [SkippableFact]
-        [Trait("Category", "LiveIntegration")]
+        [Trait("Category", "Integration")]
         [Trait("Category", "Security")]
         [Trait("Priority", "High")]
         public async Task Test_InputSanitizer_Credential_Validation()
@@ -231,7 +231,7 @@ namespace Qobuzarr.IntegrationTests
         }
 
         [SkippableFact]
-        [Trait("Category", "LiveIntegration")]
+        [Trait("Category", "Integration")]
         [Trait("Category", "Security")]
         [Trait("Priority", "High")]
         public async Task Test_InputSanitizer_Country_Code_Validation()
@@ -426,7 +426,7 @@ namespace Qobuzarr.IntegrationTests
         }
 
         [SkippableFact]
-        [Trait("Category", "LiveIntegration")]
+        [Trait("Category", "Integration")]
         [Trait("Category", "Security")]
         [Trait("Priority", "Medium")]
         public async Task Test_Authentication_Security_In_Live_Environment()
