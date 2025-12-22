@@ -30,6 +30,7 @@ namespace Qobuzarr.Tests.Builders
         private int _maximumBitDepth = 24;
         private int _maximumSampleRate = 192000;
         private QobuzTracksContainer _tracksContainer = null;
+        private string _version = null;
 
         /// <summary>
         /// Creates a new QobuzAlbumBuilder with default test values
@@ -51,6 +52,15 @@ namespace Qobuzarr.Tests.Builders
         public QobuzAlbumBuilder WithTitle(string title)
         {
             _title = title;
+            return this;
+        }
+
+        /// <summary>
+        /// Sets the album version (e.g., "Deluxe Edition", "Remastered 2023")
+        /// </summary>
+        public QobuzAlbumBuilder WithVersion(string version)
+        {
+            _version = version;
             return this;
         }
 
@@ -257,6 +267,7 @@ namespace Qobuzarr.Tests.Builders
             {
                 Id = _id,
                 Title = _title,
+                Version = _version,
                 Artist = _artist,
                 Label = _label,
                 Genre = _genre,
