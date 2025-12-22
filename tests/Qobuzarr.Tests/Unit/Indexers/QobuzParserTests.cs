@@ -215,36 +215,8 @@ namespace Qobuzarr.Tests.Unit.Indexers
 
         #endregion
 
-        #region Size Calculation Tests
-
-        [Theory]
-        [InlineData(QobuzAudioQuality.MP3320, 320000)]
-        [InlineData(QobuzAudioQuality.FLACLossless, 1411200)]
-        [InlineData(QobuzAudioQuality.FLACHiRes24Bit96kHz, 4608000)]
-        [InlineData(QobuzAudioQuality.FLACHiRes24Bit192Khz, 9216000)]
-        public void CalculateSizeForQuality_WithDifferentQualities_ShouldCalculateCorrectSize(
-            QobuzAudioQuality quality, int expectedBitrate)
-        {
-            // Arrange
-            var album = new QobuzAlbumBuilder()
-                .WithId("size123")
-                .WithTitle("Size Test")
-                .WithArtist("Test", "test")
-                .WithTracks(15, 240) // 15 tracks, 4 minutes each = 60 minutes total
-                .Build();
-
-            // Act
-            var method = typeof(QobuzParser).GetMethod("CalculateSizeForQuality", 
-                System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
-            var result = (long)method.Invoke(_parser, new object[] { album, quality });
-
-            // Assert
-            var expectedSize = 3600 * (expectedBitrate / 8.0); // 1 hour in bytes
-            result.Should().Be((long)expectedSize, $"Size calculation for {quality} should match expected formula");
-            result.Should().BeGreaterThan(0, "Calculated size should be positive");
-        }
-
-        #endregion
+        // NOTE: Size calculation tests have been moved to QualitySizeCalculatorTests.cs
+        // which directly tests the public QualitySizeCalculator API without reflection.
 
         #region Critical Integration Test
 
