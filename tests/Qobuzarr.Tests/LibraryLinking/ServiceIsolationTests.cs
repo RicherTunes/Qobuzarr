@@ -425,17 +425,17 @@ namespace Qobuzarr.Tests.LibraryLinking
         }
 
         [Fact]
-        public async Task Timeout_In_One_Plugin_Should_Not_Affect_Others()
+        public void Timeout_In_One_Plugin_Should_Not_Affect_Others()
         {
             // Arrange
             using var qobuzCts = new CancellationTokenSource(TimeSpan.FromMilliseconds(50));
             using var tidalCts = new CancellationTokenSource(TimeSpan.FromSeconds(30));
 
-            // Act - Wait for Qobuz timeout
-            await Task.Delay(100);
+            // Act - deterministically wait for the Qobuz timeout rather than relying on timing delays
+            var canceled = qobuzCts.Token.WaitHandle.WaitOne(TimeSpan.FromSeconds(2));
 
             // Assert
-            qobuzCts.IsCancellationRequested.Should().BeTrue("Qobuz should have timed out");
+            canceled.Should().BeTrue("Qobuz should have timed out");
             tidalCts.IsCancellationRequested.Should().BeFalse(
                 "Tidal should not be affected by Qobuz timeout");
         }
