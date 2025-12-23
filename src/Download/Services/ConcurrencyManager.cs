@@ -8,19 +8,43 @@ using NLog;
 namespace Lidarr.Plugin.Qobuzarr.Download.Services
 {
     /// <summary>
-    /// Thread-safe concurrency manager using semaphores.
-    /// Supports dynamic limit adjustment and detailed statistics tracking.
+    /// Thread-safe concurrency manager using a single semaphore with dynamic limit adjustment.
     /// </summary>
+    /// <remarks>
+    /// <para><b>Permit Model:</b></para>
+    /// <para>
+    /// Uses a single <see cref="SemaphoreSlim"/> with <c>int.MaxValue</c> max count to avoid
+    /// replacing the semaphore on limit changes (which caused race conditions and deadlocks).
+    /// </para>
+    /// 
+    /// <para><b>Key Fields:</b></para>
+    /// <list type="bullet">
+    ///   <item><c>_currentLimit</c>: The logical concurrency limit exposed to callers.</item>
+    ///   <item><c>_reservedPermits</c>: Permits drained from the semaphore but not yet needed.
+    ///         When the limit decreases, we try to immediately drain permits; if successful,
+    ///         they go here. When the limit increases, we release from here first.</item>
+    ///   <item><c>_pendingPermitReductions</c>: Reduction debt that couldn't be drained immediately
+    ///         (permits were in use). Each <see cref="ReleaseSlot"/> consumes one pending reduction
+    ///         instead of releasing back to the semaphore.</item>
+    /// </list>
+    /// 
+    /// <para><b>Limit Increase:</b> Cancel pending reductions → release reserved permits → release new permits.</para>
+    /// <para><b>Limit Decrease:</b> Drain available permits to reserved → record remaining as pending reductions.</para>
+    /// <para><b>Release:</b> If pending reductions exist, consume one; otherwise release to semaphore.</para>
+    /// </remarks>
     public class ConcurrencyManager : IConcurrencyManager
     {
         private readonly Logger _logger;
         private readonly object _lockObject = new object();
         private readonly List<DateTime> _acquisitionTimes = new List<DateTime>();
         
+        // Single semaphore with int.MaxValue max count - never replaced, only permit count changes
         private readonly SemaphoreSlim _semaphore;
         private int _currentLimit;
-        private int _activeSlots = 0; // Track active slots explicitly
+        private int _activeSlots = 0;
         private volatile bool _disposed = false;
+        
+        // Permit tracking for dynamic limit adjustment (see class remarks)
         private int _reservedPermits = 0;
         private int _pendingPermitReductions = 0;
         private long _totalSlotsUsed = 0;
