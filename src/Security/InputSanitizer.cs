@@ -16,14 +16,68 @@ namespace Lidarr.Plugin.Qobuzarr.Security
     /// Comprehensive input sanitization for all user inputs in the Qobuzarr plugin.
     /// Provides methods to sanitize different types of inputs to prevent injection attacks.
     /// </summary>
-    public static class InputSanitizer
+    public static partial class InputSanitizer
     {
-        // Regex patterns for validation
-        private static readonly Regex EmailRegex = new(@"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$", RegexOptions.Compiled);
-        private static readonly Regex AlphanumericRegex = new(@"^[a-zA-Z0-9]+$", RegexOptions.Compiled);
-        private static readonly Regex SafeQueryRegex = new Regex(@"^[a-zA-Z0-9\s\-_\.\,\'()\[\]&!]+$", RegexOptions.Compiled);
-        private static readonly Regex CountryCodeRegex = new(@"^[A-Z]{2}$", RegexOptions.Compiled);
-        private static readonly Regex AppIdRegex = new(@"^[a-zA-Z0-9_-]{1,50}$", RegexOptions.Compiled);
+        // Generated regex patterns for validation (SYSLIB1045)
+        [GeneratedRegex(@"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$")]
+        private static partial Regex EmailRegex();
+        
+        [GeneratedRegex(@"^[a-zA-Z0-9]+$")]
+        private static partial Regex AlphanumericRegex();
+        
+        [GeneratedRegex(@"^[a-zA-Z0-9\s\-_\.\,\'()\[\]&!]+$")]
+        private static partial Regex SafeQueryRegex();
+        
+        [GeneratedRegex(@"^[A-Z]{2}$")]
+        private static partial Regex CountryCodeRegex();
+        
+        [GeneratedRegex(@"^[a-zA-Z0-9_-]{1,50}$")]
+        private static partial Regex AppIdRegex();
+        
+        [GeneratedRegex(@"^[a-zA-Z0-9_\-\.]+$")]
+        private static partial Regex AuthTokenRegex();
+        
+        [GeneratedRegex(@"^[a-zA-Z0-9_-]+$")]
+        private static partial Regex UserIdRegex();
+        
+        [GeneratedRegex(@"[\x00-\x1F\x7F]")]
+        private static partial Regex ControlCharsRegex();
+        
+        [GeneratedRegex(@"<script[^>]*>.*?</script>", RegexOptions.IgnoreCase | RegexOptions.Singleline)]
+        private static partial Regex ScriptTagRegex();
+        
+        [GeneratedRegex(@"<[^>]*>", RegexOptions.IgnoreCase)]
+        private static partial Regex HtmlTagRegex();
+        
+        [GeneratedRegex(@"javascript:\s*", RegexOptions.IgnoreCase)]
+        private static partial Regex JavascriptProtocolRegex();
+        
+        [GeneratedRegex(@"\bon(?:click|error|mouseover)\b", RegexOptions.IgnoreCase)]
+        private static partial Regex DomEventHandlerRegex();
+        
+        [GeneratedRegex(@"\.+")]
+        private static partial Regex MultipleDotsRegex();
+        
+        [GeneratedRegex(@"%2e%2e%2f", RegexOptions.IgnoreCase)]
+        private static partial Regex EncodedTraversalSlashRegex();
+        
+        [GeneratedRegex(@"%2e%2e%5c", RegexOptions.IgnoreCase)]
+        private static partial Regex EncodedTraversalBackslashRegex();
+        
+        [GeneratedRegex(@"\b(drop|delete|union|select|exec|xp_cmdshell)\b", RegexOptions.IgnoreCase)]
+        private static partial Regex SqlKeywordsRegex();
+        
+        [GeneratedRegex(@"\s+")]
+        private static partial Regex MultipleSpacesRegex();
+        
+        [GeneratedRegex(@"[/\\]+")]
+        private static partial Regex MultipleSlashesRegex();
+        
+        [GeneratedRegex(@"[\x00-\x1F\x7F\u200B\u200C\u200D\uFEFF]")]
+        private static partial Regex ControlAndZeroWidthRegex();
+        
+        [GeneratedRegex(@"[\r\n\t]+")]
+        private static partial Regex WhitespaceCharsRegex();
         
         // Windows reserved file names (case-insensitive)
         private static readonly HashSet<string> WindowsReservedNames = new(StringComparer.OrdinalIgnoreCase)
@@ -60,7 +114,7 @@ namespace Lidarr.Plugin.Qobuzarr.Security
             if (email.Length > MaxEmailLength)
                 throw new ArgumentException($"Email exceeds maximum length of {MaxEmailLength} characters");
 
-            if (!EmailRegex.IsMatch(email))
+            if (!EmailRegex().IsMatch(email))
                 throw new ArgumentException("Invalid email format");
 
             // Additional protection against special characters that could be used in injection
@@ -107,15 +161,15 @@ namespace Lidarr.Plugin.Qobuzarr.Security
                 trimmed = trimmed.Substring(0, MaxQueryLength);
 
             // Normalize control characters and whitespace
-            trimmed = Regex.Replace(trimmed, "[\x00-\x1F\x7F]", " ");
+            trimmed = ControlCharsRegex().Replace(trimmed, " ");
             trimmed = trimmed.Replace('\r', ' ').Replace('\n', ' ').Replace('\t', ' ');
 
             // Strip inline scripts and HTML/JS protocol patterns (XSS) as early as possible
-            trimmed = Regex.Replace(trimmed, @"<script[^>]*>.*?</script>", " ", RegexOptions.IgnoreCase | RegexOptions.Singleline);
-            trimmed = Regex.Replace(trimmed, @"<[^>]*>", " ", RegexOptions.IgnoreCase);
-            trimmed = Regex.Replace(trimmed, @"javascript:\s*", " ", RegexOptions.IgnoreCase);
+            trimmed = ScriptTagRegex().Replace(trimmed, " ");
+            trimmed = HtmlTagRegex().Replace(trimmed, " ");
+            trimmed = JavascriptProtocolRegex().Replace(trimmed, " ");
             // Strip common DOM event handlers like onclick, onerror, onmouseover
-            trimmed = Regex.Replace(trimmed, @"\bon(?:click|error|mouseover)\b", " ", RegexOptions.IgnoreCase);
+            trimmed = DomEventHandlerRegex().Replace(trimmed, " ");
             // Extra guard: simple case-insensitive removals for stubborn tokens
             trimmed = trimmed.Replace("onclick", " ", StringComparison.OrdinalIgnoreCase)
                              .Replace("onmouseover", " ", StringComparison.OrdinalIgnoreCase)
@@ -127,9 +181,9 @@ namespace Lidarr.Plugin.Qobuzarr.Security
             trimmed = trimmed.Replace('/', ' ').Replace('\\', ' ');
 
             // Remove obvious path traversal encodings and sequences
-            trimmed = Regex.Replace(trimmed, @"\.+", " "); // collapse sequences of dots
-            trimmed = Regex.Replace(trimmed, "%2e%2e%2f", " ", RegexOptions.IgnoreCase);
-            trimmed = Regex.Replace(trimmed, "%2e%2e%5c", " ", RegexOptions.IgnoreCase);
+            trimmed = MultipleDotsRegex().Replace(trimmed, " "); // collapse sequences of dots
+            trimmed = EncodedTraversalSlashRegex().Replace(trimmed, " ");
+            trimmed = EncodedTraversalBackslashRegex().Replace(trimmed, " ");
 
             // Remove command chaining/operators frequently used in injection
             var operators = new[] { "&&", "||", "|", ";", "`", "$(", "${" };
@@ -145,16 +199,16 @@ namespace Lidarr.Plugin.Qobuzarr.Security
             };
             foreach (var token in dangerousTokens)
             {
-                trimmed = Regex.Replace(trimmed, Regex.Escape(token), " ", RegexOptions.IgnoreCase);
+                trimmed = trimmed.Replace(token, " ", StringComparison.OrdinalIgnoreCase);
             }
 
             // Remove common SQL injection keywords to avoid propagating them in queries
-            trimmed = Regex.Replace(trimmed, @"\b(drop|delete|union|select|exec|xp_cmdshell)\b", " ", RegexOptions.IgnoreCase);
+            trimmed = SqlKeywordsRegex().Replace(trimmed, " ");
 
             // (already handled above) XSS/script patterns
 
             // Collapse multiple spaces
-            trimmed = Regex.Replace(trimmed, @"\s+", " ").Trim();
+            trimmed = MultipleSpacesRegex().Replace(trimmed, " ").Trim();
 
             return trimmed;
         }
@@ -176,7 +230,7 @@ namespace Lidarr.Plugin.Qobuzarr.Security
             path = path.Replace("~", "");
             
             // Remove multiple slashes
-            path = Regex.Replace(path, @"[/\\]+", System.IO.Path.DirectorySeparatorChar.ToString());
+            path = MultipleSlashesRegex().Replace(path, System.IO.Path.DirectorySeparatorChar.ToString());
             
             // Remove any null bytes
             path = path.Replace("\0", "");
@@ -222,7 +276,7 @@ namespace Lidarr.Plugin.Qobuzarr.Security
 
             appId = appId.Trim();
             
-            if (!AppIdRegex.IsMatch(appId))
+            if (!AppIdRegex().IsMatch(appId))
                 throw new ArgumentException("App ID contains invalid characters");
 
             return appId;
@@ -263,7 +317,7 @@ namespace Lidarr.Plugin.Qobuzarr.Security
                 throw new ArgumentException($"Auth token exceeds maximum length of {MaxTokenLength} characters");
 
             // Tokens should typically be alphanumeric with some special chars
-            if (!Regex.IsMatch(token, @"^[a-zA-Z0-9_\-\.]+$"))
+            if (!AuthTokenRegex().IsMatch(token))
                 throw new ArgumentException("Auth token contains invalid characters");
 
             return token;
@@ -280,7 +334,7 @@ namespace Lidarr.Plugin.Qobuzarr.Security
             userId = userId.Trim();
             
             // User IDs are typically numeric or alphanumeric
-            if (!Regex.IsMatch(userId, @"^[a-zA-Z0-9_-]+$"))
+            if (!UserIdRegex().IsMatch(userId))
                 throw new ArgumentException("User ID contains invalid characters");
 
             if (userId.Length > 50)
@@ -299,7 +353,7 @@ namespace Lidarr.Plugin.Qobuzarr.Security
 
             countryCode = countryCode.Trim().ToUpperInvariant();
             
-            if (!CountryCodeRegex.IsMatch(countryCode))
+            if (!CountryCodeRegex().IsMatch(countryCode))
                 throw new ArgumentException("Invalid country code format. Must be 2-letter ISO code.");
 
             return countryCode;
@@ -525,17 +579,17 @@ namespace Lidarr.Plugin.Qobuzarr.Security
                 return "Unknown Artist";
             
             // Remove HTML tags
-            sanitized = Regex.Replace(sanitized, @"<[^>]*>", "");
+            sanitized = HtmlTagRegex().Replace(sanitized, "");
             
             // Remove dangerous characters
             sanitized = sanitized.Replace("'", "'").Replace("\"", "'");
-            sanitized = Regex.Replace(sanitized, @"[\x00-\x1F\x7F]", "");
+            sanitized = ControlCharsRegex().Replace(sanitized, "");
             
             // Unicode normalization
             sanitized = NormalizeSafe(sanitized);
             
             // Collapse multiple spaces
-            sanitized = Regex.Replace(sanitized, @"\s+", " ").Trim();
+            sanitized = MultipleSpacesRegex().Replace(sanitized, " ").Trim();
             
             // Length limit
             if (sanitized.Length > 100)
@@ -559,7 +613,7 @@ namespace Lidarr.Plugin.Qobuzarr.Security
             sanitized = sanitized.Replace("../", "___").Replace("..\\", "___");
             
             // Remove HTML tags and dangerous content
-            sanitized = Regex.Replace(sanitized, @"<[^>]*>", "");
+            sanitized = HtmlTagRegex().Replace(sanitized, "");
             
             // Replace dangerous file system characters
             var dangerous = new char[] { '<', '>', ':', '"', '|', '?', '*', '/', '\\' };
@@ -569,13 +623,13 @@ namespace Lidarr.Plugin.Qobuzarr.Security
             }
             
             // Remove control characters
-            sanitized = Regex.Replace(sanitized, @"[\x00-\x1F\x7F]", "");
+            sanitized = ControlCharsRegex().Replace(sanitized, "");
             
             // Unicode normalization
             sanitized = NormalizeSafe(sanitized);
             
             // Collapse spaces and trim
-            sanitized = Regex.Replace(sanitized, @"\s+", " ").Trim();
+            sanitized = MultipleSpacesRegex().Replace(sanitized, " ").Trim();
             
             // Length limit
             if (sanitized.Length > 100)
@@ -600,10 +654,10 @@ namespace Lidarr.Plugin.Qobuzarr.Security
                 return "Version"; // Safe default for dangerous input
             
             // Remove script tags
-            sanitized = Regex.Replace(sanitized, @"<script[^>]*>.*?</script>", "", RegexOptions.IgnoreCase | RegexOptions.Singleline);
+            sanitized = ScriptTagRegex().Replace(sanitized, "");
             
             // Remove other HTML tags
-            sanitized = Regex.Replace(sanitized, @"<[^>]*>", "");
+            sanitized = HtmlTagRegex().Replace(sanitized, "");
             
             // Replace dangerous file system characters
             sanitized = sanitized.Replace(":", "-").Replace("/", "_").Replace("\\", "_")
@@ -611,11 +665,11 @@ namespace Lidarr.Plugin.Qobuzarr.Security
                                 .Replace("<", "(").Replace(">", ")").Replace("|", "_");
             
             // Remove control characters and zero-width characters
-            sanitized = Regex.Replace(sanitized, @"[\x00-\x1F\x7F\u200B\u200C\u200D\uFEFF]", "");
+            sanitized = ControlAndZeroWidthRegex().Replace(sanitized, "");
             
             // Normalize whitespace
-            sanitized = Regex.Replace(sanitized, @"[\r\n\t]+", " ");
-            sanitized = Regex.Replace(sanitized, @"\s+", " ").Trim();
+            sanitized = WhitespaceCharsRegex().Replace(sanitized, " ");
+            sanitized = MultipleSpacesRegex().Replace(sanitized, " ").Trim();
             
             // Length limit
             if (sanitized.Length > 100)

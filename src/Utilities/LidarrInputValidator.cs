@@ -10,9 +10,10 @@ namespace Lidarr.Plugin.Qobuzarr.Utilities
     /// Provides basic input validation for Lidarr integration data to prevent security issues.
     /// Keeps security simple and focused on common attack vectors for enthusiast use.
     /// </summary>
-    public static class LidarrInputValidator
+    public static partial class LidarrInputValidator
     {
-        private static readonly Regex SafePathRegex = new(@"^[a-zA-Z0-9\s\-_\.\(\)\[\]&',!]+$", RegexOptions.Compiled);
+        [GeneratedRegex(@"^[a-zA-Z0-9\s\-_\.\(\)\[\]&',!]+$")]
+        private static partial Regex SafePathRegex();
         private static readonly HashSet<string> DangerousExtensions = new(StringComparer.OrdinalIgnoreCase)
         {
             ".exe", ".bat", ".cmd", ".ps1", ".vbs", ".scr", ".com", ".pif"
