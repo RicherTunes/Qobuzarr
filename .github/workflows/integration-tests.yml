@@ -13,6 +13,16 @@ on:
         required: false
         default: false
         type: boolean
+      run_host_version_check:
+        description: 'Fail if host-coupled package pins drift from the extracted host assemblies'
+        required: false
+        default: true
+        type: boolean
+      run_docker_smoke_test:
+        description: 'Run Docker smoke test (plugin loads + schema appears)'
+        required: false
+        default: true
+        type: boolean
 
 env:
   DOTNET_NOLOGO: true
@@ -120,13 +130,25 @@ jobs:
           
           echo "::endgroup::"
           echo "All required assemblies present."
-          
+
+      - name: Check host-coupled package pins
+        if: inputs.run_host_version_check
+        shell: pwsh
+        run: |
+          ./scripts/check-host-versions.ps1 -Strict -HostAssembliesDir "${{ env.LIDARR_ASSEMBLIES_PATH }}"
+
       - name: Restore dependencies
         run: dotnet restore
-        
+
       - name: Build
         run: dotnet build --no-restore -c Release
-        
+
+      - name: Docker Smoke Test (plugin load)
+        if: inputs.run_docker_smoke_test
+        shell: pwsh
+        run: |
+          ./scripts/docker-smoke-test.ps1 -LidarrTag "${{ inputs.lidarr_version }}"
+
       - name: Run Integration Tests
         run: |
           dotnet test tests/Qobuzarr.Tests/Qobuzarr.Tests.csproj \

@@ -98,8 +98,29 @@ CI overrides with:
 dotnet test -p:LidarrAssembliesPath="${GITHUB_WORKSPACE}/ext/lidarr-assemblies" ...
 ```
 
+### Local Integration Runner (Recommended)
+Use `scripts/run-integration-tests.ps1` to mimic the integration workflow locally.
+
+```powershell
+# Compile-time integration tests (requires host assemblies)
+.\scripts\run-integration-tests.ps1 -CheckHostVersions
+
+# Extract host assemblies from Docker, validate pins, run compile-time integration tests
+.\scripts\run-integration-tests.ps1 -ExtractHostAssemblies -CheckHostVersions -LidarrTag "pr-plugins-3.1.1.4884"
+
+# Also perform a runtime load check (plugin loads in Lidarr container)
+.\scripts\run-integration-tests.ps1 -ExtractHostAssemblies -CheckHostVersions -SmokeTest
+
+# Run live integration tests against local docker-compose Lidarr (uses .docker/config and .docker/plugins)
+.\scripts\run-integration-tests.ps1 -IncludeLive
+```
+
+Notes:
+- `-IncludeLive` expects a configured Lidarr instance (artists present); it reads the API key from `.docker/config/config.xml` if not provided.
+- `tests/Default.runsettings` excludes Integration by design; `run-integration-tests.ps1` uses `tests/Full.runsettings`.
+
 ### Nightly Full Suite
-Scheduled workflow that runs `Full.runsettings` with coverage collection.
+Scheduled workflow that runs `Full.runsettings` with coverage collection.       
 
 ## Local Development
 
