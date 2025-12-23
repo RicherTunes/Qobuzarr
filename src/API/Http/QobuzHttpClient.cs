@@ -49,6 +49,11 @@ namespace Lidarr.Plugin.Qobuzarr.API.Http
             _adaptiveRateLimiter = adaptiveRateLimiter; // Optional: relies on host DI; falls back gracefully when null
         }
 
+        public QobuzHttpClient(IHttpClient httpClient, Logger logger)
+            : this(httpClient, logger, performanceMonitor: null, adaptiveRateLimiter: null)
+        {
+        }
+
         /// <inheritdoc/>
         public async Task<HttpResponse> ExecuteAsync(HttpRequest request, CancellationToken cancellationToken = default)
         {
@@ -84,7 +89,8 @@ namespace Lidarr.Plugin.Qobuzarr.API.Http
                 }
             }
 
-            _logger.Debug("Executing HTTP {0} request to {1}", request.Method, request.Url);
+            var safeUrl = GetSafeUrlForLogging(request);
+            _logger.Debug("Executing HTTP {0} request to {1}", request.Method, safeUrl);
 
             var stopwatch = Stopwatch.StartNew();
             try
@@ -155,7 +161,7 @@ namespace Lidarr.Plugin.Qobuzarr.API.Http
                         var now = DateTime.UtcNow;
                         if (now + delay > deadline)
                         {
-                            _logger.Warn("Retry budget exceeded for {0}", request.Url);
+                            _logger.Warn("Retry budget exceeded for {0}", safeUrl);
                             stopwatch.Stop();
                             if (_adaptiveRateLimiter != null)
                             {
@@ -166,7 +172,7 @@ namespace Lidarr.Plugin.Qobuzarr.API.Http
                         }
 
                         _logger.Warn("Transient HTTP error {0} for {1}; delaying {2}ms before retry {3}/{4}",
-                            status, request.Url, (int)delay.TotalMilliseconds, attempt, maxRetries);
+                            status, safeUrl, (int)delay.TotalMilliseconds, attempt, maxRetries);
                         await Task.Delay(delay, cancellationToken).ConfigureAwait(false);
                     }
                 }
@@ -178,7 +184,7 @@ namespace Lidarr.Plugin.Qobuzarr.API.Http
             catch (Exception ex)
             {
                 stopwatch.Stop();
-                _logger.Error(ex, "HTTP request failed for URL {0}", request.Url);
+                _logger.Error(ex, "HTTP request failed for URL {0}", safeUrl);
                 if (_adaptiveRateLimiter != null)
                 {
                     var msg = new HttpResponseMessage(System.Net.HttpStatusCode.InternalServerError);
@@ -240,6 +246,80 @@ namespace Lidarr.Plugin.Qobuzarr.API.Http
         {
             var ms = Random.Shared.Next(50, 250);
             return TimeSpan.FromMilliseconds(ms);
+        }
+
+        private static string GetSafeUrlForLogging(HttpRequest? request)
+        {
+            var url = request?.Url?.ToString();
+            if (string.IsNullOrWhiteSpace(url))
+            {
+                return "unknown";
+            }
+
+            return RedactSensitiveQueryValues(url);
+        }
+
+        private static string RedactSensitiveQueryValues(string url)
+        {
+            try
+            {
+                if (!Uri.TryCreate(url, UriKind.Absolute, out var uri) || string.IsNullOrEmpty(uri.Query))
+                {
+                    return url;
+                }
+
+                var query = uri.Query.TrimStart('?');
+                if (string.IsNullOrWhiteSpace(query))
+                {
+                    return url;
+                }
+
+                var parts = query.Split('&', StringSplitOptions.RemoveEmptyEntries);
+                for (var i = 0; i < parts.Length; i++)
+                {
+                    var part = parts[i];
+                    var eq = part.IndexOf('=');
+                    if (eq <= 0) continue;
+
+                    var rawKey = part.Substring(0, eq);
+                    var rawValue = part.Substring(eq + 1);
+
+                    var key = Uri.UnescapeDataString(rawKey);
+                    if (!IsSensitiveQueryKey(key)) continue;
+
+                    parts[i] = $"{rawKey}=[redacted]";
+                }
+
+                var builder = new UriBuilder(uri)
+                {
+                    Query = string.Join("&", parts)
+                };
+
+                return builder.Uri.ToString();
+            }
+            catch
+            {
+                return url;
+            }
+        }
+
+        private static bool IsSensitiveQueryKey(string key)
+        {
+            if (string.IsNullOrWhiteSpace(key))
+            {
+                return false;
+            }
+
+            var lower = key.Trim().ToLowerInvariant();
+
+            // Most important explicit keys used by Qobuz and our auth flow
+            if (lower is "user_auth_token" or "auth_token" or "token" or "app_secret" or "password" or "api_key" or "apikey" or "request_sig")
+            {
+                return true;
+            }
+
+            // Conservative fallbacks for other secret-bearing keys
+            return lower.Contains("token") || lower.Contains("secret") || lower.Contains("password") || lower.Contains("apikey");
         }
     }
 }
