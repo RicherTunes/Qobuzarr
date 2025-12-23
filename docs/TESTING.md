@@ -168,6 +168,11 @@ GitHub Actions workflows fail with billing/spending limit errors while repositor
 
 **Resolution:** Will be fixed when repositories are made public.
 
+### Known Build Warnings
+Some warnings are expected when building/running tests locally due to host-assembly and legacy binding-redirect behavior:
+- `MSB3836` (TagLibSharp binding redirect conflict): caused by an explicit binding redirect conflicting with auto-generated redirects; usually safe to ignore unless it causes runtime load errors.
+- `MSB3277` (assembly version conflicts): expected when referencing extracted Lidarr host assemblies alongside NuGet packages in the test project; generally non-actionable unless it manifests as runtime type identity/load failures.
+
 ## Test Naming Convention
 
 Follow the `Given_When_Then` or `Method_Scenario_Expected` pattern:
