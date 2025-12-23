@@ -212,7 +212,8 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
             var year = album.ReleaseDate.Year > 1900 ? album.ReleaseDate.Year : 0;
             
             var artistName = album.GetArtistName();
-            var albumTitle = album.GetFullTitle();
+            var albumTitle = album.Title;
+            var albumFullTitle = album.GetFullTitle();
             
             // Ensure we have valid non-empty names
             if (string.IsNullOrWhiteSpace(artistName))
@@ -252,15 +253,25 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
 
             // Generate quality-specific title
             release.Title = _titleGenerator.GenerateQualitySpecificTitle(album, quality, year);
+
+            // Prefer Lidarr's exact requested album title when available to improve Decision Engine matching.
+            if (_currentSearchCriteria?.Albums?.Any() == true)
+            {
+                var bestMatch = FindBestMatchingAlbum(album, _currentSearchCriteria.Albums, year);
+                if (!string.IsNullOrWhiteSpace(bestMatch?.Title))
+                {
+                    release.Album = bestMatch.Title;
+                }
+            }
             
             // Critical debugging for album mapping (only during troubleshooting)
-            _logger.Debug("≡ƒöì ALBUM MAPPING: Qobuz '{0}' ({1}) ΓåÆ Title '{2}' ΓåÆ Album '{3}'", 
-                album.Id, album.Title, release.Title, release.Album);
+            _logger.Debug("ALBUM MAPPING: Qobuz '{0}' ({1}) -> Title '{2}' -> Album '{3}'", 
+                album.Id, album.GetFullTitle(), release.Title, release.Album);
             
             // Debug context-aware matching for edition albums
             if (_currentSearchCriteria?.Albums?.Any() == true)
             {
-                _logger.Debug("≡ƒÄ» Search Context Available: {0} albums in criteria", _currentSearchCriteria.Albums.Count);
+                _logger.Debug("Search Context Available: {0} albums in criteria", _currentSearchCriteria.Albums.Count);
                 foreach (var lidarrAlbum in _currentSearchCriteria.Albums)
                 {
                     _logger.Debug("   Lidarr Album: '{0}' ({1})", lidarrAlbum.Title, lidarrAlbum.ReleaseDate?.Year);
@@ -268,7 +279,7 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
             }
             else
             {
-                _logger.Debug("Γ¥î No search context available - using original Qobuz title");
+                _logger.Debug("No search context available - using original Qobuz title");
             }
 
             return release;
