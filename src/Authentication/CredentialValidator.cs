@@ -35,26 +35,37 @@ namespace Lidarr.Plugin.Qobuzarr.Authentication
     /// This is a pure domain service focused on credential validation logic
     /// without dependencies on external APIs or authentication systems.
     /// </remarks>
-    public class CredentialValidator : ICredentialValidator
+    public partial class CredentialValidator : ICredentialValidator
     {
         private readonly Logger _logger;
         
-        // Validation patterns
-        private static readonly Regex EmailPattern = new Regex(
-            @"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$", 
-            RegexOptions.Compiled | RegexOptions.IgnoreCase);
-            
-        private static readonly Regex AppIdPattern = new Regex(
-            @"^[a-zA-Z0-9]{8,32}$", 
-            RegexOptions.Compiled);
-            
-        private static readonly Regex UserIdPattern = new Regex(
-            @"^[0-9]{1,20}$", 
-            RegexOptions.Compiled);
-            
-        private static readonly Regex AuthTokenPattern = new Regex(
-            @"^[a-zA-Z0-9+/=]{20,200}$", 
-            RegexOptions.Compiled);
+        // Generated regex patterns for performance (SYSLIB1045)
+        [GeneratedRegex(@"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$", RegexOptions.IgnoreCase)]
+        private static partial Regex EmailPattern();
+        
+        [GeneratedRegex(@"^[a-zA-Z0-9]{8,32}$")]
+        private static partial Regex AppIdPattern();
+        
+        [GeneratedRegex(@"^[0-9]{1,20}$")]
+        private static partial Regex UserIdPattern();
+        
+        [GeneratedRegex(@"^[a-zA-Z0-9+/=]{20,200}$")]
+        private static partial Regex AuthTokenPattern();
+        
+        [GeneratedRegex(@"^[a-fA-F0-9]{32}$")]
+        private static partial Regex MD5HashPattern();
+        
+        [GeneratedRegex(@"[a-z]")]
+        private static partial Regex LowercasePattern();
+        
+        [GeneratedRegex(@"[A-Z]")]
+        private static partial Regex UppercasePattern();
+        
+        [GeneratedRegex(@"[0-9]")]
+        private static partial Regex DigitPattern();
+        
+        [GeneratedRegex(@"[^a-zA-Z0-9]")]
+        private static partial Regex SpecialCharPattern();
 
         // Security constraints
         private const int MIN_PASSWORD_LENGTH = 6;
@@ -163,7 +174,7 @@ namespace Lidarr.Plugin.Qobuzarr.Authentication
             result.SanitizedEmail = sanitizedEmail;
 
             // Format validation
-            if (!EmailPattern.IsMatch(sanitizedEmail))
+            if (!EmailPattern().IsMatch(sanitizedEmail))
             {
                 result.AddError("Invalid email format");
                 return result;
@@ -297,7 +308,7 @@ namespace Lidarr.Plugin.Qobuzarr.Authentication
         {
             // Validate user ID
             var sanitizedUserId = InputSanitizer.SanitizeUserId(credentials.UserId);
-            if (!UserIdPattern.IsMatch(sanitizedUserId))
+            if (!UserIdPattern().IsMatch(sanitizedUserId))
             {
                 result.AddError("Invalid user ID format");
             }
@@ -308,7 +319,7 @@ namespace Lidarr.Plugin.Qobuzarr.Authentication
 
             // Validate auth token
             var sanitizedToken = InputSanitizer.SanitizeAuthToken(credentials.AuthToken);
-            if (!AuthTokenPattern.IsMatch(sanitizedToken))
+            if (!AuthTokenPattern().IsMatch(sanitizedToken))
             {
                 result.AddError("Invalid auth token format");
             }
@@ -323,7 +334,7 @@ namespace Lidarr.Plugin.Qobuzarr.Authentication
             if (!string.IsNullOrWhiteSpace(credentials.AppId))
             {
                 var sanitizedAppId = InputSanitizer.SanitizeAppId(credentials.AppId);
-                if (!AppIdPattern.IsMatch(sanitizedAppId))
+                if (!AppIdPattern().IsMatch(sanitizedAppId))
                 {
                     result.AddError("Invalid App ID format");
                 }
@@ -457,7 +468,7 @@ namespace Lidarr.Plugin.Qobuzarr.Authentication
             if (string.IsNullOrWhiteSpace(hash)) return false;
             if (hash.Length != 32) return false;
 
-            return Regex.IsMatch(hash, "^[a-fA-F0-9]{32}$");
+            return MD5HashPattern().IsMatch(hash);
         }
 
         private PasswordStrength CalculatePasswordStrength(string password)
@@ -471,10 +482,10 @@ namespace Lidarr.Plugin.Qobuzarr.Authentication
             if (password.Length >= 12) score++;
 
             // Character variety scoring
-            if (Regex.IsMatch(password, @"[a-z]")) score++;
-            if (Regex.IsMatch(password, @"[A-Z]")) score++;
-            if (Regex.IsMatch(password, @"[0-9]")) score++;
-            if (Regex.IsMatch(password, @"[^a-zA-Z0-9]")) score++;
+            if (LowercasePattern().IsMatch(password)) score++;
+            if (UppercasePattern().IsMatch(password)) score++;
+            if (DigitPattern().IsMatch(password)) score++;
+            if (SpecialCharPattern().IsMatch(password)) score++;
 
             return score switch
             {

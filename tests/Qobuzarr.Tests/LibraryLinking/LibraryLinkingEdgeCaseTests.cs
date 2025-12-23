@@ -294,7 +294,7 @@ namespace Qobuzarr.Tests.LibraryLinking
             {
                 var content = File.ReadAllText(existingPath);
                 var trimmed = content.TrimStart();
-                (trimmed.StartsWith("{", StringComparison.Ordinal) || trimmed.StartsWith("[", StringComparison.Ordinal))
+                (trimmed.StartsWith('{') || trimmed.StartsWith('['))
                     .Should().BeTrue("ML patterns file should be valid JSON");
             }
         }
