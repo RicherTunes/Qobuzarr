@@ -9,8 +9,33 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
     /// Semantic classifier that identifies the role of each word in album titles
     /// Differentiates between core album content and removable edition markers
     /// </summary>
-    public class AlbumComponentClassifier
+    public partial class AlbumComponentClassifier
     {
+        // Generated regex patterns for performance (SYSLIB1045)
+        [GeneratedRegex(@"\b\w+\s+(edition|version|release)\b", RegexOptions.IgnoreCase)]
+        private static partial Regex EditionVersionPattern();
+        
+        [GeneratedRegex(@"[\(\[].*\b\w+\b.*[\)\]]", RegexOptions.IgnoreCase)]
+        private static partial Regex ParenthesesContentPattern();
+        
+        [GeneratedRegex(@"-\s*\w+\s*$", RegexOptions.IgnoreCase)]
+        private static partial Regex DashEndPattern();
+        
+        [GeneratedRegex(@"\b\d{4}\s+\w+\b", RegexOptions.IgnoreCase)]
+        private static partial Regex YearEditionPattern();
+        
+        [GeneratedRegex(@"^(19|20)[0-9]{2}$")]
+        private static partial Regex YearPattern();
+        
+        [GeneratedRegex(@"[^\w\s]")]
+        private static partial Regex NonWordPattern();
+        
+        [GeneratedRegex(@"[\(\[]([^\)\]]+)[\)\]]")]
+        private static partial Regex ParentheticalPattern();
+        
+        [GeneratedRegex(@"[\s,]+")]
+        private static partial Regex WhitespaceCommaPattern();
+
         /// <summary>
         /// Version descriptors that are PART of the album identity and should never be removed
         /// These represent different versions or recordings of albums that are distinct releases
@@ -76,22 +101,15 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
         };
 
         /// <summary>
-        /// Patterns that indicate edition contexts where edition markers should be preserved
+        /// Gets edition context patterns for matching. Uses generated regex for performance.
         /// </summary>
-        private static readonly List<Regex> EditionContextPatterns = new()
+        private static IEnumerable<Regex> GetEditionContextPatterns()
         {
-            // "Word Edition" or "Word Version"
-            new Regex(@"\b\w+\s+(edition|version|release)\b", RegexOptions.IgnoreCase | RegexOptions.Compiled),
-            
-            // Content in parentheses/brackets (likely additional info)
-            new Regex(@"[\(\[].*\b\w+\b.*[\)\]]", RegexOptions.IgnoreCase | RegexOptions.Compiled),
-            
-            // Preceded by dash at end (common edition format)
-            new Regex(@"-\s*\w+\s*$", RegexOptions.IgnoreCase | RegexOptions.Compiled),
-            
-            // Year followed by edition marker
-            new Regex(@"\b\d{4}\s+\w+\b", RegexOptions.IgnoreCase | RegexOptions.Compiled)
-        };
+            yield return EditionVersionPattern();       // "Word Edition" or "Word Version"
+            yield return ParenthesesContentPattern();   // Content in parentheses/brackets
+            yield return DashEndPattern();              // Preceded by dash at end
+            yield return YearEditionPattern();          // Year followed by edition marker
+        }
 
         /// <summary>
         /// Classifies each component (word/phrase) in an album title to determine its semantic role
@@ -251,15 +269,17 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
                 if (string.IsNullOrWhiteSpace(variant)) continue;
                 
                 // Check if followed by "Edition" or "Version"
-                var editionPattern = $@"\b{Regex.Escape(variant)}\s+(edition|version|release)\b";
-                if (Regex.IsMatch(fullTitle, editionPattern, RegexOptions.IgnoreCase))
+                // Use the generated regex to find edition/version patterns, then check if variant precedes
+                var editionMatch = EditionVersionPattern().Match(fullTitle);
+                if (editionMatch.Success && 
+                    editionMatch.Value.StartsWith(variant, StringComparison.OrdinalIgnoreCase))
                 {
                     return true;
                 }
             }
             
             // Check if the token appears in any edition context pattern
-            foreach (var pattern in EditionContextPatterns)
+            foreach (var pattern in GetEditionContextPatterns())
             {
                 var matches = pattern.Matches(fullTitle);
                 foreach (Match match in matches)
@@ -282,7 +302,7 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
         private bool IsYearPattern(string token)
         {
             // Match 4-digit years (1900-2030)
-            return Regex.IsMatch(token, @"^(19|20)[0-9]{2}$");
+            return YearPattern().IsMatch(token);
         }
 
         private bool IsNoise(string token)
@@ -304,7 +324,7 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
             }
             
             // Remove punctuation and extra whitespace for single words
-            return Regex.Replace(token, @"[^\w\s]", "").Trim();
+            return NonWordPattern().Replace(token, "").Trim();
         }
 
         private IEnumerable<string> TokenizeAlbumTitle(string title)
@@ -331,13 +351,13 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
                 {
                     var placeholder = $"__PLACEHOLDER_{placeholderIndex++}__";
                     preservedPhrases[placeholder] = phrase;
-                    workingTitle = Regex.Replace(workingTitle, Regex.Escape(phrase), placeholder, RegexOptions.IgnoreCase);
+                    // Replace case-insensitively without regex
+                    workingTitle = workingTitle.Replace(phrase, placeholder, StringComparison.OrdinalIgnoreCase);
                 }
             }
             
             // Remove parentheses/brackets but keep their content
-            var parentheticalPattern = @"[\(\[]([^\)\]]+)[\)\]]";
-            var matches = Regex.Matches(workingTitle, parentheticalPattern);
+            var matches = ParentheticalPattern().Matches(workingTitle);
             
             foreach (Match match in matches)
             {
@@ -346,7 +366,7 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
             }
             
             // Split on whitespace and commas (but preserve hyphens in meaningful terms)
-            var allTokens = Regex.Split(workingTitle, @"[\s,]+")
+            var allTokens = WhitespaceCommaPattern().Split(workingTitle)
                                 .Where(t => !string.IsNullOrWhiteSpace(t))
                                 .Select(t => t.Trim().Trim(new char[] { '.', ',', '!', '?' }))
                                 .Where(t => !string.IsNullOrWhiteSpace(t))

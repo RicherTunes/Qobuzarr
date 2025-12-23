@@ -10,11 +10,15 @@ namespace Lidarr.Plugin.Qobuzarr.Utilities
     /// Centralized string similarity and normalization utilities to eliminate code duplication.
     /// This class provides the single source of truth for all string matching algorithms.
     /// </summary>
-    public static class StringSimilarity
+    public static partial class StringSimilarity
     {
         private static readonly UnicodeNormalizer Unicode = new UnicodeNormalizer(NullLogger<UnicodeNormalizer>.Instance);
-        private static readonly Regex NonAlphanumericRegex = new Regex(@"[^a-zA-Z0-9\s]", RegexOptions.Compiled);
-        private static readonly Regex MultipleSpacesRegex = new Regex(@"\s+", RegexOptions.Compiled);
+        
+        [GeneratedRegex(@"[^a-zA-Z0-9\s]")]
+        private static partial Regex NonAlphanumericRegex();
+        
+        [GeneratedRegex(@"\s+")]
+        private static partial Regex MultipleSpacesRegex();
         
         /// <summary>
         /// Calculates normalized string similarity using Levenshtein distance.
@@ -113,10 +117,10 @@ namespace Lidarr.Plugin.Qobuzarr.Utilities
                 .Replace("\\", " ");
 
             // Remove any remaining non-alphanumeric characters
-            normalized = NonAlphanumericRegex.Replace(normalized, " ");
+            normalized = NonAlphanumericRegex().Replace(normalized, " ");
             
             // Collapse multiple spaces
-            normalized = MultipleSpacesRegex.Replace(normalized, " ");
+            normalized = MultipleSpacesRegex().Replace(normalized, " ");
             
             return normalized.Trim();
         }
