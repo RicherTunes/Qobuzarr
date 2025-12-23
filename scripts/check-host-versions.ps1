@@ -14,6 +14,10 @@
     Docker image tag to extract assemblies from (optional).
     If specified, extracts fresh assemblies before checking.
 
+.PARAMETER HostAssembliesDir
+    Directory containing the host assemblies to compare against.
+    Default: ext/Lidarr/_output/net8.0
+
 .PARAMETER Strict
     Exit with non-zero code on any mismatch. Use in CI pipelines.
     Default: off (reports mismatches but exits 0 for dev convenience).
@@ -38,6 +42,7 @@
 [CmdletBinding()]
 param(
     [string]$ExtractFrom,
+    [string]$HostAssembliesDir = "ext/Lidarr/_output/net8.0",
     [switch]$Strict
 )
 
@@ -45,6 +50,13 @@ $ErrorActionPreference = "Stop"
 
 $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $ProjectRoot = Split-Path -Parent $ScriptDir
+
+function Resolve-ProjectPath {
+    param([string]$Path)
+    if ([string]::IsNullOrWhiteSpace($Path)) { return $null }
+    if ([IO.Path]::IsPathRooted($Path)) { return $Path }
+    return (Join-Path $ProjectRoot $Path)
+}
 
 # Host-coupled packages that must match exactly
 $HostCoupledPackages = @{
@@ -70,9 +82,9 @@ if ($ExtractFrom) {
     try {
         docker create --name $containerName "ghcr.io/hotio/lidarr:$ExtractFrom" | Out-Null
         
-        $outputDir = Join-Path $ProjectRoot "ext/Lidarr/_output/net8.0"
+        $outputDir = Resolve-ProjectPath $HostAssembliesDir
         if (-not (Test-Path $outputDir)) {
-            New-Item -ItemType Directory -Path $outputDir -Force | Out-Null
+            New-Item -ItemType Directory -Path $outputDir -Force | Out-Null     
         }
         
         # Extract only the DLLs we care about
@@ -110,7 +122,7 @@ foreach ($item in $packagesProps.Project.ItemGroup.PackageVersion) {
 
 # Read host assembly versions
 Write-Host "Reading host assembly versions..." -ForegroundColor Yellow
-$hostDir = Join-Path $ProjectRoot "ext/Lidarr/_output/net8.0"
+$hostDir = Resolve-ProjectPath $HostAssembliesDir
 if (-not (Test-Path $hostDir)) {
     Write-Error "Host assemblies not found at: $hostDir"
     Write-Host "Run: docker cp <container>:/app/bin ext/Lidarr/_output/net8.0" -ForegroundColor Gray
@@ -150,7 +162,7 @@ foreach ($pkg in $HostCoupledPackages.Keys) {
     Write-Host "  Reason: $($HostCoupledPackages[$pkg].Reason)" -ForegroundColor Gray
     
     $pinned = $pinnedVersions[$pkg]
-    $host = $hostVersions[$pkg]
+    $hostInfo = $hostVersions[$pkg]
     
     if (-not $pinned) {
         Write-Host "  Pinned: NOT FOUND in Directory.Packages.props" -ForegroundColor Red
@@ -158,23 +170,43 @@ foreach ($pkg in $HostCoupledPackages.Keys) {
         continue
     }
     
-    if (-not $host) {
+    if (-not $hostInfo) {
         Write-Host "  Host: NOT FOUND in ext/Lidarr/_output/net8.0/" -ForegroundColor Red
         $hasErrors = $true
         continue
     }
     
     Write-Host "  Pinned version: $pinned" -ForegroundColor $(if ($pinned) { "White" } else { "Red" })
-    Write-Host "  Host assembly: $($host.AssemblyVersion)" -ForegroundColor Gray
-    Write-Host "  Host file ver: $($host.FileVersion)" -ForegroundColor Gray
-    Write-Host "  Host product:  $($host.ProductVersion)" -ForegroundColor Gray
-    
-    # Check if pinned version is compatible with host
-    # NuGet version should match ProductVersion or be compatible with AssemblyVersion major.minor
+    Write-Host "  Host assembly: $($hostInfo.AssemblyVersion)" -ForegroundColor Gray
+    Write-Host "  Host file ver: $($hostInfo.FileVersion)" -ForegroundColor Gray
+    Write-Host "  Host product:  $($hostInfo.ProductVersion)" -ForegroundColor Gray
+
+    function Get-NumericVersionPrefix {
+        param([string]$Value)
+        if ([string]::IsNullOrWhiteSpace($Value)) { return $null }
+        $trimmed = $Value.Trim()
+        $trimmed = ($trimmed -split '\+')[0]
+        $match = [regex]::Match($trimmed, '^\d+\.\d+(?:\.\d+){0,2}')
+        if ($match.Success) { return $match.Value }
+        return $null
+    }
+
+    # Prefer file/product version for NuGet comparisons (AssemblyVersion often stays at major.0.0.0).
     $pinnedMajorMinor = ($pinned -split '\.')[0..1] -join '.'
-    $hostMajorMinor = ($host.AssemblyVersion -split '\.')[0..1] -join '.'
-    
-    if ($pinnedMajorMinor -ne $hostMajorMinor) {
+    $hostComparable = Get-NumericVersionPrefix $hostInfo.FileVersion
+    if (-not $hostComparable) { $hostComparable = Get-NumericVersionPrefix $hostInfo.ProductVersion }
+    if (-not $hostComparable) { $hostComparable = Get-NumericVersionPrefix $hostInfo.AssemblyVersion }
+
+    $hostMajorMinor = ($hostComparable -split '\.')[0..1] -join '.'
+    $pinnedMajor = ($pinned -split '\.')[0]
+    $hostAssemblyMajor = ($hostInfo.AssemblyVersion -split '\.')[0]
+
+    if ($pinnedMajor -ne $hostAssemblyMajor) {
+        Write-Host "  STATUS: MISMATCH - Major differs!" -ForegroundColor Red
+        Write-Host "  ACTION: Update Directory.Packages.props to match host version" -ForegroundColor Yellow
+        $hasErrors = $true
+    }
+    elseif ($pinnedMajorMinor -ne $hostMajorMinor) {
         Write-Host "  STATUS: MISMATCH - Major.Minor differs!" -ForegroundColor Red
         Write-Host "  ACTION: Update Directory.Packages.props to match host version" -ForegroundColor Yellow
         $hasErrors = $true
