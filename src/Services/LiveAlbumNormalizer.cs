@@ -54,42 +54,24 @@ namespace Lidarr.Plugin.Qobuzarr.Services
             ["carnegie hall"] = new[] { "carnegie hall", "carnegie" }
         };
         
-        // Date format patterns for normalization
+        // Date format patterns for normalization (using compile-time generated regexes)
         private static readonly Regex[] DatePatterns =
         {
-            // ISO dates: 2023-12-31, 2023/12/31
-            new(@"\b(\d{4})[\/\-](\d{1,2})[\/\-](\d{1,2})\b", RegexOptions.IgnoreCase),
-            
-            // US dates: 12/31/2023, 12-31-2023
-            new(@"\b(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})\b", RegexOptions.IgnoreCase),
-            
-            // Month names: December 31, 2023 | Dec 31 2023
-            new(@"\b(january|february|march|april|may|june|july|august|september|october|november|december|jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)\s+(\d{1,2}),?\s+(\d{4})\b", RegexOptions.IgnoreCase),
-            
-            // Year ranges: 2023-2024, 2023/24
-            new(@"\b(\d{4})[\/\-](\d{2,4})\b", RegexOptions.IgnoreCase),
-            
-            // Simple year: 2023
-            new(@"\b(\d{4})\b", RegexOptions.IgnoreCase)
+            LiveAlbumNormalizerRegexes.IsoDate(),
+            LiveAlbumNormalizerRegexes.UsDate(),
+            LiveAlbumNormalizerRegexes.MonthNameDate(),
+            LiveAlbumNormalizerRegexes.YearRange(),
+            LiveAlbumNormalizerRegexes.SimpleYear()
         };
-        
-        // Live album title patterns for extraction
+
+        // Live album title patterns for extraction (using compile-time generated regexes)
         private static readonly Regex[] LiveAlbumPatterns =
         {
-            // "Album Title (Live at Venue, Date)"
-            new(@"^(.+?)\s*[\(\[]\s*(?:live|recorded|concert|performance)\s+(?:at|from|in)\s+([^,\]\)]+)(?:,\s*([^\]\)]+))?\s*[\)\]]$", RegexOptions.IgnoreCase),
-            
-            // "Album Title - Live at Venue"
-            new(@"^(.+?)\s*[-–—]\s*(?:live|recorded|concert)\s+(?:at|from|in)\s+(.+)$", RegexOptions.IgnoreCase),
-            
-            // "Live at Venue: Album Title"
-            new(@"^(?:live|recorded|concert)\s+(?:at|from|in)\s+([^:]+):\s*(.+)$", RegexOptions.IgnoreCase),
-            
-            // "Album Title Live"
-            new(@"^(.+?)\s+(?:live|concert|unplugged|acoustic)$", RegexOptions.IgnoreCase),
-            
-            // "MTV Unplugged: Album Title"
-            new(@"^(?:mtv\s+unplugged|bbc\s+session|live\s+session):\s*(.+)$", RegexOptions.IgnoreCase)
+            LiveAlbumNormalizerRegexes.LiveAtVenueParentheses(),
+            LiveAlbumNormalizerRegexes.LiveAtVenueDash(),
+            LiveAlbumNormalizerRegexes.VenueColonTitle(),
+            LiveAlbumNormalizerRegexes.TitleSuffixLive(),
+            LiveAlbumNormalizerRegexes.SpecialSessionPrefix()
         };
         
         // Special live album markers that indicate recording context
@@ -309,10 +291,10 @@ namespace Lidarr.Plugin.Qobuzarr.Services
         {
             var title = albumTitle;
 
-            // Remove common live patterns
-            title = Regex.Replace(title, @"\s*[-–—]\s*live.*$", "", RegexOptions.IgnoreCase);
-            title = Regex.Replace(title, @"\s*[\(\[]\s*live.*[\)\]]", "", RegexOptions.IgnoreCase);
-            title = Regex.Replace(title, @"\s+live$", "", RegexOptions.IgnoreCase);
+            // Remove common live patterns (using compile-time generated regexes)
+            title = LiveAlbumNormalizerRegexes.LiveDashSuffix().Replace(title, "");
+            title = LiveAlbumNormalizerRegexes.LiveParenthesesSuffix().Replace(title, "");
+            title = LiveAlbumNormalizerRegexes.LiveWordSuffix().Replace(title, "");
 
             // Remove special session markers
             foreach (var marker in SpecialLiveMarkers.Keys)
@@ -361,9 +343,9 @@ namespace Lidarr.Plugin.Qobuzarr.Services
                 }
             }
 
-            // Generic venue type normalization
-            normalized = Regex.Replace(normalized, @"\b(the\s+)", "", RegexOptions.IgnoreCase);
-            normalized = Regex.Replace(normalized, @"\s+(arena|stadium|theater|theatre|hall|center|centre)$", " venue", RegexOptions.IgnoreCase);
+            // Generic venue type normalization (using compile-time generated regexes)
+            normalized = LiveAlbumNormalizerRegexes.LeadingThe().Replace(normalized, "");
+            normalized = LiveAlbumNormalizerRegexes.VenueTypeSuffix().Replace(normalized, " venue");
 
             return normalized.Trim();
         }
@@ -393,8 +375,8 @@ namespace Lidarr.Plugin.Qobuzarr.Services
                 }
             }
 
-            // If no standard pattern, try to extract year manually
-            var yearMatch = Regex.Match(date, @"\b(19|20)\d{2}\b");
+            // If no standard pattern, try to extract year manually (using compile-time generated regex)
+            var yearMatch = LiveAlbumNormalizerRegexes.ExtractYear().Match(date);
             if (yearMatch.Success)
             {
                 return yearMatch.Value;
