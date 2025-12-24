@@ -142,24 +142,27 @@ namespace Qobuzarr.Tests.Unit.Indexers
 
         #region Edition Keyword Detection
 
+        /// <summary>
+        /// Version field is now always included (when non-empty), not gated by keywords.
+        /// These tests verify that version values are properly sanitized and included.
+        /// Note: The sanitizer may transform special characters (e.g., "&amp;" → "_").
+        /// </summary>
         [Theory]
-        [InlineData("deluxe", true)]
-        [InlineData("Deluxe Edition", true)]
-        [InlineData("live at", true)]
-        [InlineData("Live in London", true)]
-        [InlineData("remaster", true)]
-        [InlineData("2020 Remaster", true)]
-        [InlineData("anniversary", true)]
-        [InlineData("25th Anniversary Edition", true)]
-        [InlineData("expanded", true)]
-        [InlineData("Expanded & Remastered", true)]
-        [InlineData("special", true)]
-        [InlineData("Special Edition", true)]
-        [InlineData("standard", false)]
-        [InlineData("regular edition", false)]
-        [InlineData("", false)]
-        [InlineData(null, false)]
-        public void ContainsEditionKeywords_ShouldDetectEditionAlbums(string version, bool expectedIsEdition)
+        [InlineData("deluxe", "deluxe")]
+        [InlineData("Deluxe Edition", "Deluxe Edition")]
+        [InlineData("live at", "live at")]
+        [InlineData("Live in London", "Live in London")]
+        [InlineData("remaster", "remaster")]
+        [InlineData("2020 Remaster", "2020 Remaster")]
+        [InlineData("anniversary", "anniversary")]
+        [InlineData("25th Anniversary Edition", "25th Anniversary Edition")]
+        [InlineData("expanded", "expanded")]
+        [InlineData("Expanded & Remastered", "Expanded _ Remastered")] // Sanitizer converts & to _
+        [InlineData("special", "special")]
+        [InlineData("Special Edition", "Special Edition")]
+        [InlineData("standard", "standard")] // Now included even without keywords
+        [InlineData("regular edition", "regular edition")] // Now included
+        public void VersionField_ShouldBeIncludedInTitle(string version, string expectedSanitized)
         {
             // Arrange
             var album = QobuzAlbumBuilder.New()
@@ -173,23 +176,35 @@ namespace Qobuzarr.Tests.Unit.Indexers
             var releases = ConvertAlbumToReleases(album);
             var flacRelease = releases.FirstOrDefault(r => r.Title.Contains("FLAC"));
 
-            // Act & Assert
-            if (expectedIsEdition)
-            {
-                flacRelease.Title.Should().Contain($"[{version}]");
-                flacRelease.Title.Should().MatchRegex(@"^.+ - .+ \(\d{4}\) \[[^\]]+\] \[[^\]]+\] \[WEB\]$",
-                    $"Version '{version}' should include an edition bracket");
-            }
-            else
-            {
-                if (!string.IsNullOrWhiteSpace(version))
-                {
-                    flacRelease.Title.Should().NotContain($"[{version}]");
-                }
+            // Act & Assert - version should be included (sanitized)
+            flacRelease.Title.Should().Contain($"[{expectedSanitized}]",
+                $"Version '{version}' should be included in title as '[{expectedSanitized}]'");
+        }
 
-                flacRelease.Title.Should().MatchRegex(@"^.+ - .+ \(\d{4}\) \[[^\]]+\] \[WEB\]$",
-                    $"Version '{version}' should not include an edition bracket");
-            }
+        /// <summary>
+        /// Empty or null version should not produce empty brackets.
+        /// </summary>
+        [Theory]
+        [InlineData("")]
+        [InlineData(null)]
+        public void VersionField_WhenEmpty_ShouldNotProduceBrackets(string version)
+        {
+            // Arrange
+            var album = QobuzAlbumBuilder.New()
+                .WithTitle("Test Album")
+                .WithArtist("Test Artist")
+                .WithReleaseYear(2020)
+                .AsCdQualityFlac()
+                .Build();
+            album.Version = version;
+
+            var releases = ConvertAlbumToReleases(album);
+            var flacRelease = releases.FirstOrDefault(r => r.Title.Contains("FLAC"));
+
+            // Act & Assert - no empty brackets
+            flacRelease.Title.Should().NotContain("[]");
+            flacRelease.Title.Should().MatchRegex(@"^.+ - .+ \(\d{4}\) \[[^\]]+\] \[WEB\]$",
+                "Empty version should not add extra brackets");
         }
 
         #endregion
