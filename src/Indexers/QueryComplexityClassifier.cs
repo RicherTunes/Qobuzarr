@@ -1,5 +1,4 @@
 using System;
-using System.Text.RegularExpressions;
 
 namespace Lidarr.Plugin.Qobuzarr.Indexers
 {
@@ -17,24 +16,10 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
         private const int NUMBERS_WEIGHT = 1;
         private const int LONG_STRING_WEIGHT = 1;
         private const int LONG_STRING_THRESHOLD = 50;
-        
+
         // Complexity thresholds
         private const int SIMPLE_THRESHOLD = 1;
         private const int MEDIUM_THRESHOLD = 4;
-        
-        // Thread-safe lazy initialization for regex patterns
-        private static readonly Lazy<Regex> SpecialCharacterPattern = new Lazy<Regex>(() => 
-            new Regex(@"[&+/\-:'""()]", RegexOptions.Compiled | RegexOptions.IgnoreCase));
-        private static readonly Lazy<Regex> NonAsciiPattern = new Lazy<Regex>(() => 
-            new Regex(@"[^\x00-\x7F]", RegexOptions.Compiled));
-        private static readonly Lazy<Regex> VariousArtistsPattern = new Lazy<Regex>(() => 
-            new Regex(@"\b(various\s+artists|compilation|v\.?a\.?|soundtrack)\b", RegexOptions.Compiled | RegexOptions.IgnoreCase));
-        private static readonly Lazy<Regex> ComplexWordsPattern = new Lazy<Regex>(() => 
-            new Regex(@"\b(featuring|feat\.?|ft\.?|with|vs\.?|versus|and|&)\b", RegexOptions.Compiled | RegexOptions.IgnoreCase));
-        private static readonly Lazy<Regex> NumbersPattern = new Lazy<Regex>(() => 
-            new Regex(@"\b\d+\b", RegexOptions.Compiled));
-        private static readonly Lazy<Regex> LiveRecordingPattern = new Lazy<Regex>(() => 
-            new Regex(@"\b(live|unplugged|acoustic|concert|session)\b", RegexOptions.Compiled | RegexOptions.IgnoreCase));
 
         /// <summary>
         /// Classifies query complexity based on artist and album characteristics
@@ -50,24 +35,24 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
             var combined = $"{artist} {album}";
             var complexityScore = 0;
 
-            // Check for various complexity indicators
-            if (SpecialCharacterPattern.Value.IsMatch(combined))
+            // Check for various complexity indicators using compile-time generated regexes
+            if (QueryComplexityClassifierRegexes.SpecialCharacters().IsMatch(combined))
                 complexityScore += SPECIAL_CHAR_WEIGHT;
 
-            if (NonAsciiPattern.Value.IsMatch(combined))
+            if (QueryComplexityClassifierRegexes.NonAscii().IsMatch(combined))
                 complexityScore += NON_ASCII_WEIGHT;
 
-            if (VariousArtistsPattern.Value.IsMatch(combined))
+            if (QueryComplexityClassifierRegexes.VariousArtistsKeywords().IsMatch(combined))
                 complexityScore += VARIOUS_ARTISTS_WEIGHT;
 
-            if (ComplexWordsPattern.Value.IsMatch(combined))
+            if (QueryComplexityClassifierRegexes.ComplexWordsKeywords().IsMatch(combined))
                 complexityScore += COMPLEX_WORDS_WEIGHT;
 
-            if (NumbersPattern.Value.IsMatch(combined))
+            if (QueryComplexityClassifierRegexes.StandaloneNumbers().IsMatch(combined))
                 complexityScore += NUMBERS_WEIGHT;
 
             // Live recording detection (often harder to match accurately)
-            if (LiveRecordingPattern.Value.IsMatch(combined))
+            if (QueryComplexityClassifierRegexes.LiveRecordingKeywords().IsMatch(combined))
                 complexityScore += 2; // Live recordings are typically harder to match
 
             // Length-based complexity
