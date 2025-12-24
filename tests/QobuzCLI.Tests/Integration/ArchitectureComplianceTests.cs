@@ -99,12 +99,18 @@ public class CodeQualityTests
     public void DownloadCommand_ShouldBeMaintainableSize()
     {
         // Validates our god object decomposition success
-        var downloadCommandSource = File.ReadAllText(
-            Path.Combine(GetSourceRoot(), "QobuzCLI", "Commands", "DownloadCommand.cs"));
-        
-        var lineCount = downloadCommandSource.Split('\n').Length;
-        lineCount.Should().BeLessOrEqualTo(800,
-            "DownloadCommand should be maintainable size after refactoring");
+        // Sums all partial class files (DownloadCommand*.cs) to prevent "gaming" the gate with partials
+        var commandsDir = Path.Combine(GetSourceRoot(), "QobuzCLI", "Commands");
+        var downloadCommandFiles = Directory.GetFiles(commandsDir, "DownloadCommand*.cs");
+
+        downloadCommandFiles.Should().NotBeEmpty("DownloadCommand source files should exist");
+
+        var totalLineCount = downloadCommandFiles
+            .Select(f => File.ReadAllLines(f).Length)
+            .Sum();
+
+        totalLineCount.Should().BeLessOrEqualTo(1000,
+            $"Total DownloadCommand class size across {downloadCommandFiles.Length} partial files should be maintainable");
     }
 
     [Fact]
