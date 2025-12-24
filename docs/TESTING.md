@@ -106,7 +106,7 @@ Use `scripts/run-integration-tests.ps1` to mimic the integration workflow locall
 .\scripts\run-integration-tests.ps1 -CheckHostVersions
 
 # Extract host assemblies from Docker, validate pins, run compile-time integration tests
-.\scripts\run-integration-tests.ps1 -ExtractHostAssemblies -CheckHostVersions -LidarrTag "pr-plugins-3.1.1.4884"
+.\scripts\run-integration-tests.ps1 -ExtractHostAssemblies -CheckHostVersions -LidarrTag "pr-plugins-2.14.2.4786"
 
 # Also perform a runtime load check (plugin loads in Lidarr container)
 .\scripts\run-integration-tests.ps1 -ExtractHostAssemblies -CheckHostVersions -SmokeTest

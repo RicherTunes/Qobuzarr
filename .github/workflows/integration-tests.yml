@@ -6,7 +6,7 @@ on:
       lidarr_version:
         description: 'Lidarr plugins branch version (e.g., pr-plugins-4)'
         required: true
-        default: 'pr-plugins-4'
+        default: 'pr-plugins-2.14.2.4786'
         type: string
       force_extract:
         description: 'Force re-extraction even if cached'
