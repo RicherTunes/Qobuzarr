@@ -484,7 +484,7 @@ public class ConfigServiceTests : IDisposable
             Email = null,
             Password = "",
             QualityFallbackOrder = null,
-            FileNamingPattern = null
+            FileNamingPattern = null!  // Intentionally null to test migration
         };
         var legacyJson = JsonConvert.SerializeObject(legacyConfig, Formatting.Indented);
         await File.WriteAllTextAsync(_legacyConfigPath, legacyJson);
@@ -496,7 +496,8 @@ public class ConfigServiceTests : IDisposable
         result.Authentication.Email.Should().BeNull();
         result.Authentication.Password.Should().Be("");
         result.Quality.QualityFallbackOrder.Should().BeNull();
-        result.Download.FileNamingPattern.Should().BeNull();
+        // FileNamingPattern now defaults to the standard pattern when null (migration fix)
+        result.Download.FileNamingPattern.Should().NotBeNullOrEmpty();
     }
 
     [Fact]

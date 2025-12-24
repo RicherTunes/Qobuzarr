@@ -77,10 +77,10 @@ public class SearchServiceTests
     [InlineData("", SearchType.Auto)]
     [InlineData(null, SearchType.Auto)]
     [InlineData("just text", SearchType.Auto)]
-    public void DetectSearchType_ShouldDefaultToAuto(string query, SearchType expectedType)
+    public void DetectSearchType_ShouldDefaultToAuto(string? query, SearchType expectedType)
     {
         // Act
-        var result = _searchService.DetectSearchType(query);
+        var result = _searchService.DetectSearchType(query!);
 
         // Assert
         result.Should().Be(expectedType);
