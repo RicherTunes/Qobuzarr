@@ -25,8 +25,7 @@ namespace Qobuzarr.Tests.Compliance
         private static readonly HashSet<string> RequiredAssemblies = new(StringComparer.OrdinalIgnoreCase)
         {
             "Lidarr.Plugin.Qobuzarr.dll",           // The plugin itself
-            "Lidarr.Plugin.Abstractions.dll",       // Plugin contract (may be ILRepack'd, but check)
-            "FluentValidation.dll",                 // Settings validation (NOT merged)
+            "Lidarr.Plugin.Abstractions.dll",       // Plugin contract (must be a separate file)
             "Microsoft.Extensions.DependencyInjection.Abstractions.dll",
             "Microsoft.Extensions.Logging.Abstractions.dll"
         };
@@ -37,6 +36,9 @@ namespace Qobuzarr.Tests.Compliance
         /// </summary>
         private static readonly HashSet<string> ForbiddenAssemblies = new(StringComparer.OrdinalIgnoreCase)
         {
+            // Host-provided cross-boundary deps (shipping duplicates breaks type identity)
+            "FluentValidation.dll",
+
             // Lidarr host assemblies
             "Lidarr.Core.dll",
             "Lidarr.Common.dll",
@@ -114,20 +116,8 @@ namespace Qobuzarr.Tests.Compliance
             // Act & Assert
             foreach (var required in RequiredAssemblies)
             {
-                // Special case: Lidarr.Plugin.Abstractions may be ILRepack'd
-                if (required == "Lidarr.Plugin.Abstractions.dll")
-                {
-                    var hasAbstractions = assemblies.Contains(required);
-                    var hasCommon = assemblies.Contains("Lidarr.Plugin.Common.dll");
-                    // Either the abstractions DLL exists, or Common exists (which includes it)
-                    (hasAbstractions || hasCommon).Should().BeTrue(
-                        $"package should contain {required} (or Lidarr.Plugin.Common.dll which includes it)");
-                }
-                else
-                {
-                    assemblies.Should().Contain(required,
-                        $"package must contain required assembly {required}");
-                }
+                assemblies.Should().Contain(required,
+                    $"package must contain required assembly {required}");
             }
         }
 
@@ -186,7 +176,8 @@ namespace Qobuzarr.Tests.Compliance
             // They MUST exist as separate files, not ILRepack-merged into the main assembly.
             var typeIdentityAssemblies = new[]
             {
-                "FluentValidation.dll"  // Settings validation - types shared with Lidarr
+                // IPlugin + contracts must keep host type identity (must not be ILRepack-merged)
+                "Lidarr.Plugin.Abstractions.dll"
             };
 
             var assemblies = GetPackageAssemblies(packagePath);
