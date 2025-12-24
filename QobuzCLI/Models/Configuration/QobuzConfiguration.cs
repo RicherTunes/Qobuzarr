@@ -156,8 +156,12 @@ namespace QobuzCLI.Models.Configuration
                     MaxConcurrentArtistAlbums = legacy.MaxConcurrentArtistAlbums,
                     CreateArtistFolders = legacy.CreateArtistFolders,
                     CreateAlbumFolders = legacy.CreateAlbumFolders,
-                    FileNamingPattern = legacy.FileNamingPattern,
-                    AlbumFolderPattern = legacy.AlbumFolderPattern,
+                    FileNamingPattern = string.IsNullOrWhiteSpace(legacy.FileNamingPattern)
+                        ? new DownloadConfig().FileNamingPattern
+                        : legacy.FileNamingPattern,
+                    AlbumFolderPattern = string.IsNullOrWhiteSpace(legacy.AlbumFolderPattern)
+                        ? new DownloadConfig().AlbumFolderPattern
+                        : legacy.AlbumFolderPattern,
                     EnableMetadataTagging = legacy.EnableMetadataTagging,
                     ValidateDownloads = legacy.ValidateDownloads,
                     PartialSizeTolerancePercent = legacy.PartialSizeTolerancePercent,

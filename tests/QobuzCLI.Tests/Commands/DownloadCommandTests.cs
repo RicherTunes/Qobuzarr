@@ -112,7 +112,7 @@ public class DownloadCommandTests
         // Act - Use reflection to test the private method
         var method = typeof(DownloadCommand).GetMethod("ApplyDownloadOverrides", 
             System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
-        var result = (QobuzConfig)method!.Invoke(_downloadCommand, new object[] { originalConfig, null, quality })!;
+        var result = (QobuzConfig)method!.Invoke(_downloadCommand, new object?[] { originalConfig, null, quality })!;
 
         // Assert
         result.Quality.Should().Be(quality);

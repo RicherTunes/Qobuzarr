@@ -51,15 +51,15 @@
   <!-- ✅ PRE-BUILT ASSEMBLIES: Use single assembly source (no StyleCop conflicts) -->
   <ItemGroup>
     <Reference Include="Lidarr.Core">
-      <HintPath>..\ext\Lidarr\_output\net6.0\Lidarr.Core.dll</HintPath>
+      <HintPath>..\ext\Lidarr\_output\net8.0\Lidarr.Core.dll</HintPath>
       <Private>true</Private>
     </Reference>
     <Reference Include="Lidarr.Common">
-      <HintPath>..\ext\Lidarr\_output\net6.0\Lidarr.Common.dll</HintPath>
+      <HintPath>..\ext\Lidarr\_output\net8.0\Lidarr.Common.dll</HintPath>
       <Private>true</Private>
     </Reference>
     <Reference Include="Lidarr.Http">
-      <HintPath>..\ext\Lidarr\_output\net6.0\Lidarr.Http.dll</HintPath>
+      <HintPath>..\ext\Lidarr\_output\net8.0\Lidarr.Http.dll</HintPath>
       <Private>true</Private>
     </Reference>
   </ItemGroup>

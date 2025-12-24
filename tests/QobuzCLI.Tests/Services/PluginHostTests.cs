@@ -122,7 +122,7 @@ public class PluginHostSearchTests
     [InlineData("")]
     [InlineData(null)]
     [InlineData("   ")]
-    public async Task SearchAsync_WithInvalidQuery_ShouldReturnEmptyResults(string invalidQuery)
+    public async Task SearchAsync_WithInvalidQuery_ShouldReturnEmptyResults(string? invalidQuery)
     {
         // Arrange
         var pluginHost = new PluginHost(_mockLogger.Object, _httpClient);
@@ -130,7 +130,7 @@ public class PluginHostSearchTests
         await pluginHost.InitializeAsync(mockConfig);
 
         // Act
-        var results = await pluginHost.SearchAsync(invalidQuery, SearchType.Album);
+        var results = await pluginHost.SearchAsync(invalidQuery!, SearchType.Album);
 
         // Assert
         results.Should().BeEmpty("Invalid queries should return empty results");
@@ -180,7 +180,7 @@ public class PluginHostDownloadTests
     [Theory]
     [InlineData("")]
     [InlineData(null)]
-    public async Task DownloadAlbumAsync_WithInvalidAlbumId_ShouldThrow(string invalidId)
+    public async Task DownloadAlbumAsync_WithInvalidAlbumId_ShouldThrow(string? invalidId)
     {
         // Arrange
         var pluginHost = new PluginHost(_mockLogger.Object, _httpClient);
@@ -188,7 +188,7 @@ public class PluginHostDownloadTests
         await pluginHost.InitializeAsync(mockConfig);
 
         // Act & Assert
-        await pluginHost.Invoking(p => p.DownloadAlbumAsync(invalidId, "/test/path"))
+        await pluginHost.Invoking(p => p.DownloadAlbumAsync(invalidId!, "/test/path"))
             .Should().ThrowAsync<ArgumentException>();
     }
 }
