@@ -608,7 +608,11 @@ namespace Lidarr.Plugin.Qobuzarr.Security
                 return "Unknown Album";
 
             var sanitized = albumTitle.Trim();
-            
+
+            // Check for dangerous content first
+            if (IsPotentiallyDangerous(sanitized))
+                return "Unknown Album";
+
             // Remove path traversal attempts
             sanitized = sanitized.Replace("../", "___").Replace("..\\", "___");
             
@@ -679,14 +683,32 @@ namespace Lidarr.Plugin.Qobuzarr.Security
         }
 
         /// <summary>
-        /// HTML encodes text to prevent XSS
-        /// Consolidated from MetadataSanitizer
+        /// Encodes text for safe display by neutralizing both HTML and template-injection vectors.
         /// </summary>
+        /// <remarks>
+        /// <para><b>SECURITY-CRITICAL:</b> This method performs two distinct security transforms:</para>
+        /// <list type="number">
+        ///   <item>HTML entity encoding (via LPCSanitize.DisplayText) to prevent XSS</item>
+        ///   <item>Template-injection token breaking (e.g., <c>${...}</c> → <c>$&amp;#123;...</c>)
+        ///         to prevent Log4Shell-style JNDI injection and similar expression-language attacks</item>
+        /// </list>
+        /// <para>Do NOT simplify this method to pure HTML encoding without understanding the
+        /// template-injection implications. The chaos/fuzz tests in InputSanitizerTests validate
+        /// that dangerous tokens cannot survive this transform intact.</para>
+        /// </remarks>
+        /// <param name="text">Raw text that may contain malicious content</param>
+        /// <returns>Safe text suitable for display in HTML or log contexts</returns>
         public static string HtmlEncode(string text)
         {
             if (string.IsNullOrEmpty(text))
                 return string.Empty;
-            return LPCSanitize.DisplayText(text);
+
+            // Lidarr.Plugin.Common encodes HTML-significant characters; we additionally
+            // break common template-injection sequences (e.g., Log4Shell-style `${...}`)
+            // so they can't survive as a contiguous token in downstream renderers.
+            var encoded = LPCSanitize.DisplayText(text);
+            encoded = encoded.Replace("${", "$&#123;", StringComparison.Ordinal);
+            return encoded;
         }
 
         /// <summary>
@@ -721,12 +743,21 @@ namespace Lidarr.Plugin.Qobuzarr.Security
             var lowerInput = input.ToLowerInvariant();
 
             // SQL injection patterns
-            var sqlPatterns = new[] { 
+            var sqlPatterns = new[] {
                 "';", "\";", "drop table", "insert into", "delete from", "update ", "union select",
-                "exec ", "execute ", "xp_", "sp_", "-- ", "/*", "*/"
+                "exec ", "execute ", "xp_", "sp_", "-- ", "/*", "*/",
+                "waitfor delay", "sleep(", "benchmark(", "or 1=1", "or 1 = 1"
             };
 
-            // Script injection patterns  
+            // Format string / template injection patterns
+            var formatPatterns = new[]
+            {
+                "%n", "%s", "%p", "%x", "%d", "%u",
+                "{0}", "{1}", "{2}",
+                "${jndi:", "${"
+            };
+
+            // Script injection patterns
             var scriptPatterns = new[] {
                 "<script", "javascript:", "vbscript:", "onload=", "onerror=", "onclick=",
                 "onmouseover=", "</script>", "alert(", "eval(", "document."
@@ -748,7 +779,8 @@ namespace Lidarr.Plugin.Qobuzarr.Security
                 ")(", ")(&", ")(|", "*)(", "admin)", "(cn=", "(uid="
             };
 
-            return sqlPatterns.Any(pattern => lowerInput.Contains(pattern)) ||
+            return sqlPatterns.Any(pattern => lowerInput.Contains(pattern)) || 
+                   formatPatterns.Any(pattern => lowerInput.Contains(pattern)) ||
                    scriptPatterns.Any(pattern => lowerInput.Contains(pattern)) ||
                    cmdPatterns.Any(pattern => lowerInput.Contains(pattern)) ||
                    pathPatterns.Any(pattern => lowerInput.Contains(pattern)) ||
