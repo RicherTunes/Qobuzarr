@@ -73,10 +73,10 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
         [FieldDefinition(3, Label = "Password", Type = FieldType.Password, Privacy = PrivacyLevel.Password, Section = "Authentication", HelpText = "Your Qobuz account password. This will be securely hashed (MD5) before transmission to Qobuz servers.")]
         public string Password { get; set; }
 
-        [FieldDefinition(4, Label = "User ID", Type = FieldType.Textbox, Section = "Authentication", Advanced = true, HelpText = "Your numeric Qobuz user ID. Only needed for token authentication. You can find this in your Qobuz web player session data.")]
+        [FieldDefinition(4, Label = "User ID", Type = FieldType.Textbox, Section = "Authentication", HelpText = "Your numeric Qobuz user ID. Only needed for token authentication. You can find this in your Qobuz web player session data.")]
         public string UserId { get; set; }
 
-        [FieldDefinition(5, Label = "Authentication Token", Type = FieldType.Password, Privacy = PrivacyLevel.Password, Section = "Authentication", Advanced = true, HelpText = "Your Qobuz authentication token. This is an advanced option for users who have extracted their session token from the Qobuz web player.")]
+        [FieldDefinition(5, Label = "Authentication Token", Type = FieldType.Password, Privacy = PrivacyLevel.Password, Section = "Authentication", HelpText = "Your Qobuz authentication token. This is an advanced option for users who have extracted their session token from the Qobuz web player.")]
         public string AuthToken { get; set; }
 
         [FieldDefinition(6, Label = "App ID", Type = FieldType.Textbox, Section = "Authentication", Advanced = true, HelpText = "Qobuz API Application ID. Leave empty for automatic detection from Qobuz web player. Only set this if you have custom API credentials.")]
