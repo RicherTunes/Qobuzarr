@@ -408,17 +408,50 @@ namespace Lidarr.Plugin.Qobuzarr.API
         public async Task<string> GetStreamingUrlAsync(string trackId, int formatId, CancellationToken cancellationToken = default)
         {
             _logger.Debug("Getting streaming URL for track {0} with format {1}", trackId, formatId);
-            
+
             var parameters = new Dictionary<string, string>
             {
                 ["track_id"] = trackId,
                 ["format_id"] = formatId.ToString(),
                 ["intent"] = "stream"
             };
-            
+
             var streamingInfo = await GetAsync<QobuzStreamResponse>("track/getFileUrl", parameters);
-            
-            return streamingInfo?.Url;
+
+            if (streamingInfo == null)
+            {
+                throw new InvalidOperationException("Qobuz streaming response was null.");
+            }
+
+            if (streamingInfo.Sample == true)
+            {
+                throw new InvalidOperationException("Qobuz returned a sample stream; subscription or quality may be restricted.");
+            }
+
+            if (streamingInfo.HasRestrictions())
+            {
+                var message = streamingInfo.GetRestrictionMessage() ?? "Qobuz stream is restricted.";
+                throw new InvalidOperationException(message);
+            }
+
+            if (string.IsNullOrWhiteSpace(streamingInfo.Url))
+            {
+                var details = streamingInfo.Message;
+                if (string.IsNullOrWhiteSpace(details))
+                {
+                    details = streamingInfo.Status;
+                }
+
+                throw new InvalidOperationException($"Qobuz returned an empty stream URL. {details}".Trim());
+            }
+
+            _logger.Debug("Streaming URL acquired for track {0}: format={1}, mime={2}, expires={3}",
+                trackId,
+                streamingInfo.FormatId,
+                streamingInfo.MimeType,
+                streamingInfo.ExpiresAt?.ToString("O") ?? "unknown");
+
+            return streamingInfo.Url;
         }
 
         /// <summary>

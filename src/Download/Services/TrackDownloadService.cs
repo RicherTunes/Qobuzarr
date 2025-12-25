@@ -4,8 +4,10 @@ using System.IO;
 using System.Linq;
 using System.Net.Http;
 using System.Net.Http.Headers;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using Lidarr.Plugin.Qobuzarr.Download;
 using NLog;
 using Lidarr.Plugin.Qobuzarr.API;
 using Lidarr.Plugin.Qobuzarr.Download.Clients;
@@ -202,6 +204,14 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Services
             using var response = await httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cancellationToken).ConfigureAwait(false);
             response.EnsureSuccessStatusCode();
 
+            var contentType = response.Content.Headers.ContentType?.MediaType ?? "unknown";
+            var contentLength = response.Content.Headers.ContentLength;
+            var urlHost = DownloadResponseDiagnostics.TryGetHost(url);
+            if (response.StatusCode == System.Net.HttpStatusCode.NoContent || contentLength == 0)
+            {
+                throw new InvalidOperationException($"Download returned no content (HTTP {(int)response.StatusCode} {response.StatusCode}, Host={urlHost}, Content-Type={contentType}).");
+            }
+
             var directory = Path.GetDirectoryName(filePath);
             if (!string.IsNullOrEmpty(directory)) Directory.CreateDirectory(directory);
 
@@ -218,6 +228,31 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Services
             var buffer = new byte[131072];
             long totalWritten = existing;
             int read;
+
+            read = await responseStream.ReadAsync(buffer.AsMemory(0, buffer.Length), cancellationToken).ConfigureAwait(false);
+            if (read <= 0)
+            {
+                throw new InvalidOperationException($"Downloaded stream contained no data (Host={urlHost}, Content-Type={contentType}, Content-Length={contentLength?.ToString() ?? "unknown"}).");
+            }
+
+            if (DownloadResponseDiagnostics.IsTextLikeContentType(contentType) || DownloadResponseDiagnostics.LooksLikeTextPayload(buffer, read))
+            {
+                var snippet = Encoding.UTF8.GetString(buffer, 0, Math.Min(read, 512))
+                    .Replace("\r", " ")
+                    .Replace("\n", " ")
+                    .Trim();
+
+                if (DownloadResponseDiagnostics.ShouldRedactSnippet(snippet))
+                {
+                    snippet = "[redacted]";
+                }
+
+                throw new InvalidOperationException($"Unexpected content type '{contentType}' when downloading audio (Host={urlHost}). Snippet: {snippet}");
+            }
+
+            await fileStream.WriteAsync(buffer.AsMemory(0, read), cancellationToken).ConfigureAwait(false);
+            totalWritten += read;
+
             while ((read = await responseStream.ReadAsync(buffer.AsMemory(0, buffer.Length), cancellationToken).ConfigureAwait(false)) > 0)
             {
                 await fileStream.WriteAsync(buffer.AsMemory(0, read), cancellationToken).ConfigureAwait(false);
