@@ -714,42 +714,46 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Clients
             }
 
             await using var responseStream = await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
-            await using var fileStream = new FileStream(partialPath, FileMode.Append, FileAccess.Write, FileShare.None, 131072, useAsync: true);
 
             var buffer = new byte[131072];
             long totalWritten = existing;
             int read;
 
-            read = await responseStream.ReadAsync(buffer.AsMemory(0, buffer.Length), cancellationToken).ConfigureAwait(false);
-            if (read <= 0)
+            // Explicit scope ensures fileStream is closed before File.Move
+            await using (var fileStream = new FileStream(partialPath, FileMode.Append, FileAccess.Write, FileShare.None, 131072, useAsync: true))
             {
-                throw new InvalidOperationException($"Downloaded stream contained no data (Host={urlHost}, Content-Type={contentType}, Content-Length={contentLength?.ToString() ?? "unknown"}).");
-            }
-
-            if (DownloadResponseDiagnostics.IsTextLikeContentType(contentType) || DownloadResponseDiagnostics.LooksLikeTextPayload(buffer, read))
-            {
-                var snippet = Encoding.UTF8.GetString(buffer, 0, Math.Min(read, 512))
-                    .Replace("\r", " ")
-                    .Replace("\n", " ")
-                    .Trim();
-
-                if (DownloadResponseDiagnostics.ShouldRedactSnippet(snippet))
+                read = await responseStream.ReadAsync(buffer.AsMemory(0, buffer.Length), cancellationToken).ConfigureAwait(false);
+                if (read <= 0)
                 {
-                    snippet = "[redacted]";
+                    throw new InvalidOperationException($"Downloaded stream contained no data (Host={urlHost}, Content-Type={contentType}, Content-Length={contentLength?.ToString() ?? "unknown"}).");
                 }
 
-                throw new InvalidOperationException($"Unexpected content type '{contentType}' when downloading audio (Host={urlHost}). Snippet: {snippet}");
-            }
+                if (DownloadResponseDiagnostics.IsTextLikeContentType(contentType) || DownloadResponseDiagnostics.LooksLikeTextPayload(buffer, read))
+                {
+                    var snippet = Encoding.UTF8.GetString(buffer, 0, Math.Min(read, 512))
+                        .Replace("\r", " ")
+                        .Replace("\n", " ")
+                        .Trim();
 
-            await fileStream.WriteAsync(buffer.AsMemory(0, read), cancellationToken).ConfigureAwait(false);
-            totalWritten += read;
+                    if (DownloadResponseDiagnostics.ShouldRedactSnippet(snippet))
+                    {
+                        snippet = "[redacted]";
+                    }
 
-            while ((read = await responseStream.ReadAsync(buffer.AsMemory(0, buffer.Length), cancellationToken).ConfigureAwait(false)) > 0)
-            {
+                    throw new InvalidOperationException($"Unexpected content type '{contentType}' when downloading audio (Host={urlHost}). Snippet: {snippet}");
+                }
+
                 await fileStream.WriteAsync(buffer.AsMemory(0, read), cancellationToken).ConfigureAwait(false);
                 totalWritten += read;
+
+                while ((read = await responseStream.ReadAsync(buffer.AsMemory(0, buffer.Length), cancellationToken).ConfigureAwait(false)) > 0)
+                {
+                    await fileStream.WriteAsync(buffer.AsMemory(0, read), cancellationToken).ConfigureAwait(false);
+                    totalWritten += read;
+                }
+
+                await fileStream.FlushAsync(cancellationToken).ConfigureAwait(false);
             }
-            fileStream.Flush(true);
 
             File.Move(partialPath, filePath, overwrite: true);
 
