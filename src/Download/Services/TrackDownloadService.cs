@@ -260,6 +260,12 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Services
             }
             fileStream.Flush(true);
 
+            // Ensure all data is flushed to disk before closing
+            await fileStream.FlushAsync(cancellationToken).ConfigureAwait(false);
+
+            // Explicitly close the stream before moving the file
+            await fileStream.DisposeAsync().ConfigureAwait(false);
+
             File.Move(partialPath, filePath, overwrite: true);
 
             if (!Lidarr.Plugin.Common.Utilities.ValidationUtilities.ValidateDownloadedFile(filePath))
