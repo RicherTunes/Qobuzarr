@@ -306,7 +306,7 @@ namespace Lidarr.Plugin.Qobuzarr.Authentication
                 .AddQueryParam("app_id", effectiveAppId)
                 .AddQueryParam("email", email)
                 .AddQueryParam("password", md5Password)
-                .SetHeader("User-Agent", QobuzConstants.Api.UserAgent);
+                .SetHeader("Accept", "application/json");
 
             var request = requestBuilder.Build();
             var response = await _httpClient.ExecuteAsync(request).ConfigureAwait(false);

@@ -40,6 +40,13 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers.RequestGeneration
                     throw new ArgumentException("Query cannot be null or empty", nameof(query));
                 }
 
+                if (session == null ||
+                    string.IsNullOrWhiteSpace(session.AppId) ||
+                    string.IsNullOrWhiteSpace(session.AuthToken))
+                {
+                    throw new InvalidOperationException("Qobuz session is not available. Configure credentials and click Test on the indexer.");
+                }
+
                 // Compose query parameters (TrevTV's approach - no auth in query params)
                 var parameters = new Dictionary<string, string>
                 {
