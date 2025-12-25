@@ -210,8 +210,23 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
                             
                             if (parsedReleases?.Any() == true)
                             {
+                                var indexerId = Definition?.Id ?? 0;
+                                if (indexerId == 0)
+                                {
+                                    _logger.Warn("Indexer Definition was not available; generated releases will have IndexerId=0 and grabs may fail.");
+                                }
+
+                                foreach (var release in parsedReleases)
+                                {
+                                    release.IndexerId = indexerId;
+                                    if (string.IsNullOrWhiteSpace(release.Indexer))
+                                    {
+                                        release.Indexer = Definition?.Name;
+                                    }
+                                }
+
                                 releases.AddRange(parsedReleases);
-                                
+
                             // Log ML optimization metrics via delegated manager
                             _mlManager.Value.LogMLPerformanceSummary();
                             }
