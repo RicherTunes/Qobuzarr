@@ -8,7 +8,8 @@
   "homepage": "https://github.com/richertunes/qobuzarr",
   "license": "GPL-3.0",
   "tags": ["music", "qobuz", "hi-res", "lossless"],
-  "minHostVersion": "2.13.2.4685",
+  "minHostVersion": "3.1.1.4884",
+  "commonVersion": "1.5.0",
   "targetFramework": "net8.0",
   "main": "Lidarr.Plugin.Qobuzarr.dll",
   "rootNamespace": "Lidarr.Plugin.Qobuzarr"
