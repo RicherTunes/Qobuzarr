@@ -198,7 +198,8 @@ namespace Lidarr.Plugin.Qobuzarr.API.Http
         public HttpRequestBuilder BuildRequest(string url, string method = "GET")
         {
             var builder = new HttpRequestBuilder(url)
-                .SetHeader("User-Agent", QobuzConstants.Api.UserAgent);
+                // Don't set a custom User-Agent: Lidarr's IHttpClient enforces its own UA and may reject non-Lidarr values.
+                .SetHeader("Accept", "application/json");
 
             if (method.Equals("POST", StringComparison.OrdinalIgnoreCase))
             {

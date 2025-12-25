@@ -248,7 +248,7 @@ namespace Lidarr.Plugin.Qobuzarr.Integration
                 
                 var request = new HttpRequestBuilder(url)
                     .SetHeader("X-Api-Key", _apiKey)
-                    .SetHeader("User-Agent", "Qobuzarr/1.0.0")
+                    .SetHeader("Accept", "application/json")
                     .Build();
 
                 var response = await _httpClient.ExecuteAsync(request).ConfigureAwait(false);
@@ -295,7 +295,6 @@ namespace Lidarr.Plugin.Qobuzarr.Integration
                 
                 var requestBuilder = new HttpRequestBuilder(url)
                     .SetHeader("X-Api-Key", _apiKey)
-                    .SetHeader("User-Agent", "Qobuzarr/1.0.0")
                     .SetHeader("Accept", "application/json");
 
                 // Add query parameters

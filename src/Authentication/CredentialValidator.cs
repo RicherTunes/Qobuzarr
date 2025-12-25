@@ -49,7 +49,7 @@ namespace Lidarr.Plugin.Qobuzarr.Authentication
         [GeneratedRegex(@"^[0-9]{1,20}$")]
         private static partial Regex UserIdPattern();
         
-        [GeneratedRegex(@"^[a-zA-Z0-9+/=]{20,200}$")]
+        [GeneratedRegex(@"^[a-zA-Z0-9_\-+/=]{20,200}$")]
         private static partial Regex AuthTokenPattern();
         
         [GeneratedRegex(@"^[a-fA-F0-9]{32}$")]
