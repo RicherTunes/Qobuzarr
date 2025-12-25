@@ -304,25 +304,9 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Clients
                 // Get effective settings (supports test subclasses)
                 var settings = GetEffectiveSettings();
                 
-                // Test authentication - use async-safe pattern to avoid deadlocks
-                try
-                {
-                    // Run async operation in a separate task context to avoid deadlock
-                    var authTask = Task.Run(async () => await EnsureAuthenticatedAsync().ConfigureAwait(false));
-                    authTask.Wait(TimeSpan.FromSeconds(30)); // Add timeout to prevent hanging
-                    
-                    if (!authTask.IsCompletedSuccessfully)
-                    {
-                        failures.Add(new ValidationFailure("Authentication", "Authentication timed out or failed"));
-                        return;
-                    }
-                }
-                catch (Exception ex)
-                {
-                    failures.Add(new ValidationFailure("Authentication", $"Authentication failed: {ex.Message}"));
-                    return;
-                }
-                
+                // Note: Authentication is handled by the indexer - we don't test it here
+                // This matches TrevTV's approach where the download client trusts the indexer's auth
+
                 // Test download path accessibility using file service
                 if (!string.IsNullOrWhiteSpace(settings.DownloadPath))
                 {

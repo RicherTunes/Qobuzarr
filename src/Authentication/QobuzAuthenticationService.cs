@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Net;
 using System.Net.Http;
 using System.Security.Cryptography;
 using System.Text;
@@ -41,6 +42,13 @@ namespace Lidarr.Plugin.Qobuzarr.Authentication
         private const string SESSION_CACHE_KEY = "qobuz_session";
         // API base, app ID and secret moved to QobuzConstants
 
+        private const string LidarrUserAgent = "Lidarr";
+        private const string BrowserUserAgent =
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
+
+        private static readonly System.Net.Http.HttpClient RawHttpClient = CreateRawHttpClient();
+        private static readonly System.Net.Http.HttpClient WebPlayerHttpClient = CreateWebPlayerHttpClient();
+
         private readonly ICached<QobuzSession> _sessionCache;
 
         public QobuzAuthenticationService(IHttpClient httpClient,
@@ -57,6 +65,67 @@ namespace Lidarr.Plugin.Qobuzarr.Authentication
             _logger = logger;
             _credentialValidator = credentialValidator ?? new CredentialValidator(logger);
             _sessionCache = _cacheManager.GetCache<QobuzSession>(GetType());
+        }
+
+        private static System.Net.Http.HttpClient CreateRawHttpClient()
+        {
+            var handler = new SocketsHttpHandler
+            {
+                AutomaticDecompression = DecompressionMethods.GZip | DecompressionMethods.Deflate | DecompressionMethods.Brotli,
+                PooledConnectionLifetime = TimeSpan.FromMinutes(10),
+                MaxConnectionsPerServer = 8
+            };
+
+            return new System.Net.Http.HttpClient(handler, disposeHandler: true)
+            {
+                Timeout = TimeSpan.FromSeconds(20)
+            };
+        }
+
+        private static System.Net.Http.HttpClient CreateWebPlayerHttpClient()
+        {
+            var handler = new SocketsHttpHandler
+            {
+                AutomaticDecompression = DecompressionMethods.GZip | DecompressionMethods.Deflate | DecompressionMethods.Brotli,
+                PooledConnectionLifetime = TimeSpan.FromMinutes(10),
+                MaxConnectionsPerServer = 2
+            };
+
+            var client = new System.Net.Http.HttpClient(handler, disposeHandler: true)
+            {
+                Timeout = TimeSpan.FromSeconds(30)
+            };
+
+            client.DefaultRequestHeaders.UserAgent.ParseAdd(BrowserUserAgent);
+            client.DefaultRequestHeaders.Accept.ParseAdd("text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8");
+
+            return client;
+        }
+
+        private static string BuildUrl(string baseUrl, Dictionary<string, string> queryParams)
+        {
+            if (queryParams == null || queryParams.Count == 0)
+            {
+                return baseUrl;
+            }
+
+            var parts = new List<string>(queryParams.Count);
+            foreach (var (key, value) in queryParams)
+            {
+                if (string.IsNullOrEmpty(key) || value == null)
+                {
+                    continue;
+                }
+
+                parts.Add($"{Uri.EscapeDataString(key)}={Uri.EscapeDataString(value)}");
+            }
+
+            if (parts.Count == 0)
+            {
+                return baseUrl;
+            }
+
+            return $"{baseUrl}?{string.Join("&", parts)}";
         }
 
         // Shared IStreamingAuthenticationService implementation (adapters)
@@ -327,16 +396,20 @@ namespace Lidarr.Plugin.Qobuzarr.Authentication
                     return false;
                 }
 
-                // Make a test API call to validate the session
-                var requestBuilder = new HttpRequestBuilder($"{QobuzConstants.Api.BaseUrl}/user/login")
-                    .AddQueryParam("app_id", session.AppId)
-                    .AddQueryParam("user_auth_token", session.AuthToken)
-                    .SetHeader("User-Agent", QobuzConstants.Api.UserAgent);
+                var url = BuildUrl($"{QobuzConstants.Api.BaseUrl}{LOGIN_ENDPOINT}", new Dictionary<string, string>
+                {
+                    ["app_id"] = session.AppId,
+                    ["user_id"] = session.UserId,
+                    ["user_auth_token"] = session.AuthToken
+                });
 
-                var request = requestBuilder.Build();
-                var response = await _httpClient.ExecuteAsync(request).ConfigureAwait(false);
+                using var request = new HttpRequestMessage(HttpMethod.Get, url);
+                request.Headers.UserAgent.ParseAdd(LidarrUserAgent);
 
-                return !response.HasHttpError;
+                using var response = await RawHttpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead)
+                    .ConfigureAwait(false);
+
+                return response.IsSuccessStatusCode;
             }
             catch (Exception ex)
             {
@@ -456,50 +529,38 @@ namespace Lidarr.Plugin.Qobuzarr.Authentication
             try
             {
                 _logger.Debug("Attempting to fetch dynamic credentials from Qobuz web player using QobuzApiSharp method");
-                
-                // Step 1: Fetch the login page to get bundle.js URL
-                var loginRequest = new HttpRequestBuilder("https://play.qobuz.com/login")
-                    .SetHeader("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36")
-                    .Build();
-                
-                var loginResponse = await _httpClient.ExecuteAsync(loginRequest).ConfigureAwait(false);
-                
-                if (loginResponse.HasHttpError)
-                {
-                    throw new InvalidOperationException($"Failed to fetch Qobuz web player login page: {loginResponse.StatusCode}");
-                }
-                
-                var loginHtml = loginResponse.Content;
-                
+
+                // Step 1: Fetch the login page to get bundle.js URL      
+                var loginHtml = await WebPlayerHttpClient.GetStringAsync("https://play.qobuz.com/login")
+                    .ConfigureAwait(false);
+
                 // Step 2: Extract bundle.js URL using QobuzApiSharp's regex pattern
-                var bundleMatch = System.Text.RegularExpressions.Regex.Match(loginHtml, "<script src=\"(?<bundleJS>\\/resources\\/\\d+\\.\\d+\\.\\d+-[a-z]\\d{3}\\/bundle\\.js)");
-                
+                var bundleMatch = System.Text.RegularExpressions.Regex.Match(
+                    loginHtml,
+                    @"<script\s+src=""(?<bundleJS>/resources/\d+\.\d+\.\d+-[a-z]\d{3}/bundle\.js)""",
+                    System.Text.RegularExpressions.RegexOptions.IgnoreCase | System.Text.RegularExpressions.RegexOptions.CultureInvariant,
+                    TimeSpan.FromMilliseconds(250));
+
                 if (!bundleMatch.Success)
                 {
                     throw new InvalidOperationException("Failed to find bundle.js link in Qobuz web player");
                 }
-                
-                var bundleSuffix = bundleMatch.Groups[1].Value;
-                var bundleUrl = "https://play.qobuz.com" + bundleSuffix;
-                
+
+                var bundleSuffix = bundleMatch.Groups["bundleJS"].Value;
+                var bundleUrl = "https://play.qobuz.com" + bundleSuffix;  
+
                 _logger.Debug($"Found bundle.js URL: {bundleUrl}");
-                
+
                 // Step 3: Fetch bundle.js
-                var bundleRequest = new HttpRequestBuilder(bundleUrl)
-                    .SetHeader("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36")
-                    .Build();
-                
-                var bundleResponse = await _httpClient.ExecuteAsync(bundleRequest).ConfigureAwait(false);
-                
-                if (bundleResponse.HasHttpError)
-                {
-                    throw new InvalidOperationException($"Failed to fetch bundle.js: {bundleResponse.StatusCode}");
-                }
-                
-                var bundleContent = bundleResponse.Content;
-                
+                var bundleContent = await WebPlayerHttpClient.GetStringAsync(bundleUrl)
+                    .ConfigureAwait(false);
+
                 // Step 4: Extract App ID using QobuzApiSharp's regex pattern
-                var appIdMatch = System.Text.RegularExpressions.Regex.Match(bundleContent, "production:{api:{appId:\"(?<appID>.*?)\",appSecret:");
+                var appIdMatch = System.Text.RegularExpressions.Regex.Match(
+                    bundleContent,
+                    "production:{api:{appId:\"(?<appID>.*?)\",appSecret:",
+                    System.Text.RegularExpressions.RegexOptions.CultureInvariant,
+                    TimeSpan.FromMilliseconds(250));
                 
                 if (!appIdMatch.Success)
                 {
@@ -543,13 +604,13 @@ namespace Lidarr.Plugin.Qobuzarr.Authentication
                 }
                 
                 var seed = seedAndTimezoneMatch.Groups[1].Value;
-                var productionTimezone = System.Globalization.CultureInfo.CurrentCulture.TextInfo.ToTitleCase(seedAndTimezoneMatch.Groups[2].Value);
+                var productionTimezone = System.Globalization.CultureInfo.InvariantCulture.TextInfo.ToTitleCase(seedAndTimezoneMatch.Groups[2].Value);
                 
                 _logger.Debug($"Found seed: {seed}, timezone: {productionTimezone}");
                 
                 // Step 2: Find info and extras for the production timezone
-                var infoAndExtrasPattern = "timezones:\\[.*?name:\".*?\\/" + productionTimezone + "\\\",info:\\\"(?<info>.*?)\\\",extras:\\\"(?<extras>.*?)\\\"";
-                var infoAndExtrasMatch = System.Text.RegularExpressions.Regex.Match(bundleContent, infoAndExtrasPattern);
+                var infoAndExtrasPattern = "name:\"[^\"]*/" + productionTimezone + "\",info:\"(?<info>[^\"]*)\",extras:\"(?<extras>[^\"]*)\"";
+                var infoAndExtrasMatch = System.Text.RegularExpressions.Regex.Match(bundleContent, infoAndExtrasPattern, System.Text.RegularExpressions.RegexOptions.IgnoreCase);
                 
                 if (!infoAndExtrasMatch.Success)
                 {

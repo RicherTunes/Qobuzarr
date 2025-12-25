@@ -40,7 +40,7 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers.RequestGeneration
                     throw new ArgumentException("Query cannot be null or empty", nameof(query));
                 }
 
-                // Compose query parameters using shared helpers
+                // Compose query parameters (TrevTV's approach - no auth in query params)
                 var parameters = new Dictionary<string, string>
                 {
                     ["query"] = query,
@@ -49,25 +49,24 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers.RequestGeneration
                     ["format_id"] = "7" // Hi-Res default; kept consistent with previous behavior
                 };
 
-                // Add authentication if session is available
-                if (session != null && !string.IsNullOrWhiteSpace(session.AuthToken))
-                {
-                    parameters["user_auth_token"] = session.AuthToken;
-                    if (!string.IsNullOrWhiteSpace(session.AppId))
-                    {
-                        parameters["app_id"] = session.AppId;
-                    }
-                }
-
                 var url = StreamingIndexerHelpers.BuildSearchUrl(BASE_URL, SEARCH_ENDPOINT, parameters);
 
                 var httpRequest = new HttpRequest(url);
+                httpRequest.Method = System.Net.Http.HttpMethod.Get;
+                httpRequest.Headers["Accept"] = "application/json";
 
-                // Standard headers via shared helper
-                var headers = StreamingIndexerHelpers.CreateStreamingHeaders(QobuzConstants.Api.UserAgent);
-                foreach (var kv in headers)
+                // Use X-App-ID and X-User-Auth-Token headers (TrevTV's approach)
+                // DON'T set custom User-Agent - Lidarr blocks non-Lidarr User-Agents
+                if (session != null)
                 {
-                    httpRequest.Headers[kv.Key] = kv.Value;
+                    if (!string.IsNullOrWhiteSpace(session.AppId))
+                    {
+                        httpRequest.Headers.Add("X-App-ID", session.AppId);
+                    }
+                    if (!string.IsNullOrWhiteSpace(session.AuthToken))
+                    {
+                        httpRequest.Headers.Add("X-User-Auth-Token", session.AuthToken);
+                    }
                 }
 
                 _logger.Debug("Created search request for query: {0}", query);
