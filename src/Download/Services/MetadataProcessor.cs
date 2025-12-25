@@ -274,7 +274,7 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Services
 
                 // Download cover art
                 var request = new HttpRequestBuilder(coverArtUrl)
-                    .SetHeader("User-Agent", "Qobuzarr/1.0.0")
+                    .SetHeader("Accept", "image/*")
                     .Build();
 
                 var response = await _httpClient.ExecuteAsync(request).ConfigureAwait(false);
