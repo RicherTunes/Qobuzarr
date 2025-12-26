@@ -629,19 +629,24 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Clients
             });
 
             // REAL download implementation - get stream URL and download actual audio
-            var outputPath = Path.Combine(downloadItem.OutputPath, $"{track.TrackNumber:00} - {track.Title}.flac");
+            string outputPath = null;
             
             try
             {
-                _logger.Info("🎵 Downloading track: {0} to {1}", track.Title, outputPath);
-                
-                // 1. Get streaming URL from Qobuz API
-                var streamUrl = await _apiClient.GetStreamingUrlAsync(track.Id, Settings.PreferredQuality).ConfigureAwait(false);
+                // 1. Get streaming info from Qobuz API (need format before building path)
+                var streamingInfo = await _apiClient.GetStreamingInfoAsync(track.Id, Settings.PreferredQuality).ConfigureAwait(false);
+                var streamUrl = streamingInfo?.Url;
                 if (string.IsNullOrEmpty(streamUrl))
                 {
                     throw new InvalidOperationException($"Could not get streaming URL for track: {track.Title}");
                 }
                 
+                // Build output path with sanitized filename and correct extension based on actual format
+                var actualFormatId = streamingInfo?.FormatId ?? Settings.PreferredQuality;
+                var filename = TrackFileNameBuilder.Build(track.TrackNumber, track.Title, actualFormatId);
+                outputPath = Path.Combine(downloadItem.OutputPath, filename);
+                
+                _logger.Info("🎵 Downloading track: {0} to {1}", track.Title, outputPath);
                 _logger.Debug("🔗 Got streaming URL for track {0}", track.Id);
                 
                 // 2. Create output directory
