@@ -5,6 +5,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using NLog;
 using Lidarr.Plugin.Qobuzarr.Constants;
+using Lidarr.Plugin.Qobuzarr.Models;
 using Lidarr.Plugin.Qobuzarr.Models.Authentication;
 using Lidarr.Plugin.Qobuzarr.Services;
 using Lidarr.Plugin.Common.Services.Performance;
@@ -153,6 +154,32 @@ namespace Lidarr.Plugin.Qobuzarr.API
             catch (Exception)
             {
                 // Record error response for rate limiter
+                var errorResponse = new HttpResponseMessage(System.Net.HttpStatusCode.InternalServerError);
+                _adaptiveRateLimiter.RecordResponse(QobuzarrConstants.ServiceName, endpoint, errorResponse);
+                throw;
+            }
+        }
+
+        /// <summary>
+        /// Delegates streaming response requests to the inner client with rate limiting.
+        /// </summary>
+        public async Task<QobuzStreamResponse> GetStreamingInfoAsync(string trackId, int formatId, CancellationToken cancellationToken = default)
+        {
+            var endpoint = "/track/getFileUrl";
+
+            await _adaptiveRateLimiter.WaitIfNeededAsync("Qobuz", endpoint, cancellationToken).ConfigureAwait(false);
+
+            try
+            {
+                var result = await _innerClient.GetStreamingInfoAsync(trackId, formatId, cancellationToken).ConfigureAwait(false);
+
+                var successResponse = new HttpResponseMessage(System.Net.HttpStatusCode.OK);
+                _adaptiveRateLimiter.RecordResponse(QobuzarrConstants.ServiceName, endpoint, successResponse);
+
+                return result;
+            }
+            catch (Exception)
+            {
                 var errorResponse = new HttpResponseMessage(System.Net.HttpStatusCode.InternalServerError);
                 _adaptiveRateLimiter.RecordResponse(QobuzarrConstants.ServiceName, endpoint, errorResponse);
                 throw;

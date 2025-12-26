@@ -25,8 +25,11 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Clients
         public string OutputPath { get; set; }
         public string Message { get; set; }
         public Task DownloadTask { get; set; }
-        public CancellationTokenSource CancellationTokenSource { get; set; }
+        public CancellationTokenSource CancellationTokenSource { get; set; }    
         public QobuzAlbum Album { get; set; }
+
+        public int QualityFallbackCount { get; set; }
+        public string QualityFallbackExample { get; set; }
 
         /// <summary>
         /// Calculate download speed in bytes per second
@@ -67,7 +70,9 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Clients
             {
                 DownloadItemStatus.Queued => "Queued for download",
                 DownloadItemStatus.Downloading => $"Downloading... {Progress:F1}%",
-                DownloadItemStatus.Completed => "Download completed",
+                DownloadItemStatus.Completed => QualityFallbackCount > 0
+                    ? $"Download completed (quality fallback used for {QualityFallbackCount} track(s))"
+                    : "Download completed",
                 DownloadItemStatus.Failed => $"Download failed: {Message}",
                 DownloadItemStatus.Warning => $"Download warning: {Message}",
                 _ => "Unknown status"

@@ -146,13 +146,30 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Services
                 _logger.Info("Downloading track: {0} to {1}", track.Title, outputPath);
 
                 // 1. Get streaming URL from Qobuz API
-                var streamUrl = await _apiClient.GetStreamingUrlAsync(track.Id, settings.PreferredQuality).ConfigureAwait(false);
+                var streamingInfo = await _apiClient.GetStreamingInfoAsync(track.Id, settings.PreferredQuality, cancellationToken).ConfigureAwait(false);
+                var streamUrl = streamingInfo?.Url;
                 if (string.IsNullOrEmpty(streamUrl))
                 {
                     throw new InvalidOperationException($"Could not get streaming URL for track: {track.Title}");
                 }
 
-                _logger.Debug("Got streaming URL for track {0}", track.Id);
+                if (streamingInfo != null &&
+                    streamingInfo.IsQualityFallbackOnly() &&
+                    streamingInfo.FormatId != settings.PreferredQuality)
+                {
+                    downloadItem.QualityFallbackCount++;
+                    downloadItem.QualityFallbackExample ??= $"{settings.PreferredQuality}→{streamingInfo.FormatId}";
+
+                    _logger.Info("Quality fallback: {0} - {1} (track {2}) requested {3}, got {4} ({5})",
+                        downloadItem.Artist,
+                        downloadItem.Title,
+                        track.Title,
+                        settings.PreferredQuality,
+                        streamingInfo.FormatId,
+                        streamingInfo.GetQualityDescription());
+                }
+
+                _logger.Debug("Got streaming URL for track {0}", track.Id);     
 
                 // 2. Ensure output directory
                 var dir = Path.GetDirectoryName(outputPath);
