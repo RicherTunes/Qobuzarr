@@ -165,7 +165,14 @@ namespace Lidarr.Plugin.Qobuzarr.Core
             var extension = GetFileExtension(formatId);
             var safeTitle = SanitizeFileName(track.Title);
             var trackNumber = track.TrackNumber.ToString("00");
-            return $"{trackNumber} - {safeTitle}.{extension}";
+
+            var discNumber = track.DiscNumber > 0 ? track.DiscNumber : 1;
+            var totalDiscs = album.MediaCount > 1 ? album.MediaCount : 1;
+            var prefix = totalDiscs > 1
+                ? $"D{discNumber:00}T{trackNumber}"
+                : trackNumber;
+
+            return $"{prefix} - {safeTitle}.{extension}";
         }
 
         private string GetFileExtension(int formatId)
