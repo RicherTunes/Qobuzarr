@@ -229,8 +229,41 @@ namespace Qobuzarr.Tests.Unit.Download
             var expectedTitle = $"{remoteAlbum.Artist.Name} - {remoteAlbum.Albums.FirstOrDefault()?.Title ?? "Unknown Album"}";
             downloadItem.Title.Should().Be(expectedTitle);
             // After download completes, status should be Completed (not Queued)
-            downloadItem.Status.Should().Be(DownloadItemStatus.Completed);
+            downloadItem.Status.Should().Be(DownloadItemStatus.Completed);      
             downloadItem.TotalSize.Should().BeGreaterThan(0);
+        }
+
+        [Fact]
+        public async Task Download_WithQualityFallbacks_ShouldSurfaceInCompletionMessage()
+        {
+            // Arrange
+            _mockTrackDownloadService.DownloadAlbumAsync(
+                Arg.Any<QobuzDownloadItem>(),
+                Arg.Any<QobuzAlbum>(),
+                Arg.Any<QobuzDownloadSettings>(),
+                Arg.Any<CancellationToken>()
+            ).Returns(callInfo =>
+            {
+                var item = callInfo.ArgAt<QobuzDownloadItem>(0);
+                item.RecordQualityFallback(requestedFormatId: 7, actualFormatId: 6);
+                item.RecordQualityFallback(requestedFormatId: 7, actualFormatId: 6);
+                return Task.CompletedTask;
+            });
+
+            var remoteAlbum = CreateTestRemoteAlbum();
+
+            // Act
+            var downloadId = await _downloadClient.Download(remoteAlbum, Substitute.For<IIndexer>());
+            if (_lastQueuedDownload?.DownloadTask != null)
+            {
+                await _lastQueuedDownload.DownloadTask;
+            }
+
+            // Assert
+            var downloadItem = _downloadClient.GetItems().FirstOrDefault(x => x.DownloadId == downloadId);
+            downloadItem.Should().NotBeNull();
+            downloadItem.Status.Should().Be(DownloadItemStatus.Completed);
+            downloadItem.Message.Should().Contain("quality fallback used for 2 track(s)");
         }
 
         [Fact]

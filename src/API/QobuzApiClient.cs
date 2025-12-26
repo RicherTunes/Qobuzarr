@@ -407,6 +407,12 @@ namespace Lidarr.Plugin.Qobuzarr.API
         /// </summary>
         public async Task<string> GetStreamingUrlAsync(string trackId, int formatId, CancellationToken cancellationToken = default)
         {
+            var streamingInfo = await GetStreamingInfoAsync(trackId, formatId, cancellationToken).ConfigureAwait(false);
+            return streamingInfo.Url;
+        }
+
+        public async Task<QobuzStreamResponse> GetStreamingInfoAsync(string trackId, int formatId, CancellationToken cancellationToken = default)
+        {
             _logger.Debug("Getting streaming URL for track {0} with format {1}", trackId, formatId);
 
             var parameters = new Dictionary<string, string>
@@ -416,7 +422,7 @@ namespace Lidarr.Plugin.Qobuzarr.API
                 ["intent"] = "stream"
             };
 
-            var streamingInfo = await GetAsync<QobuzStreamResponse>("track/getFileUrl", parameters);
+            var streamingInfo = await GetAsync<QobuzStreamResponse>("track/getFileUrl", parameters).ConfigureAwait(false);
 
             if (streamingInfo == null)
             {
@@ -430,8 +436,19 @@ namespace Lidarr.Plugin.Qobuzarr.API
 
             if (streamingInfo.HasRestrictions())
             {
-                var message = streamingInfo.GetRestrictionMessage() ?? "Qobuz stream is restricted.";
-                throw new InvalidOperationException(message);
+                if (streamingInfo.IsQualityFallbackOnly())
+                {
+                    _logger.Info("Track {0}: Requested format {1} not available; using fallback format {2} ({3})",
+                        trackId,
+                        formatId,
+                        streamingInfo.FormatId,
+                        streamingInfo.GetQualityDescription());
+                }
+                else
+                {
+                    var message = streamingInfo.GetRestrictionMessage() ?? "Qobuz stream is restricted.";
+                    throw new InvalidOperationException(message);
+                }
             }
 
             if (string.IsNullOrWhiteSpace(streamingInfo.Url))
@@ -451,7 +468,7 @@ namespace Lidarr.Plugin.Qobuzarr.API
                 streamingInfo.MimeType,
                 streamingInfo.ExpiresAt?.ToString("O") ?? "unknown");
 
-            return streamingInfo.Url;
+            return streamingInfo;
         }
 
         /// <summary>
