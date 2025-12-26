@@ -643,7 +643,7 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Clients
                 
                 // Build output path with sanitized filename and correct extension based on actual format
                 var actualFormatId = streamingInfo?.FormatId ?? Settings.PreferredQuality;
-                var filename = TrackFileNameBuilder.Build(track.TrackNumber, track.Title, actualFormatId);
+                var filename = TrackFileNameBuilder.Build(track.TrackNumber, track.Title, actualFormatId, track.DiscNumber, album.MediaCount);
                 outputPath = Path.Combine(downloadItem.OutputPath, filename);
                 
                 _logger.Info("🎵 Downloading track: {0} to {1}", track.Title, outputPath);
