@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using Lidarr.Plugin.Qobuzarr.Abstractions;
 using Lidarr.Plugin.Qobuzarr.API;
 using Lidarr.Plugin.Qobuzarr.Authentication;
+using Lidarr.Plugin.Qobuzarr.Models;
 using Lidarr.Plugin.Qobuzarr.Models.Authentication;
 using Newtonsoft.Json;
 using NzbDrone.Common.Http;
@@ -159,6 +160,21 @@ namespace QobuzCLI.Services.Adapters
             
             var response = await GetAsync<dynamic>("/track/getFileUrl", parameters);
             return response?.url?.ToString() ?? string.Empty;
+        }
+
+        public async Task<QobuzStreamResponse> GetStreamingInfoAsync(string trackId, int formatId, CancellationToken cancellationToken = default)
+        {
+            await EnsureSessionAsync().ConfigureAwait(false);
+
+            var parameters = new Dictionary<string, string>
+            {
+                { "track_id", trackId },
+                { "format_id", formatId.ToString() },
+                { "intent", "stream" }
+            };
+
+            var response = await GetAsync<QobuzStreamResponse>("/track/getFileUrl", parameters).ConfigureAwait(false);
+            return response ?? new QobuzStreamResponse();
         }
         
         private string BuildUrl(string endpoint, Dictionary<string, string>? parameters)

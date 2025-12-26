@@ -245,7 +245,8 @@ namespace Qobuzarr.Tests.Unit.Download
             ).Returns(callInfo =>
             {
                 var item = callInfo.ArgAt<QobuzDownloadItem>(0);
-                item.QualityFallbackCount = 2;
+                item.RecordQualityFallback(requestedFormatId: 7, actualFormatId: 6);
+                item.RecordQualityFallback(requestedFormatId: 7, actualFormatId: 6);
                 return Task.CompletedTask;
             });
 

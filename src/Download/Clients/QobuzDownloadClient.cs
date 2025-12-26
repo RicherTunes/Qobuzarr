@@ -392,10 +392,10 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Clients
                 await _trackDownloadService.DownloadAlbumAsync(downloadItem, album, settings, downloadItem.CancellationTokenSource.Token).ConfigureAwait(false);
 
                 // Mark as completed
-                downloadItem.Status = DownloadItemStatus.Completed;       
+                downloadItem.Status = DownloadItemStatus.Completed;
                 downloadItem.Progress = 100;
                 downloadItem.Message = downloadItem.QualityFallbackCount > 0
-                    ? $"Download completed successfully (quality fallback used for {downloadItem.QualityFallbackCount} track(s))"
+                    ? $"Download completed successfully (quality fallback used for {downloadItem.QualityFallbackCount} track(s){(downloadItem.QualityFallbackExample != null ? $": {downloadItem.QualityFallbackExample}" : "")})"
                     : "Download completed successfully";
 
                 _logger.Info("✅ Download finished: {0} - {1}", downloadItem.Artist, downloadItem.Title);

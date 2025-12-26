@@ -157,16 +157,25 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Services
                     streamingInfo.IsQualityFallbackOnly() &&
                     streamingInfo.FormatId != settings.PreferredQuality)
                 {
-                    downloadItem.QualityFallbackCount++;
-                    downloadItem.QualityFallbackExample ??= $"{settings.PreferredQuality}→{streamingInfo.FormatId}";
+                    downloadItem.RecordQualityFallback(settings.PreferredQuality, streamingInfo.FormatId);
 
-                    _logger.Info("Quality fallback: {0} - {1} (track {2}) requested {3}, got {4} ({5})",
-                        downloadItem.Artist,
-                        downloadItem.Title,
-                        track.Title,
-                        settings.PreferredQuality,
-                        streamingInfo.FormatId,
-                        streamingInfo.GetQualityDescription());
+                    var example = downloadItem.QualityFallbackExample;
+                    if (downloadItem.QualityFallbackCount == 1)
+                    {
+                        _logger.Info("Quality fallback: {0} - {1} (track {2}) {3}",
+                            downloadItem.Artist,
+                            downloadItem.Title,
+                            track.Title,
+                            example ?? "fallback quality used");
+                    }
+                    else
+                    {
+                        _logger.Debug("Quality fallback: {0} - {1} (track {2}) {3}",
+                            downloadItem.Artist,
+                            downloadItem.Title,
+                            track.Title,
+                            example ?? "fallback quality used");
+                    }
                 }
 
                 _logger.Debug("Got streaming URL for track {0}", track.Id);     
