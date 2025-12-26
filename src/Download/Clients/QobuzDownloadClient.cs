@@ -703,7 +703,7 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Clients
 
             var contentType = response.Content.Headers.ContentType?.MediaType ?? "unknown";
             var contentLength = response.Content.Headers.ContentLength;
-            var urlHost = DownloadResponseDiagnostics.TryGetHost(url);
+            var urlHost = DownloadDiagnostics.TryGetHost(url);
             if (response.StatusCode == System.Net.HttpStatusCode.NoContent || contentLength == 0)
             {
                 throw new InvalidOperationException($"Download returned no content (HTTP {(int)response.StatusCode} {response.StatusCode}, Host={urlHost}, Content-Type={contentType}).");
@@ -735,14 +735,14 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Clients
                     throw new InvalidOperationException($"Downloaded stream contained no data (Host={urlHost}, Content-Type={contentType}, Content-Length={contentLength?.ToString() ?? "unknown"}).");
                 }
 
-                if (DownloadResponseDiagnostics.IsTextLikeContentType(contentType) || DownloadResponseDiagnostics.LooksLikeTextPayload(buffer, read))
+                if (DownloadDiagnostics.IsTextLikeContentType(contentType) || DownloadDiagnostics.LooksLikeTextPayload(buffer, read))
                 {
                     var snippet = Encoding.UTF8.GetString(buffer, 0, Math.Min(read, 512))
                         .Replace("\r", " ")
                         .Replace("\n", " ")
                         .Trim();
 
-                    if (DownloadResponseDiagnostics.ShouldRedactSnippet(snippet))
+                    if (DownloadDiagnostics.ShouldRedactSnippet(snippet))
                     {
                         snippet = "[redacted]";
                     }
@@ -764,7 +764,7 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Clients
 
             File.Move(partialPath, filePath, overwrite: true);
 
-            AudioMagicBytesValidator.ValidateAudioMagicBytes(filePath);
+            DownloadPayloadValidator.ValidateFileOrThrow(filePath);
 
             // Validate file (basic; no size/hash guarantees from server)       
             if (!Lidarr.Plugin.Common.Utilities.ValidationUtilities.ValidateDownloadedFile(filePath))

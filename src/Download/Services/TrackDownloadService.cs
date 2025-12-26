@@ -7,6 +7,7 @@ using System.Net.Http.Headers;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using Lidarr.Plugin.Common.Utilities;
 using Lidarr.Plugin.Qobuzarr.Download;
 using NLog;
 using Lidarr.Plugin.Qobuzarr.API;
@@ -237,7 +238,7 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Services
 
             var contentType = response.Content.Headers.ContentType?.MediaType ?? "unknown";
             var contentLength = response.Content.Headers.ContentLength;
-            var urlHost = DownloadResponseDiagnostics.TryGetHost(url);
+            var urlHost = DownloadDiagnostics.TryGetHost(url);
             if (response.StatusCode == System.Net.HttpStatusCode.NoContent || contentLength == 0)
             {
                 throw new InvalidOperationException($"Download returned no content (HTTP {(int)response.StatusCode} {response.StatusCode}, Host={urlHost}, Content-Type={contentType}).");
@@ -268,14 +269,14 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Services
                     throw new InvalidOperationException($"Downloaded stream contained no data (Host={urlHost}, Content-Type={contentType}, Content-Length={contentLength?.ToString() ?? "unknown"}).");
                 }
 
-                if (DownloadResponseDiagnostics.IsTextLikeContentType(contentType) || DownloadResponseDiagnostics.LooksLikeTextPayload(buffer, read))
+                if (DownloadDiagnostics.IsTextLikeContentType(contentType) || DownloadDiagnostics.LooksLikeTextPayload(buffer, read))
                 {
                     var snippet = Encoding.UTF8.GetString(buffer, 0, Math.Min(read, 512))
                         .Replace("\r", " ")
                         .Replace("\n", " ")
                         .Trim();
 
-                    if (DownloadResponseDiagnostics.ShouldRedactSnippet(snippet))
+                    if (DownloadDiagnostics.ShouldRedactSnippet(snippet))
                     {
                         snippet = "[redacted]";
                     }
@@ -297,9 +298,9 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Services
 
             File.Move(partialPath, filePath, overwrite: true);
 
-            AudioMagicBytesValidator.ValidateAudioMagicBytes(filePath);
+            DownloadPayloadValidator.ValidateFileOrThrow(filePath);
 
-            if (!Lidarr.Plugin.Common.Utilities.ValidationUtilities.ValidateDownloadedFile(filePath))
+            if (!ValidationUtilities.ValidateDownloadedFile(filePath))
             {
                 throw new InvalidOperationException($"Downloaded file failed validation: {Path.GetFileName(filePath)}");
             }
