@@ -11,11 +11,19 @@ namespace Lidarr.Plugin.Qobuzarr.Utilities
         /// <summary>
         /// Builds a sanitized track filename with the correct extension based on format.
         /// </summary>
-        public static string Build(int trackNumber, string trackTitle, int formatId)
+        public static string Build(int trackNumber, string trackTitle, int formatId, int discNumber = 1, int totalDiscs = 1)
         {
+            if (discNumber <= 0) discNumber = 1;
+            if (totalDiscs <= 1) totalDiscs = 1;
+
             var sanitizedTitle = FileNameSanitizer.SanitizeFileName(trackTitle);
             var extension = GetExtensionForFormat(formatId);
-            return $"{trackNumber:00} - {sanitizedTitle}{extension}";
+
+            var prefix = totalDiscs > 1
+                ? $"D{discNumber:00}T{trackNumber:00}"
+                : $"{trackNumber:00}";
+
+            return $"{prefix} - {sanitizedTitle}{extension}";
         }
 
         /// <summary>
