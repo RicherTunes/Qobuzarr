@@ -757,7 +757,9 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Clients
 
             File.Move(partialPath, filePath, overwrite: true);
 
-            // Validate file (basic; no size/hash guarantees from server)
+            AudioMagicBytesValidator.ValidateAudioMagicBytes(filePath);
+
+            // Validate file (basic; no size/hash guarantees from server)       
             if (!Lidarr.Plugin.Common.Utilities.ValidationUtilities.ValidateDownloadedFile(filePath))
             {
                 throw new InvalidOperationException($"Downloaded file failed validation: {Path.GetFileName(filePath)}");
