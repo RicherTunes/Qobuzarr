@@ -3,6 +3,7 @@ using Lidarr.Plugin.Qobuzarr.Services;
 using Lidarr.Plugin.Common.Utilities;
 using Lidarr.Plugin.Qobuzarr.Configuration;
 using NzbDrone.Common.Extensions;
+using Lidarr.Plugin.Qobuzarr.Utilities;
 
 namespace Lidarr.Plugin.Qobuzarr.Download.Services
 {
@@ -16,12 +17,13 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Services
             Guard.NotNull(track, nameof(track));
             Guard.NotNull(album, nameof(album));
 
-            // Generate safe filename: "01 - Track Title.flac"
-            var trackNumber = track.TrackNumber.ToString(QobuzPluginConstants.FileNaming.TrackNumberFormat);
-            var title = Lidarr.Plugin.Common.Security.Sanitize.PathSegment(track.GetFullTitle()).Normalize(System.Text.NormalizationForm.FormC);
-            var extension = GetFileExtension(formatId);
-
-            return $"{trackNumber} - {title}{extension}";
+            // Delegate to TrackFileNameBuilder for consistent multi-disc handling and sanitization
+            return TrackFileNameBuilder.Build(
+                trackNumber: track.TrackNumber,
+                trackTitle: track.GetFullTitle(),
+                formatId: formatId,
+                discNumber: track.DiscNumber,
+                totalDiscs: album.MediaCount);
         }
 
         public string GenerateOptimizedFileName(TrackDownload trackDownload, int quality)
@@ -38,14 +40,7 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Services
 
         public string GetFileExtension(int formatId)
         {
-            return formatId switch
-            {
-                QobuzPluginConstants.QualityFormats.Mp3320 => ".mp3",        // MP3 320
-                QobuzPluginConstants.QualityFormats.FlacCd => ".flac",       // FLAC CD
-                QobuzPluginConstants.QualityFormats.Flac24_96 => ".flac",    // FLAC 24/96
-                QobuzPluginConstants.QualityFormats.Flac24_192 => ".flac",   // FLAC 24/192
-                _ => ".flac"        // Default to FLAC
-            };
+            return TrackFileNameBuilder.GetExtensionForFormat(formatId);
         }
 
         public string GetQualityDescription(QobuzTrack track)

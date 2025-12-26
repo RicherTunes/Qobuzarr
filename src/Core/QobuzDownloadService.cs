@@ -11,6 +11,7 @@ using System.Net.Http.Headers;
 using System.Text;
 using Lidarr.Plugin.Qobuzarr.Services.Http;
 using Lidarr.Plugin.Common.Utilities;
+using Lidarr.Plugin.Qobuzarr.Utilities;
 
 namespace Lidarr.Plugin.Qobuzarr.Core
 {
@@ -162,35 +163,14 @@ namespace Lidarr.Plugin.Qobuzarr.Core
 
         private string GenerateFileName(QobuzTrack track, QobuzAlbum album, int formatId)
         {
-            var extension = GetFileExtension(formatId);
-            var safeTitle = SanitizeFileName(track.Title);
-            var trackNumber = track.TrackNumber.ToString("00");
-
-            var discNumber = track.DiscNumber > 0 ? track.DiscNumber : 1;
-            var totalDiscs = album.MediaCount > 1 ? album.MediaCount : 1;
-            var prefix = totalDiscs > 1
-                ? $"D{discNumber:00}T{trackNumber}"
-                : trackNumber;
-
-            return $"{prefix} - {safeTitle}.{extension}";
+            return TrackFileNameBuilder.Build(
+                trackNumber: track.TrackNumber,
+                trackTitle: track.Title,
+                formatId: formatId,
+                discNumber: track.DiscNumber,
+                totalDiscs: album.MediaCount);
         }
 
-        private string GetFileExtension(int formatId)
-        {
-            return formatId switch
-            {
-                5 => "mp3",
-                6 or 7 or 27 => "flac",
-                _ => "flac"
-            };
-        }
-
-        private string SanitizeFileName(string fileName)
-        {
-            // Prefer context-specific helper; normalize to NFC, guard reserved names
-            var safe = Lidarr.Plugin.Common.Security.Sanitize.PathSegment(fileName);
-            return safe.Normalize(NormalizationForm.FormC);
-        }
 
         private async Task ApplyMetadataAsync(string filePath, QobuzTrack track, QobuzAlbum album)
         {
