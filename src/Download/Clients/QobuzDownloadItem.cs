@@ -6,12 +6,15 @@ using NzbDrone.Core.Indexers;
 using Lidarr.Plugin.Qobuzarr.Models;
 using Lidarr.Plugin.Qobuzarr.Constants;
 using Lidarr.Plugin.Qobuzarr.Download;
+using Lidarr.Plugin.Qobuzarr.Utilities;
 
 namespace Lidarr.Plugin.Qobuzarr.Download.Clients
 {
     public class QobuzDownloadItem : IDisposable
     {
         private bool _disposed = false;
+        private int _qualityFallbackCount;
+        private string? _qualityFallbackExample;
         
         public string DownloadId { get; set; }
         public string AlbumId { get; set; }
@@ -27,6 +30,18 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Clients
         public Task DownloadTask { get; set; }
         public CancellationTokenSource CancellationTokenSource { get; set; }
         public QobuzAlbum Album { get; set; }
+
+        public int QualityFallbackCount => _qualityFallbackCount;
+        public string? QualityFallbackExample => _qualityFallbackExample;
+
+        public void RecordQualityFallback(int requestedFormatId, int actualFormatId)
+        {
+            Interlocked.Increment(ref _qualityFallbackCount);
+            Interlocked.CompareExchange(
+                ref _qualityFallbackExample,
+                QualityFormatter.FormatQualityFallback(actualFormatId, requestedFormatId),
+                null);
+        }
 
         /// <summary>
         /// Calculate download speed in bytes per second
@@ -67,7 +82,9 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Clients
             {
                 DownloadItemStatus.Queued => "Queued for download",
                 DownloadItemStatus.Downloading => $"Downloading... {Progress:F1}%",
-                DownloadItemStatus.Completed => "Download completed",
+                DownloadItemStatus.Completed => QualityFallbackCount > 0
+                    ? $"Download completed (quality fallback used for {QualityFallbackCount} track(s){(QualityFallbackExample != null ? $": {QualityFallbackExample}" : "")})"
+                    : "Download completed",
                 DownloadItemStatus.Failed => $"Download failed: {Message}",
                 DownloadItemStatus.Warning => $"Download warning: {Message}",
                 _ => "Unknown status"

@@ -394,7 +394,9 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Clients
                 // Mark as completed
                 downloadItem.Status = DownloadItemStatus.Completed;
                 downloadItem.Progress = 100;
-                downloadItem.Message = "Download completed successfully";
+                downloadItem.Message = downloadItem.QualityFallbackCount > 0
+                    ? $"Download completed successfully (quality fallback used for {downloadItem.QualityFallbackCount} track(s){(downloadItem.QualityFallbackExample != null ? $": {downloadItem.QualityFallbackExample}" : "")})"
+                    : "Download completed successfully";
 
                 _logger.Info("✅ Download finished: {0} - {1}", downloadItem.Artist, downloadItem.Title);
             }

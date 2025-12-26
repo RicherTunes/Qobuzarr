@@ -138,6 +138,23 @@ namespace Lidarr.Plugin.Qobuzarr.Models
         }
 
         /// <summary>
+        /// Returns true when Qobuz indicates the requested format is unavailable but still provides a valid URL
+        /// for a lower quality stream (soft restriction / fallback).
+        /// </summary>
+        public bool IsQualityFallbackOnly()
+        {
+            if (!HasRestrictions() || string.IsNullOrWhiteSpace(Url))
+            {
+                return false;
+            }
+
+            // Treat "FormatRestrictedByFormatAvailability" as a soft restriction when we still have a URL.
+            return Restrictions?.All(r =>
+                !r.HasRestrictions() ||
+                r.Code == "FormatRestrictedByFormatAvailability") == true;
+        }
+
+        /// <summary>
         /// Get human-readable restriction message
         /// </summary>
         public string? GetRestrictionMessage()

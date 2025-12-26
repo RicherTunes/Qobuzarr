@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+using Lidarr.Plugin.Qobuzarr.Models;
 using Lidarr.Plugin.Qobuzarr.Models.Authentication;
 
 namespace Lidarr.Plugin.Qobuzarr.API
@@ -62,5 +63,11 @@ namespace Lidarr.Plugin.Qobuzarr.API
         /// <param name="cancellationToken">Cancellation token for the operation.</param>
         /// <returns>The streaming URL for downloading the track.</returns>
         Task<string> GetStreamingUrlAsync(string trackId, int formatId, CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Gets the streaming response for a track with the specified quality.
+        /// Includes the resolved URL and the actual format returned by Qobuz, which may differ from the requested format when Qobuz falls back.
+        /// </summary>
+        Task<QobuzStreamResponse> GetStreamingInfoAsync(string trackId, int formatId, CancellationToken cancellationToken = default);
     }
 }
