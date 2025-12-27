@@ -1,10 +1,10 @@
-using System.IO;
 using Lidarr.Plugin.Common.Utilities;
 
 namespace Lidarr.Plugin.Qobuzarr.Utilities
 {
     /// <summary>
     /// Builds sanitized track filenames with correct extensions based on Qobuz format.
+    /// Delegates to Common's FileSystemUtilities for consistent naming across plugins.
     /// </summary>
     public static class TrackFileNameBuilder
     {
@@ -16,14 +16,15 @@ namespace Lidarr.Plugin.Qobuzarr.Utilities
             if (discNumber <= 0) discNumber = 1;
             if (totalDiscs <= 1) totalDiscs = 1;
 
-            var sanitizedTitle = FileNameSanitizer.SanitizeFileName(trackTitle);
             var extension = GetExtensionForFormat(formatId);
 
-            var prefix = totalDiscs > 1
-                ? $"D{discNumber:00}T{trackNumber:00}"
-                : $"{trackNumber:00}";
-
-            return $"{prefix} - {sanitizedTitle}{extension}";
+            // Delegate to Common's FileSystemUtilities for consistent naming/sanitization
+            return FileSystemUtilities.CreateTrackFileName(
+                trackTitle,
+                trackNumber,
+                extension.TrimStart('.'),
+                discNumber,
+                totalDiscs);
         }
 
         /// <summary>
