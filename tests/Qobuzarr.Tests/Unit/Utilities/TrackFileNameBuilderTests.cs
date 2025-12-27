@@ -54,5 +54,19 @@ namespace Qobuzarr.Tests.Unit.Utilities
             var result = TrackFileNameBuilder.Build(trackNumber: 1, trackTitle: "Song", formatId: 6, discNumber: 0, totalDiscs: 0);
             result.Should().NotBeNullOrEmpty();
         }
+
+        [Fact]
+        public void Build_ShouldTrimTrailingDotsAndSpaces()
+        {
+            var result = TrackFileNameBuilder.Build(trackNumber: 1, trackTitle: "Title. ", formatId: 6);
+            result.Should().Be("01 - Title.flac");
+        }
+
+        [Fact]
+        public void Build_WithReservedTitle_ShouldBePrefixedToAvoidWindowsReservedNames()
+        {
+            var result = TrackFileNameBuilder.Build(trackNumber: 1, trackTitle: "CON", formatId: 6);
+            result.Should().Be("01 - _CON.flac");
+        }
     }
 }
