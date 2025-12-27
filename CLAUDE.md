@@ -147,6 +147,60 @@ dotnet test tests/Qobuzarr.Tests/
 dotnet test tests/QobuzCLI.Tests/
 ```
 
+## Local Docker E2E Testing (REQUIRED)
+
+**ALWAYS test locally using Docker before submitting PRs.** The Common library provides persistent Docker runners for iterative testing.
+
+### Single-Plugin Testing
+
+```powershell
+# From the lidarr.plugin.common/scripts directory:
+./test-qobuzarr-persistent.ps1 -Rebuild
+```
+
+### Multi-Plugin Testing (Qobuzarr + Tidalarr)
+
+```powershell
+# From the lidarr.plugin.common/scripts directory:
+./test-multi-plugin-persistent.ps1 -Rebuild
+
+# Rebuild only Qobuzarr (keeps Tidalarr cached):
+./test-multi-plugin-persistent.ps1 -RebuildQobuzarr
+
+# Clean start (wipes config/credentials):
+./test-multi-plugin-persistent.ps1 -Clean -Rebuild
+```
+
+### E2E Gate Validation
+
+After the Docker container is running:
+
+```powershell
+# Run schema gate (no credentials needed):
+./e2e-runner.ps1 -Plugins "Qobuzarr" -Gate schema -ApiKey $env:LIDARR_API_KEY
+
+# Run all gates (credentials required):
+./e2e-runner.ps1 -Plugins "Qobuzarr,Tidalarr" -Gate all -ApiKey $env:LIDARR_API_KEY
+```
+
+### Key Parameters
+
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `-Rebuild` | false | Rebuild plugin before starting |
+| `-Clean` | false | Wipe persistent state and start fresh |
+| `-Port` | 8691 | Host port for Lidarr UI |
+| `-KeepRunning` | false | Keep container running after test |
+
+### Persistent State
+
+The Docker runners persist state in `.persistent-multi/` (config, plugins, downloads) allowing:
+- Iterative testing without re-entering credentials
+- Quick validation of code changes
+- Debugging with preserved logs
+
+**On failure:** A diagnostics bundle is created in `./diagnostics/` for AI-assisted triage.
+
 ## CLI Usage (Development/Testing)
 
 ```bash
