@@ -112,12 +112,14 @@ namespace Qobuzarr.Tests.Integration
             var albumTitle = "The Wall";
             
             var studioAlbum = QobuzAlbumBuilder.New()
+                .WithId("pink_floyd_the_wall_studio")
                 .WithTitle(albumTitle)
                 .WithArtist(artistName)
                 .WithReleaseYear(1979)
                 .Build();
 
             var liveAlbum = QobuzAlbumBuilder.New()
+                .WithId("pink_floyd_the_wall_live")
                 .WithTitle(albumTitle)
                 .WithArtist(artistName)
                 .WithReleaseYear(1980)
@@ -125,6 +127,7 @@ namespace Qobuzarr.Tests.Integration
             liveAlbum.Version = "Live at Earl's Court";
 
             var deluxeAlbum = QobuzAlbumBuilder.New()
+                .WithId("pink_floyd_the_wall_deluxe")
                 .WithTitle(albumTitle)
                 .WithArtist(artistName)
                 .WithReleaseYear(1979)
@@ -250,8 +253,9 @@ namespace Qobuzarr.Tests.Integration
             releaseInfo.Title.Should().Contain("Édition Spéciale");
             
             // Unicode characters should be preserved
+            // "Café del Mar" contains é, "Édition Spéciale" contains É
+            releaseInfo.Title.Should().Contain("é");
             releaseInfo.Title.Should().Contain("É");
-            releaseInfo.Title.Should().Contain("ç");
         }
 
         [Fact]
