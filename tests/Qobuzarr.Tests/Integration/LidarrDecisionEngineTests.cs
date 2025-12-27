@@ -53,6 +53,7 @@ namespace Qobuzarr.Tests.Integration
         #region Edition Album Decision Engine Acceptance
 
         [Fact(Skip = "Quarantined: NSubstitute cannot mock SearchCriteriaBase - Albums property is non-virtual. Requires Lidarr-provided test fixtures. Tracking: ecosystem parity roadmap.")]
+        [Trait("Category", "Quarantined")]
         public void EditionAlbum_WithHyphenFormat_ShouldPassAlbumRequestedSpecification()
         {
             // Arrange - Simulate user searching for deluxe edition
@@ -108,6 +109,7 @@ namespace Qobuzarr.Tests.Integration
         }
 
         [Fact(Skip = "Quarantined: NSubstitute cannot mock SearchCriteriaBase - Albums property is non-virtual. Requires Lidarr-provided test fixtures. Tracking: ecosystem parity roadmap.")]
+        [Trait("Category", "Quarantined")]
         public void EditionAlbum_WithHyphenFormat_ShouldPassSingleAlbumSearchMatchSpecification()
         {
             // Arrange
@@ -161,6 +163,7 @@ namespace Qobuzarr.Tests.Integration
         }
 
         [Fact(Skip = "Quarantined: NSubstitute cannot mock SearchCriteriaBase - Albums property is non-virtual. Requires Lidarr-provided test fixtures. Tracking: ecosystem parity roadmap.")]
+        [Trait("Category", "Quarantined")]
         public void StandardAlbum_WithSpaceFormat_ShouldPassDecisionEngine()
         {
             // Arrange
@@ -215,6 +218,7 @@ namespace Qobuzarr.Tests.Integration
         #region Mixed Format Search Results
 
         [Fact(Skip = "Quarantined: NSubstitute cannot mock SearchCriteriaBase - Albums property is non-virtual. Requires Lidarr-provided test fixtures. Tracking: ecosystem parity roadmap.")]
+        [Trait("Category", "Quarantined")]
         public void MixedSearchResults_ShouldHandleBothFormatsCorrectly()
         {
             // Arrange - Search returns both standard and edition albums
@@ -268,6 +272,7 @@ namespace Qobuzarr.Tests.Integration
         #region Album ID Mapping Validation
 
         [Fact(Skip = "Quarantined: NSubstitute cannot mock SearchCriteriaBase - Albums property is non-virtual. Requires Lidarr-provided test fixtures. Tracking: ecosystem parity roadmap.")]
+        [Trait("Category", "Quarantined")]
         public void ParserGenerated_AlbumProperty_ShouldMapToCorrectLidarrAlbum()
         {
             // Arrange
@@ -325,6 +330,7 @@ namespace Qobuzarr.Tests.Integration
         #region Real-World Scenario Tests
 
         [Fact(Skip = "Quarantined: NSubstitute cannot mock SearchCriteriaBase - Albums property is non-virtual. Requires Lidarr-provided test fixtures. Tracking: ecosystem parity roadmap.")]
+        [Trait("Category", "Quarantined")]
         public void ComplexEditionSearch_ShouldGenerateCorrectFormat()
         {
             // Arrange - Real scenario: User searches for specific deluxe edition

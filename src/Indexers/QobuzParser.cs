@@ -242,7 +242,11 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
                 DownloadUrl = GenerateDownloadUrl(album, quality),
                 InfoUrl = GenerateInfoUrl(album),
                 PublishDate = album.ReleaseDate,
-                Indexer = "Qobuzarr", // Set indexer name for tests and frontend display
+                // Note: Indexer is set here for unit tests that use QobuzParser directly.
+                // In production, QobuzIndexer.FetchReleases() overwrites this with Definition.Name
+                // after parsing. This ensures tests can assert on Indexer without needing
+                // a full IndexerDefinition. See QobuzParserTests.ParseResponse_WithValidAlbum_ShouldPopulateAllRequiredFields
+                Indexer = "Qobuzarr",
                 
                 // Note: Codec and Container properties are ignored by Lidarr's quality detection
                 // Quality is determined solely from the Title using regex patterns
