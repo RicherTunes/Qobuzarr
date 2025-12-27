@@ -32,6 +32,7 @@
     <PackageReference Include="Equ" />
     <PackageReference Include="FsCheck" />
     <PackageReference Include="FsCheck.Xunit" />
+    <PackageReference Include="Xunit.SkippableFact" />
     <!-- Ensure NLog runtime is available for tests that reference plugin logging -->
     <PackageReference Include="NLog" />
     <PackageReference Include="coverlet.collector">

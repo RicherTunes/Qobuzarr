@@ -45,6 +45,7 @@ namespace Qobuzarr.Tests.Integration
         private IQobuzAuthenticationService _authService;
         private IQobuzApiClient _apiClient;
         private QobuzSession _session;
+        private string _skipReason;
         private readonly string _testOutputPath;
         private readonly List<string> _downloadedFiles = new();
         private readonly CancellationTokenSource _testCancellation = new();
@@ -97,9 +98,13 @@ namespace Qobuzarr.Tests.Integration
                 var email = Environment.GetEnvironmentVariable("QOBUZ_EMAIL");
                 var password = Environment.GetEnvironmentVariable("QOBUZ_PASSWORD");
 
-                if (string.IsNullOrEmpty(appId) || string.IsNullOrEmpty(email))
+                if (string.IsNullOrEmpty(appId) ||
+                    string.IsNullOrEmpty(appSecret) ||
+                    string.IsNullOrEmpty(email) ||
+                    string.IsNullOrEmpty(password))
                 {
-                    _output.WriteLine("⏭️ Skipping: Qobuz credentials not configured (set QOBUZ_APP_ID, QOBUZ_APP_SECRET, QOBUZ_EMAIL, QOBUZ_PASSWORD)");
+                    _skipReason = "Qobuz credentials not configured (set QOBUZ_APP_ID, QOBUZ_APP_SECRET, QOBUZ_EMAIL, QOBUZ_PASSWORD)";
+                    _output.WriteLine($"⏭️ Skipping: {_skipReason}");
                     return;
                 }
 
@@ -122,14 +127,28 @@ namespace Qobuzarr.Tests.Integration
             }
             catch (Exception ex)
             {
-                _output.WriteLine($"⏭️ Skipping: Test initialization failed: {ex.Message}");
-                // Test will be skipped due to null services
+                _skipReason = $"Test initialization failed: {ex.Message}";
+                _output.WriteLine($"⏭️ Skipping: {_skipReason}");
             }
         }
 
-        [Fact]
+        private void SkipIfNotReady()
+        {
+            if (!string.IsNullOrWhiteSpace(_skipReason))
+            {
+                Skip.If(true, _skipReason);
+            }
+
+            if (_downloadClient is null || _authService is null || _apiClient is null || _session is null)
+            {
+                Skip.If(true, "Integration test services not initialized");
+            }
+        }
+
+        [SkippableFact]
         public async Task Download_RealAlbum_CompletesSuccessfully()
         {
+            SkipIfNotReady();
             // Arrange - Use a small album for testing
             var albumId = "0060254734592"; // Example: a single or EP
             var remoteAlbum = CreateRemoteAlbum(albumId, "Test Album");
@@ -161,13 +180,14 @@ namespace Qobuzarr.Tests.Integration
             _output.WriteLine($"Downloaded {files.Length} tracks to {downloadPath}");
         }
 
-        [Fact]
+        [SkippableFact]
         public async Task Download_MultipleAlbumsConcurrently_HandlesCorrectly()
         {
+            SkipIfNotReady();
             // Arrange - Multiple small albums
-            var albumIds = new[] 
-            { 
-                "0060254734592", 
+            var albumIds = new[]
+            {
+                "0060254734592",
                 "0060254788359", 
                 "0060254712345" 
             };
@@ -204,9 +224,10 @@ namespace Qobuzarr.Tests.Integration
             _output.WriteLine($"Successfully downloaded {albumIds.Length} albums concurrently");
         }
 
-        [Fact]
+        [SkippableFact]
         public async Task Download_WithAuthenticationExpiry_RefreshesToken()
         {
+            SkipIfNotReady();
             // Arrange - Force token to expire soon
             var shortSession = new QobuzSession
             {
@@ -276,9 +297,10 @@ namespace Qobuzarr.Tests.Integration
         }
         */
 
-        [Fact]
+        [SkippableFact]
         public async Task Download_QualityFallback_SelectsAvailableQuality()
         {
+            SkipIfNotReady();
             // Arrange - Request Hi-Res but accept fallback
             var albumId = "0060254734592";
             var remoteAlbum = CreateRemoteAlbum(albumId, "Quality Fallback Test");
@@ -306,9 +328,10 @@ namespace Qobuzarr.Tests.Integration
             _output.WriteLine($"Download completed with quality fallback");
         }
 
-        [Fact]
+        [SkippableFact]
         public async Task Download_LargeAlbum_HandlesMemoryEfficiently()
         {
+            SkipIfNotReady();
             // Arrange - Album with many tracks
             var albumId = "0060254788359"; // Example: compilation album
             var remoteAlbum = CreateRemoteAlbum(albumId, "Large Album Test");
@@ -349,9 +372,10 @@ namespace Qobuzarr.Tests.Integration
             _output.WriteLine($"Peak memory increase: {memoryIncreaseMB}MB");
         }
 
-        [Fact]
+        [SkippableFact]
         public async Task RemoveDownload_WithDeleteData_CleansUpFiles()
         {
+            SkipIfNotReady();
             // Arrange - Download an album first
             var albumId = "0060254734592";
             var remoteAlbum = CreateRemoteAlbum(albumId, "Cleanup Test");
@@ -376,9 +400,10 @@ namespace Qobuzarr.Tests.Integration
             _output.WriteLine("Download removed and files cleaned up successfully");
         }
 
-        [Fact]
+        [SkippableFact]
         public async Task Download_InvalidAlbumId_FailsGracefully()
         {
+            SkipIfNotReady();
             // Arrange
             var invalidAlbumId = "99999999999999";
             var remoteAlbum = CreateRemoteAlbum(invalidAlbumId, "Invalid Album");
@@ -398,9 +423,10 @@ namespace Qobuzarr.Tests.Integration
             _output.WriteLine($"Invalid album handled gracefully: {downloadItem.Message}");
         }
 
-        [Fact]
+        [SkippableFact]
         public async Task GetDownloadStatus_ProvidesAccurateProgress()
         {
+            SkipIfNotReady();
             // Arrange
             var albumId = "0060254734592";
             var remoteAlbum = CreateRemoteAlbum(albumId, "Progress Tracking Test");
