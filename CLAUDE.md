@@ -105,6 +105,9 @@ xcopy /Y /E "bin\*" "X:\lidarr-hotio-test2\plugins\RicherTunes\Qobuzarr\"
 ## Testing Commands
 
 ```bash
+# Stable test runner (recommended on Windows)
+pwsh ./scripts/test.ps1
+
 # Run all tests
 dotnet test
 

@@ -9,6 +9,9 @@ This guide covers running tests locally and in CI, including category filters, r
 CI_TEST_FILTER='Category!=LiveIntegration&Category!=Integration&Category!=Performance&Category!=Quarantined'
 dotnet test --settings tests/Default.runsettings --filter "$CI_TEST_FILTER"
 
+# Recommended on Windows (avoids intermittent MSBuild file locks / node-reuse issues)
+pwsh ./scripts/test.ps1 -Settings tests/Default.runsettings -Filter "$CI_TEST_FILTER"
+
 # Using Default.runsettings (recommended for local development)
 dotnet test Qobuzarr.sln --settings tests/Default.runsettings
 
