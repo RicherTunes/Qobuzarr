@@ -10,6 +10,7 @@ Qobuzarr is a high-performance Lidarr plugin for Qobuz streaming service with ML
 - Use constants from `QobuzarrConstants.cs` rather than hardcoding.
 - Expose to the user what brings value in `QobuzSettings.cs`; otherwise, it should be in `QobuzarrConstants.cs`.
 - Be aware that this project shares a common library with http://github.com/RicherTunes/Lidarr.Plugin.Common so always think of ways to ensure generic code can be shared with this library so other projects may benefits. Think architecturally when doing so.
+- After any submodule bump: `git submodule update --remote ext/Lidarr.Plugin.Common && pwsh ./scripts/sync-ext-common-sha.ps1`
 
 ## Build Commands
 
