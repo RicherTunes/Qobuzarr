@@ -25,10 +25,7 @@ namespace Qobuzarr.Tests.Compliance
         private static readonly HashSet<string> RequiredAssemblies = new(StringComparer.OrdinalIgnoreCase)
         {
             "Lidarr.Plugin.Qobuzarr.dll",           // The plugin itself
-            "Lidarr.Plugin.Abstractions.dll",       // Plugin contract (may be ILRepack'd, but check)
-            "FluentValidation.dll",                 // Settings validation (NOT merged)
-            "Microsoft.Extensions.DependencyInjection.Abstractions.dll",
-            "Microsoft.Extensions.Logging.Abstractions.dll"
+            "Lidarr.Plugin.Abstractions.dll"        // Plugin contract (host does NOT provide this)
         };
 
         /// <summary>
@@ -37,6 +34,11 @@ namespace Qobuzarr.Tests.Compliance
         /// </summary>
         private static readonly HashSet<string> ForbiddenAssemblies = new(StringComparer.OrdinalIgnoreCase)
         {
+            // Host-provided contract assemblies (shipping causes type identity conflicts)
+            "FluentValidation.dll",
+            "Microsoft.Extensions.DependencyInjection.Abstractions.dll",
+            "Microsoft.Extensions.Logging.Abstractions.dll",
+
             // Lidarr host assemblies
             "Lidarr.Core.dll",
             "Lidarr.Common.dll",
@@ -114,20 +116,8 @@ namespace Qobuzarr.Tests.Compliance
             // Act & Assert
             foreach (var required in RequiredAssemblies)
             {
-                // Special case: Lidarr.Plugin.Abstractions may be ILRepack'd
-                if (required == "Lidarr.Plugin.Abstractions.dll")
-                {
-                    var hasAbstractions = assemblies.Contains(required);
-                    var hasCommon = assemblies.Contains("Lidarr.Plugin.Common.dll");
-                    // Either the abstractions DLL exists, or Common exists (which includes it)
-                    (hasAbstractions || hasCommon).Should().BeTrue(
-                        $"package should contain {required} (or Lidarr.Plugin.Common.dll which includes it)");
-                }
-                else
-                {
-                    assemblies.Should().Contain(required,
-                        $"package must contain required assembly {required}");
-                }
+                assemblies.Should().Contain(required,
+                    $"package must contain required assembly {required}");
             }
         }
 
@@ -167,7 +157,7 @@ namespace Qobuzarr.Tests.Compliance
         }
 
         [Fact]
-        public void Package_Should_Have_TypeIdentity_Assemblies_As_Separate_Files()
+        public void Package_Should_Not_Ship_HostContract_Assemblies()
         {
             // Arrange
             var packagePath = FindLatestPackage();
@@ -182,22 +172,18 @@ namespace Qobuzarr.Tests.Compliance
                 return;
             }
 
-            // These assemblies define types that must match between plugin and host.
-            // They MUST exist as separate files, not ILRepack-merged into the main assembly.
-            var typeIdentityAssemblies = new[]
+            var assemblies = GetPackageAssemblies(packagePath);
+            var hostContractAssemblies = new[]
             {
-                "FluentValidation.dll"  // Settings validation - types shared with Lidarr
+                "FluentValidation.dll",
+                "Microsoft.Extensions.DependencyInjection.Abstractions.dll",
+                "Microsoft.Extensions.Logging.Abstractions.dll"
             };
 
-            var assemblies = GetPackageAssemblies(packagePath);
-            _output.WriteLine($"Checking type-identity assemblies exist as separate files:");
-
-            foreach (var required in typeIdentityAssemblies)
+            foreach (var forbidden in hostContractAssemblies)
             {
-                _output.WriteLine($"  - {required}: {(assemblies.Contains(required) ? "OK" : "MISSING")}");
-                assemblies.Should().Contain(required,
-                    $"{required} must exist as a separate file (not ILRepack-merged) " +
-                    "to ensure type identity with Lidarr host");
+                assemblies.Should().NotContain(forbidden,
+                    $"{forbidden} is host-provided and must not be shipped with the plugin to avoid type identity conflicts");
             }
         }
 
