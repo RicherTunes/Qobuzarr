@@ -91,7 +91,7 @@ jobs:
     - name: Validate project structure
       run: |
         echo "Validating project structure..."
-        for file in Qobuzarr.csproj plugin.json Directory.Packages.props; do
+        for file in Qobuzarr.csproj plugin.json.template Directory.Packages.props; do
           if [ -f "$file" ]; then echo "[OK] $file exists"; else echo "[ERROR] $file missing"; exit 1; fi
         done
         for dir in src src/API src/Authentication src/Download src/Indexers; do
@@ -108,10 +108,10 @@ jobs:
 
     - name: Validate plugin manifest
       run: |
-        echo "Validating plugin.json..."
-        python3 -m json.tool plugin.json > /dev/null
-        VERSION=$(python3 -c "import json; print(json.load(open('plugin.json'))['version'])")
-        echo "Plugin version: $VERSION"
+        echo "Validating plugin.json.template..."
+        # Validate JSON structure (after substituting placeholder for version)
+        sed 's/{VERSION}/0.0.0/g' plugin.json.template | python3 -m json.tool > /dev/null
+        echo "[OK] plugin.json.template is valid JSON (placeholder {VERSION} will be replaced during build)"
     - name: Security checks
       run: |
         echo "🔒 Running security checks..."
