@@ -88,6 +88,23 @@ jobs:
         git submodule sync -- ext/Lidarr.Plugin.Common
         git submodule update --init --depth=1 -- ext/Lidarr.Plugin.Common
 
+    - name: Assert Common submodule initialized
+      shell: bash
+      run: |
+        if [ ! -d "ext/Lidarr.Plugin.Common/scripts" ]; then
+          echo "::error::FATAL: ext/Lidarr.Plugin.Common/scripts not found - submodule not initialized"
+          exit 1
+        fi
+        SHA=$(git -C ext/Lidarr.Plugin.Common rev-parse --short HEAD 2>/dev/null || echo "<unknown>")
+          echo "✓ Common submodule initialized at $SHA"
+          if [ -f ext-common-sha.txt ]; then
+            EXPECTED=$(cat ext-common-sha.txt | tr -d '
+ ' | cut -c1-7)
+            if [ -n "$EXPECTED" ] && [ "$SHA" != "<unknown>" ] && [ "${SHA:0:7}" != "$EXPECTED" ]; then
+              echo "::warning::Submodule SHA ($SHA) differs from pinned ($EXPECTED)"
+            fi
+          fi
+
     - name: Show Common submodule SHA
       run: |
         echo "=== Submodule status ==="
@@ -211,6 +228,24 @@ jobs:
           echo "[WARN] Unable to fetch Lidarr.Plugin.Common; Fast Tests will be skipped."
           exit 0
         fi
+
+    - name: Assert Common submodule initialized
+      if: ${{ env.CI_PAT_AVAILABLE == '1' && env.COMMON_AVAILABLE == '1' }}
+      shell: bash
+      run: |
+        if [ ! -d "ext/Lidarr.Plugin.Common/scripts" ]; then
+          echo "::error::FATAL: ext/Lidarr.Plugin.Common/scripts not found - submodule not initialized"
+          exit 1
+        fi
+        SHA=$(git -C ext/Lidarr.Plugin.Common rev-parse --short HEAD 2>/dev/null || echo "<unknown>")
+          echo "✓ Common submodule initialized at $SHA"
+          if [ -f ext-common-sha.txt ]; then
+            EXPECTED=$(cat ext-common-sha.txt | tr -d '
+ ' | cut -c1-7)
+            if [ -n "$EXPECTED" ] && [ "$SHA" != "<unknown>" ] && [ "${SHA:0:7}" != "$EXPECTED" ]; then
+              echo "::warning::Submodule SHA ($SHA) differs from pinned ($EXPECTED)"
+            fi
+          fi
 
     - name: Setup .NET
       uses: actions/setup-dotnet@v4
@@ -390,6 +425,23 @@ jobs:
         git config --global url.https://x-access-token:${CI_PAT}@github.com/.insteadOf https://github.com/
         git submodule sync --recursive
         git submodule update --init --recursive
+
+    - name: Assert Common submodule initialized
+      shell: bash
+      run: |
+        if [ ! -d "ext/Lidarr.Plugin.Common/scripts" ]; then
+          echo "::error::FATAL: ext/Lidarr.Plugin.Common/scripts not found - submodule not initialized"
+          exit 1
+        fi
+        SHA=$(git -C ext/Lidarr.Plugin.Common rev-parse --short HEAD 2>/dev/null || echo "<unknown>")
+          echo "✓ Common submodule initialized at $SHA"
+          if [ -f ext-common-sha.txt ]; then
+            EXPECTED=$(cat ext-common-sha.txt | tr -d '
+ ' | cut -c1-7)
+            if [ -n "$EXPECTED" ] && [ "$SHA" != "<unknown>" ] && [ "${SHA:0:7}" != "$EXPECTED" ]; then
+              echo "::warning::Submodule SHA ($SHA) differs from pinned ($EXPECTED)"
+            fi
+          fi
 
     - name: Setup .NET
       uses: actions/setup-dotnet@v4
