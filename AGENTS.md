@@ -21,7 +21,7 @@ dotnet build Qobuzarr.sln -c Release
 dotnet test Qobuzarr.sln
 
 # Test (fast, no integration)
-dotnet test --filter "Category!=Integration"
+dotnet test --filter "Category!=Integration&Category!=Performance"
 ```
 
 ## Architecture

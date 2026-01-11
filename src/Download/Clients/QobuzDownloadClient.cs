@@ -814,7 +814,15 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Clients
                     {
                         file.Tag.Composers = new[] { track.Composer.Name };
                     }
-                    
+
+                    // ISRC - International Standard Recording Code
+                    // Normalize: trim whitespace and convert to uppercase (ISO 3901 standard)
+                    if (!string.IsNullOrWhiteSpace(track.ISRC))
+                    {
+                        var normalizedIsrc = track.ISRC.Trim().ToUpperInvariant();
+                        ApplyIsrcTag(file, normalizedIsrc);
+                    }
+
                     file.Save();
                     _logger.Debug("✅ Metadata applied to: {0}", Path.GetFileName(filePath));
                 }
@@ -823,6 +831,31 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Clients
                     _logger.Warn(ex, "Failed to apply metadata to: {0}", Path.GetFileName(filePath));
                 }
             });
+        }
+
+        /// <summary>
+        /// Applies ISRC to the audio file using format-specific tagging.
+        /// ID3v2: TSRC frame (MP3)
+        /// Vorbis/FLAC/Ogg: ISRC comment
+        /// </summary>
+        private static void ApplyIsrcTag(TagLib.File file, string isrc)
+        {
+            // Try Xiph/Vorbis comment (FLAC, Ogg Vorbis)
+            if (file.GetTag(TagLib.TagTypes.Xiph) is TagLib.Ogg.XiphComment xiphComment)
+            {
+                xiphComment.SetField("ISRC", isrc);
+                return;
+            }
+
+            // Try ID3v2 (MP3)
+            if (file.GetTag(TagLib.TagTypes.Id3v2) is TagLib.Id3v2.Tag id3v2Tag)
+            {
+                var tsrcFrame = TagLib.Id3v2.TextInformationFrame.Get(
+                    id3v2Tag,
+                    TagLib.ByteVector.FromString("TSRC", TagLib.StringType.Latin1),
+                    true);
+                tsrcFrame.Text = new[] { isrc };
+            }
         }
 
         private string? ExtractAlbumIdFromRelease(ReleaseInfo release)

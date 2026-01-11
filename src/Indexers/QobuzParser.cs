@@ -235,15 +235,16 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
                 
                 // CRITICAL: Set the download protocol to fix frontend display
                 DownloadProtocol = nameof(QobuzarrDownloadProtocol),
-                
+
                 // Basic metadata - ENSURE NON-EMPTY NAMES
+                Indexer = QobuzarrConstants.PluginName,
                 Artist = artistName,
                 Album = albumTitle,
                 DownloadUrl = GenerateDownloadUrl(album, quality),
                 InfoUrl = GenerateInfoUrl(album),
                 PublishDate = album.ReleaseDate,
-                // Note: Don't set Indexer explicitly - Lidarr sets IndexerId automatically
-                
+                // Note: Lidarr assigns IndexerId automatically
+
                 // Note: Codec and Container properties are ignored by Lidarr's quality detection
                 // Quality is determined solely from the Title using regex patterns
                 
@@ -562,7 +563,6 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
         }
     }
 }
-
 
 
 

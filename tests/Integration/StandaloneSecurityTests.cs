@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using FluentAssertions;
 using Xunit;
@@ -327,31 +328,43 @@ namespace Qobuzarr.IntegrationTests
         public void Test_Security_Documentation_Exists()
         {
             _output.WriteLine("📚 Validating Security Documentation Exists");
-            
+
             // This test validates that security files are present
+            var repoRoot = GetRepoRoot();
             var securityFiles = new[]
             {
-                @"I:\Arr-Plugins\Lidarr\Qobuzarr\src\Security\InputSanitizer.cs",
-                @"I:\Arr-Plugins\Lidarr\Qobuzarr\docs\VERIFICATION-REPORT.md",
-                @"I:\Arr-Plugins\Lidarr\Qobuzarr\docs\LIVE-TESTING-GUIDE.md"
+                Path.Combine(repoRoot, "src", "Security", "InputSanitizer.cs"),
+                Path.Combine(repoRoot, "docs", "VERIFICATION-REPORT.md"),
+                Path.Combine(repoRoot, "docs", "LIVE-TESTING-GUIDE.md")
             };
-            
+
             foreach (var file in securityFiles)
             {
-                var exists = System.IO.File.Exists(file);
+                var exists = File.Exists(file);
                 exists.Should().BeTrue($"Security file '{file}' should exist");
-                
+
                 if (exists)
                 {
-                    _output.WriteLine($"✅ Security file exists: {System.IO.Path.GetFileName(file)}");
+                    _output.WriteLine($"✅ Security file exists: {Path.GetFileName(file)}");
                 }
                 else
                 {
                     _output.WriteLine($"❌ Security file missing: {file}");
                 }
             }
-            
+
             _output.WriteLine("✅ Security documentation validation completed");
+        }
+
+        private static string GetRepoRoot()
+        {
+            // Navigate up from test assembly location to find repo root
+            var dir = AppContext.BaseDirectory;
+            while (dir != null && !File.Exists(Path.Combine(dir, "Qobuzarr.csproj")))
+            {
+                dir = Directory.GetParent(dir)?.FullName;
+            }
+            return dir ?? AppContext.BaseDirectory;
         }
     }
 }

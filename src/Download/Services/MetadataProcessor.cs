@@ -82,6 +82,14 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Services
                 var qualityInfo = _filePathGenerator.GetQualityDescription(track);
                 file.Tag.Comment = $"Downloaded from Qobuz - Album: {album.Id}, Track: {track.Id}, Quality: {qualityInfo}";
 
+                // ISRC - International Standard Recording Code
+                // Normalize: trim whitespace and convert to uppercase (ISO 3901 standard)
+                if (!string.IsNullOrWhiteSpace(track.ISRC))
+                {
+                    var normalizedIsrc = track.ISRC.Trim().ToUpperInvariant();
+                    ApplyIsrcTag(file, normalizedIsrc);
+                }
+
                 // Save the metadata
                 file.Save();
                 
@@ -143,6 +151,14 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Services
 
                 if (!string.IsNullOrWhiteSpace(trackDownload.MusicBrainzArtistId))
                     file.Tag.MusicBrainzArtistId = trackDownload.MusicBrainzArtistId;
+
+                // ISRC - International Standard Recording Code
+                // Normalize: trim whitespace and convert to uppercase (ISO 3901 standard)
+                if (!string.IsNullOrWhiteSpace(trackDownload.ISRC))
+                {
+                    var normalizedIsrc = trackDownload.ISRC.Trim().ToUpperInvariant();
+                    ApplyIsrcTag(file, normalizedIsrc);
+                }
 
                 // Add quality comment
                 var qualityComment = $"Downloaded from Qobuz - Quality: {trackDownload.Quality}, Source: {trackDownload.MetadataSource}";
@@ -328,6 +344,31 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Services
             else
             {
                 return "MP3 320kbps";
+            }
+        }
+
+        /// <summary>
+        /// Applies ISRC to the audio file using format-specific tagging.
+        /// ID3v2: TSRC frame (MP3)
+        /// Vorbis/FLAC/Ogg: ISRC comment
+        /// </summary>
+        private static void ApplyIsrcTag(TagLib.File file, string isrc)
+        {
+            // Try Xiph/Vorbis comment (FLAC, Ogg Vorbis)
+            if (file.GetTag(TagTypes.Xiph) is TagLib.Ogg.XiphComment xiphComment)
+            {
+                xiphComment.SetField("ISRC", isrc);
+                return;
+            }
+
+            // Try ID3v2 (MP3)
+            if (file.GetTag(TagTypes.Id3v2) is TagLib.Id3v2.Tag id3v2Tag)
+            {
+                var tsrcFrame = TagLib.Id3v2.TextInformationFrame.Get(
+                    id3v2Tag,
+                    ByteVector.FromString("TSRC", StringType.Latin1),
+                    true);
+                tsrcFrame.Text = new[] { isrc };
             }
         }
     }
