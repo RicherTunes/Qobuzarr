@@ -3,15 +3,11 @@
     Checks host assembly versions and compares with Directory.Packages.props.
 
 .DESCRIPTION
-    This script:
-    1. Reads assembly versions from ext/Lidarr/_output/net8.0/
-    2. Reads pinned versions from Directory.Packages.props
-    3. Reports any mismatches that would cause runtime failures
-
-    Use after updating Lidarr host assemblies to verify package pins are correct.
+    Thin wrapper around Common's e2e-host-versions.psm1 module.
+    Validates that plugin package pins match host assembly versions.
 
 .PARAMETER ExtractFrom
-    Docker image tag to extract assemblies from (optional).
+    Docker image tag to extract assemblies from (e.g., "pr-plugins-3.2.0.5000").
     If specified, extracts fresh assemblies before checking.
 
 .PARAMETER HostAssembliesDir
@@ -20,216 +16,92 @@
 
 .PARAMETER Strict
     Exit with non-zero code on any mismatch. Use in CI pipelines.
-    Default: off (reports mismatches but exits 0 for dev convenience).
+
+.PARAMETER MatchPolicy
+    Version matching policy: MajorMinor (default, safer) or Exact.
+
+.PARAMETER Format
+    Output format: Table (default) or Json.
+
+.PARAMETER ForceExtract
+    Force re-extraction even if cached assemblies exist.
 
 .EXAMPLE
     .\scripts\check-host-versions.ps1
 
 .EXAMPLE
-    # Extract from new Lidarr version and check
     .\scripts\check-host-versions.ps1 -ExtractFrom "pr-plugins-3.2.0.5000"
 
 .EXAMPLE
-    # CI mode - fail on mismatch
-    .\scripts\check-host-versions.ps1 -Strict
+    .\scripts\check-host-versions.ps1 -Strict -Format Json
 
 .NOTES
-    Host-coupled packages (types cross plugin boundary):
-    - FluentValidation: ValidationFailure returned by Test()
-    - NLog: Logger injected by DI container
+    Delegates to: ext/Lidarr.Plugin.Common/scripts/lib/e2e-host-versions.psm1
 #>
 
 [CmdletBinding()]
 param(
     [string]$ExtractFrom,
-    [string]$HostAssembliesDir = "ext/Lidarr/_output/net8.0",
-    [switch]$Strict
+    [string]$HostAssembliesDir,
+    [switch]$Strict,
+    [ValidateSet('MajorMinor', 'Exact')]
+    [string]$MatchPolicy = 'MajorMinor',
+    [ValidateSet('Table', 'Json')]
+    [string]$Format = 'Table',
+    [switch]$ForceExtract
 )
 
 $ErrorActionPreference = "Stop"
 
+# Derive repo root from script location
 $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
-$ProjectRoot = Split-Path -Parent $ScriptDir
+$RepoRoot = Split-Path -Parent $ScriptDir
 
-function Resolve-ProjectPath {
-    param([string]$Path)
-    if ([string]::IsNullOrWhiteSpace($Path)) { return $null }
-    if ([IO.Path]::IsPathRooted($Path)) { return $Path }
-    return (Join-Path $ProjectRoot $Path)
+# Import Common's e2e-host-versions module
+$ModulePath = Join-Path $RepoRoot 'ext/Lidarr.Plugin.Common/scripts/lib/e2e-host-versions.psm1'
+if (-not (Test-Path $ModulePath)) {
+    Write-Error "Common module not found at: $ModulePath`nRun: git submodule update --init --recursive"
+    exit 1
 }
 
-# Host-coupled packages that must match exactly
-$HostCoupledPackages = @{
-    "FluentValidation" = @{
-        Reason = "ValidationFailure type crosses plugin boundary in DownloadClientBase.Test()"
-        DllName = "FluentValidation.dll"
-    }
-    "NLog" = @{
-        Reason = "Logger type injected by Lidarr DI container"
-        DllName = "NLog.dll"
-    }
+Import-Module $ModulePath -Force
+
+# Build parameters for the function call
+$params = @{
+    RepoRoot    = $RepoRoot
+    MatchPolicy = $MatchPolicy
+    Format      = $Format
 }
 
-Write-Host "=== Host Version Checker ===" -ForegroundColor Cyan
+if ($Strict) {
+    $params['Strict'] = $true
+}
 
-# Extract from Docker if requested
+if ($ForceExtract) {
+    $params['ForceExtract'] = $true
+}
+
 if ($ExtractFrom) {
-    Write-Host "`nExtracting assemblies from ghcr.io/hotio/lidarr:$ExtractFrom..." -ForegroundColor Yellow
-    
-    $containerName = "lidarr-extract-temp"
-    docker rm $containerName 2>&1 | Out-Null
-    
-    try {
-        docker create --name $containerName "ghcr.io/hotio/lidarr:$ExtractFrom" | Out-Null
-        
-        $outputDir = Resolve-ProjectPath $HostAssembliesDir
-        if (-not (Test-Path $outputDir)) {
-            New-Item -ItemType Directory -Path $outputDir -Force | Out-Null     
-        }
-        
-        # Extract only the DLLs we care about
-        foreach ($pkg in $HostCoupledPackages.Keys) {
-            $dllName = $HostCoupledPackages[$pkg].DllName
-            docker cp "${containerName}:/app/bin/$dllName" "$outputDir/$dllName" 2>&1 | Out-Null
-            if ($LASTEXITCODE -eq 0) {
-                Write-Host "  Extracted: $dllName" -ForegroundColor Gray
-            }
-        }
-        
-        Write-Host "  Assemblies extracted to: $outputDir" -ForegroundColor Green
-    }
-    finally {
-        docker rm $containerName 2>&1 | Out-Null
-    }
+    $params['ExtractFrom'] = $ExtractFrom
 }
 
-# Read Directory.Packages.props
-Write-Host "`nReading Directory.Packages.props..." -ForegroundColor Yellow
-$packagesPropsPath = Join-Path $ProjectRoot "Directory.Packages.props"
-if (-not (Test-Path $packagesPropsPath)) {
-    Write-Error "Directory.Packages.props not found at: $packagesPropsPath"
-    exit 1
-}
-
-[xml]$packagesProps = Get-Content $packagesPropsPath
-$pinnedVersions = @{}
-
-foreach ($item in $packagesProps.Project.ItemGroup.PackageVersion) {
-    if ($item.Include -and $item.Version) {
-        $pinnedVersions[$item.Include] = $item.Version
-    }
-}
-
-# Read host assembly versions
-Write-Host "Reading host assembly versions..." -ForegroundColor Yellow
-$hostDir = Resolve-ProjectPath $HostAssembliesDir
-if (-not (Test-Path $hostDir)) {
-    Write-Error "Host assemblies not found at: $hostDir"
-    Write-Host "Run: docker cp <container>:/app/bin ext/Lidarr/_output/net8.0" -ForegroundColor Gray
-    exit 1
-}
-
-$hostVersions = @{}
-foreach ($pkg in $HostCoupledPackages.Keys) {
-    $dllPath = Join-Path $hostDir $HostCoupledPackages[$pkg].DllName
-    if (Test-Path $dllPath) {
-        try {
-            $assembly = [System.Reflection.Assembly]::LoadFrom($dllPath)
-            $version = $assembly.GetName().Version
-            # Get file version which usually matches NuGet version
-            $fileVersion = [System.Diagnostics.FileVersionInfo]::GetVersionInfo($dllPath)
-            $hostVersions[$pkg] = @{
-                AssemblyVersion = $version.ToString()
-                FileVersion = $fileVersion.FileVersion
-                ProductVersion = $fileVersion.ProductVersion
-            }
-        }
-        catch {
-            Write-Warning "Failed to read version from $dllPath`: $_"
-        }
+if ($HostAssembliesDir) {
+    # Resolve relative paths against repo root
+    if (-not [IO.Path]::IsPathRooted($HostAssembliesDir)) {
+        $params['HostAssembliesDir'] = Join-Path $RepoRoot $HostAssembliesDir
     }
     else {
-        Write-Warning "Host assembly not found: $dllPath"
+        $params['HostAssembliesDir'] = $HostAssembliesDir
     }
 }
 
-# Compare and report
-Write-Host "`n=== Version Comparison ===" -ForegroundColor Cyan
-$hasErrors = $false
+# Call the module function and propagate exit code
+$result = Test-HostVersionCompatibility @params
+$exitCode = $LASTEXITCODE
 
-foreach ($pkg in $HostCoupledPackages.Keys) {
-    Write-Host "`n$pkg" -ForegroundColor White
-    Write-Host "  Reason: $($HostCoupledPackages[$pkg].Reason)" -ForegroundColor Gray
-    
-    $pinned = $pinnedVersions[$pkg]
-    $hostInfo = $hostVersions[$pkg]
-    
-    if (-not $pinned) {
-        Write-Host "  Pinned: NOT FOUND in Directory.Packages.props" -ForegroundColor Red
-        $hasErrors = $true
-        continue
-    }
-    
-    if (-not $hostInfo) {
-        Write-Host "  Host: NOT FOUND in ext/Lidarr/_output/net8.0/" -ForegroundColor Red
-        $hasErrors = $true
-        continue
-    }
-    
-    Write-Host "  Pinned version: $pinned" -ForegroundColor $(if ($pinned) { "White" } else { "Red" })
-    Write-Host "  Host assembly: $($hostInfo.AssemblyVersion)" -ForegroundColor Gray
-    Write-Host "  Host file ver: $($hostInfo.FileVersion)" -ForegroundColor Gray
-    Write-Host "  Host product:  $($hostInfo.ProductVersion)" -ForegroundColor Gray
-
-    function Get-NumericVersionPrefix {
-        param([string]$Value)
-        if ([string]::IsNullOrWhiteSpace($Value)) { return $null }
-        $trimmed = $Value.Trim()
-        $trimmed = ($trimmed -split '\+')[0]
-        $match = [regex]::Match($trimmed, '^\d+\.\d+(?:\.\d+){0,2}')
-        if ($match.Success) { return $match.Value }
-        return $null
-    }
-
-    # Prefer file/product version for NuGet comparisons (AssemblyVersion often stays at major.0.0.0).
-    $pinnedMajorMinor = ($pinned -split '\.')[0..1] -join '.'
-    $hostComparable = Get-NumericVersionPrefix $hostInfo.FileVersion
-    if (-not $hostComparable) { $hostComparable = Get-NumericVersionPrefix $hostInfo.ProductVersion }
-    if (-not $hostComparable) { $hostComparable = Get-NumericVersionPrefix $hostInfo.AssemblyVersion }
-
-    $hostMajorMinor = ($hostComparable -split '\.')[0..1] -join '.'
-    $pinnedMajor = ($pinned -split '\.')[0]
-    $hostAssemblyMajor = ($hostInfo.AssemblyVersion -split '\.')[0]
-
-    if ($pinnedMajor -ne $hostAssemblyMajor) {
-        Write-Host "  STATUS: MISMATCH - Major differs!" -ForegroundColor Red
-        Write-Host "  ACTION: Update Directory.Packages.props to match host version" -ForegroundColor Yellow
-        $hasErrors = $true
-    }
-    elseif ($pinnedMajorMinor -ne $hostMajorMinor) {
-        Write-Host "  STATUS: MISMATCH - Major.Minor differs!" -ForegroundColor Red
-        Write-Host "  ACTION: Update Directory.Packages.props to match host version" -ForegroundColor Yellow
-        $hasErrors = $true
-    }
-    else {
-        Write-Host "  STATUS: OK" -ForegroundColor Green
-    }
+# Output result (module returns JSON string when Format=Json)
+if ($result) {
+    Write-Output $result
 }
 
-Write-Host "`n"
-if ($hasErrors) {
-    Write-Host "=== ISSUES FOUND ===" -ForegroundColor Red
-    Write-Host "Update Directory.Packages.props to match host versions, then run:" -ForegroundColor Yellow
-    Write-Host "  dotnet test --filter `"FullyQualifiedName~PluginPackagingTests`"" -ForegroundColor Gray
-    if ($Strict) {
-        exit 1
-    }
-    else {
-        Write-Host "`n(Use -Strict to fail with exit code 1)" -ForegroundColor Gray
-        exit 0
-    }
-}
-else {
-    Write-Host "=== ALL VERSIONS OK ===" -ForegroundColor Green
-    exit 0
-}
+exit $exitCode
