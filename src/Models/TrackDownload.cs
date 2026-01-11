@@ -119,6 +119,16 @@ namespace Lidarr.Plugin.Qobuzarr.Models
 
         #endregion
 
+        #region Industry Identifiers (from Qobuz)
+
+        /// <summary>
+        /// International Standard Recording Code (ISRC) - unique identifier for recordings.
+        /// Available from Qobuz API (Tier 2 per TRACK_IDENTITY_PARITY.md).
+        /// </summary>
+        public string ISRC { get; set; }
+
+        #endregion
+
         #region Audio Quality Information
 
         /// <summary>
@@ -256,6 +266,7 @@ namespace Lidarr.Plugin.Qobuzarr.Models
                 MusicBrainzAlbumId = MusicBrainzAlbumId,
                 MusicBrainzArtistId = MusicBrainzArtistId,
                 MusicBrainzReleaseGroupId = MusicBrainzReleaseGroupId,
+                ISRC = ISRC,
                 Quality = Quality,
                 BitRate = BitRate,
                 SampleRate = SampleRate,

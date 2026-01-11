@@ -97,7 +97,10 @@ namespace Lidarr.Plugin.Qobuzarr.Services.Metadata
                 
                 // Label information
                 Label = metadata.Album?.Label?.Name,
-                
+
+                // ISRC - International Standard Recording Code (Tier 2 per TRACK_IDENTITY_PARITY.md)
+                ISRC = metadata.ISRC ?? qobuzTrack.ISRC,
+
                 MetadataSource = Constants.QobuzarrConstants.ServiceName
             };
         }
