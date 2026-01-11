@@ -96,16 +96,7 @@ namespace Lidarr.Plugin.Qobuzarr.Configuration
             public const int MaxRedirects = 5;
         }
 
-        /// <summary>
-        /// Audio file validation magic bytes and patterns
-        /// </summary>
-        public static class AudioValidation
-        {
-            public static readonly byte[] FlacMagic = { 0x66, 0x4C, 0x61, 0x43 }; // "fLaC"
-            public static readonly byte[] Mp3MagicPattern = { 0xFF, 0xE0 }; // MP3 frame header start
-            public static readonly byte[] WavMagic = { 0x52, 0x49, 0x46, 0x46 }; // "RIFF"
-            public const int MagicBytesToCheck = 4;
-        }
+        // NOTE: Audio validation magic bytes removed - use DownloadPayloadValidator from Common library instead
 
         /// <summary>
         /// Preview detection patterns

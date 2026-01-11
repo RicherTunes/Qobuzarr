@@ -1,3 +1,4 @@
+using Lidarr.Plugin.Common.Security;
 using Newtonsoft.Json;
 
 namespace QobuzCLI.Models.Configuration
@@ -38,9 +39,8 @@ namespace QobuzCLI.Models.Configuration
             if (string.IsNullOrEmpty(ReplacedFilesSuffix))
                 return false;
 
-            // Check for invalid file name characters
-            var invalidChars = Path.GetInvalidFileNameChars();
-            return !ReplacedFilesSuffix.Any(c => invalidChars.Contains(c));
+            // Valid if sanitization doesn't change the suffix (no invalid chars removed)
+            return Sanitize.PathSegment(ReplacedFilesSuffix) == ReplacedFilesSuffix;
         }
     }
 }

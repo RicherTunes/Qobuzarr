@@ -5,6 +5,7 @@ using System.Linq;
 using System.Net.Http;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
+using Lidarr.Plugin.Common.Security;
 using Lidarr.Plugin.Qobuzarr.Configuration;
 using QobuzCLI.Models;
 using Lidarr.Plugin.Qobuzarr.Authentication;
@@ -969,25 +970,8 @@ public class PluginHost : IPluginHost, IDisposable
     {
         if (string.IsNullOrWhiteSpace(fileName))
             return "Unknown";
-
-        // Remove invalid characters for file/folder names
-        var invalidChars = Path.GetInvalidFileNameChars();
-        var sanitized = string.Join("", fileName.Split(invalidChars));
-        
-        // Also remove additional problematic characters
-        sanitized = sanitized.Replace(":", " -")
-                           .Replace("/", "-")
-                           .Replace("\\", "-")
-                           .Replace("?", "")
-                           .Replace("*", "")
-                           .Replace("<", "")
-                           .Replace(">", "")
-                           .Replace("|", "")
-                           .Replace("\"", "'")
-                           .Trim();
-
-        // Ensure the name is not empty after sanitization
-        return string.IsNullOrWhiteSpace(sanitized) ? "Unknown" : sanitized;
+        var sanitized = Sanitize.PathSegment(fileName);
+        return string.IsNullOrEmpty(sanitized) ? "Unknown" : sanitized;
     }
 
     /// <summary>
