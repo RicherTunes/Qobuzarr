@@ -1,6 +1,14 @@
 <#
 .SYNOPSIS
-    Smoke test for Qobuzarr plugin - verifies plugin loads correctly in Lidarr.
+    [DEPRECATED] Smoke test for Qobuzarr plugin - verifies plugin loads correctly in Lidarr.
+
+    DEPRECATION NOTICE:
+    This script is superseded by Common's multi-plugin-smoke-test workflow.
+    For CI/CD, use: .github/workflows/multi-plugin-smoke-test.yml
+    For local testing, use: pwsh ext/Lidarr.Plugin.Common/scripts/multi-plugin-docker-smoke-test.ps1
+
+    This script remains available for quick single-plugin local testing only.
+    Do NOT add this script to CI workflows - use Common's reusable workflow instead.
 
 .DESCRIPTION
     This script:
@@ -64,6 +72,14 @@ param(
 )
 
 $ErrorActionPreference = "Stop"
+
+# Deprecation warning
+Write-Warning @"
+This script is DEPRECATED for CI/CD use.
+For comprehensive multi-plugin testing, use: .github/workflows/multi-plugin-smoke-test.yml
+For local testing with Common: pwsh ext/Lidarr.Plugin.Common/scripts/multi-plugin-docker-smoke-test.ps1
+"@
+
 $script:ContainerStarted = $false
 $script:ExitCode = 0
 
