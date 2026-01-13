@@ -40,9 +40,16 @@ paths = [
     '''README\.md''',
     '''tests/.*\.json''',
     '''tests/.*TestData.*''',
+    # Test files with fixture data - intentionally contain fake credentials for testing
+    '''tests/.*Tests\.cs''',
+    '''tests/Qobuzarr\.Tests/Unit/API/Http/.*\.cs''',
+    '''tests/Qobuzarr\.Tests/Integration/.*\.cs''',
+    '''tests/Qobuzarr\.Tests/Unit/Security/.*\.cs''',
 ]
 regexes = [
     '''(test_password|example_password|dummy_secret|placeholder_key)''',
     '''your_app_(id|secret)|your@email\.com|your_password''',
-    '''QOBUZ_(APP_ID|APP_SECRET|EMAIL|PASSWORD)'''
+    '''QOBUZ_(APP_ID|APP_SECRET|EMAIL|PASSWORD)''',
+    # Test URL patterns with fake auth tokens
+    '''user_auth_token=(test|fake|REDACTED|mock)''',
 ]
