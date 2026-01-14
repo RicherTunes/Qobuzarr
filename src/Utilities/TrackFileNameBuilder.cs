@@ -16,14 +16,13 @@ namespace Lidarr.Plugin.Qobuzarr.Utilities
             if (discNumber <= 0) discNumber = 1;
             if (totalDiscs <= 1) totalDiscs = 1;
 
-            var sanitizedTitle = FileNameSanitizer.SanitizeFileName(trackTitle);
             var extension = GetExtensionForFormat(formatId);
-
-            var prefix = totalDiscs > 1
-                ? $"D{discNumber:00}T{trackNumber:00}"
-                : $"{trackNumber:00}";
-
-            return $"{prefix} - {sanitizedTitle}{extension}";
+            return FileSystemUtilities.CreateTrackFileName(
+                title: trackTitle,
+                trackNumber: trackNumber,
+                extension: extension,
+                discNumber: discNumber,
+                totalDiscs: totalDiscs);
         }
 
         /// <summary>

@@ -49,6 +49,21 @@ namespace Qobuzarr.Tests.Unit.Utilities
         }
 
         [Fact]
+        public void Build_WithReservedNameWithTrailingDot_ShouldPrefixAndNotCreateDoubleDotExtension()
+        {
+            var result = TrackFileNameBuilder.Build(trackNumber: 1, trackTitle: "CON.", formatId: 6);
+            result.Should().Contain("_CON");
+            result.Should().NotContain("..flac");
+        }
+
+        [Fact]
+        public void Build_WithTrailingDotAndSpace_ShouldNotCreateDoubleDotExtension()
+        {
+            var result = TrackFileNameBuilder.Build(trackNumber: 1, trackTitle: "MyTitle. ", formatId: 6);
+            result.Should().NotContain("..flac");
+        }
+
+        [Fact]
         public void Build_WithInvalidDiscValues_ShouldNotThrow()
         {
             var result = TrackFileNameBuilder.Build(trackNumber: 1, trackTitle: "Song", formatId: 6, discNumber: 0, totalDiscs: 0);
