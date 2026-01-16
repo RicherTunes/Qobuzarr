@@ -85,7 +85,21 @@ jobs:
       run: |
         mkdir -p package
         cp bin/Lidarr.Plugin.Qobuzarr.dll package/ 2>/dev/null || cp bin/Release/*/Lidarr.Plugin.Qobuzarr.dll package/
-        cp plugin.json package/
+
+        plugin_json_source=""
+        if [ -f "obj/Release/plugin.json" ]; then
+          plugin_json_source="obj/Release/plugin.json"
+        elif [ -f "plugin.json" ]; then
+          plugin_json_source="plugin.json"
+        fi
+
+        if [ -z "$plugin_json_source" ]; then
+          echo "[ERROR] Could not locate plugin.json (expected plugin.json or obj/Release/plugin.json)." >&2
+          find . -maxdepth 4 -name "plugin.json" -print >&2 || true
+          exit 1
+        fi
+
+        cp "$plugin_json_source" package/plugin.json
 
         cd package
         zip -r ../Qobuzarr-closure-test.zip .
