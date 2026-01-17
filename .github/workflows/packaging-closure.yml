@@ -59,6 +59,19 @@ jobs:
       with:
         dotnet-version: ${{ env.DOTNET_VERSION }}
 
+    - name: Validate plugin manifest (ManifestCheck)
+      shell: pwsh
+      run: |
+        $scriptPath = 'ext/Lidarr.Plugin.Common/tools/ManifestCheck.ps1'
+        if (-not (Test-Path -LiteralPath $scriptPath)) {
+          throw "ManifestCheck script not found at '$scriptPath'. Ensure the Common submodule is initialized."
+        }
+
+        & $scriptPath `
+          -ProjectPath 'Qobuzarr.csproj' `
+          -ManifestPath 'plugin.json' `
+          -Strict
+
     - name: Setup Lidarr assemblies (plugins branch)
       run: |
         echo "Setting up Lidarr assemblies from plugins branch (Docker)..."
