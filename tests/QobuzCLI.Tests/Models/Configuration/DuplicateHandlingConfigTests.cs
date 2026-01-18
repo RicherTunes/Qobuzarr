@@ -1,3 +1,4 @@
+using System;
 using FluentAssertions;
 using QobuzCLI.Models.Configuration;
 using Xunit;
@@ -22,20 +23,37 @@ public class DuplicateHandlingConfigTests
     }
 
     [Theory]
-    [InlineData("", false)]              // Invalid: empty
-    [InlineData("test/path", false)]     // Invalid: contains path separator
-    [InlineData("test\\path", false)]    // Invalid: contains backslash
-    [InlineData("test:colon", false)]    // Invalid: contains colon (Windows)
-    [InlineData("test<angle", false)]    // Invalid: contains angle bracket
-    [InlineData("test>angle", false)]    // Invalid: contains angle bracket
-    [InlineData("test|pipe", false)]     // Invalid: contains pipe
-    [InlineData("test\"quote", false)]   // Invalid: contains quote
-    [InlineData("test?question", false)] // Invalid: contains question mark
-    [InlineData("test*star", false)]     // Invalid: contains asterisk
-    public void IsValidReplacedFilesSuffix_InvalidSuffixes_ReturnsFalse(string suffix, bool expected)
+    [InlineData("", false)]              // Invalid: empty (all platforms)
+    [InlineData("test/path", false)]     // Invalid: contains path separator (all platforms)
+    public void IsValidReplacedFilesSuffix_UniversallyInvalidSuffixes_ReturnsFalse(string suffix, bool expected)
     {
         var config = new DuplicateHandlingConfig { ReplacedFilesSuffix = suffix };
         config.IsValidReplacedFilesSuffix().Should().Be(expected);
+    }
+
+    [Theory]
+    [InlineData("test\\path")]    // Backslash - invalid on Windows (path sep), valid on Linux
+    [InlineData("test:colon")]    // Colon - invalid on Windows, valid on Linux
+    [InlineData("test<angle")]    // Less-than - invalid on Windows, valid on Linux
+    [InlineData("test>angle")]    // Greater-than - invalid on Windows, valid on Linux
+    [InlineData("test|pipe")]     // Pipe - invalid on Windows, valid on Linux
+    [InlineData("test\"quote")]   // Quote - invalid on Windows, valid on Linux
+    [InlineData("test?question")] // Question mark - invalid on Windows, valid on Linux
+    [InlineData("test*star")]     // Asterisk - invalid on Windows, valid on Linux
+    public void IsValidReplacedFilesSuffix_WindowsInvalidChars_OsAware(string suffix)
+    {
+        var config = new DuplicateHandlingConfig { ReplacedFilesSuffix = suffix };
+        var result = config.IsValidReplacedFilesSuffix();
+
+        if (OperatingSystem.IsWindows())
+        {
+            result.Should().BeFalse($"'{suffix}' should be invalid on Windows");
+        }
+        else
+        {
+            // On Linux/macOS, these chars are valid in filenames
+            result.Should().BeTrue($"'{suffix}' should be valid on non-Windows platforms");
+        }
     }
 
     [Theory]
