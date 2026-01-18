@@ -64,7 +64,7 @@ public class Dashboard : IDashboard
     private int _maxLogLines => Math.Max(10, GetSafeConsoleHeight() / 4); // Dynamic based on console height
     
     // Safe console dimension access with fallbacks
-    private int GetSafeConsoleWidth()
+    private static int GetSafeConsoleWidth()
     {
         try
         {
@@ -76,7 +76,7 @@ public class Dashboard : IDashboard
         }
     }
 
-    private int GetSafeConsoleHeight()
+    private static int GetSafeConsoleHeight()
     {
         try
         {
@@ -89,21 +89,21 @@ public class Dashboard : IDashboard
     }
 
     // Dynamic column width calculation
-    private int CalculateColumnWidth(int consoleWidth, int columnIndex, int totalColumns = 4)
+    private static int CalculateColumnWidth(int consoleWidth, int columnIndex, int totalColumns = 4)
     {
         // Reserve space for borders and padding (approximately 3 chars per column + table borders)
         var borderSpace = (totalColumns * 3) + 4;
         var availableWidth = Math.Max(80, consoleWidth - borderSpace); // Minimum 80 chars
-        
+
         // Distribute width proportionally with slight preference for the last column
         var baseWidth = availableWidth / totalColumns;
-        
+
         // Give the last column (Activity & Status) slightly more space
         if (columnIndex == totalColumns - 1)
         {
             return baseWidth + (availableWidth % totalColumns);
         }
-        
+
         return baseWidth;
     }
     
@@ -197,7 +197,7 @@ public class Dashboard : IDashboard
     {
         lock (_logBuffer)
         {
-            var timestamp = DateTime.Now.ToString("HH:mm:ss");
+            var timestamp = DateTime.Now.ToString("HH:mm:ss", System.Globalization.CultureInfo.InvariantCulture);
             _logBuffer.Enqueue($"[dim]{timestamp}[/] {message}");
             
             while (_logBuffer.Count > _maxLogLines)
@@ -280,7 +280,7 @@ public class Dashboard : IDashboard
                 
                 // Calculate how many rows we can display - use more of the available height
                 var reservedHeight = 8; // Title (3) + Progress bar (2) + Table borders (3)
-                if (_logBuffer.Any()) reservedHeight += 6; // Reserve space for log panel if needed
+                if (_logBuffer.Count > 0) reservedHeight += 6; // Reserve space for log panel if needed
                 
                 var availableHeight = consoleHeight - reservedHeight;
                 var maxDataRows = Math.Max(8, availableHeight); // At least 8 rows, no upper limit
@@ -331,8 +331,8 @@ public class Dashboard : IDashboard
                             break;
                             
                         case 5:
-                            var completionEta = _itemsPerSecond > 0 && remaining > 0 
-                                ? DateTime.Now.AddSeconds(remaining / _itemsPerSecond).ToString("HH:mm:ss")
+                            var completionEta = _itemsPerSecond > 0 && remaining > 0
+                                ? DateTime.Now.AddSeconds(remaining / _itemsPerSecond).ToString("HH:mm:ss", System.Globalization.CultureInfo.InvariantCulture)
                                 : "Unknown";
                             col1 = $"⏰ Complete: {completionEta}";
                             col2 = $"📊 Load: {(_itemsPerSecond / Math.Max(1, _peakSpeed) * 100),3:F0}%";
@@ -382,7 +382,7 @@ public class Dashboard : IDashboard
                 AnsiConsole.Write(table);
                 
                 // Log section - show if we have logs and reasonable space
-                if (_logBuffer.Any() && consoleHeight > 20)
+                if (_logBuffer.Count > 0 && consoleHeight > 20)
                 {
                     // Calculate available space for logs
                     var usedHeight = 8 + maxDataRows; // Base UI + table rows
@@ -447,22 +447,22 @@ public class Dashboard : IDashboard
         return text.Substring(0, maxLength - 3) + "...";
     }
     
-    public void Stop()
+    public void StopOperation()
     {
         lock (_lock)
         {
             if (!_isActive) return;
-            
+
             _isActive = false;
             _refreshTimer?.Change(Timeout.Infinite, Timeout.Infinite);
-            
+
             // Show final state briefly
             Thread.Sleep(1000);
-            
+
             // Restore console
             AnsiConsole.Cursor.Show();
             AnsiConsole.Clear();
-            
+
             // Notify dashboard state
             _dashboardState.SetDashboardActive(false);
         }
@@ -471,9 +471,10 @@ public class Dashboard : IDashboard
     public void Dispose()
     {
         if (_disposed) return;
-        
-        Stop();
+
+        StopOperation();
         _refreshTimer?.Dispose();
         _disposed = true;
+        GC.SuppressFinalize(this);
     }
 }

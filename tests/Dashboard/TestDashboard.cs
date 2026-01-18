@@ -54,7 +54,7 @@ namespace QobuzCLI
             // Keep dashboard visible for a moment
             await Task.Delay(2000);
             
-            dashboard.Stop();
+            dashboard.StopOperation();
             
             Console.WriteLine("\nDashboard test completed!");
             Console.WriteLine("The dashboard should have:");
@@ -72,7 +72,7 @@ namespace QobuzCLI
         
         public bool IsDashboardActive => _isActive;
         
-        public event EventHandler<bool> DashboardStateChanged;
+        public event EventHandler<bool>? DashboardStateChanged;
         
         public void SetDashboardActive(bool active)
         {
