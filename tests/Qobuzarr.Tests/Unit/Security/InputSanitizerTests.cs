@@ -195,35 +195,41 @@ namespace Qobuzarr.Tests.Unit.Security
                 Action sanitizeAction = () =>
                 {
                     var result = InputSanitizer.SanitizeFileName(chaosFileName);
-                    
+
                     // Basic safety checks
                     result.Should().NotBeNull($"file name sanitizer should handle chaos case: {testDescription}");
                     result.Should().NotBeEmpty($"file name sanitizer should return non-empty result for {testDescription}");
-                    
-                    // Should remove dangerous file system characters
-                    result.Should().NotContain("<", $"should remove angle brackets from file name: {testDescription}");
-                    result.Should().NotContain(">", $"should remove angle brackets from file name: {testDescription}");
-                    result.Should().NotContain(":", $"should remove colon from file name: {testDescription}");
-                    result.Should().NotContain("\"", $"should remove quotes from file name: {testDescription}");
-                    result.Should().NotContain("|", $"should remove pipe from file name: {testDescription}");
-                    result.Should().NotContain("?", $"should remove question mark from file name: {testDescription}");
-                    result.Should().NotContain("*", $"should remove asterisk from file name: {testDescription}");
-                    
-                    // Should handle path traversal attempts
+
+                    // Windows-specific character checks (only on Windows)
+                    if (OperatingSystem.IsWindows())
+                    {
+                        result.Should().NotContain("<", $"should remove angle brackets from file name: {testDescription}");
+                        result.Should().NotContain(">", $"should remove angle brackets from file name: {testDescription}");
+                        result.Should().NotContain(":", $"should remove colon from file name: {testDescription}");
+                        result.Should().NotContain("\"", $"should remove quotes from file name: {testDescription}");
+                        result.Should().NotContain("|", $"should remove pipe from file name: {testDescription}");
+                        result.Should().NotContain("?", $"should remove question mark from file name: {testDescription}");
+                        result.Should().NotContain("*", $"should remove asterisk from file name: {testDescription}");
+                    }
+
+                    // Should handle path traversal attempts (all platforms)
                     result.Should().NotContain("../", $"should remove path traversal from file name: {testDescription}");
                     result.Should().NotContain("..\\", $"should remove Windows path traversal from file name: {testDescription}");
-                    
+
                     // Result should be reasonable length
                     result.Length.Should().BeLessOrEqualTo(255, $"file name should respect OS limits for {testDescription}");
-                    
-                    // Should not be Windows reserved names
-                    var upperResult = result.ToUpperInvariant();
-                    var reservedNames = new[] { "CON", "PRN", "AUX", "NUL", "COM1", "COM2", "LPT1", "LPT2" };
-                    foreach (var reserved in reservedNames)
+
+                    // Windows reserved names check (only on Windows)
+                    if (OperatingSystem.IsWindows())
                     {
-                        upperResult.Should().NotStartWith(reserved + ".", $"should not start with reserved name {reserved} for {testDescription}");
+                        var upperResult = result.ToUpperInvariant();
+                        var reservedNames = new[] { "CON", "PRN", "AUX", "NUL", "COM1", "COM2", "LPT1", "LPT2" };
+                        foreach (var reserved in reservedNames)
+                        {
+                            upperResult.Should().NotStartWith(reserved + ".", $"should not start with reserved name {reserved} for {testDescription}");
+                        }
                     }
-                    
+
                     // If extreme input, safe default is acceptable
                     if (result == "unknown_file" || result == "safe_file")
                     {
