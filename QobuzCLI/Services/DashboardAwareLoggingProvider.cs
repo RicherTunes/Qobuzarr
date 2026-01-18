@@ -23,7 +23,7 @@ public class OptionsMonitorWrapper : IOptionsMonitor<ConsoleLoggerOptions>
     
     public IDisposable OnChange(Action<ConsoleLoggerOptions, string> listener) => new EmptyDisposable();
     
-    private class EmptyDisposable : IDisposable
+    private sealed class EmptyDisposable : IDisposable
     {
         public void Dispose() { }
     }
@@ -55,6 +55,7 @@ public class DashboardAwareConsoleLoggerProvider : ILoggerProvider
     {
         _optionsReloadToken?.Dispose();
         _consoleProvider?.Dispose();
+        GC.SuppressFinalize(this);
     }
 }
 

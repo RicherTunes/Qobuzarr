@@ -440,7 +440,7 @@ public class LidarrCommand
             }
             finally
             {
-                _dashboard.Stop();
+                _dashboard.StopOperation();
             }
         }
         catch (Exception ex)
@@ -766,7 +766,7 @@ public class LidarrCommand
             }
             finally
             {
-                _dashboard.Stop();
+                _dashboard.StopOperation();
             }
         }
         catch (Exception ex)

@@ -47,7 +47,7 @@ public class DashboardLogger<T> : ILogger<T>, IDashboardLogger
                (_categoryName.Contains("Download") && logLevel >= LogLevel.Information);
     }
     
-    private string FormatForDashboard(LogLevel logLevel, string message, Exception? exception)
+    private static string FormatForDashboard(LogLevel logLevel, string message, Exception? exception)
     {
         var icon = logLevel switch
         {
@@ -104,7 +104,7 @@ public class DashboardLogger<T> : ILogger<T>, IDashboardLogger
     public IDisposable? BeginScope<TState>(TState state) where TState : notnull => _innerLogger.BeginScope(state);
     public bool IsEnabled(LogLevel logLevel) => _innerLogger.IsEnabled(logLevel);
     
-    private string FormatForConsole(LogLevel logLevel, string message)
+    private static string FormatForConsole(LogLevel logLevel, string message)
     {
         var icon = logLevel switch
         {
@@ -171,7 +171,7 @@ public class DashboardLogger : ILogger, IDashboardLogger
                (_categoryName.Contains("Qobuz") && logLevel >= LogLevel.Information);
     }
     
-    private string FormatForDashboard(LogLevel logLevel, string message, Exception? exception)
+    private static string FormatForDashboard(LogLevel logLevel, string message, Exception? exception)
     {
         var icon = logLevel switch
         {
@@ -228,7 +228,7 @@ public class DashboardLogger : ILogger, IDashboardLogger
     public IDisposable? BeginScope<TState>(TState state) where TState : notnull => _innerLogger.BeginScope(state);
     public bool IsEnabled(LogLevel logLevel) => _innerLogger.IsEnabled(logLevel);
     
-    private string FormatForConsole(LogLevel logLevel, string message)
+    private static string FormatForConsole(LogLevel logLevel, string message)
     {
         var icon = logLevel switch
         {

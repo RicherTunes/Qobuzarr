@@ -11,5 +11,5 @@ public interface IDashboard : IDisposable
     void AddLogMessage(string message);
     void UpdateProgress(int processed, int success, int failed, string currentItem = "", string lastSuccessful = "");
     void Start(string operation, int totalItems);
-    void Stop();
+    void StopOperation();
 }

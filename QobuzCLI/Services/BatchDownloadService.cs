@@ -234,7 +234,7 @@ public class BatchDownloadService : IBatchDownloadService
         }
         finally
         {
-            _dashboard.Stop();
+            _dashboard.StopOperation();
         }
     }
 
@@ -303,7 +303,7 @@ public class BatchDownloadService : IBatchDownloadService
             report.FailedItems = failed;
 
             // Dashboard has finished tracking the queuing process
-            _dashboard.Stop();
+            _dashboard.StopOperation();
             
             // Start queue monitoring if items were added
             if (successful > 0)
@@ -322,7 +322,7 @@ public class BatchDownloadService : IBatchDownloadService
             // Ensure dashboard is stopped if monitoring was interrupted
             if (_dashboard.IsActive)
             {
-                _dashboard.Stop();
+                _dashboard.StopOperation();
             }
         }
     }
@@ -556,7 +556,7 @@ public class BatchDownloadService : IBatchDownloadService
         }
         finally
         {
-            _dashboard.Stop();
+            _dashboard.StopOperation();
             
             // Show final summary
             AnsiConsole.WriteLine();
