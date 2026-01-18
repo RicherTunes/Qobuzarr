@@ -44,5 +44,6 @@ public class DashboardLoggerProvider : ILoggerProvider
     {
         _loggers.Clear();
         _innerProvider?.Dispose();
+        GC.SuppressFinalize(this);
     }
 }
