@@ -364,10 +364,10 @@ namespace Qobuzarr.Tests.Unit.Download.Services
         public void CreateUniqueDownloadDirectory_WithNonExistentDirectory_ReturnsOriginalPath()
         {
             // Arrange
-            var basePath = @"C:\Downloads";
+            var basePath = Path.Combine(Path.GetTempPath(), "Downloads");
             var albumName = "Test Album";
-            var expectedPath = @"C:\Downloads\Test Album";
-            
+            var expectedPath = Path.Combine(basePath, albumName);
+
             MockDiskProvider.Setup(x => x.FolderExists(expectedPath)).Returns(false);
 
             // Act
@@ -381,17 +381,17 @@ namespace Qobuzarr.Tests.Unit.Download.Services
         public void CreateUniqueDownloadDirectory_WithExistingDirectory_ReturnsUniquePathWithTimestamp()
         {
             // Arrange
-            var basePath = @"C:\Downloads";
+            var basePath = Path.Combine(Path.GetTempPath(), "Downloads");
             var albumName = "Test Album";
-            var originalPath = @"C:\Downloads\Test Album";
-            
+            var originalPath = Path.Combine(basePath, albumName);
+
             MockDiskProvider.Setup(x => x.FolderExists(originalPath)).Returns(true);
 
             // Act
             var result = _sut.CreateUniqueDownloadDirectory(basePath, albumName);
 
             // Assert
-            result.Should().StartWith(@"C:\Downloads\Test Album_");
+            result.Should().StartWith(originalPath + "_");
             result.Should().NotBe(originalPath);
         }
 
@@ -399,9 +399,9 @@ namespace Qobuzarr.Tests.Unit.Download.Services
         public void CreateUniqueDownloadDirectory_WithSpecialCharacters_SanitizesAndCreatesUnique()
         {
             // Arrange
-            var basePath = @"C:\Downloads";
+            var basePath = Path.Combine(Path.GetTempPath(), "Downloads");
             var albumName = "Test<>Album?";
-            
+
             // Act
             var result = _sut.CreateUniqueDownloadDirectory(basePath, albumName);
 
@@ -409,7 +409,7 @@ namespace Qobuzarr.Tests.Unit.Download.Services
             result.Should().NotContain("<");
             result.Should().NotContain(">");
             result.Should().NotContain("?");
-            result.Should().StartWith(@"C:\Downloads\Test");
+            result.Should().StartWith(Path.Combine(basePath, "Test"));
         }
     }
 }
