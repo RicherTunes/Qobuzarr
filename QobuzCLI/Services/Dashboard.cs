@@ -61,7 +61,7 @@ public class Dashboard : IDashboard
     
     // Log buffer for bottom section
     private readonly Queue<string> _logBuffer = new();
-    private int _maxLogLines => Math.Max(10, GetSafeConsoleHeight() / 4); // Dynamic based on console height
+    private static int MaxLogLines => Math.Max(10, GetSafeConsoleHeight() / 4); // Dynamic based on console height
     
     // Safe console dimension access with fallbacks
     private static int GetSafeConsoleWidth()
@@ -200,7 +200,7 @@ public class Dashboard : IDashboard
             var timestamp = DateTime.Now.ToString("HH:mm:ss", System.Globalization.CultureInfo.InvariantCulture);
             _logBuffer.Enqueue($"[dim]{timestamp}[/] {message}");
             
-            while (_logBuffer.Count > _maxLogLines)
+            while (_logBuffer.Count > MaxLogLines)
                 _logBuffer.Dequeue();
         }
     }
@@ -404,7 +404,9 @@ public class Dashboard : IDashboard
         }
         catch (Exception ex)
         {
+#pragma warning disable CA1848 // Use LoggerMessage delegates - single usage, overkill
             _logger.LogError(ex, "Failed to update dashboard display");
+#pragma warning restore CA1848
         }
     }
     
@@ -422,7 +424,7 @@ public class Dashboard : IDashboard
             var plainText = Markup.Remove(text);
             
             if (plainText.Length > width)
-                return text.Substring(0, width - 3) + "...";
+                return string.Concat(text.AsSpan(0, width - 3), "...");
                 
             var padding = width - plainText.Length;
             return text + new string(' ', padding);
@@ -432,7 +434,7 @@ public class Dashboard : IDashboard
             // If markup processing fails, use safe fallback
             var safeText = text.Replace("[", "").Replace("]", "").Replace("<", "").Replace(">", "");
             if (safeText.Length > width)
-                return safeText.Substring(0, width - 3) + "...";
+                return string.Concat(safeText.AsSpan(0, width - 3), "...");
             
             var padding = width - safeText.Length;
             return safeText + new string(' ', padding);
@@ -444,7 +446,7 @@ public class Dashboard : IDashboard
         if (string.IsNullOrEmpty(text) || text.Length <= maxLength)
             return text ?? "";
         
-        return text.Substring(0, maxLength - 3) + "...";
+        return string.Concat(text.AsSpan(0, maxLength - 3), "...");
     }
     
     public void StopOperation()
