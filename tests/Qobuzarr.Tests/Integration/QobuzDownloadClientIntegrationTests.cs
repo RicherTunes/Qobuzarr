@@ -15,6 +15,7 @@ using NzbDrone.Core.Music;
 using NzbDrone.Common.Http;
 using Xunit;
 using Xunit.Abstractions;
+using Xunit.Sdk;
 using Lidarr.Plugin.Qobuzarr.API;
 using Lidarr.Plugin.Qobuzarr.API.Http;
 using Lidarr.Plugin.Qobuzarr.Authentication;
@@ -87,6 +88,17 @@ namespace Qobuzarr.Tests.Integration
             services.AddScoped<QobuzDownloadClient>();
         }
 
+        private const string SkipReason = "Qobuz credentials not configured (set QOBUZ_APP_ID, QOBUZ_EMAIL, QOBUZ_PASSWORD)";
+
+        /// <summary>
+        /// Skips the current test if prerequisites are not met.
+        /// Call at the start of each test method.
+        /// </summary>
+        private void SkipIfNotReady()
+        {
+            Skip.If(_downloadClient == null, SkipReason);
+        }
+
         public async Task InitializeAsync()
         {
             try
@@ -99,7 +111,7 @@ namespace Qobuzarr.Tests.Integration
 
                 if (string.IsNullOrEmpty(appId) || string.IsNullOrEmpty(email))
                 {
-                    _output.WriteLine("⏭️ Skipping: Qobuz credentials not configured (set QOBUZ_APP_ID, QOBUZ_APP_SECRET, QOBUZ_EMAIL, QOBUZ_PASSWORD)");
+                    _output.WriteLine("⏭️ Skipping: " + SkipReason);
                     return;
                 }
 
@@ -127,9 +139,10 @@ namespace Qobuzarr.Tests.Integration
             }
         }
 
-        [Fact]
+        [SkippableFact]
         public async Task Download_RealAlbum_CompletesSuccessfully()
         {
+            SkipIfNotReady();
             // Arrange - Use a small album for testing
             var albumId = "0060254734592"; // Example: a single or EP
             var remoteAlbum = CreateRemoteAlbum(albumId, "Test Album");
@@ -161,9 +174,10 @@ namespace Qobuzarr.Tests.Integration
             _output.WriteLine($"Downloaded {files.Length} tracks to {downloadPath}");
         }
 
-        [Fact]
+        [SkippableFact]
         public async Task Download_MultipleAlbumsConcurrently_HandlesCorrectly()
         {
+            SkipIfNotReady();
             // Arrange - Multiple small albums
             var albumIds = new[] 
             { 
@@ -204,9 +218,10 @@ namespace Qobuzarr.Tests.Integration
             _output.WriteLine($"Successfully downloaded {albumIds.Length} albums concurrently");
         }
 
-        [Fact]
+        [SkippableFact]
         public async Task Download_WithAuthenticationExpiry_RefreshesToken()
         {
+            SkipIfNotReady();
             // Arrange - Force token to expire soon
             var shortSession = new QobuzSession
             {
@@ -276,9 +291,10 @@ namespace Qobuzarr.Tests.Integration
         }
         */
 
-        [Fact]
+        [SkippableFact]
         public async Task Download_QualityFallback_SelectsAvailableQuality()
         {
+            SkipIfNotReady();
             // Arrange - Request Hi-Res but accept fallback
             var albumId = "0060254734592";
             var remoteAlbum = CreateRemoteAlbum(albumId, "Quality Fallback Test");
@@ -306,9 +322,10 @@ namespace Qobuzarr.Tests.Integration
             _output.WriteLine($"Download completed with quality fallback");
         }
 
-        [Fact]
+        [SkippableFact]
         public async Task Download_LargeAlbum_HandlesMemoryEfficiently()
         {
+            SkipIfNotReady();
             // Arrange - Album with many tracks
             var albumId = "0060254788359"; // Example: compilation album
             var remoteAlbum = CreateRemoteAlbum(albumId, "Large Album Test");
@@ -349,9 +366,10 @@ namespace Qobuzarr.Tests.Integration
             _output.WriteLine($"Peak memory increase: {memoryIncreaseMB}MB");
         }
 
-        [Fact]
+        [SkippableFact]
         public async Task RemoveDownload_WithDeleteData_CleansUpFiles()
         {
+            SkipIfNotReady();
             // Arrange - Download an album first
             var albumId = "0060254734592";
             var remoteAlbum = CreateRemoteAlbum(albumId, "Cleanup Test");
@@ -376,9 +394,10 @@ namespace Qobuzarr.Tests.Integration
             _output.WriteLine("Download removed and files cleaned up successfully");
         }
 
-        [Fact]
+        [SkippableFact]
         public async Task Download_InvalidAlbumId_FailsGracefully()
         {
+            SkipIfNotReady();
             // Arrange
             var invalidAlbumId = "99999999999999";
             var remoteAlbum = CreateRemoteAlbum(invalidAlbumId, "Invalid Album");
@@ -398,9 +417,10 @@ namespace Qobuzarr.Tests.Integration
             _output.WriteLine($"Invalid album handled gracefully: {downloadItem.Message}");
         }
 
-        [Fact]
+        [SkippableFact]
         public async Task GetDownloadStatus_ProvidesAccurateProgress()
         {
+            SkipIfNotReady();
             // Arrange
             var albumId = "0060254734592";
             var remoteAlbum = CreateRemoteAlbum(albumId, "Progress Tracking Test");
