@@ -108,35 +108,19 @@ namespace Qobuzarr.Tests.Unit.Security
 
         #region SanitizeFileName Edge Cases
 
-        [Fact]
-        public void SanitizeFileName_WithWindowsReservedName_ShouldPrefixOnWindows()
+        [Theory]
+        [InlineData("NUL", "_NUL")]
+        [InlineData("nul", "_nul")]
+        [InlineData("CON.txt", "_CON.txt")]
+        [InlineData("Con.txt", "_Con.txt")]
+        [InlineData("prn.doc", "_prn.doc")]
+        [InlineData("COM1", "_COM1")]
+        [InlineData("LPT9.doc", "_LPT9.doc")]
+        [InlineData("AUX.", "_AUX")] // Trailing dot trimmed, then reserved-name prefixed
+        public void SanitizeFileName_WithWindowsReservedName_ShouldPrefixForPortability(string input, string expected)
         {
-            // CON, PRN, AUX, NUL, COM1-9, LPT1-9 are reserved on Windows
-            var result = InputSanitizer.SanitizeFileName("CON.txt");
-            
-            if (OperatingSystem.IsWindows())
-            {
-                result.Should().Be("_CON.txt", "Windows reserved names should be prefixed");
-            }
-            else
-            {
-                result.Should().Be("CON.txt", "Reserved names are valid on non-Windows");
-            }
-        }
-
-        [Fact]
-        public void SanitizeFileName_WithReservedNameNoExtension_ShouldHandleCorrectly()
-        {
-            var result = InputSanitizer.SanitizeFileName("NUL");
-            
-            if (OperatingSystem.IsWindows())
-            {
-                result.Should().Be("_NUL");
-            }
-            else
-            {
-                result.Should().Be("NUL");
-            }
+            var result = InputSanitizer.SanitizeFileName(input);
+            result.Should().Be(expected);
         }
 
         [Fact]
