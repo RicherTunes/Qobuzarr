@@ -457,8 +457,9 @@ namespace Lidarr.Plugin.Qobuzarr.Security
                 ? sanitized.Substring(0, sanitized.Length - extension.Length)
                 : sanitized;
             
-            // Only prefix reserved names on Windows - they're valid on Linux/macOS
-            if (OperatingSystem.IsWindows() && WindowsReservedNames.Contains(nameWithoutExt))
+            // Prefix Windows reserved device names on all platforms for portability.
+            // This ensures files created on Linux/macOS remain valid when moved to Windows.
+            if (WindowsReservedNames.Contains(nameWithoutExt))
             {
                 sanitized = "_" + sanitized;
                 nameWithoutExt = "_" + nameWithoutExt;
