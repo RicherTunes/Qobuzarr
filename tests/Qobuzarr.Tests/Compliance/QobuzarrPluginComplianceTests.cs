@@ -73,7 +73,7 @@ public class QobuzarrPluginComplianceTests : IDisposable
         if (_pluginManifest == null)
             return;
 
-        var minVersion = _pluginManifest["minimumLidarrVersion"]?.ToString();
+        var minVersion = (_pluginManifest["minHostVersion"] ?? _pluginManifest["minimumLidarrVersion"])?.ToString();
         if (!string.IsNullOrWhiteSpace(minVersion))
         {
             Assert.True(Version.TryParse(minVersion, out _), $"Minimum Lidarr version '{minVersion}' should be valid");
