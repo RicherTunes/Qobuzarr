@@ -166,7 +166,14 @@ if (-not $NoBuild) {
                 Import-Module $modulePath -Force
                 # Use the generated plugin.json from bin/ (has version substituted)
                 $manifestPath = Join-Path $scriptRoot 'bin/plugin.json'
-                $packagePath = New-PluginPackage -Csproj 'Qobuzarr.csproj' -Manifest $manifestPath -Framework 'net8.0' -Configuration $Configuration
+
+                # Canonical Abstractions injection (reads version/sha256 from canonical-abstractions.json in Common)
+                $packagePath = New-PluginPackage `
+                    -Csproj 'Qobuzarr.csproj' `
+                    -Manifest $manifestPath `
+                    -Framework 'net8.0' `
+                    -Configuration $Configuration `
+                    -RequireCanonicalAbstractions
                 Write-Host "✅ Package created: $packagePath" -ForegroundColor Green
 
                 # Write packaging metadata (hash + assembly list for smoke tests)
