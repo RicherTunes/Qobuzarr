@@ -1,4 +1,5 @@
 using System.IO;
+using System.Text;
 using Lidarr.Plugin.Common.Utilities;
 
 namespace Lidarr.Plugin.Qobuzarr.Utilities
@@ -16,7 +17,7 @@ namespace Lidarr.Plugin.Qobuzarr.Utilities
             if (discNumber <= 0) discNumber = 1;
             if (totalDiscs <= 1) totalDiscs = 1;
 
-            var sanitizedTitle = FileNameSanitizer.SanitizeFileName(trackTitle);
+            var sanitizedTitle = FileNameSanitizer.SanitizeFileName(trackTitle).Normalize(NormalizationForm.FormC);
             var extension = GetExtensionForFormat(formatId);
 
             var prefix = totalDiscs > 1

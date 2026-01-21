@@ -1,4 +1,5 @@
 using System.IO;
+using System.Text;
 using FluentAssertions;
 using Lidarr.Plugin.Qobuzarr.Utilities;
 using Xunit;
@@ -37,6 +38,13 @@ namespace Qobuzarr.Tests.Unit.Utilities
         }
 
         [Fact]
+        public void Build_WithMultiDisc_ShouldZeroPadTrackNumbers()
+        {
+            var result = TrackFileNameBuilder.Build(trackNumber: 9, trackTitle: "Song", formatId: 6, discNumber: 3, totalDiscs: 4);
+            result.Should().StartWith("D03T09 - ");
+        }
+
+        [Fact]
         public void Build_ShouldSanitizeTitleForFileSystem()
         {
             var result = TrackFileNameBuilder.Build(trackNumber: 1, trackTitle: "A:B/C*D?E\"F<G>H|I", formatId: 6);
@@ -46,6 +54,17 @@ namespace Qobuzarr.Tests.Unit.Utilities
             {
                 fileName.Should().NotContain(invalidChar.ToString());
             }
+        }
+
+        [Fact]
+        public void Build_ShouldNormalizeUnicodeToFormC()
+        {
+            var decomposed = "Cafe\u0301"; // Cafe + combining acute accent
+
+            var result = TrackFileNameBuilder.Build(trackNumber: 1, trackTitle: decomposed, formatId: 6);
+
+            result.IsNormalized(NormalizationForm.FormC).Should().BeTrue();
+            result.Should().Contain("Café");
         }
 
         [Fact]
