@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Text;
@@ -34,6 +35,7 @@ using Lidarr.Plugin.Qobuzarr.Download.Services;
 using Lidarr.Plugin.Qobuzarr.Download.Orchestration;
 using Lidarr.Plugin.Qobuzarr.Constants;
 using Lidarr.Plugin.Qobuzarr.Services.Http;
+using Lidarr.Plugin.Common.Services.Download;
 using Lidarr.Plugin.Common.Utilities;
 using System.Net.Http;
 using System.Net.Http.Headers;
@@ -630,7 +632,9 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Clients
 
             // REAL download implementation - get stream URL and download actual audio
             string outputPath = null;
-            
+            long bytesWritten = 0;
+            var stopwatch = Stopwatch.StartNew();
+             
             try
             {
                 // 1. Get streaming info from Qobuz API (need format before building path)
@@ -654,13 +658,27 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Clients
                 
                 // 3. Download actual audio file (stream to disk to avoid large memory usage)
                 _logger.Debug("📥 Starting HTTP download for track {0}", track.Title);
-                var bytesWritten = await DownloadToFileAsync(streamUrl, outputPath, downloadItem.CancellationTokenSource.Token);
+                bytesWritten = await DownloadToFileAsync(streamUrl, outputPath, downloadItem.CancellationTokenSource.Token);
                 _logger.Debug("💾 Audio file written: {0} bytes", bytesWritten);
-                
+                 
                 // 5. Apply metadata tags using TagLibSharp
                 await ApplyMetadataTagsAsync(outputPath, track, album);
                 
                 _logger.Info("✅ Downloaded: {0} ({1:F1} MB)", track.Title, bytesWritten / 1024.0 / 1024.0);
+
+                stopwatch.Stop();
+                var bytesPerSecond = stopwatch.Elapsed.TotalSeconds > 0 ? bytesWritten / stopwatch.Elapsed.TotalSeconds : 0;
+                LogDownloadTelemetry(new DownloadTelemetry(
+                    QobuzarrConstants.PluginName,
+                    album.Id,
+                    track.Id,
+                    true,
+                    bytesWritten,
+                    stopwatch.Elapsed,
+                    bytesPerSecond,
+                    0,
+                    0,
+                    null));
             }
             catch (Exception ex)
             {
@@ -671,6 +689,21 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Clients
                 {
                     try { File.Delete(outputPath); } catch { }
                 }
+
+                stopwatch.Stop();
+                var bytesPerSecond = stopwatch.Elapsed.TotalSeconds > 0 ? bytesWritten / stopwatch.Elapsed.TotalSeconds : 0;
+                var tooManyRequests = ex is HttpRequestException hre && hre.StatusCode == System.Net.HttpStatusCode.TooManyRequests ? 1 : 0;
+                LogDownloadTelemetry(new DownloadTelemetry(
+                    QobuzarrConstants.PluginName,
+                    album.Id,
+                    track.Id,
+                    false,
+                    bytesWritten,
+                    stopwatch.Elapsed,
+                    bytesPerSecond,
+                    0,
+                    tooManyRequests,
+                    ex.Message));
                 throw;
             }
             
@@ -678,6 +711,43 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Clients
             if (!File.Exists(outputPath) || new FileInfo(outputPath).Length < 1024)
             {
                 throw new InvalidOperationException($"Downloaded file validation failed: {track.Title}");
+            }
+        }
+
+        private void LogDownloadTelemetry(DownloadTelemetry telemetry)
+        {
+            try
+            {
+                var seconds = Math.Max(0.001, telemetry.Elapsed.TotalSeconds);
+                var kbPerSecond = (telemetry.BytesPerSecond / 1024.0);
+
+                if (telemetry.Success)
+                {
+                    _logger.Info(
+                        "Download completed: track={0} album={1} bytes={2} elapsed={3:F2}s rate={4:F1}KB/s retries={5} 429s={6}",
+                        telemetry.TrackId,
+                        telemetry.AlbumId ?? "",
+                        telemetry.BytesWritten,
+                        seconds,
+                        kbPerSecond,
+                        telemetry.RetryCount,
+                        telemetry.TooManyRequestsCount);
+                }
+                else
+                {
+                    _logger.Warn(
+                        "Download failed: track={0} album={1} elapsed={2:F2}s retries={3} 429s={4} error={5}",
+                        telemetry.TrackId,
+                        telemetry.AlbumId ?? "",
+                        seconds,
+                        telemetry.RetryCount,
+                        telemetry.TooManyRequestsCount,
+                        telemetry.ErrorMessage ?? "");
+                }
+            }
+            catch
+            {
+                // best-effort; never break downloads for telemetry
             }
         }
 
