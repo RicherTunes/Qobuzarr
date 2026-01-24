@@ -141,6 +141,8 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Services
         private async Task DownloadSingleTrackAsync(QobuzDownloadItem downloadItem, QobuzAlbum album, QobuzTrack track, QobuzDownloadSettings settings, CancellationToken cancellationToken)
         {
             string outputPath = null;
+            var stopwatch = System.Diagnostics.Stopwatch.StartNew();
+            long bytesWritten = 0;
             try
             {
                 // 1. Get streaming info from Qobuz API (need format before building path)
@@ -191,13 +193,16 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Services
 
                 // 3. Download to disk
                 _logger.Debug("Starting HTTP download for track {0}", track.Title);
-                var bytesWritten = await DownloadToFileAsync(streamUrl, outputPath, cancellationToken).ConfigureAwait(false);
+                bytesWritten = await DownloadToFileAsync(streamUrl, outputPath, cancellationToken).ConfigureAwait(false);
                 _logger.Debug("Audio file written: {0} bytes", bytesWritten);
 
                 // 4. Apply tags
                 await ApplyMetadataTagsAsync(outputPath, track, album).ConfigureAwait(false);
 
-                _logger.Info("Downloaded: {0} ({1:F1} MB)", track.Title, bytesWritten / 1024.0 / 1024.0);
+                stopwatch.Stop();
+                var rateKBps = stopwatch.Elapsed.TotalSeconds > 0 ? bytesWritten / stopwatch.Elapsed.TotalSeconds / 1024.0 : 0;
+                _logger.Info("Qobuzarr track completed: track={0} album={1} bytes={2} elapsed={3:F2}s rate={4:F1}KB/s",
+                    track.Id, album?.Id ?? "unknown", bytesWritten, stopwatch.Elapsed.TotalSeconds, rateKBps);
             }
             catch (Exception ex)
             {
