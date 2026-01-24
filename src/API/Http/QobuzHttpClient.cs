@@ -10,6 +10,7 @@ using Lidarr.Plugin.Qobuzarr.Configuration;
 using Lidarr.Plugin.Qobuzarr.Services;
 using Lidarr.Plugin.Qobuzarr.Utilities;
 using Lidarr.Plugin.Common.Services.Performance;
+using Lidarr.Plugin.Common.Security;
 using Lidarr.Plugin.Qobuzarr.Constants;
 using SharedRetryUtilities = Lidarr.Plugin.Common.Utilities.RetryUtilities;
 
@@ -257,70 +258,7 @@ namespace Lidarr.Plugin.Qobuzarr.API.Http
                 return "unknown";
             }
 
-            return RedactSensitiveQueryValues(url);
-        }
-
-        private static string RedactSensitiveQueryValues(string url)
-        {
-            try
-            {
-                if (!Uri.TryCreate(url, UriKind.Absolute, out var uri) || string.IsNullOrEmpty(uri.Query))
-                {
-                    return url;
-                }
-
-                var query = uri.Query.TrimStart('?');
-                if (string.IsNullOrWhiteSpace(query))
-                {
-                    return url;
-                }
-
-                var parts = query.Split('&', StringSplitOptions.RemoveEmptyEntries);
-                for (var i = 0; i < parts.Length; i++)
-                {
-                    var part = parts[i];
-                    var eq = part.IndexOf('=');
-                    if (eq <= 0) continue;
-
-                    var rawKey = part.Substring(0, eq);
-                    var rawValue = part.Substring(eq + 1);
-
-                    var key = Uri.UnescapeDataString(rawKey);
-                    if (!IsSensitiveQueryKey(key)) continue;
-
-                    parts[i] = $"{rawKey}=[redacted]";
-                }
-
-                var builder = new UriBuilder(uri)
-                {
-                    Query = string.Join("&", parts)
-                };
-
-                return builder.Uri.ToString();
-            }
-            catch
-            {
-                return url;
-            }
-        }
-
-        private static bool IsSensitiveQueryKey(string key)
-        {
-            if (string.IsNullOrWhiteSpace(key))
-            {
-                return false;
-            }
-
-            var lower = key.Trim().ToLowerInvariant();
-
-            // Most important explicit keys used by Qobuz and our auth flow
-            if (lower is "user_auth_token" or "auth_token" or "token" or "app_secret" or "password" or "api_key" or "apikey" or "request_sig")
-            {
-                return true;
-            }
-
-            // Conservative fallbacks for other secret-bearing keys
-            return lower.Contains("token") || lower.Contains("secret") || lower.Contains("password") || lower.Contains("apikey");
+            return Sanitize.UrlHostOnly(url);
         }
     }
 }

@@ -811,13 +811,8 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Clients
                         .Replace("\r", " ")
                         .Replace("\n", " ")
                         .Trim();
-
-                    if (DownloadResponseDiagnostics.ShouldRedactSnippet(snippet))
-                    {
-                        snippet = "[redacted]";
-                    }
-
-                    throw new InvalidOperationException($"Unexpected content type '{contentType}' when downloading audio (Host={urlHost}). Snippet: {snippet}");
+                    var safeSnippet = DownloadResponseDiagnostics.GetSafeSnippetForLogging(snippet);
+                    throw new InvalidOperationException($"Unexpected content type '{contentType}' when downloading audio (Host={urlHost}). Snippet: {safeSnippet}");
                 }
 
                 await fileStream.WriteAsync(buffer.AsMemory(0, read), cancellationToken).ConfigureAwait(false);

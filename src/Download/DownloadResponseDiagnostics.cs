@@ -1,4 +1,5 @@
 using System;
+using Lidarr.Plugin.Common.Security;
 
 namespace Lidarr.Plugin.Qobuzarr.Download
 {
@@ -6,19 +7,7 @@ namespace Lidarr.Plugin.Qobuzarr.Download
     {
         internal static string TryGetHost(string url)
         {
-            if (string.IsNullOrWhiteSpace(url))
-            {
-                return "unknown";
-            }
-
-            try
-            {
-                return new Uri(url).Host;
-            }
-            catch
-            {
-                return "unknown";
-            }
+            return Sanitize.UrlHostOnly(url);
         }
 
         internal static bool IsTextLikeContentType(string? contentType)
@@ -58,21 +47,10 @@ namespace Lidarr.Plugin.Qobuzarr.Download
             return first == (byte)'<' || first == (byte)'{' || first == (byte)'[';
         }
 
-        internal static bool ShouldRedactSnippet(string snippet)
+        internal static string GetSafeSnippetForLogging(string? snippet)
         {
-            if (string.IsNullOrWhiteSpace(snippet))
-            {
-                return false;
-            }
-
-            return snippet.Contains("http", StringComparison.OrdinalIgnoreCase) ||
-                   snippet.Contains("token", StringComparison.OrdinalIgnoreCase) ||
-                   snippet.Contains("password", StringComparison.OrdinalIgnoreCase) ||
-                   snippet.Contains("secret", StringComparison.OrdinalIgnoreCase) ||
-                   snippet.Contains("apikey", StringComparison.OrdinalIgnoreCase) ||
-                   snippet.Contains("api_key", StringComparison.OrdinalIgnoreCase) ||
-                   snippet.Contains("user_auth_token", StringComparison.OrdinalIgnoreCase) ||
-                   snippet.Contains("app_secret", StringComparison.OrdinalIgnoreCase);
+            if (string.IsNullOrWhiteSpace(snippet)) return "[empty]";
+            return Sanitize.SafeErrorMessage(snippet);
         }
     }
 }
