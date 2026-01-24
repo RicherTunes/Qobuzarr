@@ -21,12 +21,12 @@ namespace Lidarr.Plugin.Qobuzarr.Core
     /// </summary>
     public class QobuzDownloadService
     {
-        private readonly IQobuzHttpClient _httpClient;
+        private readonly IJsonHttpClient _httpClient;
         private readonly IQobuzLogger _logger;
         private readonly QobuzApiService _apiService;
 
         public QobuzDownloadService(
-            IQobuzHttpClient httpClient,
+            IJsonHttpClient httpClient,
             IQobuzLogger logger,
             QobuzApiService apiService)
         {

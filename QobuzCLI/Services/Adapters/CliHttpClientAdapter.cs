@@ -7,10 +7,10 @@ using Newtonsoft.Json;
 namespace QobuzCLI.Services.Adapters
 {
     /// <summary>
-    /// Adapter that bridges CLI's HttpClient to plugin's IQobuzHttpClient interface.
+    /// Adapter that bridges CLI's HttpClient to plugin's JSON/bytes/string HTTP helper interface.
     /// Follows plugin-first architecture from CLAUDE.md.
     /// </summary>
-    public class CliHttpClientAdapter : IQobuzHttpClient
+    public class CliHttpClientAdapter : IJsonHttpClient
     {
         private readonly HttpClient _httpClient;
 

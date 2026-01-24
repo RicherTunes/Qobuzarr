@@ -25,7 +25,7 @@ using QobuzCLI.Services.Adapters;
 using System.Collections.Concurrent;
 using System.Linq;
 using Lidarr.Plugin.Qobuzarr.Download.Services;
-// Use alias to resolve IQobuzHttpClient ambiguity
+// Alias the API HTTP interface for clarity (distinct from IJsonHttpClient).
 using IQobuzHttpClient = Lidarr.Plugin.Qobuzarr.API.Http.IQobuzHttpClient;
 
 namespace QobuzCLI.Services;
@@ -44,7 +44,7 @@ public class PluginHost : IPluginHost, IDisposable
     private IQobuzLogger? _pluginLogger;
     private IQobuzCache? _cache;
     private IQobuzHttpClient? _pluginHttpClient;  // API.Http version for new services
-    private Lidarr.Plugin.Qobuzarr.Abstractions.IQobuzHttpClient? _abstractionsHttpClient; // Abstractions version for legacy code
+    private IJsonHttpClient? _jsonHttpClient; // JSON/bytes/string helper for legacy code paths
 
     public PluginHost(ILogger<PluginHost> logger, HttpClient httpClient)
     {
@@ -1089,7 +1089,7 @@ public class PluginHost : IPluginHost, IDisposable
         _pluginLogger = new CliLoggerAdapter(_logger);
         _cache = new CliCacheAdapter();
         _pluginHttpClient = new PluginHttpClientAdapter(_httpClient);
-        _abstractionsHttpClient = new CliHttpClientAdapter(_httpClient);
+        _jsonHttpClient = new CliHttpClientAdapter(_httpClient);
     }
 
     /// <summary>
@@ -1134,7 +1134,7 @@ public class PluginHost : IPluginHost, IDisposable
         _apiClient = new CliApiService(null, null, qualityServiceAdapter, cliValidationService, _pluginLogger, pluginApiClient);
         
         // Use enhanced CliDownloadService with REAL download functionality
-        _downloadService = new CliDownloadService(_abstractionsHttpClient!, _pluginLogger, _apiClient);
+        _downloadService = new CliDownloadService(_jsonHttpClient!, _pluginLogger, _apiClient);
     }
 
     #endregion

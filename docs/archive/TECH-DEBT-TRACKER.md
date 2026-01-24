@@ -13,7 +13,7 @@ Purpose: keep a single, accurate view of what we changed, why, and what’s next
 
 ## In Progress / Next
 
-- Rename `src/Abstractions/IQobuzHttpClient` to `IPluginHttpClient` to remove naming collision with `src/API/Http/IQobuzHttpClient`.
+- Renamed `src/Abstractions/IQobuzHttpClient` to `src/Abstractions/IJsonHttpClient` to remove naming collision with `src/API/Http/IQobuzHttpClient`.
 - Extract Qobuz‑specific helpers from `src/Utilities/StringSimilarity.cs` into explicit types (`TitleNormalizer`, `TrackSimilarityScorer`) and route generic similarity to the common lib.
 - Gradually remove nullable suppressions by fixing call sites (drop `CS860x/CS862x/CS1998` from `NoWarn`).
 
@@ -21,4 +21,3 @@ Purpose: keep a single, accurate view of what we changed, why, and what’s next
 
 - External code under `ext/**` continues to have analyzers disabled to avoid churn on upstream sources.
 - ILRepack remains disabled until we have a documented need and a green, reproducible pipeline.
-

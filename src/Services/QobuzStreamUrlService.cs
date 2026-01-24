@@ -13,13 +13,13 @@ namespace Lidarr.Plugin.Qobuzarr.Services
     /// </summary>
     public class QobuzStreamUrlService
     {
-        private readonly IQobuzHttpClient _httpClient;
+        private readonly IJsonHttpClient _httpClient;
         private readonly IQobuzLogger _logger;
         private readonly IQobuzAuthenticationService _authService;
         private const string API_BASE = "https://www.qobuz.com/api.json/0.2";
 
         public QobuzStreamUrlService(
-            IQobuzHttpClient httpClient,
+            IJsonHttpClient httpClient,
             IQobuzLogger logger,
             IQobuzAuthenticationService authService)
         {

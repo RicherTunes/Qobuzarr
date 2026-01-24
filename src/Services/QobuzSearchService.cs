@@ -16,14 +16,14 @@ namespace Lidarr.Plugin.Qobuzarr.Services
     /// </summary>
     public class QobuzSearchService
     {
-        private readonly IQobuzHttpClient _httpClient;
+        private readonly IJsonHttpClient _httpClient;
         private readonly IQobuzLogger _logger;
         private readonly IQobuzAuthenticationService _authService;
         private readonly Lidarr.Plugin.Qobuzarr.Indexers.QobuzIndexerSettings? _settings;
         private const string API_BASE = "https://www.qobuz.com/api.json/0.2";
 
         public QobuzSearchService(
-            IQobuzHttpClient httpClient,
+            IJsonHttpClient httpClient,
             IQobuzLogger logger,
             IQobuzAuthenticationService authService)
         {
@@ -35,7 +35,7 @@ namespace Lidarr.Plugin.Qobuzarr.Services
 
         // Overload to accept settings for locale/country threading
         public QobuzSearchService(
-            IQobuzHttpClient httpClient,
+            IJsonHttpClient httpClient,
             IQobuzLogger logger,
             IQobuzAuthenticationService authService,
             Lidarr.Plugin.Qobuzarr.Indexers.QobuzIndexerSettings settings)

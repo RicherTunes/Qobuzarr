@@ -10,7 +10,7 @@ namespace Lidarr.Plugin.Qobuzarr.Integration
     /// <summary>
     /// Adapts Lidarr's IHttpClient to our simple interface
     /// </summary>
-    public class LidarrHttpClientAdapter : IQobuzHttpClient
+    public class LidarrHttpClientAdapter : IJsonHttpClient
     {
         private readonly IHttpClient _httpClient;
 

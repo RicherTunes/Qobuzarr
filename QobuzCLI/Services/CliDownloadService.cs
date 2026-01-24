@@ -14,12 +14,12 @@ namespace QobuzCLI.Services
     /// </summary>
     public class CliDownloadService
     {
-        private readonly IQobuzHttpClient _httpClient;
+        private readonly IJsonHttpClient _httpClient;
         private readonly IQobuzLogger _logger;
         private readonly CliApiService _apiService;
 
         public CliDownloadService(
-            IQobuzHttpClient httpClient,
+            IJsonHttpClient httpClient,
             IQobuzLogger logger,
             CliApiService apiService)
         {

@@ -33,7 +33,7 @@ src/Services/Interfaces/IQobuzApiClient.cs    # Secondary interface (different m
 
 #### **2. IQobuzHttpClient Duplication**
 ```  
-src/Abstractions/IQobuzHttpClient.cs          # Abstract (3 methods)
+src/Abstractions/IJsonHttpClient.cs           # Abstract JSON/bytes/string helper (3 methods)
 src/API/Http/IQobuzHttpClient.cs              # Concrete (5 methods)  
 ```
 
