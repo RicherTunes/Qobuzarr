@@ -57,7 +57,7 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Services
 
             var albumInfo = album != null ? $"{album.GetArtistName()} - {album.GetFullTitle()}" : $"{downloadItem.Artist} - {downloadItem.Title}";
             var albumYear = album?.ReleaseDate.Year > 1900 ? $" ({album.ReleaseDate.Year})" : "";
-            _logger.Info("Starting album download: {0}{1} • {2} tracks • {3} concurrent",
+            _logger.Info("Starting album download: {0}{1} | {2} tracks | {3} concurrent",
                 albumInfo, albumYear, totalTracks, _concurrencyManager.CurrentLimit);
 
             var successfulTracks = 0;
@@ -201,11 +201,15 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Services
 
                 stopwatch.Stop();
                 var rateKBps = stopwatch.Elapsed.TotalSeconds > 0 ? bytesWritten / stopwatch.Elapsed.TotalSeconds / 1024.0 : 0;
-                _logger.Info("Qobuzarr track completed: track={0} album={1} bytes={2} elapsed={3:F2}s rate={4:F1}KB/s",
-                    track.Id, album?.Id ?? "unknown", bytesWritten, stopwatch.Elapsed.TotalSeconds, rateKBps);
+                _logger.Info("Qobuzarr track completed: track={0} album={1} bytes={2} elapsed={3:F2}s rate={4:F1}KB/s retries={5} 429s={6}",
+                    track.Id, album?.Id ?? "unknown", bytesWritten, stopwatch.Elapsed.TotalSeconds, rateKBps, 0, 0);
             }
             catch (Exception ex)
             {
+                stopwatch.Stop();
+                int tooManyRequests = ex is HttpRequestException hre && (int?)hre.StatusCode == 429 ? 1 : 0;
+                _logger.Warn("Qobuzarr track failed: track={0} album={1} elapsed={2:F2}s retries={3} 429s={4} error={5}",
+                    track.Id, album?.Id ?? "unknown", stopwatch.Elapsed.TotalSeconds, 0, tooManyRequests, ex.Message);
                 _logger.Error(ex, "Download failed for track: {0}", track.Title);
                 if (File.Exists(outputPath))
                 {
