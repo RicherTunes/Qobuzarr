@@ -12,9 +12,12 @@ using NLog;
 using Lidarr.Plugin.Qobuzarr.API;
 using Lidarr.Plugin.Qobuzarr.Download.Clients;
 using Lidarr.Plugin.Qobuzarr.Exceptions;
+using Lidarr.Plugin.Qobuzarr.Integration;
 using Lidarr.Plugin.Qobuzarr.Models;
 using Lidarr.Plugin.Qobuzarr.Services.Http;
 using Lidarr.Plugin.Qobuzarr.Utilities;
+using Lidarr.Plugin.Common.Services.Download;
+using Lidarr.Plugin.Common.Security;
 
 namespace Lidarr.Plugin.Qobuzarr.Download.Services
 {
@@ -28,6 +31,7 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Services
         private readonly IConcurrencyManager _concurrencyManager;
         private readonly IDownloadSummary _downloadSummary;
         private readonly IDownloadQueueService _queueService;
+        private readonly IQobuzDownloadTelemetrySink? _telemetrySink;
         private readonly Logger _logger;
 
         public TrackDownloadService(
@@ -35,13 +39,15 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Services
             IConcurrencyManager concurrencyManager,
             IDownloadSummary downloadSummary,
             IDownloadQueueService queueService,
-            Logger logger)
+            Logger logger,
+            IQobuzDownloadTelemetrySink? telemetrySink = null)
         {
             _apiClient = apiClient ?? throw new ArgumentNullException(nameof(apiClient));
             _concurrencyManager = concurrencyManager ?? throw new ArgumentNullException(nameof(concurrencyManager));
             _downloadSummary = downloadSummary ?? throw new ArgumentNullException(nameof(downloadSummary));
             _queueService = queueService ?? throw new ArgumentNullException(nameof(queueService));
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+            _telemetrySink = telemetrySink;
         }
 
         public async Task DownloadAlbumAsync(QobuzDownloadItem downloadItem, QobuzAlbum album, QobuzDownloadSettings settings, CancellationToken cancellationToken)
@@ -201,16 +207,16 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Services
 
                 stopwatch.Stop();
                 var rateKBps = stopwatch.Elapsed.TotalSeconds > 0 ? bytesWritten / stopwatch.Elapsed.TotalSeconds / 1024.0 : 0;
-                _logger.Info("Qobuzarr track completed: track={0} album={1} bytes={2} elapsed={3:F2}s rate={4:F1}KB/s retries={5} 429s={6}",
-                    track.Id, album?.Id ?? "unknown", bytesWritten, stopwatch.Elapsed.TotalSeconds, rateKBps, 0, 0);
+                EmitTelemetry(album?.Id, track.Id, true, bytesWritten, stopwatch.Elapsed, rateKBps * 1024.0, 0, 0, null);
             }
             catch (Exception ex)
             {
                 stopwatch.Stop();
                 int tooManyRequests = ex is HttpRequestException hre && (int?)hre.StatusCode == 429 ? 1 : 0;
-                _logger.Warn("Qobuzarr track failed: track={0} album={1} elapsed={2:F2}s retries={3} 429s={4} error={5}",
-                    track.Id, album?.Id ?? "unknown", stopwatch.Elapsed.TotalSeconds, 0, tooManyRequests, ex.Message);
-                _logger.Error(ex, "Download failed for track: {0}", track.Title);
+                var safeError = Sanitize.SafeErrorMessage(ex.Message);
+                EmitTelemetry(album?.Id, track.Id, false, bytesWritten, stopwatch.Elapsed, 0, 0, tooManyRequests, safeError);
+                _logger.Error("Download failed for track: {0} error={1}", track.Title, safeError);
+                _logger.Debug(ex, "Download failed stack trace for track: {0}", track.Title);
                 if (File.Exists(outputPath))
                 {
                     try { File.Delete(outputPath); } catch { }
@@ -375,6 +381,50 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Services
             if (bytes < 1048576) return $"{bytes / 1024.0:F1} KB";
             if (bytes < 1073741824) return $"{bytes / 1048576.0:F1} MB";
             return $"{bytes / 1073741824.0:F2} GB";
+        }
+
+        private void EmitTelemetry(string? albumId, string trackId, bool success, long bytesWritten, TimeSpan elapsed, double bytesPerSecond, int retryCount, int tooManyRequestsCount, string? errorMessage)
+        {
+            var telemetry = new DownloadTelemetry(
+                ServiceName: "Qobuzarr",
+                AlbumId: albumId,
+                TrackId: trackId,
+                Success: success,
+                BytesWritten: bytesWritten,
+                Elapsed: elapsed,
+                BytesPerSecond: bytesPerSecond,
+                RetryCount: retryCount,
+                TooManyRequestsCount: tooManyRequestsCount,
+                ErrorMessage: errorMessage);
+
+            if (_telemetrySink is not null)
+            {
+                _telemetrySink.OnTrackCompleted(telemetry);
+                return;
+            }
+
+            if (telemetry.Success)
+            {
+                _logger.Info(
+                    "Qobuzarr track completed: track={0} album={1} bytes={2} elapsed={3:F2}s rate={4:F1}KB/s retries={5} 429s={6}",
+                    telemetry.TrackId,
+                    telemetry.AlbumId ?? "unknown",
+                    telemetry.BytesWritten,
+                    telemetry.Elapsed.TotalSeconds,
+                    telemetry.BytesPerSecond / 1024.0,
+                    telemetry.RetryCount,
+                    telemetry.TooManyRequestsCount);
+                return;
+            }
+
+            _logger.Warn(
+                "Qobuzarr track failed: track={0} album={1} elapsed={2:F2}s retries={3} 429s={4} error={5}",
+                telemetry.TrackId,
+                telemetry.AlbumId ?? "unknown",
+                telemetry.Elapsed.TotalSeconds,
+                telemetry.RetryCount,
+                telemetry.TooManyRequestsCount,
+                Sanitize.SafeErrorMessage(telemetry.ErrorMessage));
         }
     }
 }
