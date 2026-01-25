@@ -211,11 +211,11 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Services
             }
             catch (Exception ex)
             {
-                stopwatch.Stop();
+            stopwatch.Stop();
                 int tooManyRequests = ex is HttpRequestException hre && (int?)hre.StatusCode == 429 ? 1 : 0;
                 var safeError = Sanitize.SafeErrorMessage(ex.Message);
                 EmitTelemetry(album?.Id, track.Id, false, bytesWritten, stopwatch.Elapsed, 0, 0, tooManyRequests, safeError);
-                _logger.Error("Download failed for track: {0} error={1}", track.Title, safeError);
+                _logger.Error("Download failed for track: {0} error: {1}", track.Title, safeError);
                 _logger.Debug(ex, "Download failed stack trace for track: {0}", track.Title);
                 if (File.Exists(outputPath))
                 {
