@@ -8,6 +8,7 @@ using Lidarr.Plugin.Qobuzarr.Abstractions;
 using Lidarr.Plugin.Qobuzarr.Models;
 using Lidarr.Plugin.Qobuzarr.Services;
 using Lidarr.Plugin.Common.Utilities;
+using CommonSecurity = Lidarr.Plugin.Common.Security;
 using NzbDrone.Common.Extensions;
 using NzbDrone.Common.Http;
 using TagLib;
@@ -271,7 +272,7 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Services
                 {
                     if (_failedCoverArtUrls.Contains(coverArtUrl))
                     {
-                        _logger.Debug("Skipping cover art download - URL previously failed: {0}", coverArtUrl);
+                        _logger.Debug("Skipping cover art download - URL previously failed: {0}", CommonSecurity.Sanitize.UrlHostOnly(coverArtUrl));
                         return;
                     }
                 }
@@ -297,7 +298,7 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Services
 
                 if (response.HasHttpError)
                 {
-                    _logger.Warn("Failed to download cover art from: {0} (HTTP {1})", coverArtUrl, response.StatusCode);
+                    _logger.Warn("Failed to download cover art from: {0} (HTTP {1})", CommonSecurity.Sanitize.UrlHostOnly(coverArtUrl), response.StatusCode);
                     
                     // Add to failed URLs cache to prevent repeated attempts
                     lock (_failedUrlsLock)

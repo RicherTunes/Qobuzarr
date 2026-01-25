@@ -12,6 +12,7 @@ using NzbDrone.Core.Configuration;
 using NzbDrone.Core.Localization;
 using NzbDrone.Common.Cache;
 using NLog;
+using CommonSecurity = Lidarr.Plugin.Common.Security;
 using Lidarr.Plugin.Qobuzarr.Models.Authentication;
 using Lidarr.Plugin.Qobuzarr.Configuration;
 using Lidarr.Plugin.Qobuzarr.Security;
@@ -549,7 +550,7 @@ namespace Lidarr.Plugin.Qobuzarr.Authentication
                 var bundleSuffix = bundleMatch.Groups["bundleJS"].Value;
                 var bundleUrl = "https://play.qobuz.com" + bundleSuffix;  
 
-                _logger.Debug($"Found bundle.js URL: {bundleUrl}");
+                _logger.Debug($"Found bundle.js at: {CommonSecurity.Sanitize.UrlHostOnly(bundleUrl)}");
 
                 // Step 3: Fetch bundle.js
                 var bundleContent = await WebPlayerHttpClient.GetStringAsync(bundleUrl)

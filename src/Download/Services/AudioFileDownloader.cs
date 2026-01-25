@@ -8,6 +8,7 @@ using System.Threading.Tasks;
 using NzbDrone.Common.Http;
 using Lidarr.Plugin.Qobuzarr.Abstractions;
 using Lidarr.Plugin.Common.Utilities;
+using Lidarr.Plugin.Common.Security;
 using Lidarr.Plugin.Qobuzarr.Configuration;
 using Lidarr.Plugin.Qobuzarr.Services.Http;
 
@@ -61,7 +62,7 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Services
 
                     if (attempt > 1)
                     {
-                        _logger.Debug("Download retry attempt {0}/{1} for: {2}", attempt, MaxRetries, streamUrl);
+                        _logger.Debug("Download retry attempt {0}/{1} for: {2}", attempt, MaxRetries, Sanitize.UrlHostOnly(streamUrl));
                         // Exponential backoff for retries
                         var delay = Math.Min(RetryDelayMs * (int)Math.Pow(2, attempt - 1), 30000); // Max 30 seconds
                         await Task.Delay(delay, cancellationToken).ConfigureAwait(false);
