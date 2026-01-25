@@ -897,3 +897,34 @@ The **key insight**: Different Lidarr branches have **incompatible base class si
 - **Release branch runtime** → **Release branch assemblies**
 
 **This issue is now definitively solved and documented.**
+
+---
+
+## Technical Debt
+
+This section tracks technical debt items that should be addressed but are not blocking current development. Technical debt is automatically prioritized and should never be put under the rug.
+
+### Completed Items
+
+| Item | Priority | Date | Description |
+|------|----------|------|-------------|
+| URL Leak Fixes | HIGH | 2025-01-25 | Sanitized URLs in AudioFileDownloader, QobuzAuthenticationService, MetadataProcessor logs |
+| Exception Message Sanitization | MEDIUM | 2025-01-25 | Truncated API response content in QobuzApiClient and LidarrApiClient error logging |
+
+### Pending Items
+
+| Item | Priority | File | Description |
+|------|----------|------|-------------|
+| God-class strangler | MEDIUM | QobuzDownloadClient.cs | 1122 lines - extract delegates incrementally (ApplyMetadataTagsAsync, DownloadAlbumTracksAsync, etc.) |
+| MetadataProcessor dead code | LOW | MetadataProcessor.cs | Class exists but is never instantiated; ApplyMetadataTagsAsync duplicates this functionality |
+| Quality detection parity | LOW | - | Qobuzarr needs Tidalarr's audioQuality parsing from TidalAlbumDto |
+
+### God-class Extraction Candidates (QobuzDownloadClient.cs)
+
+| Method | Lines | Extraction Target | Complexity |
+|--------|-------|-------------------|------------|
+| `ApplyMetadataTagsAsync` | ~60 | IAudioMetadataService | Low - self-contained |
+| `DownloadAlbumTracksAsync` | ~150 | IAlbumDownloadService | Medium - has dependencies |
+| `DownloadSingleTrackAsync` | ~100 | ITrackDownloadExecutor | Medium |
+| `LogAlbumDownloadSummary` | ~50 | IDownloadReportingService | Low - self-contained |
+| Quality breakdown helpers | ~70 | QualityUtilities | Low - pure functions |
