@@ -45,8 +45,7 @@
 
   <!-- Ensure submodule only when stubs are not in use -->
   <Target Name="CheckCommonSubmodule" BeforeTargets="Restore" Condition="'$(UseCommonStubs)' != 'true'">
-    <Error Condition="!Exists('ext/Lidarr.Plugin.Common/src/Lidarr.Plugin.Common.csproj')"
-           Text="Lidarr.Plugin.Common submodule missing and stubs disabled. Run: git submodule update --init --recursive or build with stubs." />
+    <Error Condition="!Exists('ext/Lidarr.Plugin.Common/src/Lidarr.Plugin.Common.csproj')" Text="Lidarr.Plugin.Common submodule missing and stubs disabled. Run: git submodule update --init --recursive or build with stubs." />
   </Target>
   
   
@@ -118,6 +117,10 @@
   <!-- Package dependencies -->
   <ItemGroup>
     <!-- Shared dependencies - provided by Lidarr host, don't bundle -->
+    <PackageReference Include="coverlet.collector">
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+      <PrivateAssets>all</PrivateAssets>
+    </PackageReference>
     <PackageReference Include="Newtonsoft.Json">
       <Private>false</Private>
       <ExcludeAssets>runtime</ExcludeAssets>
@@ -152,13 +155,9 @@
        This makes the task available to PluginPackaging.targets while preventing the NuGet package's
        automatic target from running (which fails during CodeQL because Lidarr assemblies aren't available).
        Support both 'build\' (newer) and 'tools\' (older) package layouts. -->
-  <UsingTask TaskName="ILRepack" 
-             AssemblyFile="$(PkgILRepack_Lib_MSBuild_Task)\build\ILRepack.Lib.MSBuild.Task.dll" 
-             Condition="'$(PkgILRepack_Lib_MSBuild_Task)' != '' and Exists('$(PkgILRepack_Lib_MSBuild_Task)\build\ILRepack.Lib.MSBuild.Task.dll')" />
+  <UsingTask TaskName="ILRepack" AssemblyFile="$(PkgILRepack_Lib_MSBuild_Task)\build\ILRepack.Lib.MSBuild.Task.dll" Condition="'$(PkgILRepack_Lib_MSBuild_Task)' != '' and Exists('$(PkgILRepack_Lib_MSBuild_Task)\build\ILRepack.Lib.MSBuild.Task.dll')" />
   <!-- Fallback for older ILRepack package layouts that use 'tools\' instead of 'build\' -->
-  <UsingTask TaskName="ILRepack" 
-             AssemblyFile="$(PkgILRepack_Lib_MSBuild_Task)\tools\ILRepack.Lib.MSBuild.Task.dll" 
-             Condition="'$(PkgILRepack_Lib_MSBuild_Task)' != '' and !Exists('$(PkgILRepack_Lib_MSBuild_Task)\build\ILRepack.Lib.MSBuild.Task.dll') and Exists('$(PkgILRepack_Lib_MSBuild_Task)\tools\ILRepack.Lib.MSBuild.Task.dll')" />
+  <UsingTask TaskName="ILRepack" AssemblyFile="$(PkgILRepack_Lib_MSBuild_Task)\tools\ILRepack.Lib.MSBuild.Task.dll" Condition="'$(PkgILRepack_Lib_MSBuild_Task)' != '' and !Exists('$(PkgILRepack_Lib_MSBuild_Task)\build\ILRepack.Lib.MSBuild.Task.dll') and Exists('$(PkgILRepack_Lib_MSBuild_Task)\tools\ILRepack.Lib.MSBuild.Task.dll')" />
 
   <!-- Prefer prebuilt assemblies prepared by CI at ext/Lidarr/_output/net8.0; fallback to source-built output if present -->
   <PropertyGroup>

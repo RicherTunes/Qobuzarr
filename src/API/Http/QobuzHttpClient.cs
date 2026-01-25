@@ -1,7 +1,7 @@
 using System;
 using System.Diagnostics;
 using System.Linq;
-using System.Net.Http;
+using System.Net;
 using System.Threading;
 using System.Threading.Tasks;
 using NLog;
@@ -12,6 +12,7 @@ using Lidarr.Plugin.Qobuzarr.Utilities;
 using Lidarr.Plugin.Common.Services.Performance;
 using Lidarr.Plugin.Common.Security;
 using Lidarr.Plugin.Qobuzarr.Constants;
+using Lidarr.Plugin.Common.Utilities;
 using SharedRetryUtilities = Lidarr.Plugin.Common.Utilities.RetryUtilities;
 
 namespace Lidarr.Plugin.Qobuzarr.API.Http
@@ -153,6 +154,9 @@ namespace Lidarr.Plugin.Qobuzarr.API.Http
 
                             return response;
                         }
+
+                        // Record retry for download telemetry (PR #3A: real counters)
+                        DownloadTelemetryContext.RecordRetry((System.Net.HttpStatusCode)status);
 
                         // Compute delay from Retry-After or exponential backoff with jitter
                         var delay = GetRetryAfterDelay(response) ??
