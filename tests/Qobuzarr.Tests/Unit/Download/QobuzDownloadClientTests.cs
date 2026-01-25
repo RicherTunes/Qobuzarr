@@ -36,7 +36,7 @@ namespace Qobuzarr.Tests.Unit.Download
         private class TestableQobuzDownloadClient : QobuzDownloadClient
         {
             private QobuzDownloadSettings _testSettings;
-            
+
             public TestableQobuzDownloadClient(
                 IQobuzAuthenticationService authService,
                 IQobuzApiClient apiClient,
@@ -48,13 +48,15 @@ namespace Qobuzarr.Tests.Unit.Download
                 ITrackDownloadService trackDownloadService,
                 IDownloadSummary downloadSummary,
                 IBatchProcessor batchProcessor,
+                IMetadataProcessor metadataProcessor,
+                IDownloadReportingService reportingService,
                 NzbDrone.Core.Configuration.IConfigService configService,
                 NzbDrone.Common.Disk.IDiskProvider diskProvider,
                 NzbDrone.Core.RemotePathMappings.IRemotePathMappingService remotePathMappingService,
                 NzbDrone.Core.Localization.ILocalizationService localizationService,
-                NLog.Logger logger) 
-                : base(authService, apiClient, httpClient, queueService, fileService, concurrencyManager, 
-                      orchestrator, downloadSummary, batchProcessor, trackDownloadService,
+                NLog.Logger logger)
+                : base(authService, apiClient, httpClient, queueService, fileService, concurrencyManager,
+                      orchestrator, downloadSummary, batchProcessor, trackDownloadService, metadataProcessor, reportingService,
                       configService, diskProvider, remotePathMappingService, localizationService, logger)
             {
                 _testSettings = new QobuzDownloadSettings
@@ -86,7 +88,8 @@ namespace Qobuzarr.Tests.Unit.Download
         private readonly IDownloadSummary _mockDownloadSummary;
         private readonly ITrackDownloadService _mockTrackDownloadService;
         private readonly IBatchProcessor _mockBatchProcessor;
-        // REMOVED: IQobuzTrackDownloaderFactory has been deleted
+        private readonly IMetadataProcessor _mockMetadataProcessor;
+        private readonly IDownloadReportingService _mockReportingService;
         private readonly TestableQobuzDownloadClient _downloadClient;
         private readonly QobuzSession _testSession;
 
@@ -101,8 +104,9 @@ namespace Qobuzarr.Tests.Unit.Download
             _mockDownloadSummary = Substitute.For<IDownloadSummary>();
             _mockTrackDownloadService = Substitute.For<ITrackDownloadService>();
             _mockBatchProcessor = Substitute.For<IBatchProcessor>();
-            // REMOVED: IQobuzTrackDownloaderFactory mock creation
-            
+            _mockMetadataProcessor = Substitute.For<IMetadataProcessor>();
+            _mockReportingService = Substitute.For<IDownloadReportingService>();
+
             _downloadClient = new TestableQobuzDownloadClient(
                 _mockAuthService,
                 _mockApiClient,
@@ -114,6 +118,8 @@ namespace Qobuzarr.Tests.Unit.Download
                 _mockTrackDownloadService,
                 _mockDownloadSummary,
                 _mockBatchProcessor,
+                _mockMetadataProcessor,
+                _mockReportingService,
                 MockConfigService.Object,
                 MockDiskProvider.Object,
                 MockRemotePathMappingService.Object,

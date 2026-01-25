@@ -54,7 +54,8 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Clients
         private readonly IDownloadSummary _downloadSummary;
         private readonly IBatchProcessor _batchProcessor;
         private readonly Lidarr.Plugin.Qobuzarr.Download.Services.ITrackDownloadService _trackDownloadService;
-        // Removed dependency on IQobuzTrackDownloaderFactory - consolidated into this class
+        private readonly IMetadataProcessor _metadataProcessor;
+        private readonly IDownloadReportingService _reportingService;
         private readonly ConcurrentDictionary<string, QobuzDownloadItem> _activeDownloads;
         private QobuzDownloadItem _lastQueuedItem;
 
@@ -73,6 +74,8 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Clients
                                   IDownloadSummary downloadSummary,
                                   IBatchProcessor batchProcessor,
                                   Lidarr.Plugin.Qobuzarr.Download.Services.ITrackDownloadService trackDownloadService,
+                                  IMetadataProcessor metadataProcessor,
+                                  IDownloadReportingService reportingService,
                                   IConfigService configService,
                                   IDiskProvider diskProvider,
                                   IRemotePathMappingService remotePathMappingService,
@@ -90,8 +93,9 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Clients
             _downloadSummary = downloadSummary ?? throw new ArgumentNullException(nameof(downloadSummary));
             _batchProcessor = batchProcessor ?? throw new ArgumentNullException(nameof(batchProcessor));
             _trackDownloadService = trackDownloadService ?? throw new ArgumentNullException(nameof(trackDownloadService));
-            // Track downloader functionality consolidated into this class
-            
+            _metadataProcessor = metadataProcessor ?? throw new ArgumentNullException(nameof(metadataProcessor));
+            _reportingService = reportingService ?? throw new ArgumentNullException(nameof(reportingService));
+
             _activeDownloads = new ConcurrentDictionary<string, QobuzDownloadItem>();
         }
 
@@ -563,7 +567,7 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Clients
                 bytesDownloaded);
             
             // Single Line Rich Summary format: ✅ Artist - Album Title (Year) → 12/14 tracks (85%) → 8×📀FLAC-96 + 4×💿FLAC-CD → 847.2MB → 2 preview-only skipped
-            LogAlbumDownloadSummary(downloadItem.Artist, downloadItem.Title, album, successfulTracks, skippedTracks, failedTracks, totalTracks, bytesDownloaded);
+            _reportingService.LogAlbumDownloadSummary(downloadItem.Artist, downloadItem.Title, album, successfulTracks, skippedTracks, failedTracks, totalTracks, bytesDownloaded);
             
             // Log the download summary if we've processed multiple albums
             if (_downloadSummary != null && _queueService.ActiveDownloadCount == 0)
@@ -661,8 +665,8 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Clients
                 bytesWritten = await DownloadToFileAsync(streamUrl, outputPath, downloadItem.CancellationTokenSource.Token);
                 _logger.Debug("💾 Audio file written: {0} bytes", bytesWritten);
                  
-                // 5. Apply metadata tags using TagLibSharp
-                await ApplyMetadataTagsAsync(outputPath, track, album);
+                // 5. Apply metadata tags using IMetadataProcessor (consolidates TagLibSharp logic)
+                _metadataProcessor.ApplyBasicMetadata(outputPath, track, album);
                 
                 _logger.Info("✅ Downloaded: {0} ({1:F1} MB)", track.Title, bytesWritten / 1024.0 / 1024.0);
 
@@ -839,90 +843,6 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Clients
             return totalWritten;
         }
 
-        private async Task ApplyMetadataTagsAsync(string filePath, QobuzTrack track, QobuzAlbum album)
-        {
-            await Task.Run(() =>
-            {
-                try
-                {
-                    using var file = TagLib.File.Create(filePath);
-                    
-                    file.Tag.Title = track.Title;
-                    file.Tag.Track = (uint)track.TrackNumber;
-                    file.Tag.Disc = (uint)track.DiscNumber;
-                    
-                    if (album != null)
-                    {
-                        file.Tag.Album = album.Title;
-                        file.Tag.AlbumArtists = new[] { album.Artist?.Name ?? "Unknown Artist" };
-                        if (album.ReleaseDate != default)
-                        {
-                            file.Tag.Year = (uint)album.ReleaseDate.Year;
-                        }
-                        if (album.Genre != null)
-                        {
-                            file.Tag.Genres = new[] { album.Genre.Name };
-                        }
-                        if (album.Label != null)
-                        {
-                            // Use Comment field since Publishers doesn't exist in TagLibSharp
-                            file.Tag.Comment = $"Label: {album.Label.Name}";
-                        }
-                    }
-                    
-                    if (track.Performer != null)
-                    {
-                        file.Tag.Performers = new[] { track.Performer.Name };
-                    }
-                    
-                    if (track.Composer != null)
-                    {
-                        file.Tag.Composers = new[] { track.Composer.Name };
-                    }
-
-                    // ISRC - International Standard Recording Code
-                    // Normalize: trim whitespace and convert to uppercase (ISO 3901 standard)
-                    if (!string.IsNullOrWhiteSpace(track.ISRC))
-                    {
-                        var normalizedIsrc = track.ISRC.Trim().ToUpperInvariant();
-                        ApplyIsrcTag(file, normalizedIsrc);
-                    }
-
-                    file.Save();
-                    _logger.Debug("✅ Metadata applied to: {0}", Path.GetFileName(filePath));
-                }
-                catch (Exception ex)
-                {
-                    _logger.Warn(ex, "Failed to apply metadata to: {0}", Path.GetFileName(filePath));
-                }
-            });
-        }
-
-        /// <summary>
-        /// Applies ISRC to the audio file using format-specific tagging.
-        /// ID3v2: TSRC frame (MP3)
-        /// Vorbis/FLAC/Ogg: ISRC comment
-        /// </summary>
-        private static void ApplyIsrcTag(TagLib.File file, string isrc)
-        {
-            // Try Xiph/Vorbis comment (FLAC, Ogg Vorbis)
-            if (file.GetTag(TagLib.TagTypes.Xiph) is TagLib.Ogg.XiphComment xiphComment)
-            {
-                xiphComment.SetField("ISRC", isrc);
-                return;
-            }
-
-            // Try ID3v2 (MP3)
-            if (file.GetTag(TagLib.TagTypes.Id3v2) is TagLib.Id3v2.Tag id3v2Tag)
-            {
-                var tsrcFrame = TagLib.Id3v2.TextInformationFrame.Get(
-                    id3v2Tag,
-                    TagLib.ByteVector.FromString("TSRC", TagLib.StringType.Latin1),
-                    true);
-                tsrcFrame.Text = new[] { isrc };
-            }
-        }
-
         private string? ExtractAlbumIdFromRelease(ReleaseInfo release)
         {
             var albumId = AlbumIdExtractor.ExtractAlbumId(release);
@@ -933,127 +853,6 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Clients
             return albumId;
         }
 
-        private void LogAlbumDownloadSummary(string artistName, string albumTitle, QobuzAlbum album, 
-            int successful, int skipped, int failed, int total, long bytesDownloaded)
-        {
-            try
-            {
-                // Format: ✅ Artist - Album Title (Year) → 12/14 tracks (85%) → 8×📀FLAC-96 + 4×💿FLAC-CD → 847.2MB → 2 preview-only skipped
-                var albumYear = album?.ReleaseDate.Year > 1900 ? album.ReleaseDate.Year.ToString() : "";
-                var albumInfo = !string.IsNullOrEmpty(albumYear) ? $"{artistName} - {albumTitle} ({albumYear})" : $"{artistName} - {albumTitle}";
-                
-                var completionRate = total > 0 ? (int)Math.Round((double)successful / total * 100) : 0;
-                var tracksInfo = $"{successful}/{total} tracks ({completionRate}%)";
-                
-                var sizeInfo = FormatBytes(bytesDownloaded);
-                
-                var summaryParts = new List<string>
-                {
-                    $"✅ {albumInfo}",
-                    tracksInfo
-                };
-                
-                // Add quality information if we have album data
-                if (album?.GetTracks()?.Any() == true)
-                {
-                    var qualityBreakdown = GetQualityBreakdown(album.GetTracks(), successful);
-                    if (!string.IsNullOrEmpty(qualityBreakdown))
-                    {
-                        summaryParts.Add(qualityBreakdown);
-                    }
-                }
-                
-                summaryParts.Add(sizeInfo);
-                
-                // Add issues summary if any
-                if (skipped > 0 || failed > 0)
-                {
-                    var issues = new List<string>();
-                    if (skipped > 0) issues.Add($"{skipped} preview-only skipped");
-                    if (failed > 0) issues.Add($"{failed} failed");
-                    summaryParts.Add(string.Join(", ", issues));
-                }
-                
-                _logger.Info(string.Join(" → ", summaryParts));
-            }
-            catch (Exception ex)
-            {
-                // Fallback to simple summary if enhanced formatting fails
-                _logger.Info("✅ Album download completed: {0} successful, {1} skipped, {2} failed out of {3} total tracks", 
-                    successful, skipped, failed, total);
-                _logger.Debug(ex, "Error formatting enhanced album summary");
-            }
-        }
-
-        private string GetQualityBreakdown(IList<QobuzTrack> tracks, int successfulCount)
-        {
-            if (tracks == null || !tracks.Any() || successfulCount == 0)
-                return "";
-
-            // This is a simplified quality breakdown - in reality we'd need to track what quality each track was downloaded in
-            // For now, provide a reasonable estimate based on the tracks available
-            var qualityEstimates = new Dictionary<string, int>();
-            
-            // Analyze track qualities (this is estimated since we don't track actual download quality here)
-            foreach (var track in tracks.Take(successfulCount))
-            {
-                // This is a placeholder - ideally we'd track actual download quality per track
-                var estimatedQuality = EstimateTrackQuality(track);
-                if (qualityEstimates.ContainsKey(estimatedQuality))
-                    qualityEstimates[estimatedQuality]++;
-                else
-                    qualityEstimates[estimatedQuality] = 1;
-            }
-            
-            var qualityParts = qualityEstimates
-                .Where(kv => kv.Value > 0)
-                .Select(kv => $"{kv.Value}×{GetQualityIcon(kv.Key)}")
-                .ToList();
-                
-            return qualityParts.Any() ? string.Join(" + ", qualityParts) : "";
-        }
-
-        private string EstimateTrackQuality(QobuzTrack track)
-        {
-            // This is a simplified estimation - in a full implementation we'd track actual download quality
-            if (track.MaximumBitDepth >= 24 && track.MaximumSampleRate >= 192000)
-                return "FLAC-192";
-            else if (track.MaximumBitDepth >= 24 && track.MaximumSampleRate >= 96000)
-                return "FLAC-96";
-            else if (track.MaximumBitDepth >= 16)
-                return "FLAC-CD";
-            else
-                return "MP3-320";
-        }
-
-        private string GetQualityIcon(string quality)
-        {
-            return quality switch
-            {
-                "FLAC-192" => "📀FLAC-192",
-                "FLAC-96" => "📀FLAC-96",
-                "FLAC-CD" => "💿FLAC-CD",
-                "MP3-320" => "🎵MP3-320",
-                _ => $"🎧{quality}"
-            };
-        }
-
-        private string FormatBytes(long bytes)
-        {
-            if (bytes == 0) return "0 B";
-            
-            string[] sizes = { "B", "KB", "MB", "GB", "TB" };
-            int order = 0;
-            double size = bytes;
-            
-            while (size >= 1024 && order < sizes.Length - 1)
-            {
-                size /= 1024;
-                order++;
-            }
-            
-            return $"{size:F1}{sizes[order]}";
-        }
 
 
         /// <summary>

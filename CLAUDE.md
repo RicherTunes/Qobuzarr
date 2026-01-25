@@ -910,20 +910,20 @@ This section tracks technical debt items that should be addressed but are not bl
 |------|----------|------|-------------|
 | URL Leak Fixes | HIGH | 2025-01-25 | Sanitized URLs in AudioFileDownloader, QobuzAuthenticationService, MetadataProcessor logs |
 | Exception Message Sanitization | MEDIUM | 2025-01-25 | Truncated API response content in QobuzApiClient and LidarrApiClient error logging |
+| MetadataProcessor consolidation | MEDIUM | 2025-01-25 | Wired existing IMetadataProcessor into QobuzDownloadClient; removed duplicate ApplyMetadataTagsAsync and ApplyIsrcTag methods (~83 lines removed) |
 
 ### Pending Items
 
 | Item | Priority | File | Description |
 |------|----------|------|-------------|
-| God-class strangler | MEDIUM | QobuzDownloadClient.cs | 1122 lines - extract delegates incrementally (ApplyMetadataTagsAsync, DownloadAlbumTracksAsync, etc.) |
-| MetadataProcessor dead code | LOW | MetadataProcessor.cs | Class exists but is never instantiated; ApplyMetadataTagsAsync duplicates this functionality |
+| God-class strangler | MEDIUM | QobuzDownloadClient.cs | ~1034 lines - extract delegates incrementally (DownloadAlbumTracksAsync, etc.) |
 | Quality detection parity | LOW | - | Qobuzarr needs Tidalarr's audioQuality parsing from TidalAlbumDto |
 
 ### God-class Extraction Candidates (QobuzDownloadClient.cs)
 
 | Method | Lines | Extraction Target | Complexity |
 |--------|-------|-------------------|------------|
-| `ApplyMetadataTagsAsync` | ~60 | IAudioMetadataService | Low - self-contained |
+| ~~`ApplyMetadataTagsAsync`~~ | ~~60~~ | ~~IAudioMetadataService~~ | ✅ Completed - consolidated into IMetadataProcessor |
 | `DownloadAlbumTracksAsync` | ~150 | IAlbumDownloadService | Medium - has dependencies |
 | `DownloadSingleTrackAsync` | ~100 | ITrackDownloadExecutor | Medium |
 | `LogAlbumDownloadSummary` | ~50 | IDownloadReportingService | Low - self-contained |
