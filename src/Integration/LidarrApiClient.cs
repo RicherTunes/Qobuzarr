@@ -333,7 +333,10 @@ namespace Lidarr.Plugin.Qobuzarr.Integration
                 }
                 catch (JsonException ex)
                 {
-                    _logger.Error(ex, "Failed to deserialize response from {0}: {1}", endpoint, response.Content);
+                    // Truncate response content for safe logging
+                    var errorContent = response.Content ?? string.Empty;
+                    var sanitizedContent = errorContent.Length > 200 ? errorContent.Substring(0, 200) + "..." : errorContent;
+                    _logger.Error(ex, "Failed to deserialize response from {0}: {1}", endpoint, sanitizedContent);
                     throw new LidarrApiException($"Invalid JSON response from Lidarr: {ex.Message}", (int)response.StatusCode, "InvalidJson");
                 }
             }

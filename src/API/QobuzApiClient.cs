@@ -344,7 +344,10 @@ namespace Lidarr.Plugin.Qobuzarr.API
 
                 if (response.HasHttpError)
                 {
-                    _logger.Error("❌ API Error Response: {0}", response.Content);
+                    // Truncate error response for safe logging (avoid potential sensitive data)
+                    var errorContent = response.Content ?? string.Empty;
+                    var sanitizedError = errorContent.Length > 500 ? errorContent.Substring(0, 500) + "..." : errorContent;
+                    _logger.Error("❌ API Error Response: {0}", sanitizedError);
                     HandleErrorResponse(response);
                 }
 
@@ -397,7 +400,10 @@ namespace Lidarr.Plugin.Qobuzarr.API
             }
             catch (JsonException)
             {
-                throw new QobuzApiException($"HTTP {statusCode}: {response.Content}", statusCode, "UnknownError");
+                // Truncate response content for exception message (avoid potential sensitive data)
+                var errorContent = response.Content ?? string.Empty;
+                var sanitizedContent = errorContent.Length > 200 ? errorContent.Substring(0, 200) + "..." : errorContent;
+                throw new QobuzApiException($"HTTP {statusCode}: {sanitizedContent}", statusCode, "UnknownError");
             }
         }
 
