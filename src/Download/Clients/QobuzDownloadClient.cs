@@ -56,7 +56,7 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Clients
         private readonly Lidarr.Plugin.Qobuzarr.Download.Services.ITrackDownloadService _trackDownloadService;
         private readonly IMetadataProcessor _metadataProcessor;
         private readonly IDownloadReportingService _reportingService;
-        private readonly IDownloadTelemetryService _telemetryService;
+        private readonly CommonDownload.IDownloadTelemetryService _telemetryService;
         private readonly CommonDownload.IHttpFileDownloadService _fileDownloadService;
         private readonly ConcurrentDictionary<string, QobuzDownloadItem> _activeDownloads;
         private QobuzDownloadItem _lastQueuedItem;
@@ -78,7 +78,7 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Clients
                                   Lidarr.Plugin.Qobuzarr.Download.Services.ITrackDownloadService trackDownloadService,
                                   IMetadataProcessor metadataProcessor,
                                   IDownloadReportingService reportingService,
-                                  IDownloadTelemetryService telemetryService,
+                                  CommonDownload.IDownloadTelemetryService telemetryService,
                                   CommonDownload.IHttpFileDownloadService fileDownloadService,
                                   IConfigService configService,
                                   IDiskProvider diskProvider,

@@ -51,7 +51,7 @@ namespace Qobuzarr.Tests.Unit.Download
                 IBatchProcessor batchProcessor,
                 IMetadataProcessor metadataProcessor,
                 IDownloadReportingService reportingService,
-                IDownloadTelemetryService telemetryService,
+                CommonDownload.IDownloadTelemetryService telemetryService,
                 CommonDownload.IHttpFileDownloadService fileDownloadService,
                 NzbDrone.Core.Configuration.IConfigService configService,
                 NzbDrone.Common.Disk.IDiskProvider diskProvider,
@@ -93,7 +93,7 @@ namespace Qobuzarr.Tests.Unit.Download
         private readonly IBatchProcessor _mockBatchProcessor;
         private readonly IMetadataProcessor _mockMetadataProcessor;
         private readonly IDownloadReportingService _mockReportingService;
-        private readonly IDownloadTelemetryService _mockTelemetryService;
+        private readonly CommonDownload.IDownloadTelemetryService _mockTelemetryService;
         private readonly CommonDownload.IHttpFileDownloadService _mockFileDownloadService;
         private readonly TestableQobuzDownloadClient _downloadClient;
         private readonly QobuzSession _testSession;
@@ -111,7 +111,7 @@ namespace Qobuzarr.Tests.Unit.Download
             _mockBatchProcessor = Substitute.For<IBatchProcessor>();
             _mockMetadataProcessor = Substitute.For<IMetadataProcessor>();
             _mockReportingService = Substitute.For<IDownloadReportingService>();
-            _mockTelemetryService = Substitute.For<IDownloadTelemetryService>();
+            _mockTelemetryService = Substitute.For<CommonDownload.IDownloadTelemetryService>();
             _mockFileDownloadService = Substitute.For<CommonDownload.IHttpFileDownloadService>();
 
             _downloadClient = new TestableQobuzDownloadClient(
