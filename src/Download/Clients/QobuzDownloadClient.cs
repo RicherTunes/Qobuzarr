@@ -35,7 +35,7 @@ using Lidarr.Plugin.Qobuzarr.Download.Services;
 using Lidarr.Plugin.Qobuzarr.Download.Orchestration;
 using Lidarr.Plugin.Qobuzarr.Constants;
 using Lidarr.Plugin.Qobuzarr.Services.Http;
-using Lidarr.Plugin.Common.Services.Download;
+using CommonDownload = Lidarr.Plugin.Common.Services.Download;
 using Lidarr.Plugin.Common.Utilities;
 using System.Net.Http;
 using System.Net.Http.Headers;
@@ -57,7 +57,7 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Clients
         private readonly IMetadataProcessor _metadataProcessor;
         private readonly IDownloadReportingService _reportingService;
         private readonly IDownloadTelemetryService _telemetryService;
-        private readonly IHttpFileDownloadService _fileDownloadService;
+        private readonly CommonDownload.IHttpFileDownloadService _fileDownloadService;
         private readonly ConcurrentDictionary<string, QobuzDownloadItem> _activeDownloads;
         private QobuzDownloadItem _lastQueuedItem;
 
@@ -79,7 +79,7 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Clients
                                   IMetadataProcessor metadataProcessor,
                                   IDownloadReportingService reportingService,
                                   IDownloadTelemetryService telemetryService,
-                                  IHttpFileDownloadService fileDownloadService,
+                                  CommonDownload.IHttpFileDownloadService fileDownloadService,
                                   IConfigService configService,
                                   IDiskProvider diskProvider,
                                   IRemotePathMappingService remotePathMappingService,
@@ -678,7 +678,7 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Clients
 
                 stopwatch.Stop();
                 var bytesPerSecond = stopwatch.Elapsed.TotalSeconds > 0 ? bytesWritten / stopwatch.Elapsed.TotalSeconds : 0;
-                _telemetryService.LogDownloadTelemetry(new DownloadTelemetry(
+                _telemetryService.LogDownloadTelemetry(new CommonDownload.DownloadTelemetry(
                     QobuzarrConstants.PluginName,
                     album.Id,
                     track.Id,
@@ -703,7 +703,7 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Clients
                 stopwatch.Stop();
                 var bytesPerSecond = stopwatch.Elapsed.TotalSeconds > 0 ? bytesWritten / stopwatch.Elapsed.TotalSeconds : 0;
                 var tooManyRequests = ex is HttpRequestException hre && hre.StatusCode == System.Net.HttpStatusCode.TooManyRequests ? 1 : 0;
-                _telemetryService.LogDownloadTelemetry(new DownloadTelemetry(
+                _telemetryService.LogDownloadTelemetry(new CommonDownload.DownloadTelemetry(
                     QobuzarrConstants.PluginName,
                     album.Id,
                     track.Id,

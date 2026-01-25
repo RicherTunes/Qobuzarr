@@ -17,7 +17,9 @@ using Lidarr.Plugin.Qobuzarr.Models;
 using Lidarr.Plugin.Qobuzarr.Services.Http;
 using Lidarr.Plugin.Qobuzarr.Utilities;
 using Lidarr.Plugin.Common.Services.Download;
+using Lidarr.Plugin.Common.Services.Http;
 using Lidarr.Plugin.Common.Security;
+using Lidarr.Plugin.Common.Utilities;
 
 namespace Lidarr.Plugin.Qobuzarr.Download.Services
 {

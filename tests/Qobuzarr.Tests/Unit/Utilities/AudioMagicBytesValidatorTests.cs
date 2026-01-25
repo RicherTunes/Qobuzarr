@@ -1,7 +1,7 @@
 using System;
 using System.IO;
 using FluentAssertions;
-using Lidarr.Plugin.Qobuzarr.Utilities;
+using Lidarr.Plugin.Common.Utilities;
 using Xunit;
 
 namespace Qobuzarr.Tests.Unit.Utilities

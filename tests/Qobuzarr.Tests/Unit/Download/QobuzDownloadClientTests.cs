@@ -21,6 +21,7 @@ using Lidarr.Plugin.Qobuzarr.Download.Clients;
 using Lidarr.Plugin.Qobuzarr.Download.Services;
 // Download orchestration services - IDownloadOrchestrator still exists
 using Lidarr.Plugin.Qobuzarr.Download.Orchestration;
+using CommonDownload = Lidarr.Plugin.Common.Services.Download;
 using Lidarr.Plugin.Qobuzarr.Abstractions;
 using Lidarr.Plugin.Qobuzarr.Models;
 using Lidarr.Plugin.Qobuzarr.Models.Authentication;
@@ -51,7 +52,7 @@ namespace Qobuzarr.Tests.Unit.Download
                 IMetadataProcessor metadataProcessor,
                 IDownloadReportingService reportingService,
                 IDownloadTelemetryService telemetryService,
-                IHttpFileDownloadService fileDownloadService,
+                CommonDownload.IHttpFileDownloadService fileDownloadService,
                 NzbDrone.Core.Configuration.IConfigService configService,
                 NzbDrone.Common.Disk.IDiskProvider diskProvider,
                 NzbDrone.Core.RemotePathMappings.IRemotePathMappingService remotePathMappingService,
@@ -93,7 +94,7 @@ namespace Qobuzarr.Tests.Unit.Download
         private readonly IMetadataProcessor _mockMetadataProcessor;
         private readonly IDownloadReportingService _mockReportingService;
         private readonly IDownloadTelemetryService _mockTelemetryService;
-        private readonly IHttpFileDownloadService _mockFileDownloadService;
+        private readonly CommonDownload.IHttpFileDownloadService _mockFileDownloadService;
         private readonly TestableQobuzDownloadClient _downloadClient;
         private readonly QobuzSession _testSession;
 
@@ -111,7 +112,7 @@ namespace Qobuzarr.Tests.Unit.Download
             _mockMetadataProcessor = Substitute.For<IMetadataProcessor>();
             _mockReportingService = Substitute.For<IDownloadReportingService>();
             _mockTelemetryService = Substitute.For<IDownloadTelemetryService>();
-            _mockFileDownloadService = Substitute.For<IHttpFileDownloadService>();
+            _mockFileDownloadService = Substitute.For<CommonDownload.IHttpFileDownloadService>();
 
             _downloadClient = new TestableQobuzDownloadClient(
                 _mockAuthService,
