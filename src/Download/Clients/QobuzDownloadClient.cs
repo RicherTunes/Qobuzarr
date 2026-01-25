@@ -56,6 +56,7 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Clients
         private readonly Lidarr.Plugin.Qobuzarr.Download.Services.ITrackDownloadService _trackDownloadService;
         private readonly IMetadataProcessor _metadataProcessor;
         private readonly IDownloadReportingService _reportingService;
+        private readonly IDownloadTelemetryService _telemetryService;
         private readonly ConcurrentDictionary<string, QobuzDownloadItem> _activeDownloads;
         private QobuzDownloadItem _lastQueuedItem;
 
@@ -76,6 +77,7 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Clients
                                   Lidarr.Plugin.Qobuzarr.Download.Services.ITrackDownloadService trackDownloadService,
                                   IMetadataProcessor metadataProcessor,
                                   IDownloadReportingService reportingService,
+                                  IDownloadTelemetryService telemetryService,
                                   IConfigService configService,
                                   IDiskProvider diskProvider,
                                   IRemotePathMappingService remotePathMappingService,
@@ -95,6 +97,7 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Clients
             _trackDownloadService = trackDownloadService ?? throw new ArgumentNullException(nameof(trackDownloadService));
             _metadataProcessor = metadataProcessor ?? throw new ArgumentNullException(nameof(metadataProcessor));
             _reportingService = reportingService ?? throw new ArgumentNullException(nameof(reportingService));
+            _telemetryService = telemetryService ?? throw new ArgumentNullException(nameof(telemetryService));
 
             _activeDownloads = new ConcurrentDictionary<string, QobuzDownloadItem>();
         }
@@ -672,7 +675,7 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Clients
 
                 stopwatch.Stop();
                 var bytesPerSecond = stopwatch.Elapsed.TotalSeconds > 0 ? bytesWritten / stopwatch.Elapsed.TotalSeconds : 0;
-                LogDownloadTelemetry(new DownloadTelemetry(
+                _telemetryService.LogDownloadTelemetry(new DownloadTelemetry(
                     QobuzarrConstants.PluginName,
                     album.Id,
                     track.Id,
@@ -697,7 +700,7 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Clients
                 stopwatch.Stop();
                 var bytesPerSecond = stopwatch.Elapsed.TotalSeconds > 0 ? bytesWritten / stopwatch.Elapsed.TotalSeconds : 0;
                 var tooManyRequests = ex is HttpRequestException hre && hre.StatusCode == System.Net.HttpStatusCode.TooManyRequests ? 1 : 0;
-                LogDownloadTelemetry(new DownloadTelemetry(
+                _telemetryService.LogDownloadTelemetry(new DownloadTelemetry(
                     QobuzarrConstants.PluginName,
                     album.Id,
                     track.Id,
@@ -715,43 +718,6 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Clients
             if (!File.Exists(outputPath) || new FileInfo(outputPath).Length < 1024)
             {
                 throw new InvalidOperationException($"Downloaded file validation failed: {track.Title}");
-            }
-        }
-
-        private void LogDownloadTelemetry(DownloadTelemetry telemetry)
-        {
-            try
-            {
-                var seconds = Math.Max(0.001, telemetry.Elapsed.TotalSeconds);
-                var kbPerSecond = (telemetry.BytesPerSecond / 1024.0);
-
-                if (telemetry.Success)
-                {
-                    _logger.Info(
-                        "Download completed: track={0} album={1} bytes={2} elapsed={3:F2}s rate={4:F1}KB/s retries={5} 429s={6}",
-                        telemetry.TrackId,
-                        telemetry.AlbumId ?? "",
-                        telemetry.BytesWritten,
-                        seconds,
-                        kbPerSecond,
-                        telemetry.RetryCount,
-                        telemetry.TooManyRequestsCount);
-                }
-                else
-                {
-                    _logger.Warn(
-                        "Download failed: track={0} album={1} elapsed={2:F2}s retries={3} 429s={4} error={5}",
-                        telemetry.TrackId,
-                        telemetry.AlbumId ?? "",
-                        seconds,
-                        telemetry.RetryCount,
-                        telemetry.TooManyRequestsCount,
-                        telemetry.ErrorMessage ?? "");
-                }
-            }
-            catch
-            {
-                // best-effort; never break downloads for telemetry
             }
         }
 
