@@ -10,7 +10,7 @@ namespace Lidarr.Plugin.Qobuzarr.Utilities
     {
         [GeneratedRegex(@"[^a-z0-9\s]", RegexOptions.IgnoreCase)]
         private static partial Regex NonWord();
-        
+
         [GeneratedRegex(@"\s+")]
         private static partial Regex MultiSpace();
 

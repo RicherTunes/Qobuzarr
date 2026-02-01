@@ -32,35 +32,35 @@ namespace QobuzCLI.Services.Adapters
         }
 
         // Delegate all base interface methods to the plugin service
-        public Quality MapQualityFromFormatId(int formatId) 
+        public Quality MapQualityFromFormatId(int formatId)
             => _pluginQualityService.MapQualityFromFormatId(formatId);
 
-        public int GetBestAvailableFormatId(QobuzTrack track, int maxFormatId = 27) 
+        public int GetBestAvailableFormatId(QobuzTrack track, int maxFormatId = 27)
             => _pluginQualityService.GetBestAvailableFormatId(track, maxFormatId);
 
-        public Task<QualityDetectionResult> DetectQualityAsync(QobuzTrack track, QobuzAlbum? album = null) 
+        public Task<QualityDetectionResult> DetectQualityAsync(QobuzTrack track, QobuzAlbum? album = null)
             => _pluginQualityService.DetectQualityAsync(track, album ?? new QobuzAlbum());
 
-        public string GetQualityLabel(int formatId) 
+        public string GetQualityLabel(int formatId)
             => _pluginQualityService.GetQualityLabel(formatId);
 
-        public bool IsQualityAvailable(QobuzTrack track, int requestedFormatId) 
+        public bool IsQualityAvailable(QobuzTrack track, int requestedFormatId)
             => _pluginQualityService.IsQualityAvailable(track, requestedFormatId);
 
-        public QualityStatistics GetStatistics() 
+        public QualityStatistics GetStatistics()
             => _pluginQualityService.GetStatistics();
 
-        public void ClearCache() 
+        public void ClearCache()
             => _pluginQualityService.ClearCache();
 
-        public QobuzQuality MapLidarrQuality(object qualityProfile) 
+        public QobuzQuality MapLidarrQuality(object qualityProfile)
             => _pluginQualityService.MapLidarrQuality(qualityProfile);
 
-        public List<QobuzQuality> GetQualityFallbackChain(QobuzQuality mappedQuality) 
+        public List<QobuzQuality> GetQualityFallbackChain(QobuzQuality mappedQuality)
             => _pluginQualityService.GetQualityFallbackChain(mappedQuality);
 
         // CLI-specific extension methods
-        
+
         /// <summary>
         /// Gets available qualities for a track (CLI-specific method)
         /// </summary>
@@ -76,7 +76,7 @@ namespace QobuzCLI.Services.Adapters
                     _logger.Warn($"Track {trackId} not found");
                     return new List<int>();
                 }
-                
+
                 // Convert dynamic to QobuzTrack
                 var trackObj = response!.track!;
                 var track = new QobuzTrack
@@ -89,7 +89,7 @@ namespace QobuzCLI.Services.Adapters
 
                 // Detect available qualities
                 var detection = await DetectQualityAsync(track);
-                
+
                 // Return list of available format IDs
                 return detection.AvailableQualities
                     .Select(q => q.Id)
@@ -118,7 +118,7 @@ namespace QobuzCLI.Services.Adapters
                 {
                     throw new Exception($"Track {trackId} not found");
                 }
-                
+
                 // Convert dynamic to QobuzTrack
                 var track = new QobuzTrack
                 {
@@ -130,7 +130,7 @@ namespace QobuzCLI.Services.Adapters
 
                 // Get best available format
                 var bestFormat = GetBestAvailableFormatId(track, preferredQuality);
-                
+
                 // Get stream info for that format
                 // Prefer plugin API client for streaming URL
                 var url = await _apiClient.GetStreamingUrlAsync(trackId, bestFormat).ConfigureAwait(false);

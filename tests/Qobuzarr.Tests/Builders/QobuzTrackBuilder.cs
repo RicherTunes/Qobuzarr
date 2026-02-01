@@ -92,9 +92,9 @@ namespace Qobuzarr.Tests.Builders
         /// </summary>
         public QobuzTrackBuilder WithPerformer(string name, string id = null)
         {
-            _performer = new QobuzArtist 
-            { 
-                Name = name, 
+            _performer = new QobuzArtist
+            {
+                Name = name,
                 Id = id ?? $"artist_{name.ToLower().Replace(" ", "_")}"
             };
             return this;
@@ -105,9 +105,9 @@ namespace Qobuzarr.Tests.Builders
         /// </summary>
         public QobuzTrackBuilder WithComposer(string name, string id = null)
         {
-            _composer = new QobuzComposer 
-            { 
-                Name = name, 
+            _composer = new QobuzComposer
+            {
+                Name = name,
                 Id = id ?? $"composer_{name.ToLower().Replace(" ", "_")}"
             };
             return this;

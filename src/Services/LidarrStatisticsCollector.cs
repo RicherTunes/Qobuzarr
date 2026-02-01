@@ -279,7 +279,7 @@ namespace Lidarr.Plugin.Qobuzarr.Services
 
                     foreach (var quality in profile.QualitySelections)
                     {
-                        qualityStats.QobuzQualityDistribution[quality.Key] = 
+                        qualityStats.QobuzQualityDistribution[quality.Key] =
                             qualityStats.QobuzQualityDistribution.GetValueOrDefault(quality.Key, 0) + quality.Value;
                     }
                 }
@@ -439,13 +439,13 @@ namespace Lidarr.Plugin.Qobuzarr.Services
                 SuccessfulOperations = successful.Count,
                 FailedOperations = operations.Count - successful.Count,
                 SuccessRate = (double)successful.Count / operations.Count * 100,
-                AverageOperationTime = successful.Any() ? 
+                AverageOperationTime = successful.Any() ?
                     TimeSpan.FromTicks((long)successful.Average(o => o.Duration.Ticks)) : TimeSpan.Zero,
-                FastestOperationTime = successful.Any() ? 
+                FastestOperationTime = successful.Any() ?
                     successful.Min(o => o.Duration) : TimeSpan.Zero,
-                SlowestOperationTime = successful.Any() ? 
+                SlowestOperationTime = successful.Any() ?
                     successful.Max(o => o.Duration) : TimeSpan.Zero,
-                OperationsPerMinute = totalTime.TotalMinutes > 0 ? 
+                OperationsPerMinute = totalTime.TotalMinutes > 0 ?
                     operations.Count / totalTime.TotalMinutes : 0
             };
         }
@@ -489,7 +489,7 @@ namespace Lidarr.Plugin.Qobuzarr.Services
             {
                 AverageConcurrentOperations = _concurrencyMeasurements.Average(),
                 PeakConcurrentOperations = _statistics.PeakConcurrentOperations,
-                ConcurrencyUtilization = _statistics.PeakConcurrentOperations > 0 ? 
+                ConcurrencyUtilization = _statistics.PeakConcurrentOperations > 0 ?
                     (_concurrencyMeasurements.Average() / _statistics.PeakConcurrentOperations) * 100 : 0,
                 TimeAtMaxConcurrency = TimeSpan.Zero // Would need more sophisticated tracking
             };

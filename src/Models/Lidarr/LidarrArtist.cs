@@ -147,7 +147,7 @@ namespace Lidarr.Plugin.Qobuzarr.Models.Lidarr
         public string GetSafeFolderName()
         {
             var artistName = GetDisplayName();
-            
+
             // Replace illegal filesystem characters
             var illegalChars = new char[] { '<', '>', ':', '"', '/', '\\', '|', '?', '*' };
             foreach (var c in illegalChars)

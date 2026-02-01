@@ -191,7 +191,7 @@ namespace Lidarr.Plugin.Qobuzarr.Configuration
         {
             if (size <= 0)
                 throw new ArgumentOutOfRangeException(parameterName, "Cache size must be positive");
-                
+
             if (size > LargeCacheSize)
                 throw new ArgumentOutOfRangeException(parameterName, $"Cache size cannot exceed {LargeCacheSize}");
         }
@@ -205,7 +205,7 @@ namespace Lidarr.Plugin.Qobuzarr.Configuration
         public static void ValidateSimilarityThreshold(double threshold, string parameterName)
         {
             if (threshold < MinimumSimilarityThreshold || threshold > MaximumSimilarityThreshold)
-                throw new ArgumentOutOfRangeException(parameterName, 
+                throw new ArgumentOutOfRangeException(parameterName,
                     $"Similarity threshold must be between {MinimumSimilarityThreshold} and {MaximumSimilarityThreshold}");
         }
 

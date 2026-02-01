@@ -41,7 +41,7 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Services
             try
             {
                 using var file = TagLib.File.Create(filePath);
-                
+
                 // Apply comprehensive metadata tags
                 file.Tag.Title = track.GetFullTitle();
                 file.Tag.AlbumArtists = new[] { album.GetArtistName() };
@@ -49,7 +49,7 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Services
                 file.Tag.Album = album.GetFullTitle();
                 file.Tag.Track = (uint)track.TrackNumber;
                 file.Tag.Disc = (uint)track.DiscNumber;
-                
+
                 // Release year
                 if (album.ReleaseDate.Year > 1900)
                 {
@@ -92,7 +92,7 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Services
 
                 // Save the metadata
                 file.Save();
-                
+
                 _logger.Debug("Applied comprehensive metadata to: {0}", filePath);
             }
             catch (Exception ex)
@@ -236,9 +236,9 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Services
                 };
 
                 var metadataPath = Path.ChangeExtension(trackFilePath, ".metadata.json");
-                var json = System.Text.Json.JsonSerializer.Serialize(metadata, new System.Text.Json.JsonSerializerOptions 
-                { 
-                    WriteIndented = true 
+                var json = System.Text.Json.JsonSerializer.Serialize(metadata, new System.Text.Json.JsonSerializerOptions
+                {
+                    WriteIndented = true
                 });
 
                 await System.IO.File.WriteAllTextAsync(metadataPath, json).ConfigureAwait(false);
@@ -277,7 +277,7 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Services
                 }
 
                 var coverArtPath = Path.Combine(albumPath, "cover.jpg");
-                
+
                 // Skip if cover art already exists
                 if (System.IO.File.Exists(coverArtPath))
                 {
@@ -298,7 +298,7 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Services
                 if (response.HasHttpError)
                 {
                     _logger.Warn("Failed to download cover art from: {0} (HTTP {1})", coverArtUrl, response.StatusCode);
-                    
+
                     // Add to failed URLs cache to prevent repeated attempts
                     lock (_failedUrlsLock)
                     {
@@ -314,7 +314,7 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Services
             catch (Exception ex)
             {
                 _logger.Warn(ex, "Failed to download cover art for album: {0}", album.Id);
-                
+
                 // Add to failed URLs cache if we have a URL to cache
                 var coverArtUrl = album.Image?.Large ?? album.Image?.Medium ?? album.Image?.Small;
                 if (!string.IsNullOrWhiteSpace(coverArtUrl))
@@ -332,7 +332,7 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Services
             // Generate quality description based on track's maximum capabilities
             var bitDepth = track.MaximumBitDepth;
             var sampleRate = track.MaximumSampleRate;
-            
+
             if (bitDepth >= 24 && sampleRate >= 96000)
             {
                 return $"Hi-Res FLAC {bitDepth}bit/{sampleRate / 1000}kHz";

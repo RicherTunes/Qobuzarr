@@ -8,7 +8,7 @@ public interface ISearchService
     List<SearchResult> ScoreResults(List<SearchResult> results, string query);
     bool IsExactMatch(SearchResult result, string query);
     double CalculateRelevanceScore(SearchResult result, string query);
-    
+
     /// <summary>
     /// Score results with pagination support for large result sets
     /// </summary>

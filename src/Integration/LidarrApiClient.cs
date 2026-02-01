@@ -115,7 +115,7 @@ namespace Lidarr.Plugin.Qobuzarr.Integration
         {
             var endpoint = $"/api/v1/album/{albumId}";
             var parameters = new Dictionary<string, string>();
-            
+
             if (includeStatistics)
                 parameters["includeStatistics"] = "true";
 
@@ -132,7 +132,7 @@ namespace Lidarr.Plugin.Qobuzarr.Integration
             {
                 ["artistId"] = artistId.ToString()
             };
-            
+
             if (includeStatistics)
                 parameters["includeStatistics"] = "true";
 
@@ -146,7 +146,7 @@ namespace Lidarr.Plugin.Qobuzarr.Integration
         {
             var endpoint = $"/api/v1/artist/{artistId}";
             var parameters = new Dictionary<string, string>();
-            
+
             if (includeStatistics)
                 parameters["includeStatistics"] = "true";
 
@@ -160,7 +160,7 @@ namespace Lidarr.Plugin.Qobuzarr.Integration
         {
             var endpoint = "/api/v1/artist";
             var parameters = new Dictionary<string, string>();
-            
+
             if (includeStatistics)
                 parameters["includeStatistics"] = "true";
 
@@ -224,7 +224,7 @@ namespace Lidarr.Plugin.Qobuzarr.Integration
                 // Fallback: compute statistics from artists endpoint
                 _logger.Debug("Statistics endpoint not available, computing from artists data");
                 var artists = await GetArtistsAsync(includeStatistics: true).ConfigureAwait(false);
-                
+
                 return new LidarrSystemStatistics
                 {
                     ArtistCount = artists.Count,
@@ -245,7 +245,7 @@ namespace Lidarr.Plugin.Qobuzarr.Integration
             {
                 var endpoint = "/api/v1/system/status";
                 var url = $"{_baseUrl}{endpoint}";
-                
+
                 var request = new HttpRequestBuilder(url)
                     .SetHeader("X-Api-Key", _apiKey)
                     .SetHeader("Accept", "application/json")
@@ -292,7 +292,7 @@ namespace Lidarr.Plugin.Qobuzarr.Integration
             try
             {
                 var url = $"{_baseUrl}{endpoint}";
-                
+
                 var requestBuilder = new HttpRequestBuilder(url)
                     .SetHeader("X-Api-Key", _apiKey)
                     .SetHeader("Accept", "application/json");
@@ -310,7 +310,7 @@ namespace Lidarr.Plugin.Qobuzarr.Integration
                 }
 
                 var request = requestBuilder.Build();
-                
+
                 _logger.Debug("Making request to Lidarr: {0}", endpoint);
 
                 var response = await _httpClient.ExecuteAsync(request).ConfigureAwait(false);
@@ -352,7 +352,7 @@ namespace Lidarr.Plugin.Qobuzarr.Integration
         {
             if (string.IsNullOrWhiteSpace(_baseUrl))
                 throw new InvalidOperationException("Lidarr base URL is not configured. Call SetConfiguration first.");
-            
+
             if (string.IsNullOrWhiteSpace(_apiKey))
                 throw new InvalidOperationException("Lidarr API key is not configured. Call SetConfiguration first.");
         }
@@ -375,7 +375,7 @@ namespace Lidarr.Plugin.Qobuzarr.Integration
             var errorType = statusCode switch
             {
                 401 => "AuthenticationFailed",
-                403 => "AccessForbidden", 
+                403 => "AccessForbidden",
                 404 => "NotFound",
                 429 => "RateLimited",
                 >= 500 => "ServerError",
@@ -397,7 +397,7 @@ namespace Lidarr.Plugin.Qobuzarr.Integration
         /// Gets the HTTP status code returned by the Lidarr API.
         /// </summary>
         public int StatusCode { get; }
-        
+
         /// <summary>
         /// Gets the categorized error type for programmatic error handling.
         /// Common values: AuthenticationFailed, AccessForbidden, NotFound, RateLimited, ServerError, HttpError.

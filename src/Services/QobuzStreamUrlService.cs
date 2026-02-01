@@ -42,9 +42,9 @@ namespace Lidarr.Plugin.Qobuzarr.Services
             var requestTimestamp = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
             var signatureString = GenerateFileUrlSignature(formatId.ToString(), trackId, requestTimestamp.ToString(), session.AppSecret);
             var signature = ComputeMD5Hash(signatureString);
-            
+
             _logger.Debug("Getting stream URL for track {0} with format {1}", trackId, formatId);
-            
+
             var url = $"{API_BASE}/track/getFileUrl?track_id={trackId}&format_id={formatId}" +
                      $"&intent=stream&app_id={session.AppId}&user_auth_token={session.AuthToken}" +
                      $"&request_ts={requestTimestamp}&request_sig={signature}";
@@ -83,13 +83,13 @@ namespace Lidarr.Plugin.Qobuzarr.Services
             {
                 var inputBytes = Encoding.UTF8.GetBytes(input);
                 var hashBytes = md5.ComputeHash(inputBytes);
-                
+
                 var sb = new StringBuilder();
                 foreach (var b in hashBytes)
                 {
                     sb.Append(b.ToString("x2"));
                 }
-                
+
                 return sb.ToString();
             }
         }

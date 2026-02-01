@@ -26,7 +26,7 @@ namespace QobuzCLI.Models
         public string MetadataStrategy { get; set; } = "Standard";
         public int ApiCallsSaved { get; set; } = 0;
         public int AdditionalApiCalls { get; set; } = 0;
-        
+
         // Compatibility properties
         public bool IsSuccessful => Success;
         public DateTime StartTime => StartedAt;

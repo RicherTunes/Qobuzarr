@@ -25,12 +25,12 @@ namespace Lidarr.Plugin.Qobuzarr.Models
         /// Gets the confidence percentage as a string.
         /// </summary>
         public string ConfidencePercentage => $"{ConfidenceScore:P0}";
-        
+
         /// <summary>
         /// Checks if this result represents a successful detection.
         /// </summary>
         public bool IsValid => Success && !string.IsNullOrEmpty(AlbumId);
-        
+
         /// <summary>
         /// Gets the detected quality as a QobuzQuality object.
         /// </summary>
@@ -38,7 +38,7 @@ namespace Lidarr.Plugin.Qobuzarr.Models
         {
             return QobuzQuality.FromId(DetectedQuality);
         }
-        
+
         /// <summary>
         /// Gets the preferred quality as a QobuzQuality object.
         /// </summary>
@@ -46,7 +46,7 @@ namespace Lidarr.Plugin.Qobuzarr.Models
         {
             return QobuzQuality.FromId(PreferredQuality);
         }
-        
+
         /// <summary>
         /// Creates a failed result with an error message.
         /// </summary>
@@ -59,7 +59,7 @@ namespace Lidarr.Plugin.Qobuzarr.Models
                 CachedAt = DateTime.UtcNow
             };
         }
-        
+
         /// <summary>
         /// Creates a successful result.
         /// </summary>
@@ -74,7 +74,7 @@ namespace Lidarr.Plugin.Qobuzarr.Models
                 CachedAt = DateTime.UtcNow
             };
         }
-        
+
         public override string ToString()
         {
             if (Success)

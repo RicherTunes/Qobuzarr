@@ -49,17 +49,17 @@ namespace Lidarr.Plugin.Qobuzarr.Core
 
                 // Phase 2 & 3: Use smart quality fallback with enhanced preview detection
                 _logger.Debug("Attempting download with quality fallback for track {0}, preferred quality {1}", track.Id, preferredQuality);
-                
+
                 var (selectedQuality, streamInfo) = await _apiService.GetBestAvailableStreamAsync(track.Id, preferredQuality);
-                
+
                 if (selectedQuality != preferredQuality)
                 {
                     var requestedName = GetQualityName(preferredQuality);
                     var selectedName = GetQualityName(selectedQuality);
-                    _logger.Info("Quality fallback applied for {0}: {1} → {2}", 
+                    _logger.Info("Quality fallback applied for {0}: {1} → {2}",
                         track.GetFullTitle(), requestedName, selectedName);
                 }
-                
+
                 if (string.IsNullOrWhiteSpace(streamInfo?.Url))
                 {
                     throw new InvalidOperationException("Could not obtain stream URL despite quality fallback");
@@ -177,7 +177,7 @@ namespace Lidarr.Plugin.Qobuzarr.Core
             await Task.Run(() =>
             {
                 using var file = TagLib.File.Create(filePath);
-                
+
                 // Basic metadata
                 file.Tag.Title = track.Title;
                 file.Tag.Album = album.Title;
@@ -187,22 +187,22 @@ namespace Lidarr.Plugin.Qobuzarr.Core
                 file.Tag.TrackCount = (uint)album.TracksCount;
                 file.Tag.Disc = (uint)track.DiscNumber;
                 file.Tag.Year = album.ReleaseDate.Year > 1900 ? (uint)album.ReleaseDate.Year : 0;
-                
+
                 // Additional metadata
                 if (!string.IsNullOrEmpty(album.Genre?.Name))
                 {
                     file.Tag.Genres = new[] { album.Genre.Name };
                 }
-                
+
                 var composer = track.GetComposerName();
                 if (!string.IsNullOrEmpty(composer) && composer != "Unknown")
                 {
                     file.Tag.Composers = new[] { composer };
                 }
-                
+
                 // Quality info in comment
                 file.Tag.Comment = $"Downloaded from Qobuz - Album: {album.Id}, Track: {track.Id}";
-                
+
                 file.Save();
                 _logger.Debug("Applied metadata to: {0}", filePath);
             });

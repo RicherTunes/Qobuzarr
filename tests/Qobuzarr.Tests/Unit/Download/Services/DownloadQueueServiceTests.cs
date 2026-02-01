@@ -222,7 +222,7 @@ namespace Qobuzarr.Tests.Unit.Download.Services
             // Arrange
             var oldItem = CreateTestDownloadItem("old-id", "Old Album", status: DownloadItemStatus.Completed);
             oldItem.StartedAt = DateTime.UtcNow.AddHours(-2); // 2 hours ago
-            
+
             var recentItem = CreateTestDownloadItem("recent-id", "Recent Album", status: DownloadItemStatus.Completed);
             recentItem.StartedAt = DateTime.UtcNow.AddMinutes(-5); // 5 minutes ago
 
@@ -261,7 +261,7 @@ namespace Qobuzarr.Tests.Unit.Download.Services
             // Arrange
             var oldCompleted = CreateTestDownloadItem("old-completed", "Old Completed", status: DownloadItemStatus.Completed);
             oldCompleted.StartedAt = DateTime.UtcNow.AddHours(-2);
-            
+
             var oldDownloading = CreateTestDownloadItem("old-downloading", "Old Downloading", status: DownloadItemStatus.Downloading);
             oldDownloading.StartedAt = DateTime.UtcNow.AddHours(-2);
 
@@ -377,8 +377,8 @@ namespace Qobuzarr.Tests.Unit.Download.Services
         }
 
         private QobuzDownloadItem CreateTestDownloadItem(
-            string downloadId, 
-            string title, 
+            string downloadId,
+            string title,
             string outputPath = @"C:\Test\Output",
             DownloadItemStatus status = DownloadItemStatus.Queued,
             long totalSize = 1000)

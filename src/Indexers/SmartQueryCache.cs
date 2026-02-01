@@ -20,35 +20,35 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
         private readonly ConcurrentDictionary<string, QueryPattern> _patterns;
         private readonly object _statsLock = new object();
         private readonly object _evictionLock = new object();
-        
+
         // Cache configuration
         private const int MaxCacheSize = 10000;
         private const int EvictionBatchSize = 1000;
         private readonly TimeSpan DefaultExpiry = TimeSpan.FromHours(24);
         private readonly TimeSpan PopularQueryExpiry = TimeSpan.FromDays(7);
-        
+
         // Performance metrics
         private long _hits = 0;
         private long _misses = 0;
         private long _evictions = 0;
         private long _preloadHits = 0;
-        
+
         public SmartQueryCache(Logger logger = null)
         {
             _logger = logger ?? LogManager.GetCurrentClassLogger();
             _cache = new ConcurrentDictionary<string, CacheEntry>();
             _patterns = new ConcurrentDictionary<string, QueryPattern>();
-            
+
             _logger.Debug("SmartQueryCache initialized with max size: {0}", MaxCacheSize);
         }
-        
+
         /// <summary>
         /// Get cached result with ML-based prefetching
         /// </summary>
         public (bool found, T result) Get<T>(string artist, string album, QueryComplexity complexity) where T : class
         {
             var key = GenerateCacheKey(artist, album);
-            
+
             // Check primary cache
             if (_cache.TryGetValue(key, out var entry))
             {
@@ -56,10 +56,10 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
                 {
                     Interlocked.Increment(ref _hits);
                     entry.RecordAccess();
-                    
+
                     // Preload related queries based on access patterns
                     PreloadRelatedQueries(artist, album, complexity);
-                    
+
                     return (true, entry.Data as T ?? default(T)!);
                 }
                 else
@@ -68,28 +68,28 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
                     _cache.TryRemove(key, out _);
                 }
             }
-            
+
             Interlocked.Increment(ref _misses);
-            
+
             // Check if this is a preloaded query that hit
             if (WasPreloaded(key))
             {
                 Interlocked.Increment(ref _preloadHits);
             }
-            
+
             return (false, default(T)!);
         }
-        
+
         /// <summary>
         /// Store result with intelligent expiry calculation
         /// </summary>
         public void Set<T>(string artist, string album, T data, QueryComplexity complexity) where T : class
         {
             var key = GenerateCacheKey(artist, album);
-            
+
             // Calculate intelligent expiry based on query patterns
             var expiry = CalculateExpiry(artist, album, complexity);
-            
+
             var entry = new CacheEntry
             {
                 Key = key,
@@ -99,12 +99,12 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
                 Complexity = complexity,
                 LastAccessed = DateTime.UtcNow
             };
-            
+
             _cache.AddOrUpdate(key, entry, (k, old) => entry);
-            
+
             // Record pattern for future predictions
             RecordQueryPattern(artist, album, complexity);
-            
+
             // Trigger eviction if needed (with synchronization)
             if (_cache.Count > MaxCacheSize)
             {
@@ -118,7 +118,7 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
                 }
             }
         }
-        
+
         /// <summary>
         /// Preload queries that are likely to be requested next
         /// </summary>
@@ -127,20 +127,20 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
             // Don't preload for complex queries (low hit probability)
             if (complexity == QueryComplexity.Complex)
                 return;
-            
+
             // Identify related queries based on patterns
             var relatedPatterns = _patterns.Values
                 .Where(p => p.IsRelatedTo(artist, album))
                 .OrderByDescending(p => p.AccessFrequency)
                 .Take(3);
-            
+
             foreach (var pattern in relatedPatterns)
             {
                 // Mark for preloading (actual loading would happen asynchronously)
                 pattern.MarkForPreload();
             }
         }
-        
+
         /// <summary>
         /// Calculate intelligent cache expiry based on query characteristics
         /// </summary>
@@ -149,7 +149,7 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
             // Popular artists get longer cache times
             if (IsPopularArtist(artist))
                 return PopularQueryExpiry;
-            
+
             // Simple queries cache longer (more stable results)
             switch (complexity)
             {
@@ -163,7 +163,7 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
                     return DefaultExpiry;
             }
         }
-        
+
         /// <summary>
         /// Evict least valuable entries using ML-based scoring
         /// </summary>
@@ -173,7 +173,7 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
                 .OrderBy(e => CalculateEvictionScore(e))
                 .Take(EvictionBatchSize)
                 .ToList();
-            
+
             foreach (var entry in candidates)
             {
                 if (_cache.TryRemove(entry.Key, out _))
@@ -181,10 +181,10 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
                     Interlocked.Increment(ref _evictions);
                 }
             }
-            
+
             _logger.Debug("Evicted {0} cache entries, current size: {1}", candidates.Count, _cache.Count);
         }
-        
+
         /// <summary>
         /// Calculate eviction score (lower = more likely to evict)
         /// </summary>
@@ -193,32 +193,32 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
             var age = (DateTime.UtcNow - entry.CreatedAt).TotalHours;
             var recency = (DateTime.UtcNow - entry.LastAccessed).TotalHours;
             var frequency = entry.AccessCount;
-            
+
             // LFU-LRU hybrid with complexity weighting
             var score = (frequency * 10.0) / (recency + 1.0);
-            
+
             // Boost score for simple queries (more valuable)
             if (entry.Complexity == QueryComplexity.Simple)
                 score *= 2.0;
-            
+
             // Penalize very old entries
             if (age > 72)
                 score *= 0.5;
-            
+
             return score;
         }
-        
+
         /// <summary>
         /// Record query pattern for future optimization
         /// </summary>
         private void RecordQueryPattern(string artist, string album, QueryComplexity complexity)
         {
             var patternKey = $"{artist.ToLower()}|{complexity}";
-            
+
             _patterns.AddOrUpdate(patternKey,
-                new QueryPattern 
-                { 
-                    Artist = artist, 
+                new QueryPattern
+                {
+                    Artist = artist,
                     Complexity = complexity,
                     FirstSeen = DateTime.UtcNow,
                     AccessFrequency = 1
@@ -230,7 +230,7 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
                     return existing;
                 });
         }
-        
+
         /// <summary>
         /// Generate consistent cache key
         /// </summary>
@@ -243,7 +243,7 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
                 return Convert.ToBase64String(hash).Substring(0, 16);
             }
         }
-        
+
         /// <summary>
         /// Check if artist is popular (would benefit from longer caching)
         /// </summary>
@@ -251,14 +251,14 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
         {
             if (string.IsNullOrEmpty(artist))
                 return false;
-            
+
             // Check access patterns
             var pattern = _patterns.Values
                 .FirstOrDefault(p => p.Artist.Equals(artist, StringComparison.OrdinalIgnoreCase));
-            
+
             return pattern?.AccessFrequency > 10;
         }
-        
+
         /// <summary>
         /// Check if query was preloaded
         /// </summary>
@@ -267,14 +267,14 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
             // Implementation would track preloaded keys
             return false;
         }
-        
+
         /// <summary>
         /// Get cache performance statistics
         /// </summary>
         public CacheStatistics GetStatistics()
         {
             var total = _hits + _misses;
-            
+
             return new CacheStatistics
             {
                 TotalQueries = total,
@@ -289,7 +289,7 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
                 UniquePatterns = _patterns.Count
             };
         }
-        
+
         /// <summary>
         /// Clear cache
         /// </summary>
@@ -300,9 +300,9 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
             _hits = _misses = _evictions = _preloadHits = 0;
             _logger.Debug("Cache cleared");
         }
-        
+
         #region Internal Classes
-        
+
         private class CacheEntry
         {
             public string Key { get; set; }
@@ -313,16 +313,16 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
             private int _accessCount;
             public int AccessCount => _accessCount;
             public QueryComplexity Complexity { get; set; }
-            
+
             public bool IsExpired => DateTime.UtcNow > ExpiresAt;
-            
+
             public void RecordAccess()
             {
                 LastAccessed = DateTime.UtcNow;
                 Interlocked.Increment(ref _accessCount);
             }
         }
-        
+
         private class QueryPattern
         {
             public string Artist { get; set; }
@@ -331,19 +331,19 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
             public DateTime LastSeen { get; set; }
             public int AccessFrequency { get; set; }
             public bool MarkedForPreload { get; set; }
-            
+
             public bool IsRelatedTo(string artist, string album)
             {
                 // Simple relationship check - same artist
                 return Artist.Equals(artist, StringComparison.OrdinalIgnoreCase);
             }
-            
+
             public void MarkForPreload()
             {
                 MarkedForPreload = true;
             }
         }
-        
+
         public class CacheStatistics
         {
             public long TotalQueries { get; set; }
@@ -357,7 +357,7 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
             public double PreloadEfficiency { get; set; }
             public int UniquePatterns { get; set; }
         }
-        
+
         #endregion
     }
 }

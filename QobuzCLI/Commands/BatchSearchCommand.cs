@@ -18,8 +18,8 @@ public class BatchSearchCommand
     public Command Command { get; }
 
     public BatchSearchCommand(
-        IConfigService configService, 
-        IPluginHost pluginHost, 
+        IConfigService configService,
+        IPluginHost pluginHost,
         ISearchService searchService,
         IConflictService conflictService,
         ILogger<BatchSearchCommand> logger)
@@ -48,8 +48,8 @@ public class BatchSearchCommand
         batchSearchCommand.AddOption(limitOption);
         batchSearchCommand.AddOption(resolveOption);
 
-        batchSearchCommand.SetHandler(async (string[] queries, string? file, string? type, int limit, bool resolve) => 
-            await HandleBatchSearchAsync(queries, file, type, limit, resolve), 
+        batchSearchCommand.SetHandler(async (string[] queries, string? file, string? type, int limit, bool resolve) =>
+            await HandleBatchSearchAsync(queries, file, type, limit, resolve),
             queriesArg, fileOption, typeOption, limitOption, resolveOption);
 
         return batchSearchCommand;
@@ -84,7 +84,7 @@ public class BatchSearchCommand
 
             // Search all queries
             await AnsiConsole.Progress()
-                .Columns(new ProgressColumn[] 
+                .Columns(new ProgressColumn[]
                 {
                     new TaskDescriptionColumn(),
                     new ProgressBarColumn(),
@@ -98,11 +98,11 @@ public class BatchSearchCommand
                     foreach (var query in allQueries)
                     {
                         searchTask.Description = $"Searching: {query}";
-                        
-                        var detectedType = forcedType == Models.SearchType.Auto 
-                            ? _searchService.DetectSearchType(query) 
+
+                        var detectedType = forcedType == Models.SearchType.Auto
+                            ? _searchService.DetectSearchType(query)
                             : forcedType;
-                        
+
                         var searchType = detectedType;
 
                         var rawResults = await _pluginHost.SearchAsync(query, searchType);
@@ -133,7 +133,7 @@ public class BatchSearchCommand
             {
                 AnsiConsole.WriteLine();
                 AnsiConsole.MarkupLine($"[yellow]⚠️  Found {conflictSession.Conflicts.Count} conflict{(conflictSession.Conflicts.Count > 1 ? "s" : "")} requiring resolution.[/]");
-                
+
                 var shouldResolve = AnsiConsole.Confirm("Would you like to resolve these conflicts now?");
                 if (shouldResolve)
                 {
@@ -241,10 +241,10 @@ public class BatchSearchCommand
         {
             var resultCount = results.Count.ToString();
             var bestMatch = results.FirstOrDefault();
-            var bestMatchText = bestMatch != null 
+            var bestMatchText = bestMatch != null
                 ? $"{bestMatch.Title} - {bestMatch.Artist}".Truncate(40)
                 : "[dim]No results[/]";
-            var scoreText = bestMatch != null 
+            var scoreText = bestMatch != null
                 ? FormatScore(bestMatch.Score)
                 : "[dim]N/A[/]";
 

@@ -15,7 +15,7 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Clients
         private bool _disposed = false;
         private int _qualityFallbackCount;
         private string? _qualityFallbackExample;
-        
+
         public string DownloadId { get; set; }
         public string AlbumId { get; set; }
         public string Title { get; set; }
@@ -101,7 +101,7 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Clients
                 Message = "Cannot cancel - download item already disposed";
                 return;
             }
-            
+
             try
             {
                 CancellationTokenSource?.Cancel();
@@ -126,7 +126,7 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Clients
         public void UpdateProgress(double progress, long downloadedSize = 0)
         {
             Progress = Math.Max(0, Math.Min(100, progress));
-            
+
             if (downloadedSize > 0)
             {
                 DownloadedSize = downloadedSize;
@@ -187,7 +187,7 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Clients
                 }
             };
         }
-        
+
         /// <summary>
         /// Dispose pattern implementation to properly clean up CancellationTokenSource
         /// </summary>
@@ -196,7 +196,7 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Clients
             Dispose(true);
             GC.SuppressFinalize(this);
         }
-        
+
         /// <summary>
         /// Protected virtual dispose method for derived classes
         /// </summary>
@@ -222,15 +222,15 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Clients
                         Message = $"Error during disposal: {ex.Message}";
                     }
                 }
-                
+
                 // Clean up unmanaged resources if any
                 CancellationTokenSource = null;
                 DownloadTask = null;
-                
+
                 _disposed = true;
             }
         }
-        
+
         /// <summary>
         /// Finalizer - only needed if we have unmanaged resources
         /// </summary>

@@ -11,18 +11,18 @@ namespace QobuzCLI.Services;
 public class OptionsMonitorWrapper : IOptionsMonitor<ConsoleLoggerOptions>
 {
     private readonly IOptions<ConsoleLoggerOptions> _options;
-    
+
     public OptionsMonitorWrapper(IOptions<ConsoleLoggerOptions> options)
     {
         _options = options;
     }
-    
+
     public ConsoleLoggerOptions CurrentValue => _options.Value;
-    
+
     public ConsoleLoggerOptions Get(string? name) => _options.Value;
-    
+
     public IDisposable OnChange(Action<ConsoleLoggerOptions, string> listener) => new EmptyDisposable();
-    
+
     private sealed class EmptyDisposable : IDisposable
     {
         public void Dispose() { }
@@ -37,7 +37,7 @@ public class DashboardAwareConsoleLoggerProvider : ILoggerProvider
     private readonly ConsoleLoggerProvider _consoleProvider;
     private readonly IDisposable _optionsReloadToken;
     private readonly IDashboardStateProvider _dashboardState;
-    
+
     public DashboardAwareConsoleLoggerProvider(IOptions<ConsoleLoggerOptions> options, IDashboardStateProvider dashboardState)
     {
         var monitor = new OptionsMonitorWrapper(options);

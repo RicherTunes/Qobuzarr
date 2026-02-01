@@ -38,7 +38,7 @@ namespace Lidarr.Plugin.Qobuzarr.Security
             {
                 // Pin the string in memory to prevent GC from moving it
                 pinnedString = GCHandle.Alloc(sensitive, GCHandleType.Pinned);
-                
+
                 secureString = new SecureString();
                 foreach (char c in sensitive)
                 {
@@ -91,7 +91,7 @@ namespace Lidarr.Plugin.Qobuzarr.Security
                 ptr = Marshal.SecureStringToGlobalAllocUnicode(secureString);
                 int length = secureString.Length * sizeof(char);
                 bytes = new byte[length];
-                
+
                 Marshal.Copy(ptr, bytes, 0, length);
                 return bytes;
             }
@@ -116,12 +116,12 @@ namespace Lidarr.Plugin.Qobuzarr.Security
 
             // Pin the array to prevent GC from moving it
             GCHandle pinnedArray = GCHandle.Alloc(bytes, GCHandleType.Pinned);
-            
+
             try
             {
                 // Clear the array
                 Array.Clear(bytes, 0, bytes.Length);
-                
+
                 // Additional zeroing for security
                 for (int i = 0; i < bytes.Length; i++)
                 {
@@ -155,7 +155,7 @@ namespace Lidarr.Plugin.Qobuzarr.Security
             // Only suggest, don't force
             // Generation 0 only, non-blocking, optimized mode
             GC.Collect(0, GCCollectionMode.Optimized, blocking: false);
-            
+
             _logger.Debug("Memory cleanup suggested (non-blocking)");
         }
 
@@ -167,7 +167,7 @@ namespace Lidarr.Plugin.Qobuzarr.Security
             // Get memory info without forcing collection
             long memory = GC.GetTotalMemory(false);
             long threshold = 500 * 1024 * 1024; // 500MB threshold
-            
+
             return memory > threshold;
         }
 
@@ -178,7 +178,7 @@ namespace Lidarr.Plugin.Qobuzarr.Security
 
             // Clean disposal without forced GC
             _disposed = true;
-            
+
             _logger.Debug("SecureMemoryGuard disposed cleanly");
         }
 
@@ -217,7 +217,7 @@ namespace Lidarr.Plugin.Qobuzarr.Security
                 if (!string.IsNullOrEmpty(sensitive) && !_disposed)
                 {
                     string local = sensitive;
-                    RegisterCleanup(() => 
+                    RegisterCleanup(() =>
                     {
                         // Clear reference (best we can do for immutable strings)
                         local = null!;
@@ -273,7 +273,7 @@ namespace Lidarr.Plugin.Qobuzarr.Security
                 finally
                 {
                     _disposed = true;
-                    
+
                     // Note: No forced GC - let runtime handle memory naturally
                     _logger.Debug("Secure scope disposed deterministically");
                 }
@@ -338,14 +338,14 @@ namespace Lidarr.Plugin.Qobuzarr.Security
                 // Convert to strings temporarily for comparison
                 string strA = Marshal.PtrToStringUni(ptrA) ?? string.Empty;
                 string strB = Marshal.PtrToStringUni(ptrB) ?? string.Empty;
-                
+
                 // Use secure string comparison
                 bool equal = string.Equals(strA, strB, StringComparison.Ordinal);
-                
+
                 // Clear temporary strings
                 strA = null!;
                 strB = null!;
-                
+
                 if (!equal)
                     return false;
 

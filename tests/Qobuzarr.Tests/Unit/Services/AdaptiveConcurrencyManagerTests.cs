@@ -50,10 +50,10 @@ namespace Qobuzarr.Tests.Unit.Services
         {
             // Arrange
             var latency = TimeSpan.FromMilliseconds(500);
-            
+
             // Act
             _manager.RecordOperation(latency, success: true);
-            
+
             // Assert
             _manager.AverageLatency.Should().Be(500);
             _manager.SuccessRate.Should().Be(1.0);
@@ -65,10 +65,10 @@ namespace Qobuzarr.Tests.Unit.Services
             // Arrange
             var latency = TimeSpan.FromMilliseconds(2000);
             var error = new InvalidOperationException("Test error");
-            
+
             // Act
             _manager.RecordOperation(latency, success: false, error);
-            
+
             // Assert
             _manager.SuccessRate.Should().Be(0.0);
             _manager.AverageLatency.Should().Be(2000);
@@ -80,10 +80,10 @@ namespace Qobuzarr.Tests.Unit.Services
             // Arrange
             var expectedResult = "test result";
             var operation = new Func<Task<string>>(() => Task.FromResult(expectedResult));
-            
+
             // Act
             var result = await _manager.ExecuteWithConcurrencyAsync(operation);
-            
+
             // Assert
             result.Should().Be(expectedResult);
         }
@@ -94,11 +94,11 @@ namespace Qobuzarr.Tests.Unit.Services
             // Arrange
             var expectedException = new InvalidOperationException("Test error");
             var operation = new Func<Task<string>>(() => Task.FromException<string>(expectedException));
-            
+
             // Act & Assert
             var exception = await Assert.ThrowsAsync<InvalidOperationException>(
                 () => _manager.ExecuteWithConcurrencyAsync(operation));
-            
+
             exception.Message.Should().Be("Test error");
             _manager.SuccessRate.Should().Be(0.0);
         }
@@ -109,19 +109,19 @@ namespace Qobuzarr.Tests.Unit.Services
             // Arrange
             var initialConcurrency = _manager.CurrentConcurrency;
             var highLatency = TimeSpan.FromMilliseconds(4000); // Above maxLatency
-            
+
             // Act - Record several high-latency operations
             for (int i = 0; i < 5; i++)
             {
                 _manager.RecordOperation(highLatency, success: true);
             }
-            
+
             // Wait for adjustment interval
             await Task.Delay(200);
-            
+
             // Force another operation to trigger adjustment check
             _manager.RecordOperation(highLatency, success: true);
-            
+
             // Assert
             _manager.CurrentConcurrency.Should().BeLessOrEqualTo(initialConcurrency);
             _output.WriteLine($"Concurrency adjusted from {initialConcurrency} to {_manager.CurrentConcurrency} due to high latency");
@@ -133,19 +133,19 @@ namespace Qobuzarr.Tests.Unit.Services
             // Arrange
             var initialConcurrency = _manager.CurrentConcurrency;
             var lowLatency = TimeSpan.FromMilliseconds(200); // Well below target
-            
+
             // Act - Record many successful, fast operations
             for (int i = 0; i < 25; i++)
             {
                 _manager.RecordOperation(lowLatency, success: true);
             }
-            
+
             // Wait for adjustment interval
             await Task.Delay(200);
-            
+
             // Force adjustment check
             _manager.RecordOperation(lowLatency, success: true);
-            
+
             // Assert
             _manager.CurrentConcurrency.Should().BeGreaterOrEqualTo(initialConcurrency);
             _output.WriteLine($"Concurrency adjusted from {initialConcurrency} to {_manager.CurrentConcurrency} due to good performance");
@@ -157,14 +157,14 @@ namespace Qobuzarr.Tests.Unit.Services
             // Arrange
             var initialConcurrency = _manager.CurrentConcurrency;
             var rateLimitError = new InvalidOperationException("Rate limit exceeded - 429 Too Many Requests");
-            
+
             // Act
             _manager.RecordOperation(TimeSpan.FromSeconds(1), success: false, rateLimitError);
-            
+
             // Wait for adjustment
             await Task.Delay(200);
             _manager.RecordOperation(TimeSpan.FromSeconds(1), success: false, rateLimitError);
-            
+
             // Assert
             _manager.CurrentConcurrency.Should().BeLessThan(initialConcurrency);
             _output.WriteLine($"Rate limit triggered immediate reduction from {initialConcurrency} to {_manager.CurrentConcurrency}");
@@ -176,17 +176,17 @@ namespace Qobuzarr.Tests.Unit.Services
             // Arrange
             _manager.RecordOperation(TimeSpan.FromMilliseconds(500), success: true);
             _manager.RecordOperation(TimeSpan.FromMilliseconds(1000), success: false);
-            
+
             // Act
             var stats = _manager.GetStats();
-            
+
             // Assert
             stats.Should().NotBeNull();
             stats.CurrentConcurrency.Should().BeGreaterThan(0);
             stats.AverageLatency.Should().BeGreaterThan(0);
             stats.SuccessRate.Should().BeLessOrEqualTo(1.0);
             stats.RecentOperations.Should().Be(2);
-            
+
             _output.WriteLine($"Stats: Concurrency={stats.CurrentConcurrency}, Latency={stats.AverageLatency:F1}ms, Success={stats.SuccessRate:P1}");
         }
 
@@ -195,7 +195,7 @@ namespace Qobuzarr.Tests.Unit.Services
         {
             // Act
             using var semaphore = _manager.GetConcurrencySemaphore();
-            
+
             // Assert
             semaphore.Should().NotBeNull();
             semaphore.CurrentCount.Should().Be(_manager.CurrentConcurrency);
@@ -209,7 +209,7 @@ namespace Qobuzarr.Tests.Unit.Services
             var activeCount = 0;
             var maxActiveCount = 0;
             var lockObject = new object();
-            
+
             async Task TestOperation()
             {
                 await _manager.ExecuteWithConcurrencyAsync(async () =>
@@ -219,27 +219,27 @@ namespace Qobuzarr.Tests.Unit.Services
                         activeCount++;
                         maxActiveCount = Math.Max(maxActiveCount, activeCount);
                     }
-                    
+
                     await Task.Delay(50); // Simulate work
-                    
+
                     lock (lockObject)
                     {
                         activeCount--;
                     }
-                    
+
                     return "completed";
                 });
             }
-            
+
             // Act - Start many concurrent operations
             var tasks = new Task[concurrency * 2]; // More tasks than allowed concurrency
             for (int i = 0; i < tasks.Length; i++)
             {
                 tasks[i] = TestOperation();
             }
-            
+
             await Task.WhenAll(tasks);
-            
+
             // Assert
             maxActiveCount.Should().BeLessOrEqualTo(concurrency); // Should respect exact concurrency limit
             _output.WriteLine($"Max active operations: {maxActiveCount}, Configured concurrency: {concurrency}");
@@ -253,14 +253,14 @@ namespace Qobuzarr.Tests.Unit.Services
         {
             // Arrange & Act
             var manager = new AdaptiveConcurrencyManager(
-                _mockLogger.Object, 
-                minConcurrency: min, 
+                _mockLogger.Object,
+                minConcurrency: min,
                 maxConcurrency: max);
-            
+
             // Assert - should respect the bounds and use the expected algorithm
             manager.CurrentConcurrency.Should().BeGreaterOrEqualTo(min);
             manager.CurrentConcurrency.Should().BeLessOrEqualTo(max);
-            
+
             // For min >= 5, should use the min value (higher than processor calculation)
             if (min >= 5)
             {

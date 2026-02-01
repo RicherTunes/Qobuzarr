@@ -11,12 +11,12 @@ namespace Qobuzarr.Tests.LibraryLinking
 {
     /// <summary>
     /// Tests for library linking edge cases when Qobuzarr is loaded alongside other plugins.
-     /// These tests verify that:
-     /// - The Common library is merged into the plugin via ILRepack
-     /// - Dependencies like Polly and TagLibSharp are not exposed publicly
-     /// - Assembly isolation works correctly
-     /// - Version conflicts between plugins don't cause failures
-     /// </summary>
+    /// These tests verify that:
+    /// - The Common library is merged into the plugin via ILRepack
+    /// - Dependencies like Polly and TagLibSharp are not exposed publicly
+    /// - Assembly isolation works correctly
+    /// - Version conflicts between plugins don't cause failures
+    /// </summary>
     [Trait("Category", "LibraryLinking")]
     public class LibraryLinkingEdgeCaseTests
     {
@@ -200,7 +200,7 @@ namespace Qobuzarr.Tests.LibraryLinking
         }
 
         [Fact]
-        public void Plugin_Public_Types_Should_Be_In_Correct_Namespace()  
+        public void Plugin_Public_Types_Should_Be_In_Correct_Namespace()
         {
             // Arrange & Act
             var pluginTypes = PluginAssembly.GetExportedTypes()

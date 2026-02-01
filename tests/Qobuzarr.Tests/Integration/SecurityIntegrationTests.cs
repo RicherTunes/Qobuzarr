@@ -56,21 +56,21 @@ namespace Qobuzarr.Tests.Integration
             // Act
             // Step 1: Validate configuration security
             var configValidation = _configValidator.ValidateConfiguration(settings);
-            
+
             // Step 2: Create secure credentials
             var securePassword = _credentialManager.CreateSecureString(settings.Password);
-            
+
             // Step 3: Hash password for Qobuz API
             var hashedPassword = QobuzAuthenticationService.HashPassword(
                 _credentialManager.SecureStringToString(securePassword));
-            
+
             // Step 4: Create authentication credentials
             var credentials = new QobuzCredentials
             {
                 Email = settings.Email,
                 MD5Password = hashedPassword
             };
-            
+
             // Step 5: Store session securely after authentication
             var session = new QobuzSession
             {
@@ -81,22 +81,22 @@ namespace Qobuzarr.Tests.Integration
                 ExpiresAt = DateTime.UtcNow.AddHours(2),
                 CreatedAt = DateTime.UtcNow
             };
-            
+
             _sessionManager.StoreSessionSecurely(session);
 
             // Assert
             configValidation.IsSecure.Should().BeTrue();
             configValidation.SecurityLevel.Should().Be(SecurityLevel.High);
-            
+
             credentials.IsValid().Should().BeTrue();
             credentials.IsEmailAuth().Should().BeTrue();
-            
+
             _sessionManager.HasValidSession().Should().BeTrue();
-            
+
             var retrievedSession = _sessionManager.GetSecureSession();
             retrievedSession.Should().NotBeNull();
             retrievedSession.AuthToken.Should().Be("auth_token_from_api");
-            
+
             // Clean up
             securePassword?.Dispose();
         }
@@ -156,15 +156,15 @@ namespace Qobuzarr.Tests.Integration
             // Assert
             isPasswordSecure.Should().BeTrue();
             isEmailSecure.Should().BeTrue();
-            
+
             securePassword.Should().NotBeNull();
             securePassword.Length.Should().Be(plainPassword.Length);
-            
+
             hashedForStorage.Should().NotBeNullOrEmpty();
             hashedForStorage.Should().NotBe(plainPassword);
-            
+
             canVerify.Should().BeTrue();
-            
+
             maskedPassword.Should().Contain("*");
             maskedPassword.Should().NotBe(plainPassword);
 
@@ -213,7 +213,7 @@ namespace Qobuzarr.Tests.Integration
             retrieved2.Should().NotBeNull();
             retrieved2.UserId.Should().Be("user2");
             retrieved2.AuthToken.Should().Be("token2_secret");
-            
+
             // Verify first user's data is no longer accessible
             retrieved2.AuthToken.Should().NotBe(retrieved1.AuthToken);
         }
@@ -244,10 +244,10 @@ namespace Qobuzarr.Tests.Integration
                 ExpiresAt = DateTime.UtcNow.AddMinutes(-1), // Expired
                 CreatedAt = initialSession.CreatedAt
             };
-            
+
             _sessionManager.ClearSession();
             _sessionManager.StoreSessionSecurely(expiredSession);
-            
+
             var afterExpiry = _sessionManager.HasValidSession();
             var retrievedExpired = _sessionManager.GetSecureSession();
 
@@ -328,22 +328,22 @@ namespace Qobuzarr.Tests.Integration
             var validEmail = "valid@example.com";
             var invalidEmail = "invalid@example.com";
             var passwords = new[] { "password1", "password2", "password3", "correct_password" };
-            
+
             var timings = new List<long>();
 
             // Act
             foreach (var password in passwords)
             {
                 var stopwatch = System.Diagnostics.Stopwatch.StartNew();
-                
+
                 var credentials = new QobuzCredentials
                 {
                     Email = validEmail,
                     MD5Password = QobuzAuthenticationService.HashPassword(password)
                 };
-                
+
                 var isValid = credentials.IsValid();
-                
+
                 stopwatch.Stop();
                 timings.Add(stopwatch.ElapsedMilliseconds);
             }
@@ -353,7 +353,7 @@ namespace Qobuzarr.Tests.Integration
             var maxTiming = timings.Max();
             var minTiming = timings.Min();
             var variance = maxTiming - minTiming;
-            
+
             variance.Should().BeLessThan(100, "Timing variance should be minimal to prevent timing attacks");
         }
 
@@ -387,9 +387,9 @@ namespace Qobuzarr.Tests.Integration
             // Assert
             var currentSession = _sessionManager.GetSecureSession();
             currentSession.Should().NotBeNull();
-            currentSession.AuthToken.Should().Be("hijacked_token_456", 
+            currentSession.AuthToken.Should().Be("hijacked_token_456",
                 "New session should replace old one completely");
-            
+
             // The old token should no longer be valid
             currentSession.AuthToken.Should().NotBe(legitimateSession.AuthToken);
         }
@@ -410,14 +410,14 @@ namespace Qobuzarr.Tests.Integration
             var secureString = _credentialManager.CreateSecureString(sensitiveData);
             var plainText = _credentialManager.SecureStringToString(secureString);
             processedData.Add(plainText);
-            
+
             var hash = _credentialManager.GenerateSecureHash(plainText);
             var masked = _credentialManager.MaskSensitiveData(plainText);
-            
+
             // Clear references
             _credentialManager.ClearString(ref plainText);
             secureString?.Dispose();
-            
+
             // Force garbage collection
             GC.Collect();
             GC.WaitForPendingFinalizers();

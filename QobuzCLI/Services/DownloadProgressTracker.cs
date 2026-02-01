@@ -32,7 +32,7 @@ public class DownloadProgressTracker : IDisposable
     {
         _logger = logger;
         _startTime = DateTime.UtcNow;
-        
+
         // Update display every 100ms for smooth progress
         _displayTimer = new Timer(UpdateDisplay, null, TimeSpan.Zero, TimeSpan.FromMilliseconds(100));
     }
@@ -86,7 +86,7 @@ public class DownloadProgressTracker : IDisposable
         // Calculate overall progress
         var totalTrackBytes = progress.TrackProgress.Values.Sum(t => t.TotalBytes);
         var totalTrackBytesDownloaded = progress.TrackProgress.Values.Sum(t => t.BytesDownloaded);
-        
+
         if (totalTrackBytes > 0)
         {
             progress.BytesDownloaded = totalTrackBytesDownloaded;
@@ -106,14 +106,14 @@ public class DownloadProgressTracker : IDisposable
             return;
 
         progress.CompletedTracks++;
-        
+
         if (progress.TrackProgress.TryGetValue(trackNumber, out var track))
         {
             track.IsCompleted = true;
             track.BytesDownloaded = track.TotalBytes; // Ensure it shows 100%
         }
 
-        _logger.LogDebug("Completed track {Track}/{Total} for {Album}", 
+        _logger.LogDebug("Completed track {Track}/{Total} for {Album}",
             trackNumber, progress.TotalTracks, progress.AlbumName);
     }
 
@@ -153,13 +153,13 @@ public class DownloadProgressTracker : IDisposable
     {
         var elapsed = DateTime.UtcNow - _startTime;
         var activeDownloads = _activeDownloads.Values.Where(d => d.Status == DownloadStatus.Downloading).ToList();
-        
+
         // Calculate current speed from all active downloads
         var currentSpeed = _downloadStats.Values.Sum(s => s.GetCurrentSpeed());
-        
+
         // Calculate average speed
         var avgSpeed = elapsed.TotalSeconds > 0 ? _totalBytesDownloaded / elapsed.TotalSeconds : 0;
-        
+
         // Estimate remaining time
         var totalRemaining = activeDownloads.Sum(d => Math.Max(0, d.TotalBytes - d.BytesDownloaded));
         var eta = currentSpeed > 0 ? TimeSpan.FromSeconds(totalRemaining / currentSpeed) : TimeSpan.Zero;
@@ -246,11 +246,11 @@ public class DownloadProgressTracker : IDisposable
                         {
                             var percentage = (double)download.BytesDownloaded / download.TotalBytes * 100;
                             task.Value = percentage;
-                            
+
                             // Update description with current track
                             var currentTrack = download.TrackProgress.Values
                                 .FirstOrDefault(t => !t.IsCompleted && t.BytesDownloaded > 0);
-                            
+
                             if (currentTrack != null)
                             {
                                 task.Description = $"[yellow]{download.ArtistName}[/] - [cyan]{download.AlbumName}[/] " +
@@ -281,16 +281,16 @@ public class DownloadProgressTracker : IDisposable
     public void Dispose()
     {
         if (_isDisposed) return;
-        
+
         _isDisposed = true;
         _displayTimer?.Dispose();
-        
+
         // Complete any remaining progress tasks
         foreach (var task in _progressTasks.Values)
         {
             task.StopTask();
         }
-        
+
         _progressTasks.Clear();
     }
 }
@@ -333,10 +333,10 @@ public class DownloadStats
     {
         lock (_lock)
         {
-            _speedSamples.Enqueue(new SpeedSample 
-            { 
-                Bytes = bytes, 
-                Timestamp = DateTime.UtcNow 
+            _speedSamples.Enqueue(new SpeedSample
+            {
+                Bytes = bytes,
+                Timestamp = DateTime.UtcNow
             });
 
             while (_speedSamples.Count > MaxSamples)

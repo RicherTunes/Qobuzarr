@@ -204,7 +204,7 @@ namespace Qobuzarr.Tests.Unit.Services
 
             // Simulate the calculation logic that would be used in the actual implementation
             // Uses tick arithmetic which may have slight precision differences from millisecond-based comparison
-            var calculatedAverage = acquisitions > 0 
+            var calculatedAverage = acquisitions > 0
                 ? TimeSpan.FromTicks(totalWaitTime.Ticks / acquisitions)
                 : TimeSpan.Zero;
 
@@ -284,7 +284,7 @@ namespace Qobuzarr.Tests.Unit.Services
             };
 
             // Assert - In real implementation, TotalDownloads would be calculated
-            var calculatedTotal = stats.QueuedDownloads + stats.DownloadingDownloads + 
+            var calculatedTotal = stats.QueuedDownloads + stats.DownloadingDownloads +
                                  stats.CompletedDownloads + stats.FailedDownloads;
             calculatedTotal.Should().Be(expectedTotal);
         }
@@ -438,7 +438,7 @@ namespace Qobuzarr.Tests.Unit.Services
         {
             // Act & Assert - Should handle extreme DateTime values
             var stats = new DownloadQueueStatistics();
-            
+
             stats.LastUpdated = DateTime.MinValue;
             stats.LastUpdated.Should().Be(DateTime.MinValue);
 

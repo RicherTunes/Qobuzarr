@@ -36,7 +36,7 @@ public class SearchCommand
         searchCommand.AddOption(typeOption);
         searchCommand.AddOption(limitOption);
 
-        searchCommand.SetHandler(async (string query, string? type, int limit) => 
+        searchCommand.SetHandler(async (string query, string? type, int limit) =>
             await HandleSearchAsync(query, type, limit).ConfigureAwait(false), queryArg, typeOption, limitOption);
 
         return searchCommand;
@@ -140,7 +140,7 @@ public class SearchCommand
         // Show match quality indicators
         var exactMatches = results.Where(r => r.Score >= 95).Count();
         var goodMatches = results.Where(r => r.Score >= 80 && r.Score < 95).Count();
-        
+
         if (exactMatches > 0 || goodMatches > 0)
         {
             AnsiConsole.WriteLine();
@@ -154,7 +154,7 @@ public class SearchCommand
     private string FormatTitle(SearchResult result)
     {
         var title = result.Title;
-        
+
         // Highlight exact matches
         if (result.Score >= 95)
             return $"[green]{title}[/] ⭐";
@@ -166,8 +166,8 @@ public class SearchCommand
 
     private string FormatArtist(SearchResult result)
     {
-        return result.Artist.Length > 30 
-            ? result.Artist.Substring(0, 27) + "..." 
+        return result.Artist.Length > 30
+            ? result.Artist.Substring(0, 27) + "..."
             : result.Artist;
     }
 
@@ -193,7 +193,7 @@ public class SearchCommand
         {
             var parts = result.Quality.Split("•").Select(p => p.Trim()).ToList();
             var formatted = new List<string>();
-            
+
             foreach (var part in parts)
             {
                 if (part.Contains("Hi-Res"))
@@ -222,10 +222,10 @@ public class SearchCommand
                     formatted.Add($"[dim]{part}[/]");
                 }
             }
-            
+
             return string.Join(" [dim]•[/] ", formatted);
         }
-        
+
         // Legacy single format display
         return result.Quality switch
         {

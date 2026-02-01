@@ -52,18 +52,18 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Services
 
                 // Try preferred quality first
                 var streamResponse = await TryGetStreamUrl(trackId, preferredQuality).ConfigureAwait(false);
-                
+
                 if (streamResponse != null && IsValidStreamUrl(streamResponse))
                 {
                     return streamResponse.Url;
                 }
-                
+
                 // Log why preferred quality failed
                 var preferredFailureReason = GetFailureReason(streamResponse);
-                
+
                 // Try fallback qualities with smart handling for subscription issues
                 var fallbackQualities = _qualityFallbackProvider.GetFallbackQualities(preferredQuality);
-                
+
                 // Optimize fallback based on known subscription tier
                 if (_settings?.SubscriptionTier == (int)QobuzSubscriptionTier.Sublime)
                 {
@@ -84,17 +84,17 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Services
                     fallbackQualities = fallbackQualities.Where(q => q <= 6).ToList();
                     _logger.Debug("🔽 High-res subscription issue detected, trying CD quality and below");
                 }
-                
+
                 foreach (var fallbackQuality in fallbackQualities)
                 {
                     streamResponse = await TryGetStreamUrl(trackId, fallbackQuality).ConfigureAwait(false);
-                    
+
                     if (streamResponse != null && IsValidStreamUrl(streamResponse))
                     {
                         LogQualitySelection(track, album, fallbackQuality, preferredQuality);
                         return streamResponse.Url;
                     }
-                    
+
                     // If we hit subscription issues at CD quality or below, stop trying
                     if (IsSubscriptionIssue(streamResponse) && fallbackQuality <= 6)
                     {
@@ -139,15 +139,15 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Services
             // Check basic response validity
             if (response?.IsSuccess != true || string.IsNullOrWhiteSpace(response.Url))
                 return false;
-                
+
             // Check for sample/preview - following QobuzApiSharp pattern
             if (response.Sample == true)
                 return false;
-                
+
             // Check if URL appears to be a sample/preview
             if (IsPreviewOrSampleUrl(response.Url))
                 return false;
-                
+
             return true;
         }
 
@@ -155,19 +155,19 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Services
         {
             if (response == null)
                 return "No response from Qobuz API";
-                
+
             if (response.Sample == true)
                 return "Track is only available as a sample/preview (subscription insufficient)";
-                
+
             if (!response.IsSuccess)
                 return GetDetailedErrorMessage(response);
-                
+
             if (string.IsNullOrWhiteSpace(response.Url))
                 return "Empty stream URL returned";
-                
+
             if (IsPreviewOrSampleUrl(response.Url))
                 return "Stream URL appears to be preview/sample only";
-                
+
             return "Unknown failure";
         }
 
@@ -176,16 +176,16 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Services
             // Trust the API response structure first
             if (response?.Sample == true)
                 return true;
-            
+
             // Check for forbidden status (subscription insufficient)
             if (response?.Code == 403)
                 return true;
-            
+
             // Check for explicit subscription restriction message
             if (response?.Message?.Contains("FormatRestrictedBySubscription") == true ||
                 response?.Message?.Contains("TrackRestrictedByPurchaseCredentials") == true)
                 return true;
-            
+
             // Check restriction codes
             var restrictionMessage = response?.GetRestrictionMessage();
             if (!string.IsNullOrWhiteSpace(restrictionMessage))
@@ -195,7 +195,7 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Services
                        lowerRestriction.Contains("purchase") ||
                        lowerRestriction.Contains("credentials");
             }
-            
+
             return false;
         }
 
@@ -203,7 +203,7 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Services
         {
             if (response?.Sample == true)
                 return TrackUnavailableReason.SubscriptionRestriction;
-                
+
             return AnalyzeErrorReason(failureReason);
         }
 
@@ -218,10 +218,10 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Services
                 var albumTitle = album.GetFullTitle() ?? "Unknown Album";
                 var albumYear = album.ReleaseDate.Year > 1900 ? album.ReleaseDate.Year.ToString() : "";
                 var albumInfo = !string.IsNullOrEmpty(albumYear) ? $"{albumTitle} ({albumYear})" : albumTitle;
-                
+
                 var qualityBadge = CreateQualityBadge(actualQuality, preferredQuality);
-                
-                _logger.Info("🎵 {0} - \"{1}\" [{2}] │ {3} │ {4}", 
+
+                _logger.Info("🎵 {0} - \"{1}\" [{2}] │ {3} │ {4}",
                     artistName, trackTitle, trackPosition, albumInfo, qualityBadge);
             }
             else
@@ -242,13 +242,13 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Services
                 var albumTitle = album.GetFullTitle() ?? "Unknown Album";
                 var albumYear = album.ReleaseDate.Year > 1900 ? album.ReleaseDate.Year.ToString() : "";
                 var albumInfo = !string.IsNullOrEmpty(albumYear) ? $"{albumTitle} ({albumYear})" : albumTitle;
-                
-                _logger.Warn("⚠️ 🎵 {0} - \"{1}\" [{2}] │ {3} │ Unavailable in all qualities. Last error: {4}", 
+
+                _logger.Warn("⚠️ 🎵 {0} - \"{1}\" [{2}] │ {3} │ Unavailable in all qualities. Last error: {4}",
                     artistName, trackTitle, trackPosition, albumInfo, errorMessage ?? "No stream URL returned");
             }
             else
             {
-                _logger.Warn("Track {0} unavailable in ALL qualities. Last error: {1}", 
+                _logger.Warn("Track {0} unavailable in ALL qualities. Last error: {1}",
                     track?.Id ?? "Unknown", errorMessage ?? "No stream URL returned");
             }
         }
@@ -257,7 +257,7 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Services
         {
             var actualName = GetQualityShortName(actualQuality);
             var preferredName = GetQualityShortName(preferredQuality);
-            
+
             if (actualQuality == preferredQuality)
             {
                 return $"[🟢 {actualName}] ✓";
@@ -316,7 +316,7 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Services
             }
 
             // Add status if it provides additional context
-            if (!string.IsNullOrWhiteSpace(response.Status) && 
+            if (!string.IsNullOrWhiteSpace(response.Status) &&
                 !string.Equals(response.Status, "error", StringComparison.OrdinalIgnoreCase))
             {
                 errorParts.Add($"Status: {response.Status}");

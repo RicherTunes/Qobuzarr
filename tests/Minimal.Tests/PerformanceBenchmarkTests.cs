@@ -43,23 +43,23 @@ namespace Minimal.Tests
 
             // Act - Measure classification performance
             stopwatch.Start();
-            
+
             for (int i = 0; i < operationCount; i++)
             {
                 var album = albumTitles[i % albumTitles.Length];
                 _classifier.ClassifyComponents(album);
             }
-            
+
             stopwatch.Stop();
 
             // Assert - Performance should scale reasonably
             var operationsPerSecond = operationCount / stopwatch.Elapsed.TotalSeconds;
             var averageTimePerOperation = stopwatch.Elapsed.TotalMilliseconds / operationCount;
 
-            operationsPerSecond.Should().BeGreaterThan(1000, 
+            operationsPerSecond.Should().BeGreaterThan(1000,
                 $"Should process at least 1000 classifications per second, got {operationsPerSecond:F0}/sec");
-            
-            averageTimePerOperation.Should().BeLessThan(1.0, 
+
+            averageTimePerOperation.Should().BeLessThan(1.0,
                 $"Average classification time should be under 1ms, got {averageTimePerOperation:F2}ms");
         }
 
@@ -82,23 +82,23 @@ namespace Minimal.Tests
 
             // Act - Measure strategy generation performance
             stopwatch.Start();
-            
+
             for (int i = 0; i < operationCount; i++)
             {
                 var (artist, album) = testCases[i % testCases.Length];
                 _strategy.DetermineStrategy(artist, album);
             }
-            
+
             stopwatch.Stop();
 
             // Assert - Strategy generation should be fast
             var operationsPerSecond = operationCount / stopwatch.Elapsed.TotalSeconds;
             var averageTimePerOperation = stopwatch.Elapsed.TotalMilliseconds / operationCount;
 
-            operationsPerSecond.Should().BeGreaterThan(500, 
+            operationsPerSecond.Should().BeGreaterThan(500,
                 $"Should process at least 500 strategies per second, got {operationsPerSecond:F0}/sec");
-            
-            averageTimePerOperation.Should().BeLessThan(2.0, 
+
+            averageTimePerOperation.Should().BeLessThan(2.0,
                 $"Average strategy time should be under 2ms, got {averageTimePerOperation:F2}ms");
         }
 
@@ -122,7 +122,7 @@ namespace Minimal.Tests
                 var components = _classifier.ClassifyComponents(albumTitle);
                 var strategy = _strategy.DetermineStrategy(artist, albumTitle);
                 var queries = _strategy.BuildQueriesForStrategy(artist, albumTitle, strategy);
-                
+
                 workflows.Add((components, strategy, queries));
             }
 
@@ -132,10 +132,10 @@ namespace Minimal.Tests
             var workflowsPerSecond = iterationCount / stopwatch.Elapsed.TotalSeconds;
             var averageTimePerWorkflow = stopwatch.Elapsed.TotalMilliseconds / iterationCount;
 
-            workflowsPerSecond.Should().BeGreaterThan(200, 
+            workflowsPerSecond.Should().BeGreaterThan(200,
                 $"Should complete at least 200 workflows per second, got {workflowsPerSecond:F0}/sec");
-            
-            averageTimePerWorkflow.Should().BeLessThan(5.0, 
+
+            averageTimePerWorkflow.Should().BeLessThan(5.0,
                 $"Average workflow time should be under 5ms, got {averageTimePerWorkflow:F2}ms");
 
             // Verify all workflows produced valid results
@@ -167,7 +167,7 @@ namespace Minimal.Tests
                     var components = _classifier.ClassifyComponents(album);
                     var strategy = _strategy.DetermineStrategy("Artist", album);
                     var queries = _strategy.BuildQueriesForStrategy("Artist", album, strategy);
-                    
+
                     // Keep references to track allocation patterns
                     objectsCreated.AddRange(new object[] { components, strategy, queries });
                 }
@@ -177,7 +177,7 @@ namespace Minimal.Tests
             GC.Collect();
             GC.WaitForPendingFinalizers();
             GC.Collect();
-            
+
             var finalMemory = GC.GetTotalMemory(false);
             var memoryIncrease = finalMemory - initialMemory;
             var allocationsPerOperation = memoryIncrease / (double)(1000 * albums.Length);
@@ -220,8 +220,8 @@ namespace Minimal.Tests
 
             // Assert - Parallel processing should be beneficial
             var operationsPerSecond = 1000 / stopwatch.Elapsed.TotalSeconds;
-            
-            operationsPerSecond.Should().BeGreaterThan(100 * degreeOfParallelism, 
+
+            operationsPerSecond.Should().BeGreaterThan(100 * degreeOfParallelism,
                 $"Parallel processing with {degreeOfParallelism} threads should achieve at least {100 * degreeOfParallelism} ops/sec, got {operationsPerSecond:F0}");
 
             results.Should().HaveCount(1000, "All parallel operations should complete");
@@ -255,8 +255,8 @@ namespace Minimal.Tests
 
             // Assert - Even worst-case should perform acceptably
             var averageTimeMs = stopwatch.Elapsed.TotalMilliseconds / operationCount;
-            
-            averageTimeMs.Should().BeLessThan(50, 
+
+            averageTimeMs.Should().BeLessThan(50,
                 $"Worst-case complex album should process under 50ms, got {averageTimeMs:F2}ms");
 
             // Verify correctness even in worst case
@@ -264,7 +264,7 @@ namespace Minimal.Tests
             var finalStrategy = _strategy.DetermineStrategy("Artist", worstCaseAlbum);
 
             finalComponents.Should().NotBeEmpty("Complex album should be classified");
-            finalStrategy.CleaningLevel.Should().Be(CleaningLevel.Minimal, 
+            finalStrategy.CleaningLevel.Should().Be(CleaningLevel.Minimal,
                 "Album with many version descriptors should use minimal cleaning");
         }
     }

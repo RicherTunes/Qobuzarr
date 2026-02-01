@@ -33,7 +33,7 @@ public class ArchitectureComplianceTests
         var downloadCommandType = typeof(DownloadCommand);
         var constructorParams = downloadCommandType.GetConstructors()[0].GetParameters();
 
-        constructorParams.Length.Should().BeLessOrEqualTo(10, 
+        constructorParams.Length.Should().BeLessOrEqualTo(10,
             "DownloadCommand should have reasonable dependency count after refactoring");
     }
 
@@ -46,7 +46,7 @@ public class ArchitectureComplianceTests
             .Where(m => m.DeclaringType == serviceType).ToList();
 
         methods.Count.Should().BeLessOrEqualTo(3, "Extracted service should be focused and small");
-        
+
         var constructorParams = serviceType.GetConstructors()[0].GetParameters();
         constructorParams.Length.Should().BeLessOrEqualTo(2, "Service should have minimal dependencies");
     }
@@ -57,7 +57,7 @@ public class ArchitectureComplianceTests
         // Validates that CLI doesn't contain business logic that should be in plugin
         var downloadCommandType = typeof(DownloadCommand);
         var methods = downloadCommandType.GetMethods(BindingFlags.NonPublic | BindingFlags.Instance);
-        
+
         // Look for methods that might indicate business logic reimplementation
         var suspiciousMethodNames = new[] { "DownloadTrack", "ApplyMetadata", "ValidateQuality", "ProcessAudio" };
         var foundSuspiciousMethods = methods
@@ -79,7 +79,7 @@ public class ArchitectureComplianceTests
         {
             var methods = type.GetMethods(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
             var suspiciousPatterns = new[] { "DownloadTrack", "ApplyMetadata", "TagFile", "ConvertAudio" };
-            
+
             var reimplementedMethods = methods
                 .Where(m => suspiciousPatterns.Any(pattern => m.Name.Contains(pattern)))
                 .ToList();
@@ -136,9 +136,9 @@ public class CodeQualityTests
         // Validates separation of concerns in extracted services
         var queueMonitoringSource = File.ReadAllText(
             Path.Combine(GetSourceRoot(), "QobuzCLI", "Services", "QueueMonitoringService.cs"));
-        
+
         var lineCount = queueMonitoringSource.Split('\n').Length;
-        lineCount.Should().BeLessOrEqualTo(100, 
+        lineCount.Should().BeLessOrEqualTo(100,
             "Extracted services should be small and focused");
     }
 
@@ -146,7 +146,7 @@ public class CodeQualityTests
     {
         var currentDir = Directory.GetCurrentDirectory();
         // Navigate up to find the source root
-        while (!Directory.Exists(Path.Combine(currentDir, "QobuzCLI")) && 
+        while (!Directory.Exists(Path.Combine(currentDir, "QobuzCLI")) &&
                Directory.GetParent(currentDir) != null)
         {
             currentDir = Directory.GetParent(currentDir)!.FullName;
@@ -171,7 +171,7 @@ public class SecurityComplianceTests
         foreach (var file in sourceFiles)
         {
             var content = File.ReadAllText(file);
-            
+
             // Look for patterns that might indicate hardcoded credentials
             var suspiciousPatterns = new[]
             {
@@ -185,7 +185,7 @@ public class SecurityComplianceTests
             {
                 var hasPattern = System.Text.RegularExpressions.Regex.IsMatch(
                     content, pattern, System.Text.RegularExpressions.RegexOptions.IgnoreCase);
-                
+
                 hasPattern.Should().BeFalse(
                     $"File {Path.GetFileName(file)} should not contain hardcoded credentials (pattern: {pattern})");
             }
@@ -200,12 +200,12 @@ public class SecurityComplianceTests
         if (File.Exists(constantsFile))
         {
             var content = File.ReadAllText(constantsFile);
-            
-            content.Should().Contain("GetAppId()", 
+
+            content.Should().Contain("GetAppId()",
                 "QobuzConstants should use environment variable methods");
-            content.Should().Contain("GetAppSecret()", 
+            content.Should().Contain("GetAppSecret()",
                 "QobuzConstants should use environment variable methods");
-            content.Should().NotContain("DefaultAppId = \"", 
+            content.Should().NotContain("DefaultAppId = \"",
                 "QobuzConstants should not contain hardcoded app ID");
         }
     }
@@ -213,7 +213,7 @@ public class SecurityComplianceTests
     private string GetSourceRoot()
     {
         var currentDir = Directory.GetCurrentDirectory();
-        while (!Directory.Exists(Path.Combine(currentDir, "src")) && 
+        while (!Directory.Exists(Path.Combine(currentDir, "src")) &&
                Directory.GetParent(currentDir) != null)
         {
             currentDir = Directory.GetParent(currentDir)!.FullName;

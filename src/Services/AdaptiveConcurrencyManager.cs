@@ -15,12 +15,12 @@ namespace Lidarr.Plugin.Qobuzarr.Services
     {
         private readonly IQobuzLogger _logger;
         private readonly object _adjustmentLock = new object();
-        
+
         // Performance metrics
         private readonly ConcurrentQueue<PerformanceMetric> _recentMetrics = new();
         private readonly ConcurrentQueue<double> _recentLatencies = new();
         private readonly ConcurrentQueue<bool> _recentSuccesses = new();
-        
+
         // Cached calculations to avoid expensive LINQ operations on property access
         private double _cachedAverageLatency = 0;
         private double _cachedSuccessRate = 1.0;
@@ -28,16 +28,16 @@ namespace Lidarr.Plugin.Qobuzarr.Services
         private volatile bool _cacheIsStale = true;
         private readonly object _cacheLock = new object();
         private readonly TimeSpan _cacheValidityPeriod = TimeSpan.FromSeconds(5);
-        
+
         // Current settings
         private volatile int _currentConcurrency;
         private volatile int _consecutiveSuccesses = 0;
         private volatile int _consecutiveFailures = 0;
         private DateTime _lastAdjustment = DateTime.UtcNow;
-        
+
         // Shared semaphore for concurrency control
         private SemaphoreSlim _sharedSemaphore;
-        
+
         // Configuration
         private readonly int _minConcurrency;
         private readonly int _maxConcurrency;
@@ -55,7 +55,7 @@ namespace Lidarr.Plugin.Qobuzarr.Services
             {
                 RefreshCachedCalculations();
             }
-            
+
             lock (_cacheLock)
             {
                 return _cachedAverageLatency;
@@ -68,7 +68,7 @@ namespace Lidarr.Plugin.Qobuzarr.Services
             {
                 RefreshCachedCalculations();
             }
-            
+
             lock (_cacheLock)
             {
                 return _cachedSuccessRate;
@@ -117,19 +117,19 @@ namespace Lidarr.Plugin.Qobuzarr.Services
             _adjustmentInterval = adjustmentInterval ?? TimeSpan.FromSeconds(10);
             _targetLatency = targetLatency;
             _maxLatency = maxLatency;
-            
+
             // Start conservative - use minConcurrency if it's higher than processor-based calculation
             // This ensures test predictability while still being reasonable for production
             var processorBasedConcurrency = Math.Min(Environment.ProcessorCount / 2, 2);
             _currentConcurrency = Math.Max(_minConcurrency, processorBasedConcurrency);
-            
+
             // Ensure we don't exceed max concurrency
             _currentConcurrency = Math.Min(_currentConcurrency, _maxConcurrency);
-            
+
             // Initialize shared semaphore
             _sharedSemaphore = new SemaphoreSlim(_currentConcurrency, _currentConcurrency);
-            
-            _logger.Info("AdaptiveConcurrencyManager initialized: min={0}, max={1}, initial={2}, targetLatency={3}ms", 
+
+            _logger.Info("AdaptiveConcurrencyManager initialized: min={0}, max={1}, initial={2}, targetLatency={3}ms",
                 _minConcurrency, _maxConcurrency, _currentConcurrency, _targetLatency);
         }
 
@@ -139,11 +139,11 @@ namespace Lidarr.Plugin.Qobuzarr.Services
         public void RecordOperation(TimeSpan latency, bool success, Exception error = null)
         {
             var latencyMs = latency.TotalMilliseconds;
-            
+
             // Record metrics
             _recentLatencies.Enqueue(latencyMs);
             _recentSuccesses.Enqueue(success);
-            
+
             var metric = new PerformanceMetric
             {
                 Timestamp = DateTime.UtcNow,
@@ -152,17 +152,17 @@ namespace Lidarr.Plugin.Qobuzarr.Services
                 Error = error?.GetType().Name,
                 Concurrency = _currentConcurrency
             };
-            
+
             _recentMetrics.Enqueue(metric);
-            
+
             // Keep only recent data (last 100 operations)
             while (_recentMetrics.Count > 100) _recentMetrics.TryDequeue(out _);
             while (_recentLatencies.Count > 50) _recentLatencies.TryDequeue(out _);
             while (_recentSuccesses.Count > 50) _recentSuccesses.TryDequeue(out _);
-            
+
             // Mark cache as stale since new metrics were added
             _cacheIsStale = true;
-            
+
             // Update consecutive counters
             if (success)
             {
@@ -174,7 +174,7 @@ namespace Lidarr.Plugin.Qobuzarr.Services
                 Interlocked.Increment(ref _consecutiveFailures);
                 Interlocked.Exchange(ref _consecutiveSuccesses, 0);
             }
-            
+
             // Consider adjustment
             ConsiderAdjustment(latencyMs, success, error);
         }
@@ -191,22 +191,22 @@ namespace Lidarr.Plugin.Qobuzarr.Services
         /// Executes an operation with adaptive concurrency control
         /// </summary>
         public async Task<T> ExecuteWithConcurrencyAsync<T>(
-            Func<Task<T>> operation, 
+            Func<Task<T>> operation,
             SemaphoreSlim semaphore = null,
             CancellationToken cancellationToken = default)
         {
             var localSemaphore = semaphore ?? GetConcurrencySemaphore();
             var shouldDispose = semaphore != null; // Only dispose if caller provided their own
-            
+
             try
             {
                 await localSemaphore.WaitAsync(cancellationToken);
-                
+
                 var stopwatch = Stopwatch.StartNew();
                 Exception? operationError = null;
                 T result = default(T)!; // Will be set before return
                 bool success = false;
-                
+
                 try
                 {
                     result = await operation();
@@ -240,10 +240,10 @@ namespace Lidarr.Plugin.Qobuzarr.Services
             {
                 var now = DateTime.UtcNow;
                 var timeSinceLastAdjustment = now - _lastAdjustment;
-                
+
                 if (timeSinceLastAdjustment < _adjustmentInterval)
                     return;
-                
+
                 var decision = DetermineAdjustment(latencyMs, success, error);
                 if (decision != AdjustmentDecision.NoChange)
                 {
@@ -257,41 +257,41 @@ namespace Lidarr.Plugin.Qobuzarr.Services
         {
             var avgLatency = AverageLatency;
             var successRate = SuccessRate;
-            
+
             // Immediate decrease for critical issues
             if (IsRateLimitError(error))
             {
                 _logger.Warn("Rate limit detected, reducing concurrency immediately");
                 return AdjustmentDecision.DecreaseAggressive;
             }
-            
+
             if (latencyMs > _maxLatency || avgLatency > _maxLatency)
             {
-                _logger.Debug("High latency detected (current: {0}ms, avg: {1}ms), reducing concurrency", 
+                _logger.Debug("High latency detected (current: {0}ms, avg: {1}ms), reducing concurrency",
                     latencyMs, avgLatency);
                 return AdjustmentDecision.Decrease;
             }
-            
+
             if (_consecutiveFailures >= 5)
             {
                 _logger.Debug("Multiple consecutive failures ({0}), reducing concurrency", _consecutiveFailures);
                 return AdjustmentDecision.Decrease;
             }
-            
+
             if (successRate < 0.8)
             {
                 _logger.Debug("Low success rate ({0:P1}), reducing concurrency", successRate);
                 return AdjustmentDecision.Decrease;
             }
-            
+
             // Conditions for increase
             if (_consecutiveSuccesses >= 20 && avgLatency < _targetLatency && successRate > 0.95)
             {
-                _logger.Debug("Good performance (successes: {0}, latency: {1}ms, rate: {2:P1}), increasing concurrency", 
+                _logger.Debug("Good performance (successes: {0}, latency: {1}ms, rate: {2:P1}), increasing concurrency",
                     _consecutiveSuccesses, avgLatency, successRate);
                 return AdjustmentDecision.Increase;
             }
-            
+
             return AdjustmentDecision.NoChange;
         }
 
@@ -305,19 +305,19 @@ namespace Lidarr.Plugin.Qobuzarr.Services
                 AdjustmentDecision.DecreaseAggressive => Math.Max(_minConcurrency, _currentConcurrency / 2),
                 _ => _currentConcurrency
             };
-            
+
             if (newConcurrency != oldConcurrency)
             {
                 _currentConcurrency = newConcurrency;
                 _consecutiveSuccesses = 0;
                 _consecutiveFailures = 0;
-                
+
                 // Update the shared semaphore with new limit
                 var oldSemaphore = _sharedSemaphore;
                 _sharedSemaphore = new SemaphoreSlim(newConcurrency, newConcurrency);
-                
+
                 // Dispose old semaphore in a background task to avoid blocking
-                Task.Run(() => 
+                Task.Run(() =>
                 {
                     try
                     {
@@ -328,7 +328,7 @@ namespace Lidarr.Plugin.Qobuzarr.Services
                         _logger.Debug("Error disposing old semaphore during concurrency adjustment: {0}", ex.Message);
                     }
                 });
-                
+
                 _logger.Info("Concurrency adjusted: {0} → {1} (decision: {2}, avg latency: {3:F1}ms, success rate: {4:P1})",
                     oldConcurrency, newConcurrency, decision, AverageLatency, SuccessRate);
             }
@@ -337,7 +337,7 @@ namespace Lidarr.Plugin.Qobuzarr.Services
         private bool IsRateLimitError(Exception error)
         {
             if (error == null) return false;
-            
+
             return error.Message.ToLower().Contains("rate limit") ||
                    error.Message.ToLower().Contains("429") ||
                    error.Message.ToLower().Contains("too many requests");

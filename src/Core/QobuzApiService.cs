@@ -147,24 +147,24 @@ namespace Lidarr.Plugin.Qobuzarr.Core
         {
             // Create QobuzQuality from int (following migration adapter pattern)
             var quality = Models.QobuzQuality.FromId(preferredQuality);
-            
+
             // Call new consolidated API
             var result = await _qualityManager.SelectBestQualityAsync(trackId, quality);
-            
+
             // Handle failure case
             if (!result.Success)
             {
                 throw new InvalidOperationException(
                     result.Error ?? $"No available quality found for track {trackId}");
             }
-            
+
             // Convert new StreamInfo to legacy QobuzStreamInfo
             var legacyStreamInfo = new QobuzStreamInfo
             {
                 Url = result.StreamInfo.Url,
                 FormatId = result.StreamInfo.QualityId
             };
-            
+
             return (result.SelectedQuality.Id, legacyStreamInfo);
         }
 

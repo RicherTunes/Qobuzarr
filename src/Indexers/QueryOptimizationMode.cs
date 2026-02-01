@@ -12,7 +12,7 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
         /// </summary>
         [Description("Disabled - Execute all search queries")]
         Disabled = 0,
-        
+
         /// <summary>
         /// Pattern-based query intelligence
         /// Analyzes artist/album patterns to skip unnecessary queries
@@ -20,7 +20,7 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
         /// </summary>
         [Description("Query Intelligence - Pattern analysis (~35% API reduction)")]
         QueryIntelligence = 1,
-        
+
         /// <summary>
         /// Machine learning based predictions
         /// Uses pre-trained models to predict optimal search strategy

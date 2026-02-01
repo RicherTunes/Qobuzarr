@@ -69,7 +69,7 @@ public class ConsoleInterceptor : TextWriter
     private static bool IsAnsiEscapeSequence(string value)
     {
         // Allow ANSI escape sequences to pass through for dashboard display
-        return value.Contains('\x1b') || value.Contains("\u001b") || 
+        return value.Contains('\x1b') || value.Contains("\u001b") ||
                value.StartsWith("\x1b[") || value.StartsWith("\u001b[");
     }
 

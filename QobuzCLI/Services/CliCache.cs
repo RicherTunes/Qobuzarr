@@ -31,7 +31,7 @@ public class CliCache : IQobuzCache
                 _cache.TryRemove(key, out _);
             }
         }
-        
+
         return null;
     }
 
@@ -61,7 +61,7 @@ public class CliCache : IQobuzCache
                 _cache.TryRemove(key, out _);
             }
         }
-        
+
         return false;
     }
 
@@ -69,7 +69,7 @@ public class CliCache : IQobuzCache
     {
         var expiredKeys = new List<string>();
         var now = DateTime.UtcNow;
-        
+
         foreach (var kvp in _cache)
         {
             if (kvp.Value.ExpirationTime.HasValue && kvp.Value.ExpirationTime <= now)
@@ -77,7 +77,7 @@ public class CliCache : IQobuzCache
                 expiredKeys.Add(kvp.Key);
             }
         }
-        
+
         foreach (var key in expiredKeys)
         {
             _cache.TryRemove(key, out _);

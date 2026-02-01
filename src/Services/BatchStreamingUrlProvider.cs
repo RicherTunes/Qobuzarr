@@ -52,7 +52,7 @@ namespace Lidarr.Plugin.Qobuzarr.Services
             _apiClient = apiClient ?? throw new ArgumentNullException(nameof(apiClient));
             _logger = logger ?? LogManager.GetCurrentClassLogger();
             _settings = settings ?? throw new ArgumentNullException(nameof(settings));
-            
+
             // Use provided semaphore or create default based on settings
             var maxConcurrency = settings.GetEffectiveConcurrency();
             _semaphore = semaphore ?? new SemaphoreSlim(maxConcurrency, maxConcurrency);
@@ -73,7 +73,7 @@ namespace Lidarr.Plugin.Qobuzarr.Services
             CancellationToken cancellationToken = default)
         {
             var trackList = tracks?.ToList() ?? throw new ArgumentNullException(nameof(tracks));
-            
+
             if (!trackList.Any())
             {
                 _logger.Debug("No tracks provided for batch streaming URL acquisition");
@@ -84,7 +84,7 @@ namespace Lidarr.Plugin.Qobuzarr.Services
             var trackCount = trackList.Count;
             var batchSize = CalculateOptimalBatchSize(trackCount);
 
-            _logger.Info("⚡ BATCH STREAMING URLS: Processing {0} tracks in batches of {1} (preferred quality: {2})", 
+            _logger.Info("⚡ BATCH STREAMING URLS: Processing {0} tracks in batches of {1} (preferred quality: {2})",
                         trackCount, batchSize, preferredQuality);
 
             var results = new Dictionary<string, StreamingUrlResult>();
@@ -102,13 +102,13 @@ namespace Lidarr.Plugin.Qobuzarr.Services
                 {
                     cancellationToken.ThrowIfCancellationRequested();
 
-                    _logger.Debug("Processing batch {0}/{1} with {2} tracks", 
-                                 (processed / batchSize) + 1, 
-                                 (trackCount + batchSize - 1) / batchSize, 
+                    _logger.Debug("Processing batch {0}/{1} with {2} tracks",
+                                 (processed / batchSize) + 1,
+                                 (trackCount + batchSize - 1) / batchSize,
                                  batch.Count);
 
                     var batchResults = await ProcessBatchAsync(batch, preferredQuality, cancellationToken);
-                    
+
                     // Merge batch results
                     foreach (var kvp in batchResults)
                     {
@@ -119,7 +119,7 @@ namespace Lidarr.Plugin.Qobuzarr.Services
                     var progressPercent = (double)processed / trackCount * 100;
                     progress?.Report(progressPercent);
 
-                    _logger.Debug("Batch complete: {0}/{1} tracks processed ({2:P1})", 
+                    _logger.Debug("Batch complete: {0}/{1} tracks processed ({2:P1})",
                                  processed, trackCount, progressPercent / 100);
                 }
 
@@ -127,7 +127,7 @@ namespace Lidarr.Plugin.Qobuzarr.Services
                 var successCount = results.Count(r => r.Value.IsSuccess);
                 var avgTimePerTrack = duration.TotalMilliseconds / trackCount;
 
-                _logger.Info("⚡ BATCH COMPLETE: {0}/{1} streaming URLs acquired in {2:F1}s (avg {3:F0}ms per track)", 
+                _logger.Info("⚡ BATCH COMPLETE: {0}/{1} streaming URLs acquired in {2:F1}s (avg {3:F0}ms per track)",
                             successCount, trackCount, duration.TotalSeconds, avgTimePerTrack);
 
                 // Log performance metrics for optimization tuning
@@ -157,7 +157,7 @@ namespace Lidarr.Plugin.Qobuzarr.Services
             var tasks = batch.Select(async track =>
             {
                 await _semaphore.WaitAsync(cancellationToken);
-                
+
                 try
                 {
                     var result = await GetSingleStreamingUrlWithRetryAsync(track, preferredQuality, cancellationToken);
@@ -171,7 +171,7 @@ namespace Lidarr.Plugin.Qobuzarr.Services
 
             // Execute all tasks in parallel and collect results
             var completedTasks = await Task.WhenAll(tasks);
-            
+
             foreach (var taskResult in completedTasks)
             {
                 batchResults[taskResult.TrackId] = taskResult.Result;
@@ -180,7 +180,7 @@ namespace Lidarr.Plugin.Qobuzarr.Services
             var batchDuration = DateTime.UtcNow - batchStartTime;
             var successCount = batchResults.Count(r => r.Value.IsSuccess);
 
-            _logger.Debug("Batch of {0} tracks processed in {1:F1}s, {2} successful", 
+            _logger.Debug("Batch of {0} tracks processed in {1:F1}s, {2} successful",
                          batch.Count, batchDuration.TotalSeconds, successCount);
 
             return batchResults;
@@ -202,12 +202,12 @@ namespace Lidarr.Plugin.Qobuzarr.Services
                 try
                 {
                     var result = await GetSingleStreamingUrlAsync(track, preferredQuality, cancellationToken);
-                    
+
                     if (result.IsSuccess)
                     {
                         if (attempt > 0)
                         {
-                            _logger.Debug("Successfully acquired streaming URL for track {0} on attempt {1}", 
+                            _logger.Debug("Successfully acquired streaming URL for track {0} on attempt {1}",
                                          track.Id, attempt + 1);
                         }
                         return result;
@@ -216,9 +216,9 @@ namespace Lidarr.Plugin.Qobuzarr.Services
                     // If first attempt failed due to quality unavailability, try fallback
                     if (attempt == 0 && result.ShouldTryFallbackQuality)
                     {
-                        _logger.Debug("Preferred quality {0} unavailable for track {1}, trying fallbacks", 
+                        _logger.Debug("Preferred quality {0} unavailable for track {1}, trying fallbacks",
                                      preferredQuality, track.Id);
-                        
+
                         var fallbackResult = await TryFallbackQualitiesAsync(track, preferredQuality, cancellationToken);
                         if (fallbackResult.IsSuccess)
                             return fallbackResult;
@@ -239,15 +239,15 @@ namespace Lidarr.Plugin.Qobuzarr.Services
                     if (attempt < MAX_RETRY_ATTEMPTS)
                     {
                         var delay = TimeSpan.FromMilliseconds(RETRY_DELAY_BASE_MS * Math.Pow(2, attempt - 1));
-                        _logger.Debug("Streaming URL request failed for track {0}, retrying in {1}ms (attempt {2}/{3}): {4}", 
+                        _logger.Debug("Streaming URL request failed for track {0}, retrying in {1}ms (attempt {2}/{3}): {4}",
                                      track.Id, delay.TotalMilliseconds, attempt + 1, MAX_RETRY_ATTEMPTS, ex.Message);
-                        
+
                         await Task.Delay(delay, cancellationToken);
                     }
                 }
             }
 
-            _logger.Error(lastException, "Failed to acquire streaming URL for track {0} after {1} attempts", 
+            _logger.Error(lastException, "Failed to acquire streaming URL for track {0} after {1} attempts",
                          track.Id, MAX_RETRY_ATTEMPTS);
 
             return new StreamingUrlResult
@@ -291,7 +291,7 @@ namespace Lidarr.Plugin.Qobuzarr.Services
             if (response.HasRestrictions())
             {
                 var restrictionMessage = response.GetRestrictionMessage();
-                
+
                 if (restrictionMessage?.Contains("format not available") == true)
                 {
                     return new StreamingUrlResult
@@ -342,11 +342,11 @@ namespace Lidarr.Plugin.Qobuzarr.Services
             foreach (var quality in fallbackQualities)
             {
                 _logger.Debug("Trying fallback quality {0} for track {1}", quality, track.Id);
-                
+
                 var result = await GetSingleStreamingUrlAsync(track, quality, cancellationToken);
                 if (result.IsSuccess)
                 {
-                    _logger.Debug("Successfully acquired streaming URL using fallback quality {0} for track {1}", 
+                    _logger.Debug("Successfully acquired streaming URL using fallback quality {0} for track {1}",
                                  quality, track.Id);
                     return result;
                 }
@@ -397,7 +397,7 @@ namespace Lidarr.Plugin.Qobuzarr.Services
             // Adjust based on total track count
             if (trackCount > 50) // Large albums/discographies
                 return Math.Min(MAX_BATCH_SIZE, baseBatchSize + 2);
-            
+
             if (trackCount > 20) // Medium albums
                 return Math.Min(baseBatchSize + 1, MAX_BATCH_SIZE);
 

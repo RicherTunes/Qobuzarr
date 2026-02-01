@@ -32,7 +32,7 @@ namespace Qobuzarr.Tests.PropertyBased
             });
 
             var nullOrEmpty = Gen.Elements<string>(null, "", "   ");
-            
+
             var unicodeVersions = Gen.Elements(new[]
             {
                 "Édition Spéciale", "特別版", "Версия делюкс", "Ausgabe"
@@ -153,7 +153,7 @@ namespace Qobuzarr.Tests.PropertyBased
         #region Version Field Properties
 
         [Property(Arbitrary = new[] { typeof(AlbumEditionPropertyTests) })]
-        public Property Version_ShouldBePreservedInFullTitle(string version)    
+        public Property Version_ShouldBePreservedInFullTitle(string version)
         {
             return Prop.ForAll<string>(v =>
             {
@@ -212,7 +212,7 @@ namespace Qobuzarr.Tests.PropertyBased
         #region Album Comparison Properties
 
         [Property(Arbitrary = new[] { typeof(AlbumEditionPropertyTests) })]
-        public Property DifferentVersions_ShouldProduceDifferentFullTitles(     
+        public Property DifferentVersions_ShouldProduceDifferentFullTitles(
             NonEmptyString version1,
             NonEmptyString version2)
         {
@@ -280,8 +280,8 @@ namespace Qobuzarr.Tests.PropertyBased
 
         [Property]
         public Property RedactedStyleTitle_ShouldAlwaysHaveCorrectStructure(
-            NonEmptyString artist, 
-            NonEmptyString album, 
+            NonEmptyString artist,
+            NonEmptyString album,
             PositiveInt year)
         {
             // Arrange
@@ -296,8 +296,8 @@ namespace Qobuzarr.Tests.PropertyBased
             var title = GenerateRedactedStyleTitle(qobuzAlbum);
 
             // Assert
-            var hasCorrectStructure = title.Contains(" - ") && 
-                                    title.Contains("(") && 
+            var hasCorrectStructure = title.Contains(" - ") &&
+                                    title.Contains("(") &&
                                     title.Contains(")") &&
                                     title.EndsWith("]");
 
@@ -334,7 +334,7 @@ namespace Qobuzarr.Tests.PropertyBased
 
         [Property]
         public Property RedactedStyleTitle_ShouldAlwaysEndWithQualityBracket(
-            NonEmptyString artist, 
+            NonEmptyString artist,
             NonEmptyString album)
         {
             // Arrange
@@ -404,14 +404,14 @@ namespace Qobuzarr.Tests.PropertyBased
             var albumTitle = album.Title;
             var year = album.ReleaseDate.Year;
             var quality = album.MaximumBitDepth >= 16 ? "FLAC" : "MP3";
-            
+
             var titleBuilder = $"{artistName} - {albumTitle} ({year})";
-            
+
             if (!string.IsNullOrWhiteSpace(album.Version))
             {
                 titleBuilder += $" [{album.Version}]";
             }
-            
+
             titleBuilder += $" [{quality} WEB]";
             return titleBuilder;
         }

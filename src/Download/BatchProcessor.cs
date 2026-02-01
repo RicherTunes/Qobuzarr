@@ -61,16 +61,16 @@ namespace Lidarr.Plugin.Qobuzarr.Download
                 batchNumber++;
                 await CheckMemoryPressureAsync();
 
-                _logger.Debug("Processing batch {0}/{1} ({2} albums)", 
-                    batchNumber, 
+                _logger.Debug("Processing batch {0}/{1} ({2} albums)",
+                    batchNumber,
                     Math.Ceiling((double)totalAlbums / _batchSize),
                     batch.Length);
 
                 try
                 {
                     var batchResults = await ProcessAlbumsAsync(
-                        batch, 
-                        processFunc, 
+                        batch,
+                        processFunc,
                         null, // Use main progress reporter
                         cancellationToken);
 
@@ -95,7 +95,7 @@ namespace Lidarr.Plugin.Qobuzarr.Download
                 catch (Exception ex)
                 {
                     _logger.Error(ex, "Error processing batch {0}", batchNumber);
-                    
+
                     // Continue with next batch on error (resilient processing)
                     if (!cancellationToken.IsCancellationRequested)
                     {
@@ -146,8 +146,8 @@ namespace Lidarr.Plugin.Qobuzarr.Download
                 batchNumber++;
                 await CheckMemoryPressureAsync();
 
-                _logger.Debug("Processing track batch {0}/{1} ({2} tracks)", 
-                    batchNumber, 
+                _logger.Debug("Processing track batch {0}/{1} ({2} tracks)",
+                    batchNumber,
                     Math.Ceiling((double)totalTracks / _batchSize),
                     batch.Length);
 
@@ -184,7 +184,7 @@ namespace Lidarr.Plugin.Qobuzarr.Download
             var currentMemory = GC.GetTotalMemory(false);
             var totalMemory = currentMemory + estimatedMemory;
             var totalMemoryMB = totalMemory / 1048576;
-            
+
             return totalMemoryMB <= _maxMemoryMB;
         }
 
@@ -252,16 +252,16 @@ namespace Lidarr.Plugin.Qobuzarr.Download
                 {
                     _logger.Warn("⚠️ Memory pressure detected ({0} MB > {1} MB limit)", memoryMB, _maxMemoryMB);
                     _logger.Info(" ↳ Suggesting garbage collection...");
-                    
+
                     // Suggest GC without blocking
                     await SuggestGarbageCollectionAsync();
-                    
+
                     // Give GC time to work if needed
                     await Task.Delay(500);
-                    
+
                     var newMemoryMB = GC.GetTotalMemory(false) / 1048576;
                     _logger.Info(" ↳ Current memory: {0} MB", newMemoryMB);
-                    
+
                     // If still high, wait a bit more for natural GC
                     if (newMemoryMB > _maxMemoryMB * 0.9)
                     {
@@ -287,7 +287,7 @@ namespace Lidarr.Plugin.Qobuzarr.Download
         {
             // Only suggest collection, don't force it
             // The runtime will decide if/when to actually collect
-            
+
             return Task.CompletedTask;
         }
 
@@ -306,7 +306,7 @@ namespace Lidarr.Plugin.Qobuzarr.Download
             foreach (var album in albumList)
             {
                 cancellationToken.ThrowIfCancellationRequested();
-                
+
                 try
                 {
                     var result = await processFunc(album);
@@ -368,11 +368,11 @@ namespace Lidarr.Plugin.Qobuzarr.Download
                 throw new ArgumentException("Chunk size must be greater than 0", nameof(chunkSize));
 
             var chunk = new List<T>(chunkSize);
-            
+
             foreach (var item in source)
             {
                 chunk.Add(item);
-                
+
                 if (chunk.Count == chunkSize)
                 {
                     yield return chunk.ToArray();

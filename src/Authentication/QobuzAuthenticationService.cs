@@ -224,11 +224,11 @@ namespace Lidarr.Plugin.Qobuzarr.Authentication
 
                 // Use sanitized app credentials or environment variables
                 // If empty, QobuzApiSharp library will use its built-in defaults
-                appId = appId.IsNotNullOrWhiteSpace() ? appId : 
+                appId = appId.IsNotNullOrWhiteSpace() ? appId :
                            Environment.GetEnvironmentVariable(QobuzConstants.Authentication.AppIdEnvironmentVariable);
-                appSecret = appSecret.IsNotNullOrWhiteSpace() ? appSecret : 
+                appSecret = appSecret.IsNotNullOrWhiteSpace() ? appSecret :
                                Environment.GetEnvironmentVariable(QobuzConstants.Authentication.AppSecretEnvironmentVariable);
-                
+
                 // Both must be provided together if using custom credentials
                 if (!string.IsNullOrWhiteSpace(appId) && string.IsNullOrWhiteSpace(appSecret))
                 {
@@ -258,10 +258,10 @@ namespace Lidarr.Plugin.Qobuzarr.Authentication
 
                 // Store the session
                 StoreSession(session);
-                
-                _logger.Info("✅ Successfully authenticated with Qobuz API using {0}", 
+
+                _logger.Info("✅ Successfully authenticated with Qobuz API using {0}",
                     credentials.IsEmailAuth() ? "email/password" : "token");
-                
+
                 // Check if subscription supports the desired quality levels
                 if (session.Subscription != null)
                 {
@@ -281,13 +281,13 @@ namespace Lidarr.Plugin.Qobuzarr.Authentication
         {
             // Sanitize email input to prevent injection attacks
             email = InputSanitizer.SanitizeEmail(email);
-            
+
             // Use fallback chain: provided -> environment -> dynamic fetch from web player
-            var effectiveAppId = !string.IsNullOrWhiteSpace(appId) ? appId : 
+            var effectiveAppId = !string.IsNullOrWhiteSpace(appId) ? appId :
                                 Environment.GetEnvironmentVariable(QobuzConstants.Authentication.AppIdEnvironmentVariable);
-            var effectiveAppSecret = !string.IsNullOrWhiteSpace(appSecret) ? appSecret : 
+            var effectiveAppSecret = !string.IsNullOrWhiteSpace(appSecret) ? appSecret :
                                     Environment.GetEnvironmentVariable(QobuzConstants.Authentication.AppSecretEnvironmentVariable);
-            
+
             // If no credentials provided, try to get them dynamically like TrevTV's plugin
             if (string.IsNullOrWhiteSpace(effectiveAppId) || string.IsNullOrWhiteSpace(effectiveAppSecret))
             {
@@ -295,13 +295,13 @@ namespace Lidarr.Plugin.Qobuzarr.Authentication
                 effectiveAppId = effectiveAppId ?? dynamicAppId;
                 effectiveAppSecret = effectiveAppSecret ?? dynamicAppSecret;
             }
-            
+
             // Sanitize app credentials
             if (!string.IsNullOrWhiteSpace(effectiveAppId))
                 effectiveAppId = InputSanitizer.SanitizeAppId(effectiveAppId);
             if (!string.IsNullOrWhiteSpace(effectiveAppSecret))
                 effectiveAppSecret = InputSanitizer.ValidateAppSecret(effectiveAppSecret);
-            
+
             var requestBuilder = new HttpRequestBuilder($"{QobuzConstants.Api.BaseUrl}{LOGIN_ENDPOINT}")
                 .AddQueryParam("app_id", effectiveAppId)
                 .AddQueryParam("email", email)
@@ -324,13 +324,13 @@ namespace Lidarr.Plugin.Qobuzarr.Authentication
             }
 
             var subscription = loginResponse.User?.Subscription?.ToSubscription();
-            
+
             // Log subscription tier
             if (subscription != null)
             {
                 _logger.Info("User subscription: {0}", subscription.GetTierDescription());
             }
-            
+
             return QobuzSession.CreateSession(
                 loginResponse.User.Id,
                 loginResponse.UserAuthToken,
@@ -345,13 +345,13 @@ namespace Lidarr.Plugin.Qobuzarr.Authentication
             // Sanitize user inputs
             userId = InputSanitizer.SanitizeUserId(userId);
             authToken = InputSanitizer.SanitizeAuthToken(authToken);
-            
+
             // Use fallback chain: provided -> environment -> dynamic fetch from web player
-            var effectiveAppId = !string.IsNullOrWhiteSpace(appId) ? appId : 
+            var effectiveAppId = !string.IsNullOrWhiteSpace(appId) ? appId :
                                 Environment.GetEnvironmentVariable(QobuzConstants.Authentication.AppIdEnvironmentVariable);
-            var effectiveAppSecret = !string.IsNullOrWhiteSpace(appSecret) ? appSecret : 
+            var effectiveAppSecret = !string.IsNullOrWhiteSpace(appSecret) ? appSecret :
                                     Environment.GetEnvironmentVariable(QobuzConstants.Authentication.AppSecretEnvironmentVariable);
-            
+
             // If no credentials provided, try to get them dynamically like TrevTV's plugin
             if (string.IsNullOrWhiteSpace(effectiveAppId) || string.IsNullOrWhiteSpace(effectiveAppSecret))
             {
@@ -359,19 +359,19 @@ namespace Lidarr.Plugin.Qobuzarr.Authentication
                 effectiveAppId = effectiveAppId ?? dynamicAppId;
                 effectiveAppSecret = effectiveAppSecret ?? dynamicAppSecret;
             }
-            
+
             // Sanitize app credentials
             if (!string.IsNullOrWhiteSpace(effectiveAppId))
                 effectiveAppId = InputSanitizer.SanitizeAppId(effectiveAppId);
             if (!string.IsNullOrWhiteSpace(effectiveAppSecret))
                 effectiveAppSecret = InputSanitizer.ValidateAppSecret(effectiveAppSecret);
-            
+
             // For token auth, we create a session and validate it
             var session = QobuzSession.CreateSession(userId, authToken, effectiveAppId, effectiveAppSecret);
-            
+
             // Validate the token by making a test API call
             var isValid = await ValidateSessionAsync(session).ConfigureAwait(false);
-            
+
             if (!isValid)
             {
                 throw new InvalidOperationException("Invalid user ID or auth token");
@@ -422,7 +422,7 @@ namespace Lidarr.Plugin.Qobuzarr.Authentication
         {
             try
             {
-                var session = _sessionCache.Find(SESSION_CACHE_KEY);      
+                var session = _sessionCache.Find(SESSION_CACHE_KEY);
 
                 if (session == null || !session.IsValid())
                 {
@@ -433,7 +433,7 @@ namespace Lidarr.Plugin.Qobuzarr.Authentication
             }
             catch (Exception ex)
             {
-                _logger.Debug(ex, "Failed to retrieve cached session");   
+                _logger.Debug(ex, "Failed to retrieve cached session");
                 return null;
             }
         }
@@ -484,7 +484,7 @@ namespace Lidarr.Plugin.Qobuzarr.Authentication
         // Optional: factory to create a StreamingTokenManager wired to this service
         public StreamingTokenManager<QobuzSession, QobuzCredentials> CreateTokenManager()
         {
-            return new StreamingTokenManager<QobuzSession, QobuzCredentials>(this, new NoopLogger<StreamingTokenManager<QobuzSession, QobuzCredentials>>() );
+            return new StreamingTokenManager<QobuzSession, QobuzCredentials>(this, new NoopLogger<StreamingTokenManager<QobuzSession, QobuzCredentials>>());
         }
 
         private sealed class NoopLogger<T> : Microsoft.Extensions.Logging.ILogger<T>
@@ -547,7 +547,7 @@ namespace Lidarr.Plugin.Qobuzarr.Authentication
                 }
 
                 var bundleSuffix = bundleMatch.Groups["bundleJS"].Value;
-                var bundleUrl = "https://play.qobuz.com" + bundleSuffix;  
+                var bundleUrl = "https://play.qobuz.com" + bundleSuffix;
 
                 _logger.Debug($"Found bundle.js URL: {bundleUrl}");
 
@@ -561,22 +561,22 @@ namespace Lidarr.Plugin.Qobuzarr.Authentication
                     "production:{api:{appId:\"(?<appID>.*?)\",appSecret:",
                     System.Text.RegularExpressions.RegexOptions.CultureInvariant,
                     TimeSpan.FromMilliseconds(250));
-                
+
                 if (!appIdMatch.Success)
                 {
                     throw new InvalidOperationException("Failed to find production app_id in bundle.js");
                 }
-                
+
                 var appId = appIdMatch.Groups[1].Value;
-                
+
                 // Step 5: Extract App Secret using QobuzApiSharp's complex method
                 var appSecret = ExtractAppSecretFromBundle(bundleContent);
-                
+
                 if (string.IsNullOrEmpty(appSecret))
                 {
                     throw new InvalidOperationException("Failed to extract app_secret from bundle.js");
                 }
-                
+
                 _logger.Info($"Successfully extracted dynamic credentials: App ID {appId}");
                 return (appId, appSecret);
             }
@@ -597,48 +597,48 @@ namespace Lidarr.Plugin.Qobuzarr.Authentication
                 // Step 1: Find seed and timezone pattern (QobuzApiSharp's exact regex)
                 const string seedAndTimezonePattern = "\\):[a-z]\\.initialSeed\\(\"(?<seed>.*?)\",window\\.utimezone\\.(?<timezone>[a-z]+)\\)";
                 var seedAndTimezoneMatch = System.Text.RegularExpressions.Regex.Match(bundleContent, seedAndTimezonePattern);
-                
+
                 if (!seedAndTimezoneMatch.Success)
                 {
                     throw new InvalidOperationException("Failed to find seed and timezone in bundle.js");
                 }
-                
+
                 var seed = seedAndTimezoneMatch.Groups[1].Value;
                 var productionTimezone = System.Globalization.CultureInfo.InvariantCulture.TextInfo.ToTitleCase(seedAndTimezoneMatch.Groups[2].Value);
-                
+
                 _logger.Debug($"Found seed: {seed}, timezone: {productionTimezone}");
-                
+
                 // Step 2: Find info and extras for the production timezone
                 var infoAndExtrasPattern = "name:\"[^\"]*/" + productionTimezone + "\",info:\"(?<info>[^\"]*)\",extras:\"(?<extras>[^\"]*)\"";
                 var infoAndExtrasMatch = System.Text.RegularExpressions.Regex.Match(bundleContent, infoAndExtrasPattern, System.Text.RegularExpressions.RegexOptions.IgnoreCase);
-                
+
                 if (!infoAndExtrasMatch.Success)
                 {
                     throw new InvalidOperationException($"Failed to find info and extras for timezone {productionTimezone} in bundle.js");
                 }
-                
+
                 var info = infoAndExtrasMatch.Groups[1].Value;
                 var extras = infoAndExtrasMatch.Groups[2].Value;
-                
+
                 _logger.Debug($"Found info: {info}, extras: {extras}");
-                
+
                 // Step 3: Concatenate seed, info, and extras
                 var base64EncodedAppSecret = seed + info + extras;
-                
+
                 // Step 4: Remove last 44 characters
                 if (base64EncodedAppSecret.Length <= 44)
                 {
                     throw new InvalidOperationException("Concatenated seed+info+extras string is too short");
                 }
-                
+
                 base64EncodedAppSecret = base64EncodedAppSecret.Remove(base64EncodedAppSecret.Length - 44, 44);
-                
+
                 // Step 5: Base64 decode to get app secret bytes
                 var decodedAppSecretBytes = Convert.FromBase64String(base64EncodedAppSecret);
-                
+
                 // Step 6: UTF-8 decode to get final app secret string
                 var appSecret = Encoding.UTF8.GetString(decodedAppSecretBytes);
-                
+
                 _logger.Debug($"Successfully extracted app secret (length: {appSecret.Length})");
                 return appSecret;
             }

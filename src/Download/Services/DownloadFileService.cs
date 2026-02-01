@@ -230,7 +230,7 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Services
                 albumName = TruncateToLength(albumName, QobuzConstants.Download.MaxFolderNameLength);
 
                 var originalPath = Path.Combine(basePath, albumName);
-                
+
                 if (!_diskProvider.FolderExists(originalPath))
                 {
                     return originalPath;

@@ -43,7 +43,7 @@ namespace Minimal.Tests
             // Verify consistent behavior across layers
             var components = _classifier.ClassifyComponents(input);
             var preservedTerms = _classifier.GetPreservedTerms(input);
-            
+
             components.Should().BeEmpty("Null/empty input should yield empty components");
             preservedTerms.Should().BeEmpty("Null/empty input should yield empty preserved terms");
         }
@@ -61,15 +61,15 @@ namespace Minimal.Tests
             var strategy = _strategy.DetermineStrategy("Artist", albumTitle);
 
             // Assert - Contract validation between layers
-            
+
             // 1. Strategy should use the same cleaning level recommendation
-            strategy.CleaningLevel.Should().Be(cleaningLevel, 
+            strategy.CleaningLevel.Should().Be(cleaningLevel,
                 "Strategy should respect classifier's cleaning level recommendation");
 
             // 2. Strategy preserved terms should be subset of classifier preserved terms
             foreach (var strategyTerm in strategy.PreserveTerms)
             {
-                preservedTerms.Should().Contain(strategyTerm, 
+                preservedTerms.Should().Contain(strategyTerm,
                     $"Strategy term '{strategyTerm}' should be in classifier preserved terms");
             }
 
@@ -103,13 +103,13 @@ namespace Minimal.Tests
                 var queries = _strategy.BuildQueriesForStrategy(artist, album, strategy);
 
                 // Assert - Contract validation
-                strategy.CleaningLevel.Should().Be(expectedLevel, 
+                strategy.CleaningLevel.Should().Be(expectedLevel,
                     $"Strategy for '{album}' should use {expectedLevel} cleaning");
 
-                queries.Should().HaveCountGreaterThan(0, 
+                queries.Should().HaveCountGreaterThan(0,
                     "Query generation should always produce at least one query");
 
-                queries.Should().HaveCountLessOrEqualTo(strategy.QueryVariants, 
+                queries.Should().HaveCountLessOrEqualTo(strategy.QueryVariants,
                     "Generated queries should not exceed strategy variant limit");
 
                 // All generated queries should be valid (not null/empty)
@@ -153,7 +153,7 @@ namespace Minimal.Tests
 
             components.Should().NotBeNull("Components should not be null for special chars");
             queries.Should().NotBeEmpty("Queries should be generated for special chars");
-            queries.Should().OnlyContain(q => !string.IsNullOrWhiteSpace(q), 
+            queries.Should().OnlyContain(q => !string.IsNullOrWhiteSpace(q),
                 "Generated queries should be valid for special chars");
         }
 
@@ -228,7 +228,8 @@ namespace Minimal.Tests
             foreach (var input in maliciousInputs)
             {
                 // Act & Assert - Should handle gracefully without crashing or hanging
-                Action classifierAction = () => {
+                Action classifierAction = () =>
+                {
                     var timeout = TimeSpan.FromSeconds(5);
                     var start = DateTime.UtcNow;
                     var components = _classifier.ClassifyComponents(input);
@@ -236,7 +237,8 @@ namespace Minimal.Tests
                     elapsed.Should().BeLessThan(timeout, "Classifier should not hang on malicious input");
                 };
 
-                Action strategyAction = () => {
+                Action strategyAction = () =>
+                {
                     var timeout = TimeSpan.FromSeconds(5);
                     var start = DateTime.UtcNow;
                     var strategy = _strategy.DetermineStrategy("Artist", input);
@@ -276,10 +278,10 @@ namespace Minimal.Tests
                 var hasVersionDescriptor = components.Values.Any(c => c == AlbumComponentType.VersionDescriptor);
                 hasVersionDescriptor.Should().BeTrue($"'{albumTitle}' should contain version descriptor '{descriptor}'");
 
-                preservedTerms.Should().ContainMatch($"*{descriptor}*", 
+                preservedTerms.Should().ContainMatch($"*{descriptor}*",
                     $"'{descriptor}' should be preserved in '{albumTitle}'");
 
-                strategy.CleaningLevel.Should().Be(CleaningLevel.Minimal, 
+                strategy.CleaningLevel.Should().Be(CleaningLevel.Minimal,
                     $"Albums with version descriptor '{descriptor}' should use minimal cleaning");
 
                 strategy.PreserveTerms.Should().ContainMatch($"*{descriptor}*",

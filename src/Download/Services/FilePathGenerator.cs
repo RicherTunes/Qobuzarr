@@ -50,7 +50,7 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Services
             // Get quality information from track maximum specs
             var maxBitDepth = track.MaximumBitDepth;
             var maxSampleRate = track.MaximumSampleRate;
-            
+
             if (maxBitDepth >= 24 && maxSampleRate >= 96000)
             {
                 return $"Hi-Res FLAC {maxBitDepth}bit/{maxSampleRate / 1000}kHz";

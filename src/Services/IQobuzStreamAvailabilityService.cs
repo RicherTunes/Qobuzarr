@@ -63,17 +63,17 @@ namespace Lidarr.Plugin.Qobuzarr.Services
         public int AvailableTracks { get; set; }
         public int UnavailableTracks { get; set; }
         public List<TrackAvailabilityInfo> TrackResults { get; set; } = new List<TrackAvailabilityInfo>();
-        
+
         /// <summary>
         /// True if at least some tracks are downloadable in the requested quality.
         /// </summary>
         public bool IsPartiallyAvailable => AvailableTracks > 0;
-        
+
         /// <summary>
         /// True if all tracks are available in the requested quality.
         /// </summary>
         public bool IsFullyAvailable => AvailableTracks == TotalTracks;
-        
+
         /// <summary>
         /// Percentage of tracks available (0-100).
         /// </summary>

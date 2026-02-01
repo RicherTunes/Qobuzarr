@@ -46,7 +46,7 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
         private readonly Lazy<IIndexerMLManager> _mlManager;
         private readonly IQobuzApiClient _apiClient;
         private readonly StreamingIndexerMixin _mixin;
-        
+
         // Cached instances for context sharing
         private QobuzRequestGenerator? _requestGenerator;
         private QobuzParser? _parser;
@@ -64,23 +64,23 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
             : base(httpClient, indexerStatusService, configService, parsingService, logger)
         {
             _apiClient = apiClient ?? throw new ArgumentNullException(nameof(apiClient));
-            
+
             // CRITICAL: Do NOT access Settings property in constructor!
             // Settings requires Definition to be set first, which happens after DI construction.
             // Use GetSettingsSafe() or lazy initialization for anything that needs settings.
-            
+
             // Initialize decomposed service managers with lazy evaluation to defer Settings access
-            _authManager = new Lazy<IIndexerAuthenticationManager>(() => 
+            _authManager = new Lazy<IIndexerAuthenticationManager>(() =>
                 new IndexerAuthenticationManager(authService, GetSettingsSafe(), logger));
             _rateLimitManager = new IndexerRateLimitManager(logger);
-            _mlManager = new Lazy<IIndexerMLManager>(() => 
+            _mlManager = new Lazy<IIndexerMLManager>(() =>
                 new IndexerMLManager(secureModelLoader, GetSettingsSafe(), logger));
-            
+
             // Shared mixin for incremental adoption of common features
             _mixin = new StreamingIndexerMixin(QobuzarrConstants.ServiceName);
 
             // Initialize ML optimizer lazily (depends on _mlManager which is also lazy)
-            _patternLearningEngine = new Lazy<IPatternLearningEngine>(() => 
+            _patternLearningEngine = new Lazy<IPatternLearningEngine>(() =>
                 _mlManager.Value.CreateMLOptimizer(logger));
 
             // Wire API client with auth service and a credentials provider for re-auth
@@ -105,12 +105,12 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
                 _logger.Warn(ex, "Non-fatal: Failed to wire auth service/credentials provider to API client");
             }
         }
-        
+
         /// <summary>
         /// Safely retrieves settings without throwing if Definition is not yet set.
         /// Use this instead of Settings property in any code path reachable during construction.
         /// </summary>
-        private QobuzIndexerSettings GetSettingsSafe() => 
+        private QobuzIndexerSettings GetSettingsSafe() =>
             Definition?.Settings as QobuzIndexerSettings ?? new QobuzIndexerSettings();
 
         #region Lidarr Integration Points
@@ -120,9 +120,9 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
             if (_requestGenerator == null)
             {
                 _requestGenerator = new QobuzRequestGenerator(
-                    GetSettingsSafe(), 
-                    _logger, 
-                    () => _authManager.Value.GetCachedSession(), 
+                    GetSettingsSafe(),
+                    _logger,
+                    () => _authManager.Value.GetCachedSession(),
                     _patternLearningEngine.Value);
             }
             return _requestGenerator;
@@ -159,7 +159,7 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
             {
                 _parser = new QobuzParser(GetSettingsSafe(), _logger);
             }
-            
+
             // Update context from request generator if available
             if (_requestGenerator != null)
             {
@@ -169,12 +169,12 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
                     _parser.SetSearchContext(currentCriteria);
                 }
             }
-            
+
             return _parser;
         }
 
         protected override async Task<IList<ReleaseInfo>> FetchReleases(
-            Func<IIndexerRequestGenerator, IndexerPageableRequestChain> pageableRequestChainSelector, 
+            Func<IIndexerRequestGenerator, IndexerPageableRequestChain> pageableRequestChainSelector,
             bool isRecent = false)
         {
             var releases = new List<ReleaseInfo>();
@@ -204,10 +204,10 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
 
                             var response = await _httpClient.ExecuteAsync(request.HttpRequest).ConfigureAwait(false);
                             var indexerResponse = new IndexerResponse(request, response);
-                            
+
                             var parser = GetParser();
                             var parsedReleases = parser.ParseResponse(indexerResponse);
-                            
+
                             if (parsedReleases?.Any() == true)
                             {
                                 var indexerId = Definition?.Id ?? 0;
@@ -227,8 +227,8 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
 
                                 releases.AddRange(parsedReleases);
 
-                            // Log ML optimization metrics via delegated manager
-                            _mlManager.Value.LogMLPerformanceSummary();
+                                // Log ML optimization metrics via delegated manager
+                                _mlManager.Value.LogMLPerformanceSummary();
                             }
                         }
                         catch (Exception ex)
@@ -262,7 +262,7 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
 
                 // Test API connectivity with rate limiting
                 await _rateLimitManager.ApplyRateLimitAsync().ConfigureAwait(false);
-                
+
                 // Use recent requests generator to validate request pipeline without relying on read-only criteria
                 var testGenerator = GetRequestGenerator();
                 var testRequests = testGenerator.GetRecentRequests();

@@ -45,7 +45,7 @@ namespace Minimal.Tests
                 {
                     // Synchronize thread start to maximize contention
                     barrier.SignalAndWait();
-                    
+
                     // Process classification multiple times per thread
                     for (int j = 0; j < 100; j++)
                     {
@@ -79,7 +79,7 @@ namespace Minimal.Tests
             var firstResult = results.First();
             foreach (var result in results)
             {
-                result.Should().BeEquivalentTo(firstResult, 
+                result.Should().BeEquivalentTo(firstResult,
                     "Concurrent classification of same input should produce identical results");
             }
         }
@@ -105,7 +105,7 @@ namespace Minimal.Tests
             var threadCount = albumTitles.Length * 4; // 4 threads per album title
 
             var threads = new List<Thread>();
-            
+
             // Create threads that process different albums
             for (int i = 0; i < threadCount; i++)
             {
@@ -115,15 +115,15 @@ namespace Minimal.Tests
                     try
                     {
                         var localResults = new List<Dictionary<string, AlbumComponentType>>();
-                        
+
                         for (int j = 0; j < 50; j++) // 50 iterations per thread
                         {
                             var components = _classifier.ClassifyComponents(albumTitle);
                             localResults.Add(components);
                         }
-                        
-                        results.AddOrUpdate(albumTitle, 
-                            localResults, 
+
+                        results.AddOrUpdate(albumTitle,
+                            localResults,
                             (key, existing) =>
                             {
                                 lock (existing)
@@ -138,13 +138,13 @@ namespace Minimal.Tests
                         exceptions.Add(ex);
                     }
                 });
-                
+
                 threads.Add(thread);
             }
 
             // Act - Start all threads
             threads.ForEach(t => t.Start());
-            
+
             // Wait for completion
             threads.ForEach(t => t.Join(TimeSpan.FromSeconds(30)).Should().BeTrue("Thread should complete"));
 
@@ -157,7 +157,7 @@ namespace Minimal.Tests
             {
                 var albumResults = kvp.Value;
                 albumResults.Should().NotBeEmpty($"Should have results for {kvp.Key}");
-                
+
                 var firstResult = albumResults.First();
                 foreach (var result in albumResults)
                 {
@@ -236,12 +236,12 @@ namespace Minimal.Tests
 
             // Assert - Verify thread safety across all operation types
             exceptions.Should().BeEmpty("Concurrent mixed operations should not throw exceptions");
-            
-            classificationResults.Should().HaveCount(testData.Length * 100, 
+
+            classificationResults.Should().HaveCount(testData.Length * 100,
                 "All classification operations should complete");
-            strategyResults.Should().HaveCount(testData.Length * 100, 
+            strategyResults.Should().HaveCount(testData.Length * 100,
                 "All strategy operations should complete");
-            queryResults.Should().HaveCount(testData.Length * 100, 
+            queryResults.Should().HaveCount(testData.Length * 100,
                 "All query generation operations should complete");
 
             // Verify consistency within each operation type
@@ -251,7 +251,7 @@ namespace Minimal.Tests
                     .Where(r => r.Item1 == data.Item2)
                     .Select(r => r.Item2)
                     .ToList();
-                
+
                 var albumStrategies = strategyResults
                     .Where(r => r.Item1 == data.Item2)
                     .Select(r => r.Item2)
@@ -269,7 +269,7 @@ namespace Minimal.Tests
                 if (albumStrategies.Count > 1)
                 {
                     var firstStrategy = albumStrategies.First();
-                    albumStrategies.Should().OnlyContain(s => 
+                    albumStrategies.Should().OnlyContain(s =>
                         s.CleaningLevel == firstStrategy.CleaningLevel &&
                         s.PreserveTerms.SequenceEqual(firstStrategy.PreserveTerms),
                         $"Strategies for '{data.Item2}' should be consistent across threads");
@@ -282,7 +282,7 @@ namespace Minimal.Tests
         {
             // This test validates that our static readonly collections are thread-safe
             // The AlbumComponentClassifier uses static HashSets which should be thread-safe for reads
-            
+
             var albumTitles = new[]
             {
                 "Album Live", "Songs Instrumental", "Music Acoustic", "Tracks Demo",
@@ -298,16 +298,16 @@ namespace Minimal.Tests
                 try
                 {
                     var random = new Random(i); // Different seed per thread
-                    
+
                     for (int j = 0; j < 1000; j++) // Many iterations to stress test
                     {
                         var albumTitle = albumTitles[random.Next(albumTitles.Length)];
                         var components = _classifier.ClassifyComponents(albumTitle);
-                        
+
                         // Verify we get expected version descriptors
                         var hasVersionDescriptor = components.Values.Any(c => c == AlbumComponentType.VersionDescriptor);
                         results.Add(hasVersionDescriptor);
-                        
+
                         // Small delay to increase chance of race conditions if they exist
                         if (j % 100 == 0) Thread.Sleep(1);
                     }
@@ -340,7 +340,7 @@ namespace Minimal.Tests
         public void ThreadSafety_MemoryPressure_ConcurrentOperationsUnderLoad()
         {
             // This test simulates high memory pressure with concurrent operations
-            
+
             var albumTitles = new[]
             {
                 "The Complete Live MTV Unplugged Acoustic Sessions Hi-Fi 24-Bit (Deluxe Edition)",
@@ -365,7 +365,7 @@ namespace Minimal.Tests
                         for (int i = 0; i < 500; i++) // 500 operations per task
                         {
                             var albumTitle = albumTitles[random.Next(albumTitles.Length)];
-                            
+
                             // Mix of operations
                             switch (i % 4)
                             {
@@ -410,7 +410,7 @@ namespace Minimal.Tests
 
             // Act - Execute under memory pressure
             var initialMemory = GC.GetTotalMemory(true);
-            
+
             Task.WaitAll(tasks, TimeSpan.FromMinutes(2))
                 .Should().BeTrue("All tasks should complete under memory pressure");
 
@@ -422,13 +422,13 @@ namespace Minimal.Tests
 
             // Assert - System should remain stable under pressure
             exceptions.Should().BeEmpty("Operations should not fail under memory pressure");
-            
+
             var totalOperations = completedOperations.Sum();
-            totalOperations.Should().Be(Environment.ProcessorCount * 2 * 500, 
+            totalOperations.Should().Be(Environment.ProcessorCount * 2 * 500,
                 "All operations should complete successfully");
 
             var memoryIncrease = finalMemory - initialMemory;
-            memoryIncrease.Should().BeLessThan(maxMemoryUsed / 2, 
+            memoryIncrease.Should().BeLessThan(maxMemoryUsed / 2,
                 "Memory should be properly cleaned up after operations");
         }
 
@@ -436,7 +436,7 @@ namespace Minimal.Tests
         public void ThreadSafety_DeadlockPrevention_NestedOperations()
         {
             // Test for potential deadlocks in nested semantic operations
-            
+
             var barrier = new Barrier(4);
             var exceptions = new ConcurrentBag<Exception>();
             var completedTasks = new ConcurrentBag<bool>();
@@ -528,7 +528,7 @@ namespace Minimal.Tests
         public void ThreadSafety_RapidStartStop_ThreadCreationDestruction()
         {
             // Test rapid thread creation and destruction to check for resource leaks
-            
+
             var exceptions = new ConcurrentBag<Exception>();
             var successCount = new ConcurrentBag<int>();
 

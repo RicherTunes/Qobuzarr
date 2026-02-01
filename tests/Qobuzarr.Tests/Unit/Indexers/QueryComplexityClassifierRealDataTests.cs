@@ -35,7 +35,7 @@ namespace Qobuzarr.Tests.Unit.Indexers
             // Assert
             _output.WriteLine($"Testing: {artist} - {album} -> {result}");
             result.Should().BeOneOf(QueryComplexity.Simple, QueryComplexity.Medium)
-                .And.Subject.Should().NotBe(QueryComplexity.Complex, 
+                .And.Subject.Should().NotBe(QueryComplexity.Complex,
                 $"Simple pattern '{artist} - {album}' should be Simple or Medium");
         }
 
@@ -161,7 +161,7 @@ namespace Qobuzarr.Tests.Unit.Indexers
             // Assert
             _output.WriteLine($"Classified {totalClassifications} items in {elapsed.TotalMilliseconds:F1}ms");
             _output.WriteLine($"Average time per classification: {avgTimePerClassification:F2} microseconds");
-            
+
             elapsed.Should().BeLessThan(System.TimeSpan.FromSeconds(1), "Should handle production scale efficiently");
             avgTimePerClassification.Should().BeLessThan(1000, "Each classification should take less than 1ms");
         }

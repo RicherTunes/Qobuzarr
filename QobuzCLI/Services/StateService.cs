@@ -14,7 +14,7 @@ public class StateService : IStateService
     private readonly Timer _cleanupTimer;
     private bool _isDirty = false;
     private DateTime _lastSave = DateTime.UtcNow;
-    
+
     // Memory leak prevention constants
     private const int MAX_HISTORY_ITEMS = 1000;
     private const int CLEANUP_KEEP_DAYS = 30;
@@ -27,11 +27,11 @@ public class StateService : IStateService
         Directory.CreateDirectory(stateDir);
         _stateFilePath = Path.Combine(stateDir, "download-state.json");
         _state = new DownloadState();
-        
+
         // Auto-save every 30 seconds only if state has changed
-        _autoSaveTimer = new Timer(_ => 
+        _autoSaveTimer = new Timer(_ =>
         {
-            Task.Run(async () => 
+            Task.Run(async () =>
             {
                 try
                 {
@@ -43,11 +43,11 @@ public class StateService : IStateService
                 }
             });
         }, null, TimeSpan.FromSeconds(30), TimeSpan.FromSeconds(30));
-        
+
         // Auto-cleanup every 6 hours to prevent memory leaks
-        _cleanupTimer = new Timer(_ => 
+        _cleanupTimer = new Timer(_ =>
         {
-            Task.Run(async () => 
+            Task.Run(async () =>
             {
                 try
                 {
@@ -78,13 +78,13 @@ public class StateService : IStateService
             {
                 var json = await File.ReadAllTextAsync(_stateFilePath).ConfigureAwait(false);
                 var loadedState = JsonConvert.DeserializeObject<DownloadState>(json);
-                
+
                 if (loadedState != null)
                 {
                     lock (_stateLock)
                     {
                         _state = loadedState;
-                        
+
                         // Reset any in-progress downloads to failed on startup
                         foreach (var download in _state.ActiveDownloads.Where(d => d.Status == DownloadStatus.Downloading))
                         {
@@ -92,12 +92,12 @@ public class StateService : IStateService
                             download.ErrorMessage = "Application restart - download interrupted";
                             download.CompletedAt = DateTime.UtcNow;
                         }
-                        
+
                         // Update statistics
                         RecalculateStatistics();
                     }
-                    
-                    _logger.LogInformation("State loaded: {ActiveDownloads} active, {HistoryCount} history items", 
+
+                    _logger.LogInformation("State loaded: {ActiveDownloads} active, {HistoryCount} history items",
                         _state.ActiveDownloads.Count, _state.DownloadHistory.Count);
                 }
             }
@@ -126,7 +126,7 @@ public class StateService : IStateService
             }
 
             await File.WriteAllTextAsync(_stateFilePath, json).ConfigureAwait(false);
-            
+
             _logger.LogDebug("Download state saved to {Path}", _stateFilePath);
         }
         catch (Exception ex)
@@ -143,10 +143,10 @@ public class StateService : IStateService
             item.StartedAt = DateTime.UtcNow;
             _state.ActiveDownloads.Add(item);
             _isDirty = true;
-            
+
             _logger.LogDebug("▶️  Started download: {Artist} - {Title}", item.Artist, item.Title);
         }
-        
+
         return Task.FromResult(item.Id);
     }
 
@@ -159,7 +159,7 @@ public class StateService : IStateService
             {
                 download.Progress = progress;
                 download.CurrentFile = currentFile;
-                
+
                 // Calculate speed if we have byte information
                 if (download.DownloadedBytes.HasValue && download.TotalBytes.HasValue)
                 {
@@ -171,7 +171,7 @@ public class StateService : IStateService
                 }
             }
         }
-        
+
         return Task.CompletedTask;
     }
 
@@ -208,15 +208,15 @@ public class StateService : IStateService
 
                 _state.DownloadHistory.Add(historyItem);
                 _state.ActiveDownloads.Remove(download);
-                
+
                 // Prevent memory leaks by enforcing size limits
                 EnforceHistorySizeLimit();
 
-                _logger.LogDebug("✅ Completed: {Artist} - {Title} ({TracksDownloaded} tracks)", 
+                _logger.LogDebug("✅ Completed: {Artist} - {Title} ({TracksDownloaded} tracks)",
                     download.Artist, download.Title, tracksDownloaded);
             }
         }
-        
+
         return Task.CompletedTask;
     }
 
@@ -252,15 +252,15 @@ public class StateService : IStateService
 
                 _state.DownloadHistory.Add(historyItem);
                 _state.ActiveDownloads.Remove(download);
-                
+
                 // Prevent memory leaks by enforcing size limits
                 EnforceHistorySizeLimit();
 
-                _logger.LogWarning("❌ Failed: {Artist} - {Title}: {Error}", 
+                _logger.LogWarning("❌ Failed: {Artist} - {Title}: {Error}",
                     download.Artist, download.Title, errorMessage);
             }
         }
-        
+
         return Task.CompletedTask;
     }
 
@@ -294,15 +294,15 @@ public class StateService : IStateService
 
                 _state.DownloadHistory.Add(historyItem);
                 _state.ActiveDownloads.Remove(download);
-                
+
                 // Prevent memory leaks by enforcing size limits
                 EnforceHistorySizeLimit();
 
-                _logger.LogInformation("Cancelled download: {Id} - {Title} by {Artist}", 
+                _logger.LogInformation("Cancelled download: {Id} - {Title} by {Artist}",
                     downloadId, download.Title, download.Artist);
             }
         }
-        
+
         return Task.CompletedTask;
     }
 
@@ -349,11 +349,11 @@ public class StateService : IStateService
 
             if (itemsToRemove.Any())
             {
-                _logger.LogInformation("Cleaned up {Count} old history items older than {Days} days", 
+                _logger.LogInformation("Cleaned up {Count} old history items older than {Days} days",
                     itemsToRemove.Count, keepDays);
             }
         }
-        
+
         return Task.CompletedTask;
     }
 
@@ -402,7 +402,7 @@ public class StateService : IStateService
                 throw new ArgumentException($"Unsupported export format: {format}");
             }
 
-            _logger.LogInformation("Exported {Count} history items to {Path} ({Format})", 
+            _logger.LogInformation("Exported {Count} history items to {Path} ({Format})",
                 history.Count, filePath, format.ToUpper());
         }
         catch (Exception ex)
@@ -415,40 +415,40 @@ public class StateService : IStateService
     private void RecalculateStatistics()
     {
         var stats = new DownloadStatistics();
-        
+
         // Count by status
         stats.ActiveDownloads = _state.ActiveDownloads.Count;
         stats.TotalDownloads = _state.DownloadHistory.Count;
         stats.CompletedDownloads = _state.DownloadHistory.Count(h => h.FinalStatus == DownloadStatus.Completed);
         stats.FailedDownloads = _state.DownloadHistory.Count(h => h.FinalStatus == DownloadStatus.Failed);
         stats.CancelledDownloads = _state.DownloadHistory.Count(h => h.FinalStatus == DownloadStatus.Cancelled);
-        
+
         // Aggregate totals
         stats.TotalTracks = _state.DownloadHistory.Sum(h => h.TracksDownloaded);
         stats.TotalBytes = _state.DownloadHistory.Where(h => h.TotalBytes.HasValue).Sum(h => h.TotalBytes!.Value);
         stats.TotalTime = TimeSpan.FromTicks(_state.DownloadHistory.Where(h => h.Duration.HasValue).Sum(h => h.Duration!.Value.Ticks));
-        
+
         // Calculate average speed
         if (stats.TotalTime.TotalSeconds > 0)
         {
             stats.AverageSpeed = stats.TotalBytes / stats.TotalTime.TotalSeconds;
         }
-        
+
         // Most recent download
         stats.LastDownload = _state.DownloadHistory.OrderByDescending(h => h.CompletedAt).FirstOrDefault()?.CompletedAt;
-        
+
         // Most downloaded artist
         stats.MostDownloadedArtist = _state.DownloadHistory
             .GroupBy(h => h.Artist)
             .OrderByDescending(g => g.Count())
             .FirstOrDefault()?.Key;
-        
+
         // Preferred quality
         stats.PreferredQuality = _state.DownloadHistory
             .GroupBy(h => h.Quality)
             .OrderByDescending(g => g.Count())
             .FirstOrDefault()?.Key;
-        
+
         _state.Statistics = stats;
     }
 
@@ -464,7 +464,7 @@ public class StateService : IStateService
             var duration = item.Duration?.ToString(@"hh\:mm\:ss") ?? "";
             var completedAt = item.CompletedAt?.ToString("yyyy-MM-dd HH:mm:ss") ?? "";
             var error = item.ErrorMessage?.Replace("\"", "\"\"") ?? "";
-            
+
             lines.Add($"\"{item.Id}\",\"{item.Type}\",\"{item.Artist}\",\"{item.Title}\",\"{item.Quality}\"," +
                      $"\"{item.FinalStatus}\",\"{item.DownloadedAt:yyyy-MM-dd HH:mm:ss}\",\"{completedAt}\"," +
                      $"\"{duration}\",{item.TracksDownloaded},\"{item.Location}\",\"{error}\"");
@@ -491,9 +491,9 @@ public class StateService : IStateService
                 _state.DownloadHistory.Remove(item);
             }
 
-            _logger.LogInformation("Enforced history size limit: removed {Count} old items, keeping {Remaining}", 
+            _logger.LogInformation("Enforced history size limit: removed {Count} old items, keeping {Remaining}",
                 itemsToRemove.Count, _state.DownloadHistory.Count);
-            
+
             _isDirty = true;
         }
     }
@@ -506,7 +506,7 @@ public class StateService : IStateService
         lock (_stateLock)
         {
             var initialCount = _state.DownloadHistory.Count;
-            
+
             // Remove items older than the configured days
             var cutoffDate = DateTime.UtcNow.AddDays(-CLEANUP_KEEP_DAYS);
             var itemsToRemove = _state.DownloadHistory
@@ -520,13 +520,13 @@ public class StateService : IStateService
 
             // Also enforce absolute size limit
             EnforceHistorySizeLimit();
-            
+
             var finalCount = _state.DownloadHistory.Count;
             var totalRemoved = initialCount - finalCount;
 
             if (totalRemoved > 0)
             {
-                _logger.LogInformation("Periodic cleanup: removed {Count} old history items ({Days} days+), {Remaining} items remaining", 
+                _logger.LogInformation("Periodic cleanup: removed {Count} old history items ({Days} days+), {Remaining} items remaining",
                     totalRemoved, CLEANUP_KEEP_DAYS, finalCount);
                 _isDirty = true;
             }
@@ -543,7 +543,7 @@ public class StateService : IStateService
     {
         _autoSaveTimer?.Dispose();
         _cleanupTimer?.Dispose();
-        
+
         // Save state - using GetAwaiter().GetResult() is safer than .Wait() in dispose
         try
         {

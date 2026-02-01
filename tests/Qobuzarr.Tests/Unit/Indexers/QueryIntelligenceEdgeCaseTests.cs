@@ -80,7 +80,7 @@ namespace Qobuzarr.Tests.Unit.Indexers
             // But our classifier may be conservative and classify some as simpler
             optimizedQueries.Count.Should().BeLessOrEqualTo(originalQueries.Count, "Should not increase query count");
             optimizedQueries.Count.Should().BeGreaterThan(0, "Should have at least one query");
-            
+
             // For truly complex cases (Various Artists, long titles, etc.), should preserve quality
             if (artist.Contains("Various Artists") || album.Length > 60 || album.Contains("/"))
             {
@@ -99,9 +99,9 @@ namespace Qobuzarr.Tests.Unit.Indexers
 
             // Act & Assert
             _output.WriteLine($"=== EDGE CASE DISTRIBUTION ===");
-            _output.WriteLine($"Simple: {simpleCount} ({(double)simpleCount/totalCount:P1})");
-            _output.WriteLine($"Medium: {mediumCount} ({(double)mediumCount/totalCount:P1})");
-            _output.WriteLine($"Complex: {complexCount} ({(double)complexCount/totalCount:P1})");
+            _output.WriteLine($"Simple: {simpleCount} ({(double)simpleCount / totalCount:P1})");
+            _output.WriteLine($"Medium: {mediumCount} ({(double)mediumCount / totalCount:P1})");
+            _output.WriteLine($"Complex: {complexCount} ({(double)complexCount / totalCount:P1})");
             _output.WriteLine($"Total: {totalCount}");
 
             // Should have good coverage across all complexity levels
@@ -128,7 +128,7 @@ namespace Qobuzarr.Tests.Unit.Indexers
             {
                 var artist = (string)testCase[0];
                 var album = (string)testCase[1];
-                
+
                 var originalQueries = new List<string> { $"{artist} {album}", $"{artist} - {album}", $"\"{artist}\" {album}" };
                 var optimizedQueries = _strategy.BuildOptimizedQueries(artist, album, originalQueries);
 
@@ -138,7 +138,7 @@ namespace Qobuzarr.Tests.Unit.Indexers
 
             // Assert - Should achieve significant optimization
             var reductionPercent = (double)(totalOriginalQueries - totalOptimizedQueries) / totalOriginalQueries;
-            
+
             _output.WriteLine($"=== COMPREHENSIVE EDGE CASE ANALYSIS ===");
             _output.WriteLine($"Test Cases: {allCases.Count}");
             _output.WriteLine($"Original Queries: {totalOriginalQueries}");

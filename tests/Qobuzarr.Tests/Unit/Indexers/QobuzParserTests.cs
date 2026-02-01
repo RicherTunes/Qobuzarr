@@ -53,9 +53,9 @@ namespace Qobuzarr.Tests.Unit.Indexers
         {
             var albumSearchResponse = new QobuzAlbumSearchResponse
             {
-                Albums = new QobuzSearchResultContainer<QobuzAlbum> 
-                { 
-                    Items = albums.ToList() 
+                Albums = new QobuzSearchResultContainer<QobuzAlbum>
+                {
+                    Items = albums.ToList()
                 }
             };
 
@@ -182,17 +182,17 @@ namespace Qobuzarr.Tests.Unit.Indexers
 
             // Assert
             releases.Should().HaveCountGreaterThan(1, "Hi-Res albums should generate multiple quality releases");
-            
+
             // Verify different quality formats are present
             releases.Should().Contain(r => r.Title.Contains("MP3"), "Should include MP3 release");
             releases.Should().Contain(r => r.Title.Contains("FLAC"), "Should include FLAC release");
-            
+
             // Verify unique GUIDs per quality
             var guids = releases.Select(r => r.Guid).ToList();
             guids.Should().OnlyHaveUniqueItems("Each quality release should have unique GUID");
-            
+
             // Verify GUID format includes quality ID
-            releases.Should().Contain(r => r.Guid.StartsWith("qobuz-hires123-"), 
+            releases.Should().Contain(r => r.Guid.StartsWith("qobuz-hires123-"),
                 "GUIDs should follow format qobuz-{albumId}-{qualityId}");
         }
 
@@ -243,9 +243,9 @@ namespace Qobuzarr.Tests.Unit.Indexers
             var releases = ParseAlbum(album);
 
             // Assert - Pick a specific quality release by GUID suffix
-            var flacRelease = releases.FirstOrDefault(r => 
+            var flacRelease = releases.FirstOrDefault(r =>
                 r.Guid.EndsWith($"-{(int)QobuzAudioQuality.FLACLossless}"));
-            
+
             flacRelease.Should().NotBeNull("Should have a FLAC lossless release");
             flacRelease.Guid.Should().Be($"qobuz-fields123-{(int)QobuzAudioQuality.FLACLossless}");
             flacRelease.Artist.Should().Be("Field Artist");
@@ -254,7 +254,7 @@ namespace Qobuzarr.Tests.Unit.Indexers
             flacRelease.Indexer.Should().Be("Qobuzarr");
             flacRelease.DownloadUrl.Should().StartWith("qobuz://album/fields123/");
             flacRelease.Size.Should().BeGreaterThan(0, "Size should be calculated");
-            
+
             // Title should contain quality markers
             flacRelease.Title.Should().Contain("[WEB]");
             flacRelease.Title.Should().Contain("FLAC");
@@ -279,7 +279,7 @@ namespace Qobuzarr.Tests.Unit.Indexers
             // Assert
             releases.Should().NotBeEmpty();
             var release = releases.First();
-            
+
             // Support both legacy enum-based protocol and new string-based plugin protocol
             object dpObj = release.DownloadProtocol;
             if (dpObj is string s)
@@ -317,7 +317,7 @@ namespace Qobuzarr.Tests.Unit.Indexers
             // Assert
             var guids = releases.Select(r => r.Guid).ToList();
             guids.Should().OnlyHaveUniqueItems("Each album+quality should have unique GUID");
-            
+
             // Verify GUIDs contain original album IDs
             releases.Should().Contain(r => r.Guid.Contains("unique1"));
             releases.Should().Contain(r => r.Guid.Contains("unique2"));
@@ -394,7 +394,7 @@ namespace Qobuzarr.Tests.Unit.Indexers
             // Assert - Verify titles contain quality markers (wiring is correct)
             releases.Should().NotBeEmpty("QobuzParser should generate releases");
             releases.Should().Contain(r => r.Title.Contains("[WEB]"), "All releases should have [WEB] marker");
-            releases.Should().Contain(r => r.Title.Contains("FLAC") || r.Title.Contains("MP3"), 
+            releases.Should().Contain(r => r.Title.Contains("FLAC") || r.Title.Contains("MP3"),
                 "Releases should have format markers");
         }
 

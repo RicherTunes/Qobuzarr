@@ -31,7 +31,7 @@ namespace Qobuzarr.Tests.Unit.Indexers
             var result = _classifier.ClassifyComplexity(artist, album);
 
             // Assert
-            result.Should().Be(QueryComplexity.Complex, 
+            result.Should().Be(QueryComplexity.Complex,
                 "null or empty inputs should default to Complex to preserve quality");
         }
 
@@ -46,7 +46,7 @@ namespace Qobuzarr.Tests.Unit.Indexers
             var result = _classifier.ClassifyComplexity(longArtist, longAlbum);
 
             // Assert
-            result.Should().NotBe(QueryComplexity.Simple, 
+            result.Should().NotBe(QueryComplexity.Simple,
                 "Very long strings should not be classified as simple");
         }
 
@@ -91,7 +91,7 @@ namespace Qobuzarr.Tests.Unit.Indexers
             // Assert
             results.Should().NotContainNulls();
             results.Should().HaveCount(100);
-            
+
             // Verify consistent results for same input
             for (int i = 0; i < results.Length; i++)
             {
@@ -119,7 +119,7 @@ namespace Qobuzarr.Tests.Unit.Indexers
         {
             // Test exact threshold boundaries
             // Simple threshold = 2, Medium threshold = 4
-            
+
             // Arrange & Act
             var simpleResult = _classifier.ClassifyComplexity("Simple Artist", "Simple Album");
             var mediumResult = _classifier.ClassifyComplexity("AC/DC", "Rock Album"); // Special char = 2 points
