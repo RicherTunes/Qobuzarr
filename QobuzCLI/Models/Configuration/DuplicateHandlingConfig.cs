@@ -10,16 +10,16 @@ namespace QobuzCLI.Models.Configuration
     {
         [JsonProperty("enableDuplicateDetection")]
         public bool EnableDuplicateDetection { get; set; } = true;
-        
+
         [JsonProperty("enableQualityUpgrades")]
         public bool EnableQualityUpgrades { get; set; } = true;
-        
+
         [JsonProperty("minQualityDifferencePercent")]
         public double MinQualityDifferencePercent { get; set; } = 20.0;
-        
+
         [JsonProperty("keepReplacedFiles")]
         public bool KeepReplacedFiles { get; set; } = false;
-        
+
         [JsonProperty("replacedFilesSuffix")]
         public string ReplacedFilesSuffix { get; set; } = ".replaced";
 

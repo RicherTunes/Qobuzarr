@@ -71,7 +71,7 @@ namespace QobuzCLI.Services
 
         // Keep only environment mapping utility for existing file behavior.
         // The actual download logic remains in the core plugin service.
-        
+
         private static string GetExistingFileBehavior()
         {
             var skipFlag = Environment.GetEnvironmentVariable("QOBUZ_SKIP_EXISTING");

@@ -33,10 +33,10 @@ namespace Qobuzarr.Tests.Simulations
                 searchScenarios = searchScenarios.Take(maxSim).ToList();
                 _output.WriteLine($"Limiting simulation scenarios to: {maxSim}");
             }
-            
+
             var currentStrategy = new CurrentQueryStrategy();
             var smartStrategy = new SmartQueryStrategy();
-            
+
             int currentApiCalls = 0;
             int smartApiCalls = 0;
             var qualityComparison = new List<QualityComparisonResult>();
@@ -46,14 +46,14 @@ namespace Qobuzarr.Tests.Simulations
             {
                 var currentQueries = currentStrategy.BuildQueries(scenario.Artist, scenario.Album);
                 var smartQueries = smartStrategy.BuildQueries(scenario.Artist, scenario.Album);
-                
+
                 currentApiCalls += currentQueries.Count;
                 smartApiCalls += smartQueries.Count;
-                
+
                 // Simulate quality impact
                 var qualityResult = SimulateQualityImpact(currentQueries, smartQueries, scenario);
                 qualityComparison.Add(qualityResult);
-                
+
                 _output.WriteLine($"Scenario: {scenario.Artist} - {scenario.Album}");
                 _output.WriteLine($"  Current: {currentQueries.Count} queries, Smart: {smartQueries.Count} queries");
                 _output.WriteLine($"  Quality Impact: {qualityResult.QualityLoss:P1}");
@@ -120,7 +120,7 @@ namespace Qobuzarr.Tests.Simulations
             foreach (var (artist, album) in edgeCases)
             {
                 var queries = strategy.BuildQueries(artist, album);
-                
+
                 // Should not crash and should return at least one query for valid inputs
                 queries.Should().NotBeNull();
                 if (!string.IsNullOrEmpty(artist) && !string.IsNullOrEmpty(album))
@@ -150,11 +150,11 @@ namespace Qobuzarr.Tests.Simulations
 
             // Assert - Performance requirements
             elapsed.Should().BeLessThan(TimeSpan.FromMilliseconds(100), "Query generation should be fast");
-            
+
             // Calculate actual performance - should be around 50% reduction (1.5 queries per scenario on average)
             var averageQueriesPerScenario = (double)totalQueries / scenarios.Count;
             var reductionFromBaseline = (3.0 - averageQueriesPerScenario) / 3.0; // 3 is baseline queries per scenario
-            
+
             averageQueriesPerScenario.Should().BeLessThan(2.5, "Should average significantly less than 2.5 queries per scenario");
             reductionFromBaseline.Should().BeGreaterThan(0.20, "Should achieve at least 20% reduction from baseline");
         }
@@ -206,17 +206,17 @@ namespace Qobuzarr.Tests.Simulations
             // Generate 1000 realistic scenarios for performance testing
             var scenarios = new List<SearchScenario>();
             var random = new Random(42); // Fixed seed for reproducible tests
-            
+
             var artists = new[] { "Artist", "Band", "Singer", "Group", "The Band", "AC/DC", "Various Artists" };
             var albums = new[] { "Album", "Greatest Hits", "Collection", "Live Album", "Remastered", "Deluxe Edition" };
-            
+
             for (int i = 0; i < 1000; i++)
             {
                 var artist = artists[random.Next(artists.Length)] + i;
                 var album = albums[random.Next(albums.Length)] + i;
                 scenarios.Add(new SearchScenario(artist, album));
             }
-            
+
             return scenarios;
         }
 
@@ -224,9 +224,9 @@ namespace Qobuzarr.Tests.Simulations
         {
             // Simulate the quality impact of using fewer queries
             // This is a heuristic based on query diversity and complexity
-            
+
             var qualityLoss = 0.0;
-            
+
             // If we reduced from 3 to 1 query for a complex case, there's potential quality loss
             if (currentQueries.Count == 3 && smartQueries.Count == 1)
             {
@@ -239,13 +239,13 @@ namespace Qobuzarr.Tests.Simulations
                     _ => 0.0
                 };
             }
-            
+
             // If we kept the same number of queries, no quality loss
             if (currentQueries.Count == smartQueries.Count)
             {
                 qualityLoss = 0.0;
             }
-            
+
             return new QualityComparisonResult
             {
                 Scenario = scenario,
@@ -289,7 +289,7 @@ namespace Qobuzarr.Tests.Simulations
             // Simulate current behavior - always 3 queries
             if (string.IsNullOrEmpty(artist) || string.IsNullOrEmpty(album))
                 return new List<string>();
-                
+
             return new List<string>
             {
                 $"{artist} {album}",           // Primary query
@@ -319,12 +319,12 @@ namespace Qobuzarr.Tests.Simulations
                 case QueryComplexity.Simple:
                     // Single query is sufficient
                     break;
-                    
+
                 case QueryComplexity.Medium:
                     // Add dash format for "The" prefix or year cases
                     queries.Add($"{artist} - {album}");
                     break;
-                    
+
                 case QueryComplexity.Complex:
                     // Use all query formats for complex cases
                     queries.Add($"{artist} - {album}");
@@ -357,8 +357,8 @@ namespace Qobuzarr.Tests.Simulations
                 complexity = QueryComplexity.Complex;
 
             // Compilation indicators are complex
-            if (combined.Contains("various artists") || 
-                combined.Contains("greatest hits") || 
+            if (combined.Contains("various artists") ||
+                combined.Contains("greatest hits") ||
                 combined.Contains("best of") ||
                 combined.Contains("collection"))
                 complexity = QueryComplexity.Complex;

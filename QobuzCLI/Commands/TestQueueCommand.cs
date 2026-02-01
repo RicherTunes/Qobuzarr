@@ -44,7 +44,7 @@ public class TestQueueCommand
         testCommand.AddOption(concurrentOption);
         testCommand.AddOption(searchFirstOption);
 
-        testCommand.SetHandler(async (int count, int concurrent, bool searchFirst) => 
+        testCommand.SetHandler(async (int count, int concurrent, bool searchFirst) =>
             await HandleTestQueueAsync(count, concurrent, searchFirst), countOption, concurrentOption, searchFirstOption);
 
         return testCommand;
@@ -66,7 +66,7 @@ public class TestQueueCommand
 
             // Create or get test queue
             var queues = _queueService.GetQueues();
-            var testQueue = queues.FirstOrDefault(q => q.Name == "Performance Test") 
+            var testQueue = queues.FirstOrDefault(q => q.Name == "Performance Test")
                 ?? await _queueService.CreateQueueAsync("Performance Test", concurrent);
 
             // Clear any existing items
@@ -79,9 +79,9 @@ public class TestQueueCommand
             {
                 // Search for real albums to download
                 AnsiConsole.MarkupLine("[yellow]🔍 Searching for albums to queue...[/]");
-                
+
                 await AnsiConsole.Progress()
-                    .Columns(new ProgressColumn[] 
+                    .Columns(new ProgressColumn[]
                     {
                         new TaskDescriptionColumn(),
                         new ProgressBarColumn(),
@@ -92,11 +92,11 @@ public class TestQueueCommand
                     {
                         var searchTask = ctx.AddTask("Searching for albums", maxValue: count);
                         var queries = GeneratePopularAlbums().Take(count).ToList();
-                        
+
                         foreach (var query in queries)
                         {
                             searchTask.Description = $"Searching: {query}";
-                            
+
                             try
                             {
                                 var results = await _pluginHost.SearchAsync(query, SearchType.Album);
@@ -124,7 +124,7 @@ public class TestQueueCommand
                             {
                                 _logger.LogError(ex, "Failed to search for: {Query}", query);
                             }
-                            
+
                             searchTask.Increment(1);
                         }
                     });
@@ -136,7 +136,7 @@ public class TestQueueCommand
                 {
                     var albums = GeneratePopularAlbums().ToList();
                     var album = albums[i % albums.Count];
-                    
+
                     queuedItems.Add(new QueuedDownload
                     {
                         SearchQuery = album,
@@ -177,7 +177,7 @@ public class TestQueueCommand
                     while (true)
                     {
                         var stats = _queueService.GetQueueStatistics(testQueue.Id);
-                        
+
                         if (stats.PendingItems == 0 && stats.ActiveDownloads == 0)
                         {
                             break; // All done
@@ -191,12 +191,12 @@ public class TestQueueCommand
                         table.AddRow("Completed", $"[green]{stats.CompletedItems}[/]");
                         table.AddRow("Failed", stats.FailedItems > 0 ? $"[red]{stats.FailedItems}[/]" : "0");
                         table.AddRow("Progress", $"{(double)stats.CompletedItems / stats.TotalItems:P}");
-                        
+
                         if (stats.EstimatedTimeRemaining.HasValue)
                         {
                             table.AddRow("Est. Time Remaining", $"{stats.EstimatedTimeRemaining.Value:hh\\:mm\\:ss}");
                         }
-                        
+
                         if (stats.AverageDownloadSpeed > 0)
                         {
                             table.AddRow("Download Rate", $"{stats.AverageDownloadSpeed:F1} items/min");
@@ -204,7 +204,7 @@ public class TestQueueCommand
 
                         ctx.Refresh();
                         lastStats = stats;
-                        
+
                         await Task.Delay(1000);
                     }
                 });
@@ -214,12 +214,12 @@ public class TestQueueCommand
             // Display final results
             AnsiConsole.WriteLine();
             AnsiConsole.MarkupLine("[green]✅ Queue processing complete![/]");
-            
+
             var finalTable = new Table();
             finalTable.Border = TableBorder.Rounded;
             finalTable.AddColumn("Final Results");
             finalTable.AddColumn("Value");
-            
+
             finalTable.AddRow("Total Processed", lastStats.TotalItems.ToString());
             finalTable.AddRow("Successful", $"[green]{lastStats.CompletedItems}[/]");
             finalTable.AddRow("Failed", lastStats.FailedItems > 0 ? $"[red]{lastStats.FailedItems}[/]" : "0");
@@ -251,7 +251,7 @@ public class TestQueueCommand
         return new[]
         {
             "Dark Side of the Moon",
-            "Abbey Road", 
+            "Abbey Road",
             "Led Zeppelin IV",
             "Rumours",
             "Hotel California",

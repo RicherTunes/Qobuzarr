@@ -36,10 +36,10 @@ public class RealLidarrIntegrationService : ILidarrIntegrationService
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         _configService = configService ?? throw new ArgumentNullException(nameof(configService));
         _pluginHost = pluginHost ?? throw new ArgumentNullException(nameof(pluginHost));
-        
+
         _logger.LogInformation("RealLidarrIntegrationService initialized as CLI adapter for plugin services");
     }
-    
+
     /// <summary>
     /// Initializes the plugin service with proper dependencies.
     /// This ensures we always use the plugin's real implementation, never stubs.
@@ -47,23 +47,23 @@ public class RealLidarrIntegrationService : ILidarrIntegrationService
     private async Task EnsurePluginServiceInitializedAsync()
     {
         if (_pluginService != null) return;
-        
+
         var config = await _configService.LoadConfigAsync();
-        
+
         if (string.IsNullOrEmpty(config.LidarrUrl) || string.IsNullOrEmpty(config.LidarrApiKey))
         {
             throw new InvalidOperationException(
                 "Lidarr not configured. Please set lidarr-url and lidarr-api-key in configuration.\n" +
                 "This service requires real Lidarr integration - no stub data allowed per CLAUDE.md policy.");
         }
-        
+
         // Initialize plugin host if needed
         if (!_pluginHost.IsInitialized)
         {
             _logger.LogInformation("Initializing plugin host with Lidarr configuration");
             await _pluginHost.InitializeAsync(config);
         }
-        
+
         // Get the plugin's Lidarr integration service
         _pluginService = _pluginHost.GetLidarrIntegrationService();
         if (_pluginService == null)
@@ -77,7 +77,7 @@ public class RealLidarrIntegrationService : ILidarrIntegrationService
                 "2. Lidarr is accessible at the configured URL\n" +
                 "3. The API key has proper permissions");
         }
-        
+
         _logger.LogInformation("Plugin's Lidarr integration service initialized successfully - using real API");
     }
 
@@ -88,9 +88,9 @@ public class RealLidarrIntegrationService : ILidarrIntegrationService
         CancellationToken cancellationToken = default)
     {
         _logger.LogInformation("Delegating to plugin's integration service (max {MaxAlbums} albums)", maxAlbums);
-        
+
         await EnsurePluginServiceInitializedAsync();
-        
+
         // Use the plugin's integration service
         return await _pluginService!.GetFilteredWantedAlbumsAsync(
             filterOptions ?? new LidarrFilterOptions(),
@@ -106,9 +106,9 @@ public class RealLidarrIntegrationService : ILidarrIntegrationService
         CancellationToken cancellationToken = default)
     {
         _logger.LogInformation("Delegating SearchQobuzParallelAsync to plugin service");
-        
+
         await EnsurePluginServiceInitializedAsync();
-        
+
         // Use the plugin's integration service
         return await _pluginService!.SearchQobuzParallelAsync(
             lidarrAlbums,
@@ -123,9 +123,9 @@ public class RealLidarrIntegrationService : ILidarrIntegrationService
         CancellationToken cancellationToken = default)
     {
         _logger.LogInformation("Delegating ValidateAlbumsAsync to plugin service");
-        
+
         await EnsurePluginServiceInitializedAsync();
-        
+
         // Use the plugin's integration service
         return await _pluginService!.ValidateAlbumsAsync(
             albumMatches,
@@ -141,9 +141,9 @@ public class RealLidarrIntegrationService : ILidarrIntegrationService
         CancellationToken cancellationToken = default)
     {
         _logger.LogInformation("Delegating DownloadLidarrAlbumsAsync to plugin service");
-        
+
         await EnsurePluginServiceInitializedAsync();
-        
+
         // Use the plugin's integration service
         return await _pluginService!.DownloadLidarrAlbumsAsync(
             downloadItems,
@@ -160,9 +160,9 @@ public class RealLidarrIntegrationService : ILidarrIntegrationService
         CancellationToken cancellationToken = default)
     {
         _logger.LogInformation("Delegating RetryFailedDownloadsAsync to plugin service");
-        
+
         await EnsurePluginServiceInitializedAsync();
-        
+
         // Use the plugin's integration service
         return await _pluginService!.RetryFailedDownloadsAsync(
             failedItems,
@@ -279,7 +279,7 @@ public class RealLidarrIntegrationService : ILidarrIntegrationService
         {
             return _pluginService.CreateProgressTracker(totalItems, operationType, progress ?? new Progress<ProgressReport>(_ => { }));
         }
-        
+
         // Return a basic no-op progress tracker if plugin service is not available
         return new BasicProgressTracker(totalItems, operationType, progress);
     }
@@ -291,7 +291,7 @@ public class RealLidarrIntegrationService : ILidarrIntegrationService
         {
             return _pluginService.CreateDownloadProgressTracker(totalItems, operationType, progress ?? new Progress<DownloadProgressReport>(_ => { }));
         }
-        
+
         // Return a basic no-op download progress tracker if plugin service is not available
         return new BasicDownloadProgressTracker(totalItems, operationType, progress);
     }
@@ -304,7 +304,7 @@ public class RealLidarrIntegrationService : ILidarrIntegrationService
             disposableService.Dispose();
         }
     }
-    
+
     /// <summary>
     /// Basic progress tracker implementation for fallback scenarios.
     /// </summary>
@@ -316,14 +316,14 @@ public class RealLidarrIntegrationService : ILidarrIntegrationService
         private int _completedItems;
         private string _currentItem = string.Empty;
         private readonly DateTime _startTime = DateTime.UtcNow;
-        
+
         public BasicProgressTracker(int totalItems, string operationType, IProgress<ProgressReport>? progress)
         {
             _totalItems = totalItems;
             _operationType = operationType;
             _progress = progress;
         }
-        
+
         // IProgressTracker implementation
         public int TotalItems => _totalItems;
         public int CompletedItems => _completedItems;
@@ -341,7 +341,7 @@ public class RealLidarrIntegrationService : ILidarrIntegrationService
             }
         }
         public double PercentComplete => _totalItems > 0 ? (_completedItems * 100.0) / _totalItems : 0;
-        
+
         public void ReportProgress(string currentItem, string? phase = null)
         {
             _currentItem = currentItem;
@@ -353,7 +353,7 @@ public class RealLidarrIntegrationService : ILidarrIntegrationService
                 Phase = phase ?? _operationType
             });
         }
-        
+
         public void CompleteItem(string? itemDescription = null)
         {
             _completedItems++;
@@ -365,7 +365,7 @@ public class RealLidarrIntegrationService : ILidarrIntegrationService
                 Phase = _operationType
             });
         }
-        
+
         public void CompleteItems(int count)
         {
             _completedItems += count;
@@ -377,23 +377,23 @@ public class RealLidarrIntegrationService : ILidarrIntegrationService
                 Phase = _operationType
             });
         }
-        
+
         // Legacy methods for backward compatibility
         public void Report(int current, string? message = null)
         {
             _completedItems = current;
             ReportProgress(message ?? "Processing", message);
         }
-        
+
         public void Complete(string? message = null)
         {
             _completedItems = _totalItems;
             ReportProgress("Completed", message ?? $"{_operationType} completed");
         }
-        
+
         public void Dispose() { }
     }
-    
+
     /// <summary>
     /// Basic download progress tracker implementation for fallback scenarios.
     /// </summary>
@@ -409,14 +409,14 @@ public class RealLidarrIntegrationService : ILidarrIntegrationService
         private int _successCount;
         private int _failureCount;
         private readonly List<double> _speedSamples = new();
-        
+
         public BasicDownloadProgressTracker(int totalItems, string operationType, IProgress<DownloadProgressReport>? progress)
         {
             _totalItems = totalItems;
             _operationType = operationType;
             _progress = progress;
         }
-        
+
         // IProgressTracker implementation
         public int TotalItems => _totalItems;
         public int CompletedItems => _completedItems;
@@ -434,7 +434,7 @@ public class RealLidarrIntegrationService : ILidarrIntegrationService
             }
         }
         public double PercentComplete => _totalItems > 0 ? (_completedItems * 100.0) / _totalItems : 0;
-        
+
         public void ReportProgress(string currentItem, string? phase = null)
         {
             _currentItem = currentItem;
@@ -448,7 +448,7 @@ public class RealLidarrIntegrationService : ILidarrIntegrationService
                 CurrentSpeedMBps = CurrentSpeedMBps
             });
         }
-        
+
         public void CompleteItem(string? itemDescription = null)
         {
             _completedItems++;
@@ -462,7 +462,7 @@ public class RealLidarrIntegrationService : ILidarrIntegrationService
                 CurrentSpeedMBps = CurrentSpeedMBps
             });
         }
-        
+
         public void CompleteItems(int count)
         {
             _completedItems += count;
@@ -476,14 +476,14 @@ public class RealLidarrIntegrationService : ILidarrIntegrationService
                 CurrentSpeedMBps = CurrentSpeedMBps
             });
         }
-        
+
         // IDownloadProgressTracker implementation
         public long TotalBytesDownloaded => _totalBytesDownloaded;
         public double CurrentSpeedMBps => _speedSamples.Count > 0 ? _speedSamples.TakeLast(5).Average() : 0.0;
         public double AverageSpeedMBps => _speedSamples.Count > 0 ? _speedSamples.Average() : 0.0;
         public int SuccessCount => _successCount;
         public int FailureCount => _failureCount;
-        
+
         public void ReportDownloadProgress(string currentItem, long bytesDownloaded, bool isSuccess)
         {
             _currentItem = currentItem;
@@ -498,7 +498,7 @@ public class RealLidarrIntegrationService : ILidarrIntegrationService
             {
                 _failureCount++;
             }
-            
+
             _progress?.Report(new DownloadProgressReport
             {
                 Completed = _completedItems,
@@ -509,18 +509,18 @@ public class RealLidarrIntegrationService : ILidarrIntegrationService
                 CurrentSpeedMBps = CurrentSpeedMBps
             });
         }
-        
+
         public void AddBytesDownloaded(long additionalBytes)
         {
             _totalBytesDownloaded += additionalBytes;
         }
-        
+
         // Legacy methods for backward compatibility  
         public void Report(DownloadProgressReport report)
         {
             _progress?.Report(report);
         }
-        
+
         public void Dispose() { }
     }
 }

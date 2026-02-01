@@ -17,11 +17,11 @@ namespace QobuzCLI.Services
         {
             if (track == null)
                 throw new ArgumentNullException(nameof(track));
-                
+
             // If it's already a plugin track, return as-is
             if (track is QobuzTrack qobuzTrack)
                 return qobuzTrack;
-                
+
             // This should not happen if CLI is properly using plugin models
             throw new InvalidOperationException(
                 $"Expected QobuzTrack from plugin but got {track.GetType().Name}. " +
@@ -36,17 +36,17 @@ namespace QobuzCLI.Services
         {
             if (album == null)
                 throw new ArgumentNullException(nameof(album));
-                
+
             // If it's already a plugin album, return as-is
             if (album is QobuzAlbum qobuzAlbum)
                 return qobuzAlbum;
-                
+
             // This should not happen if CLI is properly using plugin models
             throw new InvalidOperationException(
                 $"Expected QobuzAlbum from plugin but got {album.GetType().Name}. " +
                 "CLI must use plugin models directly per CLAUDE.md architecture.");
         }
-        
+
         /// <summary>
         /// Creates a simple search result wrapper for CLI display purposes only.
         /// The actual model remains the plugin model.

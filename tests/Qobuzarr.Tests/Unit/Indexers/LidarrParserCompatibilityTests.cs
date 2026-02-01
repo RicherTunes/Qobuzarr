@@ -58,7 +58,7 @@ namespace Qobuzarr.Tests.Unit.Indexers
 
             // Act
             var flacRelease = releases.FirstOrDefault(r => r.Title.Contains("FLAC"));
-            
+
             // Assert
             flacRelease.Should().NotBeNull();
             var actualTitle = flacRelease.Title;
@@ -78,7 +78,7 @@ namespace Qobuzarr.Tests.Unit.Indexers
 
             // Act
             var flacRelease = releases.FirstOrDefault(r => r.Title.Contains("FLAC"));
-            
+
             // Assert
             flacRelease.Should().NotBeNull();
             flacRelease.Title.Should().Contain($"[{version}]");
@@ -104,11 +104,11 @@ namespace Qobuzarr.Tests.Unit.Indexers
 
             // Act
             var flacRelease = releases.FirstOrDefault(r => r.Title.Contains("FLAC"));
-            
+
             // Assert
             flacRelease.Should().NotBeNull();
             flacRelease.Title.Should().Be("Daft Punk - Random Access Memories (2013) [FLAC] [WEB]");
-            
+
             // Verify space format structure
             flacRelease.Title.Should().MatchRegex(@"^.+ - .+ \(\d{4}\) \[.+\] \[WEB\]$",
                 "Standard albums should use space format: Artist - Album (Year) [Quality] [WEB]");
@@ -130,7 +130,7 @@ namespace Qobuzarr.Tests.Unit.Indexers
 
             // Act
             var flacRelease = releases.FirstOrDefault(r => r.Title.Contains("FLAC"));
-            
+
             // Assert
             flacRelease.Should().NotBeNull();
             flacRelease.Title.Should().Be("Pink Floyd - The Dark Side of the Moon (1973) [FLAC] [WEB]");
@@ -235,7 +235,7 @@ namespace Qobuzarr.Tests.Unit.Indexers
         {
             // Arrange - Standard albums should NOT match hyphen regex
             var lidarrHyphenRegex = @"^(?<artist>[^-]+)-(?<album>[^-]+)-(?<version>[^-]+)-(?<source>WEB|CD)-(?<year>\d{4})$";
-            
+
             var album = QobuzAlbumBuilder.New()
                 .WithTitle("Standard Album")
                 .WithArtist("Standard Artist")
@@ -264,8 +264,8 @@ namespace Qobuzarr.Tests.Unit.Indexers
             var qobuzAlbum = CreateEditionAlbum("Deluxe Edition");
             var lidarrAlbums = new List<Album>
             {
-                new Album 
-                { 
+                new Album
+                {
                     Id = 123,
                     Title = "They Want My Soul (Deluxe Edition)",
                     ReleaseDate = new DateTime(2014, 8, 5)
@@ -327,7 +327,7 @@ namespace Qobuzarr.Tests.Unit.Indexers
             // Arrange
             var album = QobuzAlbumBuilder.New()
                 .WithTitle("Test Album")
-                .WithArtist("Test Artist") 
+                .WithArtist("Test Artist")
                 .WithReleaseYear(2020)
                 .AsCdQualityFlac()
                 .Build();
@@ -357,7 +357,7 @@ namespace Qobuzarr.Tests.Unit.Indexers
             // Assert
             flacRelease.Should().NotBeNull();
             flacRelease.Title.Should().Contain("Live");
-            flacRelease.Title.Should().Contain("Madison Square Garden");  
+            flacRelease.Title.Should().Contain("Madison Square Garden");
             flacRelease.Title.Should().Contain("Deluxe");
             // Should handle special characters without breaking format   
             flacRelease.Title.Should().MatchRegex(@"^.+ - .+ \(\d{4}\).+\[WEB\]$");

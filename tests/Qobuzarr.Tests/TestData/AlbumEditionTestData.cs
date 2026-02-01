@@ -20,65 +20,65 @@ namespace Qobuzarr.Tests.TestData
             new List<object[]>
             {
                 // Version field explicitly states venue
-                new object[] 
-                { 
-                    "Live at Brixton Academy", 
+                new object[]
+                {
+                    "Live at Brixton Academy",
                     "Artist - Album (Year) [Live at Brixton Academy] [FLAC WEB]",
                     "LiveAtVenue"
                 },
                 
                 // Version field with date and venue
-                new object[] 
-                { 
-                    "Live at Madison Square Garden, December 2019", 
+                new object[]
+                {
+                    "Live at Madison Square Garden, December 2019",
                     "Artist - Album (Year) [Live at Madison Square Garden, December 2019] [FLAC WEB]",
                     "LiveAtVenueWithDate"
                 },
                 
                 // Simple live designation
-                new object[] 
-                { 
-                    "Live", 
+                new object[]
+                {
+                    "Live",
                     "Artist - Album (Year) [Live] [FLAC WEB]",
                     "SimpleLive"
                 },
                 
                 // Live with year only
-                new object[] 
-                { 
-                    "Live 2020", 
+                new object[]
+                {
+                    "Live 2020",
                     "Artist - Album (Year) [Live 2020] [FLAC WEB]",
                     "LiveWithYear"
                 },
                 
                 // Concert recording
-                new object[] 
-                { 
-                    "Concert Recording", 
+                new object[]
+                {
+                    "Concert Recording",
                     "Artist - Album (Year) [Concert Recording] [FLAC WEB]",
                     "ConcertRecording"
                 },
                 
                 // Acoustic live version
-                new object[] 
-                { 
-                    "Acoustic Live", 
+                new object[]
+                {
+                    "Acoustic Live",
                     "Artist - Album (Year) [Acoustic Live] [FLAC WEB]",
                     "AcousticLive"
                 },
                 
                 // Radio session
-                new object[] 
-                { 
-                    "BBC Radio 1 Live Session", 
+                new object[]
+                {
+                    "BBC Radio 1 Live Session",
                     "Artist - Album (Year) [BBC Radio 1 Live Session] [FLAC WEB]",
                     "RadioSession"
                 },
                 
                 // TV performance
-                new object[] 
-                { 
-                    "Live on Late Night TV", 
+                new object[]
+                {
+                    "Live on Late Night TV",
                     "Artist - Album (Year) [Live on Late Night TV] [FLAC WEB]",
                     "TVPerformance"
                 }
@@ -95,106 +95,106 @@ namespace Qobuzarr.Tests.TestData
             new List<object[]>
             {
                 // Deluxe editions
-                new object[] 
-                { 
-                    "Deluxe Edition", 
+                new object[]
+                {
+                    "Deluxe Edition",
                     "Artist - Album (Year) [Deluxe Edition] [FLAC WEB]",
                     "DeluxeEdition"
                 },
-                
-                new object[] 
-                { 
-                    "Deluxe", 
+
+                new object[]
+                {
+                    "Deluxe",
                     "Artist - Album (Year) [Deluxe] [FLAC WEB]",
                     "DeluxeShort"
                 },
                 
                 // Remastered editions
-                new object[] 
-                { 
-                    "Remastered", 
+                new object[]
+                {
+                    "Remastered",
                     "Artist - Album (Year) [Remastered] [FLAC WEB]",
                     "Remastered"
                 },
-                
-                new object[] 
-                { 
-                    "2023 Remaster", 
+
+                new object[]
+                {
+                    "2023 Remaster",
                     "Artist - Album (Year) [2023 Remaster] [FLAC WEB]",
                     "RemasterWithYear"
                 },
-                
-                new object[] 
-                { 
-                    "Digital Remaster", 
+
+                new object[]
+                {
+                    "Digital Remaster",
                     "Artist - Album (Year) [Digital Remaster] [FLAC WEB]",
                     "DigitalRemaster"
                 },
                 
                 // Anniversary editions
-                new object[] 
-                { 
-                    "25th Anniversary Edition", 
+                new object[]
+                {
+                    "25th Anniversary Edition",
                     "Artist - Album (Year) [25th Anniversary Edition] [FLAC WEB]",
                     "AnniversaryEdition"
                 },
-                
-                new object[] 
-                { 
-                    "Anniversary Remaster", 
+
+                new object[]
+                {
+                    "Anniversary Remaster",
                     "Artist - Album (Year) [Anniversary Remaster] [FLAC WEB]",
                     "AnniversaryRemaster"
                 },
                 
                 // Expanded editions
-                new object[] 
-                { 
-                    "Expanded Edition", 
+                new object[]
+                {
+                    "Expanded Edition",
                     "Artist - Album (Year) [Expanded Edition] [FLAC WEB]",
                     "ExpandedEdition"
                 },
-                
-                new object[] 
-                { 
-                    "Complete Sessions", 
+
+                new object[]
+                {
+                    "Complete Sessions",
                     "Artist - Album (Year) [Complete Sessions] [FLAC WEB]",
                     "CompleteSessions"
                 },
                 
                 // Special editions
-                new object[] 
-                { 
-                    "Special Edition", 
+                new object[]
+                {
+                    "Special Edition",
                     "Artist - Album (Year) [Special Edition] [FLAC WEB]",
                     "SpecialEdition"
                 },
-                
-                new object[] 
-                { 
-                    "Limited Edition", 
+
+                new object[]
+                {
+                    "Limited Edition",
                     "Artist - Album (Year) [Limited Edition] [FLAC WEB]",
                     "LimitedEdition"
                 },
                 
                 // Collector's editions
-                new object[] 
-                { 
-                    "Collector's Edition", 
+                new object[]
+                {
+                    "Collector's Edition",
                     "Artist - Album (Year) [Collector's Edition] [FLAC WEB]",
                     "CollectorsEdition"
                 },
                 
                 // Box set editions
-                new object[] 
-                { 
-                    "Box Set", 
+                new object[]
+                {
+                    "Box Set",
                     "Artist - Album (Year) [Box Set] [FLAC WEB]",
                     "BoxSet"
                 },
-                
-                new object[] 
-                { 
-                    "Complete Box Set", 
+
+                new object[]
+                {
+                    "Complete Box Set",
                     "Artist - Album (Year) [Complete Box Set] [FLAC WEB]",
                     "CompleteBoxSet"
                 }
@@ -216,68 +216,68 @@ namespace Qobuzarr.Tests.TestData
                 new object[] { "   ", "Artist - Album (Year) [FLAC WEB]", "WhitespaceVersion" },
                 
                 // Special characters in versions
-                new object[] 
-                { 
-                    "Live @ The Forum", 
+                new object[]
+                {
+                    "Live @ The Forum",
                     "Artist - Album (Year) [Live @ The Forum] [FLAC WEB]",
                     "VersionWithAtSymbol"
                 },
-                
-                new object[] 
-                { 
-                    "Version 2.0", 
+
+                new object[]
+                {
+                    "Version 2.0",
                     "Artist - Album (Year) [Version 2.0] [FLAC WEB]",
                     "VersionWithNumber"
                 },
-                
-                new object[] 
-                { 
-                    "Re-Issue", 
+
+                new object[]
+                {
+                    "Re-Issue",
                     "Artist - Album (Year) [Re-Issue] [FLAC WEB]",
                     "VersionWithHyphen"
                 },
-                
-                new object[] 
-                { 
-                    "Director's Cut", 
+
+                new object[]
+                {
+                    "Director's Cut",
                     "Artist - Album (Year) [Director's Cut] [FLAC WEB]",
                     "VersionWithApostrophe"
                 },
                 
                 // Long version strings
-                new object[] 
-                { 
-                    "25th Anniversary Deluxe Remastered Edition with Bonus Tracks", 
+                new object[]
+                {
+                    "25th Anniversary Deluxe Remastered Edition with Bonus Tracks",
                     "Artist - Album (Year) [25th Anniversary Deluxe Remastered Edition with Bonus Tracks] [FLAC WEB]",
                     "VeryLongVersion"
                 },
                 
                 // International/Unicode versions
-                new object[] 
-                { 
-                    "Édition Spéciale", 
+                new object[]
+                {
+                    "Édition Spéciale",
                     "Artist - Album (Year) [Édition Spéciale] [FLAC WEB]",
                     "FrenchVersion"
                 },
-                
-                new object[] 
-                { 
-                    "特別版", 
+
+                new object[]
+                {
+                    "特別版",
                     "Artist - Album (Year) [特別版] [FLAC WEB]",
                     "JapaneseVersion"
                 },
                 
                 // Version already in title edge cases
-                new object[] 
-                { 
-                    "Live", 
+                new object[]
+                {
+                    "Live",
                     "Artist - Album Live (Year) [FLAC WEB]", // Should not duplicate "Live"
                     "VersionAlreadyInTitle"
                 },
-                
-                new object[] 
-                { 
-                    "Deluxe Edition", 
+
+                new object[]
+                {
+                    "Deluxe Edition",
                     "Artist - Album Deluxe Edition (Year) [FLAC WEB]", // Should not duplicate
                     "DeluxeAlreadyInTitle"
                 }
@@ -294,41 +294,41 @@ namespace Qobuzarr.Tests.TestData
             new List<object[]>
             {
                 // Multiple edition indicators in version
-                new object[] 
-                { 
-                    "Deluxe Remastered Edition", 
+                new object[]
+                {
+                    "Deluxe Remastered Edition",
                     "Artist - Album (Year) [Deluxe Remastered Edition] [FLAC WEB]",
                     "MultipleEditionMarkers"
                 },
                 
                 // Live deluxe edition
-                new object[] 
-                { 
-                    "Live Deluxe Edition", 
+                new object[]
+                {
+                    "Live Deluxe Edition",
                     "Artist - Album (Year) [Live Deluxe Edition] [FLAC WEB]",
                     "LiveDeluxeCombination"
                 },
                 
                 // Anniversary remaster with venue
-                new object[] 
-                { 
-                    "10th Anniversary Remaster - Live at Wembley", 
+                new object[]
+                {
+                    "10th Anniversary Remaster - Live at Wembley",
                     "Artist - Album (Year) [10th Anniversary Remaster - Live at Wembley] [FLAC WEB]",
                     "AnniversaryLiveCombination"
                 },
                 
                 // Year in version that differs from album year
-                new object[] 
-                { 
-                    "2020 Remaster", 
+                new object[]
+                {
+                    "2020 Remaster",
                     "Artist - Album (1990) [2020 Remaster] [FLAC WEB]",
                     "RemasterYearDifferentFromAlbumYear"
                 },
                 
                 // Format information in version
-                new object[] 
-                { 
-                    "Hi-Res Audio Edition", 
+                new object[]
+                {
+                    "Hi-Res Audio Edition",
                     "Artist - Album (Year) [Hi-Res Audio Edition] [FLAC WEB]",
                     "FormatInVersion"
                 }
@@ -358,8 +358,8 @@ namespace Qobuzarr.Tests.TestData
         /// Creates multiple studio/live album pairs for the same artist
         /// </summary>
         public static (QobuzAlbum StudioAlbum, QobuzAlbum LiveAlbum) CreateStudioLivePair(
-            string artistName, 
-            string baseAlbumTitle, 
+            string artistName,
+            string baseAlbumTitle,
             int releaseYear,
             string liveVenue = "Royal Albert Hall")
         {
@@ -391,8 +391,8 @@ namespace Qobuzarr.Tests.TestData
         /// Creates an album with multiple editions (standard, deluxe, remastered)
         /// </summary>
         public static QobuzAlbum[] CreateMultipleEditions(
-            string artistName, 
-            string albumTitle, 
+            string artistName,
+            string albumTitle,
             int releaseYear)
         {
             var standardEdition = QobuzAlbumBuilder.New()

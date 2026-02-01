@@ -162,7 +162,7 @@ namespace Qobuzarr.Tests.Unit.Models
             // Assert
             titles.Should().HaveCount(3);
             titles.Should().OnlyHaveUniqueItems(); // All titles should be different
-            
+
             titles[0].Should().Be("Abbey Road"); // Standard edition
             titles[1].Should().Be("Abbey Road (Deluxe Edition)");
             titles[2].Should().Be("Abbey Road (1979 Remaster)");
@@ -207,7 +207,7 @@ namespace Qobuzarr.Tests.Unit.Models
             // Assert
             fullTitle.Should().Be($"Test Album ({version})");
             fullTitle.Should().NotBeNullOrWhiteSpace();
-            
+
             // Specific validations based on scenario
             switch (scenario)
             {
@@ -216,12 +216,12 @@ namespace Qobuzarr.Tests.Unit.Models
                     fullTitle.Should().Contain("Remastered");
                     fullTitle.Should().Contain("Edition");
                     break;
-                    
+
                 case "LiveDeluxeCombination":
                     fullTitle.Should().Contain("Live");
                     fullTitle.Should().Contain("Deluxe");
                     break;
-                    
+
                 case "RemasterYearDifferentFromAlbumYear":
                     fullTitle.Should().Contain("2020"); // Remaster year
                     fullTitle.Should().Contain("Remaster");

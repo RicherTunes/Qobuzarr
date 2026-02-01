@@ -29,10 +29,10 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers.Parsing
             }
 
             var bitrate = quality.GetEstimatedBitrate();
-            
+
             // Convert bits per second to bytes per second, then multiply by duration
             var estimatedSize = (long)(durationSeconds * (bitrate / 8.0));
-            
+
             // Ensure we don't return 0 size (causes issues in Lidarr)
             return Math.Max(estimatedSize, MinimumSizeBytes);
         }
@@ -83,7 +83,7 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers.Parsing
             var trackCount = Math.Max(album.TracksCount > 0 ? album.TracksCount : tracks.Count, 1);
             var isSingle = IsLikelySingle(album);
             var avgDuration = isSingle ? 3.25 * 60 : 3.5 * 60; // Singles: 3.25min, Albums: 3.5min
-            
+
             return Math.Max(trackCount * avgDuration, 30); // 30 second minimum
         }
 
@@ -92,7 +92,7 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers.Parsing
         /// </summary>
         private static bool IsLikelySingle(QobuzAlbum album)
         {
-            return album.TracksCount <= Configuration.QobuzConstants.Parser.SingleTrackMinCount && 
+            return album.TracksCount <= Configuration.QobuzConstants.Parser.SingleTrackMinCount &&
                    album.Duration < Configuration.QobuzConstants.Parser.SingleTrackMinDuration;
         }
     }

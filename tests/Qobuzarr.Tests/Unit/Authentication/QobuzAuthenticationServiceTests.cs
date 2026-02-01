@@ -22,7 +22,7 @@ namespace Qobuzarr.Tests.Unit.Authentication
         {
             _authService = new QobuzAuthenticationService(
                 MockHttpClient.Object,
-                MockConfigService.Object, 
+                MockConfigService.Object,
                 MockLocalizationService.Object,
                 MockCacheManager,  // No longer needs .Object since it's NSubstitute
                 MockLogger.Object);
@@ -195,7 +195,7 @@ namespace Qobuzarr.Tests.Unit.Authentication
         {
             // Act
             var result = QobuzAuthenticationService.HashPassword(password);
-            
+
             // Assert
             result.Should().BeEmpty();
         }

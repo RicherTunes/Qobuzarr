@@ -27,10 +27,10 @@ namespace Lidarr.Plugin.Qobuzarr.Services
         public async Task<List<int>> GetAvailableQualitiesAsync(string trackId)
         {
             var availableQualities = new List<int>();
-            
+
             // Test common quality format IDs
             var qualityFormats = new[] { 27, 7, 6, 5 }; // Hi-Res 192, Hi-Res 96, FLAC CD, MP3 320
-            
+
             foreach (var formatId in qualityFormats)
             {
                 try
@@ -46,7 +46,7 @@ namespace Lidarr.Plugin.Qobuzarr.Services
                     _logger.Debug("Error checking quality {0} for track {1}: {2}", formatId, trackId, ex.Message);
                 }
             }
-            
+
             return availableQualities;
         }
 
@@ -69,7 +69,7 @@ namespace Lidarr.Plugin.Qobuzarr.Services
                 };
 
                 var streamResponse = await _apiClient.GetAsync<QobuzStreamResponse>("/track/getFileUrl", parameters).ConfigureAwait(false);
-                
+
                 if (streamResponse?.IsSuccess == true)
                 {
                     // Check for restrictions
@@ -77,10 +77,10 @@ namespace Lidarr.Plugin.Qobuzarr.Services
                     {
                         var restrictionMessage = streamResponse.GetRestrictionMessage();
                         result.RestrictionMessage = restrictionMessage;
-                        
+
                         // Categorize the restriction type
                         result.UnavailableReason = CategorizeRestriction(restrictionMessage);
-                        
+
                         // Format restrictions are handleable with fallback
                         if (result.UnavailableReason == TrackUnavailableReason.NoQualityAvailable)
                         {
@@ -148,7 +148,7 @@ namespace Lidarr.Plugin.Qobuzarr.Services
                 try
                 {
                     var streamResult = await ValidateStreamAvailabilityAsync(track.Id, preferredQuality).ConfigureAwait(false);
-                    
+
                     var trackInfo = new TrackAvailabilityInfo
                     {
                         TrackId = track.Id,
@@ -183,7 +183,7 @@ namespace Lidarr.Plugin.Qobuzarr.Services
                 catch (Exception ex)
                 {
                     _logger.Error(ex, "Error validating track {0} in album {1}", track.Id, album.Id);
-                    
+
                     result.TrackResults.Add(new TrackAvailabilityInfo
                     {
                         TrackId = track.Id,
@@ -193,12 +193,12 @@ namespace Lidarr.Plugin.Qobuzarr.Services
                         UnavailableReason = TrackUnavailableReason.Unknown,
                         RestrictionMessage = ex.Message
                     });
-                    
+
                     result.UnavailableTracks++;
                 }
             }
 
-            _logger.Info("Album {0} availability: {1}/{2} tracks available in quality {3} ({4:F1}%)", 
+            _logger.Info("Album {0} availability: {1}/{2} tracks available in quality {3} ({4:F1}%)",
                 album.Id, result.AvailableTracks, result.TotalTracks, preferredQuality, result.AvailabilityPercentage);
 
             return result;
@@ -208,7 +208,7 @@ namespace Lidarr.Plugin.Qobuzarr.Services
         {
             var alternatives = new List<int>();
             var allQualities = new[] { 27, 7, 6, 5 }; // All possible qualities
-            
+
             foreach (var quality in allQualities.Where(q => q != excludeQuality))
             {
                 try
@@ -224,7 +224,7 @@ namespace Lidarr.Plugin.Qobuzarr.Services
                     _logger.Debug("Error checking alternative quality {0} for track {1}: {2}", quality, trackId, ex.Message);
                 }
             }
-            
+
             return alternatives;
         }
 
@@ -237,13 +237,13 @@ namespace Lidarr.Plugin.Qobuzarr.Services
 
             if (message.Contains("format") && message.Contains("not available"))
                 return TrackUnavailableReason.NoQualityAvailable;
-            
+
             if (message.Contains("geo") || message.Contains("region") || message.Contains("country"))
                 return TrackUnavailableReason.RegionalRestriction;
-            
+
             if (message.Contains("subscription") || message.Contains("tier"))
                 return TrackUnavailableReason.SubscriptionRestriction;
-            
+
             if (message.Contains("preview") || message.Contains("sample"))
                 return TrackUnavailableReason.PreviewOnly;
 

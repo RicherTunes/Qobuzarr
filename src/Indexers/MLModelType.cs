@@ -11,14 +11,14 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
         /// Works well for most users out-of-the-box
         /// </summary>
         Baseline = 0,
-        
+
         /// <summary>
         /// Personal model trained on user's specific library
         /// Requires training scripts and user's music data
         /// Provides maximum personalization for large, diverse libraries
         /// </summary>
         Personal = 1,
-        
+
         /// <summary>
         /// Hybrid model combining baseline + personal models
         /// Uses confidence-based routing to get best of both worlds

@@ -36,7 +36,7 @@ namespace Qobuzarr.Tests.Helpers
             request ??= CreateRequest();
             var headers = new HttpHeader();
             headers.ContentType = "application/json";
-            
+
             return new HttpResponse(request, headers, content, statusCode);
         }
 
@@ -52,7 +52,7 @@ namespace Qobuzarr.Tests.Helpers
             request ??= CreateRequest();
             var headers = new HttpHeader();
             headers.ContentType = "application/octet-stream";
-            
+
             return new HttpResponse(request, headers, data, statusCode);
         }
 
@@ -68,7 +68,7 @@ namespace Qobuzarr.Tests.Helpers
             request ??= CreateRequest();
             var headers = new HttpHeader();
             headers.ContentType = "application/json";
-            
+
             return new HttpResponse(request, headers, errorContent, statusCode);
         }
     }

@@ -180,10 +180,10 @@ namespace Lidarr.Plugin.Qobuzarr.Models
                 return "Unknown quality";
 
             var info = Quality;
-            
+
             if (BitRate.HasValue)
                 info += $" ({BitRate}kbps)";
-            
+
             if (SampleRate.HasValue && BitDepth.HasValue)
                 info += $" - {SampleRate}Hz/{BitDepth}bit";
             else if (SampleRate.HasValue)

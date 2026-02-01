@@ -184,7 +184,7 @@ namespace Lidarr.Plugin.Qobuzarr.Models
         public bool HasRestrictions()
         {
             return Code.IsNotNullOrWhiteSpace() ||
-                   Reason.IsNotNullOrWhiteSpace() || 
+                   Reason.IsNotNullOrWhiteSpace() ||
                    ReasonCode.IsNotNullOrWhiteSpace() ||
                    CountryCodes?.Length > 0;
         }

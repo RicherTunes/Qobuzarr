@@ -44,11 +44,11 @@ namespace Qobuzarr.Tests.Unit.Indexers
             foreach (var testCase in testCases)
             {
                 _output.WriteLine($"Testing: {testCase.Artist} - {testCase.Album}");
-                
+
                 // Step 1: Classify complexity
                 var complexity = _classifier.ClassifyComplexity(testCase.Artist, testCase.Album);
                 complexity.Should().Be(testCase.ExpectedComplexity, $"Complexity classification for {testCase.Artist} - {testCase.Album}");
-                
+
                 // Step 2: Build original queries (simulating current behavior)
                 var originalQueries = new List<string>
                 {
@@ -56,17 +56,17 @@ namespace Qobuzarr.Tests.Unit.Indexers
                     $"{testCase.Artist} - {testCase.Album}",
                     $"\"{testCase.Artist}\" {testCase.Album}"
                 };
-                
+
                 // Step 3: Apply smart optimization
                 var optimizedQueries = _strategy.BuildOptimizedQueries(testCase.Artist, testCase.Album, originalQueries);
-                
+
                 // Step 4: Validate results
                 optimizedQueries.Should().HaveCount(testCase.ExpectedQueries, $"Query count for {testCase.Artist} - {testCase.Album}");
                 optimizedQueries.Should().AllSatisfy(q => q.Should().NotBeNullOrWhiteSpace(), "All queries should be valid");
-                
+
                 // Step 5: Ensure optimization is working
                 var reductionPercent = _strategy.CalculateExpectedReduction(testCase.Artist, testCase.Album, originalQueries.Count);
-                
+
                 if (complexity == QueryComplexity.Simple)
                 {
                     reductionPercent.Should().BeGreaterThan(0.5, "Simple cases should have significant reduction");
@@ -75,7 +75,7 @@ namespace Qobuzarr.Tests.Unit.Indexers
                 {
                     reductionPercent.Should().Be(0.0, "Complex cases should preserve all queries");
                 }
-                
+
                 _output.WriteLine($"  Complexity: {complexity}, Queries: {originalQueries.Count} → {optimizedQueries.Count}, Reduction: {reductionPercent:P1}");
             }
         }
@@ -97,15 +97,15 @@ namespace Qobuzarr.Tests.Unit.Indexers
             foreach (var testCase in edgeCases)
             {
                 _output.WriteLine($"Testing edge case: {testCase.Description}");
-                
+
                 // Should classify as complex for safety
                 var complexity = _classifier.ClassifyComplexity(testCase.Artist, testCase.Album);
                 complexity.Should().Be(QueryComplexity.Complex, $"Edge case should be classified as complex: {testCase.Description}");
-                
+
                 // Should handle gracefully without throwing
                 var originalQueries = new List<string> { "query1", "query2", "query3" };
                 var optimizedQueries = _strategy.BuildOptimizedQueries(testCase.Artist, testCase.Album, originalQueries);
-                
+
                 // Should preserve all queries for safety
                 optimizedQueries.Should().NotBeNull("Should never return null");
                 optimizedQueries.Should().HaveCount(3, "Should preserve all queries for edge cases");
@@ -118,7 +118,7 @@ namespace Qobuzarr.Tests.Unit.Indexers
         {
             // Arrange - Generate a large number of test cases
             var testCases = new List<(string Artist, string Album)>();
-            
+
             // Add variety of cases
             for (int i = 0; i < 100; i++)
             {
@@ -136,7 +136,7 @@ namespace Qobuzarr.Tests.Unit.Indexers
             {
                 var originalQueries = new List<string> { $"{artist} {album}", $"{artist} - {album}", $"\"{artist}\" {album}" };
                 var optimizedQueries = _strategy.BuildOptimizedQueries(artist, album, originalQueries);
-                
+
                 totalOriginalQueries += originalQueries.Count;
                 totalOptimizedQueries += optimizedQueries.Count;
             }
@@ -174,13 +174,13 @@ namespace Qobuzarr.Tests.Unit.Indexers
             {
                 for (int i = 0; i < 50; i++) // 250 total operations
                 {
-                    var originalQueries = new List<string> 
-                    { 
-                        $"{testCase.Item1} {testCase.Item2}", 
-                        $"{testCase.Item1} - {testCase.Item2}", 
-                        $"\"{testCase.Item1}\" {testCase.Item2}" 
+                    var originalQueries = new List<string>
+                    {
+                        $"{testCase.Item1} {testCase.Item2}",
+                        $"{testCase.Item1} - {testCase.Item2}",
+                        $"\"{testCase.Item1}\" {testCase.Item2}"
                     };
-                    
+
                     var optimizedQueries = _strategy.BuildOptimizedQueries(testCase.Item1, testCase.Item2, originalQueries);
                     results.Add((originalQueries.Count, optimizedQueries.Count));
                 }
@@ -232,7 +232,7 @@ namespace Qobuzarr.Tests.Unit.Indexers
                 // Accept conservative behavior for other cases
                 complexity1.Should().BeOneOf(QueryComplexity.Simple, QueryComplexity.Medium, QueryComplexity.Complex);
             }
-            
+
             complexity2.Should().Be(complexity1, "Classification should be consistent on second call");
             complexity3.Should().Be(complexity1, "Classification should be consistent on third call");
         }
@@ -297,7 +297,7 @@ namespace Qobuzarr.Tests.Unit.Indexers
             // Assert
             _output.WriteLine($"=== REAL WORLD DISTRIBUTION ===");
             _output.WriteLine($"Simple: {simpleCount}/{total} ({simplePercent:P1})");
-            _output.WriteLine($"Medium: {mediumCount}/{total} ({(double)mediumCount/total:P1})");
+            _output.WriteLine($"Medium: {mediumCount}/{total} ({(double)mediumCount / total:P1})");
             _output.WriteLine($"Complex: {complexCount}/{total} ({complexPercent:P1})");
             _output.WriteLine($"Overall reduction: {overallReduction:P1}");
 

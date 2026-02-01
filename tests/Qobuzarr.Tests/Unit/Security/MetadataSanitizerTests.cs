@@ -20,7 +20,7 @@ namespace Qobuzarr.Tests.Unit.Security
         {
             var clean = "Deluxe Edition";
             MetadataSanitizer.SanitizeVersion(clean).Should().Be(clean);
-            
+
             clean = "25th Anniversary (Remastered)";
             MetadataSanitizer.SanitizeVersion(clean).Should().Be("25th Anniversary (Remastered)");
         }
@@ -30,7 +30,7 @@ namespace Qobuzarr.Tests.Unit.Security
         {
             var malicious = "<script>alert('XSS')</script>Deluxe";
             var result = MetadataSanitizer.SanitizeVersion(malicious);
-            
+
             result.Should().NotContain("<script");
             result.Should().NotContain("alert");
             result.Should().NotContain("</script");
@@ -42,7 +42,7 @@ namespace Qobuzarr.Tests.Unit.Security
         {
             var malicious = "javascript:alert('XSS')";
             var result = MetadataSanitizer.SanitizeVersion(malicious);
-            
+
             result.Should().Be("Version"); // Returns safe default when dangerous pattern detected
         }
 
@@ -51,7 +51,7 @@ namespace Qobuzarr.Tests.Unit.Security
         {
             var malicious = "../../etc/passwd";
             var result = MetadataSanitizer.SanitizeVersion(malicious);
-            
+
             result.Should().NotContain("..");
             result.Should().Be("___etc_passwd");
         }
@@ -61,7 +61,7 @@ namespace Qobuzarr.Tests.Unit.Security
         {
             var malicious = "Deluxe'; DROP TABLE albums;--";
             var result = MetadataSanitizer.SanitizeVersion(malicious);
-            
+
             result.Should().Be("Version"); // Returns safe default when SQL injection detected
         }
 
@@ -70,7 +70,7 @@ namespace Qobuzarr.Tests.Unit.Security
         {
             var malicious = "Deluxe && rm -rf /";
             var result = MetadataSanitizer.SanitizeVersion(malicious);
-            
+
             result.Should().Be("Version"); // Returns safe default when command injection detected
         }
 
@@ -79,7 +79,7 @@ namespace Qobuzarr.Tests.Unit.Security
         {
             var input = "Deluxe\nEdition\tRemastered\r\n2024";
             var result = MetadataSanitizer.SanitizeVersion(input);
-            
+
             result.Should().Be("Deluxe Edition Remastered 2024");
             result.Should().NotContain("\n");
             result.Should().NotContain("\t");
@@ -91,7 +91,7 @@ namespace Qobuzarr.Tests.Unit.Security
         {
             var input = "Deluxe: Edition / Remastered \\ 2024 * Special?";
             var result = MetadataSanitizer.SanitizeVersion(input);
-            
+
             result.Should().Be("Deluxe- Edition _ Remastered _ 2024 _ Special_");
             result.Should().NotContain(":");
             result.Should().NotContain("/");
@@ -101,7 +101,7 @@ namespace Qobuzarr.Tests.Unit.Security
         }
 
         [Fact]
-        public void SanitizeVersion_WithControlCharacters_ShouldRemove()        
+        public void SanitizeVersion_WithControlCharacters_ShouldRemove()
         {
             var input = "Deluxe\u0000Edition\u0007Remastered\u001F";
             var result = MetadataSanitizer.SanitizeVersion(input);
@@ -114,7 +114,7 @@ namespace Qobuzarr.Tests.Unit.Security
         {
             var input = "Deluxe\u200BEdition\u200C\u200D\uFEFF";
             var result = MetadataSanitizer.SanitizeVersion(input);
-            
+
             result.Should().Be("DeluxeEdition");
         }
 
@@ -123,7 +123,7 @@ namespace Qobuzarr.Tests.Unit.Security
         {
             var longInput = new string('A', 150);
             var result = MetadataSanitizer.SanitizeVersion(longInput);
-            
+
             result.Length.Should().Be(100);
             result.Should().Be(new string('A', 100));
         }
@@ -133,7 +133,7 @@ namespace Qobuzarr.Tests.Unit.Security
         {
             var input = "Deluxe <Edition> & \"Special\" 'Version'";
             var result = MetadataSanitizer.SanitizeVersion(input);
-            
+
             result.Should().Be("Deluxe (Edition) _ 'Special' 'Version'");
         }
 
@@ -142,7 +142,7 @@ namespace Qobuzarr.Tests.Unit.Security
         {
             var input = "Deluxe    Edition     Remastered";
             var result = MetadataSanitizer.SanitizeVersion(input);
-            
+
             result.Should().Be("Deluxe Edition Remastered");
         }
 
@@ -151,7 +151,7 @@ namespace Qobuzarr.Tests.Unit.Security
         {
             var malicious = "Deluxe)(uid=*)";
             var result = MetadataSanitizer.SanitizeVersion(malicious);
-            
+
             result.Should().Be("Version"); // Returns safe default when LDAP injection detected
         }
 
@@ -160,7 +160,7 @@ namespace Qobuzarr.Tests.Unit.Security
         {
             var malicious = "<!DOCTYPE test SYSTEM \"file:///etc/passwd\">";
             var result = MetadataSanitizer.SanitizeVersion(malicious);
-            
+
             result.Should().Be("Version"); // Returns safe default when XML injection detected
         }
 
@@ -176,7 +176,7 @@ namespace Qobuzarr.Tests.Unit.Security
         {
             var input = "Artist<script>alert('xss')</script>";
             var result = MetadataSanitizer.SanitizeArtistName(input);
-            
+
             result.Should().Be("Artist");
             result.Should().NotContain("<script");
         }
@@ -193,7 +193,7 @@ namespace Qobuzarr.Tests.Unit.Security
         {
             var input = "Album../../etc/passwd";
             var result = MetadataSanitizer.SanitizeAlbumTitle(input);
-            
+
             result.Should().Be("Album___etc_passwd");
             result.Should().NotContain("..");
         }
@@ -203,7 +203,7 @@ namespace Qobuzarr.Tests.Unit.Security
         {
             var input = "<div>Test & \"Quote\" 'Single'</div>";
             var result = MetadataSanitizer.HtmlEncode(input);
-            
+
             // Standard HTML encoding: <>&"' are encoded, / is not (per HTML5 spec)
             result.Should().Be("&lt;div&gt;Test &amp; &quot;Quote&quot; &#39;Single&#39;&lt;/div&gt;");
         }

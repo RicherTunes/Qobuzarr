@@ -46,21 +46,21 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
             _baselineModel = baselineModel ?? throw new ArgumentNullException(nameof(baselineModel));
             _personalModel = personalModel;
             _config = config ?? new HybridConfiguration();
-            
+
             // Initialize performance monitoring
             _performanceMetrics = new MLPerformanceMetrics(_logger);
             _modelLoadTime = DateTime.UtcNow;
-            
+
             _statistics = new Dictionary<QueryComplexity, int>
             {
                 { QueryComplexity.Simple, 0 },
                 { QueryComplexity.Medium, 0 },
                 { QueryComplexity.Complex, 0 }
             };
-            
+
             string modelInfo = _personalModel != null ? "Baseline + Personal" : "Baseline Only";
             _logger.Info($"Initialized HybridMLQueryOptimizer ({modelInfo})");
-            
+
             if (_personalModel != null)
             {
                 _logger.Info("Personal model detected - enabling hybrid prediction mode");
@@ -90,9 +90,9 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
 
             _statistics[result]++;
             _totalPredictions++;
-            
+
             _logger.Trace($"Hybrid prediction for '{artistName} - {albumTitle}': {result} (strategy: {strategy})");
-            
+
             return result;
         }
 
@@ -101,11 +101,11 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
             // Get predictions from both models
             var baselinePrediction = _baselineModel.PredictComplexity(artistName, albumTitle);
             var personalPrediction = _personalModel.PredictComplexity(artistName, albumTitle);
-            
+
             // Get confidence scores
             var baselineConfidence = _baselineModel.GetConfidenceScore(artistName, albumTitle, baselinePrediction);
             var personalConfidence = _personalModel.GetConfidenceScore(artistName, albumTitle, personalPrediction);
-            
+
             // Decision logic based on confidence and agreement
             if (baselinePrediction == personalPrediction)
             {
@@ -114,9 +114,9 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
                 _hybridUsed++;
                 return baselinePrediction;
             }
-            
+
             // Models disagree - use confidence-based routing
-            if (personalConfidence > _config.HighConfidenceThreshold && 
+            if (personalConfidence > _config.HighConfidenceThreshold &&
                 personalConfidence > baselineConfidence + _config.ConfidenceDifferenceThreshold)
             {
                 // Personal model is highly confident and significantly more confident
@@ -124,8 +124,8 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
                 _personalUsed++;
                 return personalPrediction;
             }
-            
-            if (baselineConfidence > _config.HighConfidenceThreshold && 
+
+            if (baselineConfidence > _config.HighConfidenceThreshold &&
                 baselineConfidence > personalConfidence + _config.ConfidenceDifferenceThreshold)
             {
                 // Baseline model is highly confident and significantly more confident
@@ -133,11 +133,11 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
                 _baselineUsed++;
                 return baselinePrediction;
             }
-            
+
             // Both models have moderate confidence - use weighted combination
             double personalWeight = _config.PersonalModelWeight;
             double baselineWeight = 1.0 - personalWeight;
-            
+
             // Convert predictions to scores for weighted combination
             var scores = new Dictionary<QueryComplexity, double>
             {
@@ -145,16 +145,16 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
                 { QueryComplexity.Medium, 0.0 },
                 { QueryComplexity.Complex, 0.0 }
             };
-            
+
             // Add weighted scores
             scores[baselinePrediction] += baselineWeight * baselineConfidence;
             scores[personalPrediction] += personalWeight * personalConfidence;
-            
+
             // Return highest scoring complexity
             var result = scores.OrderByDescending(kvp => kvp.Value).First().Key;
             strategy = $"weighted ({personalWeight:F1}*personal + {baselineWeight:F1}*baseline)";
             _hybridUsed++;
-            
+
             return result;
         }
 
@@ -168,7 +168,7 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
             // For hybrid mode, return the maximum confidence from either model
             var baselineConfidence = _baselineModel.GetConfidenceScore(artistName, albumTitle, complexity);
             var personalConfidence = _personalModel.GetConfidenceScore(artistName, albumTitle, complexity);
-            
+
             return Math.Max(baselineConfidence, personalConfidence);
         }
 
@@ -181,11 +181,11 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
                 {
                     _correctPredictions++;
                 }
-                
+
                 _logger.Trace($"Hybrid result: {(wasSuccessful ? "success" : "failure")} " +
                            $"(predicted: {predicted}, actual: {usedComplexity})");
             }
-            
+
             // Forward to underlying models for their own learning
             _baselineModel.RecordResult(artistName, albumTitle, usedComplexity, wasSuccessful);
             _personalModel?.RecordResult(artistName, albumTitle, usedComplexity, wasSuccessful);
@@ -193,13 +193,13 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
 
         public PatternStatistics GetStatistics()
         {
-            var accuracy = _totalPredictions > 0 
-                ? (double)_correctPredictions / _totalPredictions 
+            var accuracy = _totalPredictions > 0
+                ? (double)_correctPredictions / _totalPredictions
                 : 0.0;
 
             // Get baseline statistics for comparison
             var baselineStats = _baselineModel.GetStatistics();
-            
+
             return new PatternStatistics
             {
                 TotalPredictions = _totalPredictions,
@@ -226,25 +226,25 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
         {
             var complexity = PredictComplexity(artistName, albumTitle);
             var confidence = GetConfidenceScore(artistName, albumTitle, complexity);
-            
+
             // Use enhanced strategy selection for hybrid mode
             if (_personalModel != null)
             {
                 return GetHybridQueryStrategies(artistName, albumTitle, complexity, confidence);
             }
-            
+
             // Fallback to baseline strategies
             return _baselineModel.GetOptimizedQueryStrategies(artistName, albumTitle);
         }
 
-        private List<string> GetHybridQueryStrategies(string artistName, string albumTitle, 
+        private List<string> GetHybridQueryStrategies(string artistName, string albumTitle,
             QueryComplexity complexity, double confidence)
         {
             // Get strategies from both models
             var baselineStrategies = _baselineModel.GetOptimizedQueryStrategies(artistName, albumTitle);
-            var personalStrategies = _personalModel?.GetOptimizedQueryStrategies(artistName, albumTitle) 
+            var personalStrategies = _personalModel?.GetOptimizedQueryStrategies(artistName, albumTitle)
                                    ?? baselineStrategies;
-            
+
             // High confidence: use specific model's strategy
             if (confidence > _config.HighConfidenceThreshold)
             {
@@ -258,7 +258,7 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
                         return CombineStrategies(personalStrategies, baselineStrategies);
                 }
             }
-            
+
             // Low confidence: use conservative approach (baseline)
             return baselineStrategies;
         }
@@ -267,10 +267,10 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
         {
             // Merge strategies, preferring personal model but including baseline fallbacks
             var combined = new List<string>();
-            
+
             // Start with personal strategies
             combined.AddRange(personalStrategies);
-            
+
             // Add baseline strategies that aren't already included
             foreach (var strategy in baselineStrategies)
             {
@@ -279,7 +279,7 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
                     combined.Add(strategy);
                 }
             }
-            
+
             return combined;
         }
 
@@ -298,7 +298,7 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
             var complexity = PredictComplexity(artist, album);
             var confidence = GetConfidenceScore(artist, album, complexity);
             var strategies = GetOptimizedQueryStrategies(artist, album);
-            
+
             return await System.Threading.Tasks.Task.FromResult(new PredictionResult
             {
                 PredictedComplexity = complexity,
@@ -311,11 +311,11 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
         public async System.Threading.Tasks.Task<ModelMetrics> EvaluateModelAsync()
         {
             var baselineMetrics = await _baselineModel.EvaluateModelAsync();
-            
+
             if (_personalModel != null)
             {
                 var personalMetrics = await _personalModel.EvaluateModelAsync();
-                
+
                 // Return combined metrics
                 return new ModelMetrics
                 {
@@ -326,13 +326,13 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
                     ConfusionMatrix = baselineMetrics.ConfusionMatrix // Use baseline as primary
                 };
             }
-            
+
             return baselineMetrics;
         }
 
         public async System.Threading.Tasks.Task UpdateModelAsync(QueryResult actualResult)
         {
-            RecordResult(actualResult.Artist, actualResult.Album, 
+            RecordResult(actualResult.Artist, actualResult.Album,
                 actualResult.SuccessfulComplexity, actualResult.WasSuccessful);
             await System.Threading.Tasks.Task.CompletedTask;
         }
@@ -341,12 +341,12 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
         {
             // Use baseline model's feature extraction as primary
             // Personal model should use compatible feature extraction
-            
+
             // This is a simplified approach - in practice, both models should use
             // the same feature extraction pipeline for compatibility
             return new float[25]; // Placeholder - should extract actual features
         }
-        
+
         /// <summary>
         /// Initialize the hybrid model (placeholder for model loading simulation)
         /// </summary>
@@ -355,7 +355,7 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
             // Simulate hybrid model initialization work for performance timing
             // Removed Thread.Sleep anti-pattern - hybrid model should initialize instantly
         }
-        
+
         /// <summary>
         /// Get model usage distribution for analytics
         /// </summary>
@@ -370,7 +370,7 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
                 ["TotalDecisions"] = total
             };
         }
-        
+
         /// <summary>
         /// Record cache hit for performance tracking
         /// </summary>
@@ -378,7 +378,7 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
         {
             _performanceMetrics.RecordCacheHit();
         }
-        
+
         /// <summary>
         /// Record cache miss for performance tracking
         /// </summary>
@@ -386,7 +386,7 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
         {
             _performanceMetrics.RecordCacheMiss();
         }
-        
+
         /// <summary>
         /// Record API optimization results
         /// </summary>
@@ -394,7 +394,7 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
         {
             _performanceMetrics.RecordApiOptimization(callsSaved, totalCallsWithoutOptimization);
         }
-        
+
         /// <summary>
         /// Get detailed performance report
         /// </summary>
@@ -402,7 +402,7 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
         {
             var summary = _performanceMetrics.GetPerformanceSummary();
             var distribution = GetModelUsageDistribution();
-            
+
             var hybridReport = $@"
 HYBRID MODEL USAGE:
 - Baseline Only: {distribution["BaselinePercentage"]:F1}% ({_baselineUsed} decisions)
@@ -410,10 +410,10 @@ HYBRID MODEL USAGE:
 - Hybrid Logic: {distribution["HybridPercentage"]:F1}% ({_hybridUsed} decisions)
 - Total Decisions: {distribution["TotalDecisions"]}
 - Personal Model Available: {_personalModel != null}";
-            
+
             return summary.GetFormattedReport() + hybridReport;
         }
-        
+
         /// <summary>
         /// Get current performance health status
         /// </summary>
@@ -422,11 +422,11 @@ HYBRID MODEL USAGE:
             var summary = _performanceMetrics.GetPerformanceSummary();
             return summary.GetHealthStatus();
         }
-        
+
         #region IDisposable Implementation
-        
+
         private bool _disposed = false;
-        
+
         public void Dispose()
         {
             if (!_disposed)
@@ -436,7 +436,7 @@ HYBRID MODEL USAGE:
                 _logger.Debug("HybridMLQueryOptimizer disposed with performance metrics");
             }
         }
-        
+
         #endregion
     }
 
@@ -449,22 +449,22 @@ HYBRID MODEL USAGE:
         /// Confidence threshold above which a model is considered "high confidence"
         /// </summary>
         public double HighConfidenceThreshold { get; set; } = 0.8;
-        
+
         /// <summary>
         /// Minimum confidence difference required to prefer one model over another
         /// </summary>
         public double ConfidenceDifferenceThreshold { get; set; } = 0.15;
-        
+
         /// <summary>
         /// Weight for personal model in weighted combinations (0.0 = baseline only, 1.0 = personal only)
         /// </summary>
         public double PersonalModelWeight { get; set; } = 0.7;
-        
+
         /// <summary>
         /// Enable detailed logging of hybrid decision process
         /// </summary>
         public bool EnableDetailedLogging { get; set; } = false;
-        
+
         /// <summary>
         /// Strategy for handling model disagreements
         /// </summary>

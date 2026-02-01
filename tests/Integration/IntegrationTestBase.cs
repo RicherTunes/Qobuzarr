@@ -75,7 +75,7 @@ public abstract class IntegrationTestBase : IAsyncLifetime
             Framework = new LiveLidarrIntegrationFramework(Output);
             var connectivityResult = await Framework.ValidateBasicConnectivityAsync();
             Output.WriteLine(connectivityResult.ToString());
-            
+
             if (!connectivityResult.IsSuccess)
             {
                 SetSkipReason("⏭️ Skipping: Lidarr not reachable (set LIDARR_URL and LIDARR_API_KEY)");

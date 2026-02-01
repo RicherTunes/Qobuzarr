@@ -23,9 +23,9 @@ public class InteractiveSelectionService : IInteractiveSelectionService
     }
 
     public async Task<List<SearchResult>> SelectDownloadTargetsAsync(
-        List<SearchResult> results, 
-        string query, 
-        bool forceSelect, 
+        List<SearchResult> results,
+        string query,
+        bool forceSelect,
         bool downloadAll)
     {
         if (downloadAll)
@@ -36,7 +36,7 @@ public class InteractiveSelectionService : IInteractiveSelectionService
 
         // Check for exact matches
         var exactMatches = results.Where(r => r.Score >= 95).ToList();
-        
+
         if (exactMatches.Count == 1 && !forceSelect)
         {
             var match = exactMatches.First();
@@ -53,7 +53,7 @@ public class InteractiveSelectionService : IInteractiveSelectionService
         }
 
         // Multiple results - try to show selection UI, fallback to top result if not interactive
-        try 
+        try
         {
             return await ShowSelectionUIAsync(results, query, exactMatches).ConfigureAwait(false);
         }
@@ -66,7 +66,7 @@ public class InteractiveSelectionService : IInteractiveSelectionService
     }
 
     public async Task<List<SearchResult>> ShowSelectionUIAsync(
-        List<SearchResult> results, 
+        List<SearchResult> results,
         string query,
         List<SearchResult> exactMatches)
     {
@@ -242,7 +242,7 @@ public class InteractiveSelectionService : IInteractiveSelectionService
         {
             var parts = result.Quality.Split("•").Select(p => p.Trim()).ToList();
             var formatted = new List<string>();
-            
+
             foreach (var part in parts)
             {
                 if (part.Contains("Hi-Res"))
@@ -262,10 +262,10 @@ public class InteractiveSelectionService : IInteractiveSelectionService
                     formatted.Add($"[dim]{part}[/]");
                 }
             }
-            
+
             return string.Join(" [dim]•[/] ", formatted);
         }
-        
+
         // Legacy single format display
         return result.Quality switch
         {

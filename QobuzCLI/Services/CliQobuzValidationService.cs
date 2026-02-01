@@ -42,7 +42,7 @@ namespace QobuzCLI.Services
                 _logger.Debug("Validating downloadability for album {0}", albumId);
 
                 // Get album details first
-                var album = await _apiClient.GetAsync<QobuzAlbum>("/album/get", new System.Collections.Generic.Dictionary<string,string>{{"album_id", albumId}});
+                var album = await _apiClient.GetAsync<QobuzAlbum>("/album/get", new System.Collections.Generic.Dictionary<string, string> { { "album_id", albumId } });
                 if (album == null)
                 {
                     _logger.Debug("Album {0} not found - not downloadable", albumId);
@@ -79,7 +79,7 @@ namespace QobuzCLI.Services
                 }
 
                 var isDownloadable = downloadableCount > 0;
-                _logger.Debug("Album {0} validation result: {1} ({2}/{3} tracks downloadable)", 
+                _logger.Debug("Album {0} validation result: {1} ({2}/{3} tracks downloadable)",
                     albumId, isDownloadable ? "DOWNLOADABLE" : "NOT_DOWNLOADABLE", downloadableCount, sampleSize);
 
                 return isDownloadable;

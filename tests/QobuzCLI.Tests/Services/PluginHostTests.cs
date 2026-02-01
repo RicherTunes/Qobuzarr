@@ -52,8 +52,8 @@ public class PluginHostTests
     public async Task InitializeAsync_WithMockModeConfig_ShouldInitializeInMockMode()
     {
         // Arrange
-        var mockConfig = new QobuzConfig 
-        { 
+        var mockConfig = new QobuzConfig
+        {
             // No auth credentials - should initialize in mock mode
         };
 

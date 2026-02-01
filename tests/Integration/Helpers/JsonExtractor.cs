@@ -145,7 +145,7 @@ public static partial class JsonExtractor
     public static JArray RequireNonEmptyArray(JToken? token, string path, string endpoint, string? fullResponse = null)
     {
         var array = RequireArray(token, path, endpoint, fullResponse);
-        
+
         if (array.Count == 0)
         {
             throw CreateSkipException(path, "non-empty array", endpoint, fullResponse, "Array was empty");

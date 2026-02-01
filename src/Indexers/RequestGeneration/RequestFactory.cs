@@ -19,7 +19,7 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers.RequestGeneration
     {
         private readonly QobuzIndexerSettings _settings;
         private readonly Logger _logger;
-        
+
         private const string SEARCH_ENDPOINT = "/album/search";
         private const string BASE_URL = "https://www.qobuz.com/api.json/0.2";
         private const int PAGE_SIZE = 100;

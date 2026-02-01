@@ -11,7 +11,7 @@ namespace Lidarr.Plugin.Qobuzarr.Models
         public bool FallbackUsed { get; set; }
         public int AttemptsCount { get; set; }
         public string Error { get; set; }
-        
+
         /// <summary>
         /// Gets a description of the selection result.
         /// </summary>
@@ -27,7 +27,7 @@ namespace Lidarr.Plugin.Qobuzarr.Models
                 return $"Failed after {AttemptsCount} attempts: {Error}";
             }
         }
-        
+
         /// <summary>
         /// Creates a successful result.
         /// </summary>
@@ -42,7 +42,7 @@ namespace Lidarr.Plugin.Qobuzarr.Models
                 AttemptsCount = attempts
             };
         }
-        
+
         /// <summary>
         /// Creates a failed result.
         /// </summary>
@@ -55,7 +55,7 @@ namespace Lidarr.Plugin.Qobuzarr.Models
                 AttemptsCount = attempts
             };
         }
-        
+
         public override string ToString()
         {
             return GetDescription();

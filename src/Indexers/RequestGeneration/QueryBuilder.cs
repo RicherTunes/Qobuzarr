@@ -15,14 +15,14 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers.RequestGeneration
     public class QueryBuilder : IQueryBuilder
     {
         private readonly Logger _logger;
-        
+
         // Regex patterns for query processing
         private static readonly Regex YearPattern = new Regex(@"\b(19|20)\d{2}\b", RegexOptions.Compiled);
         private static readonly Regex SpecialCharsPattern = new Regex(@"[^\w\s\-\.\(\)\[\]]", RegexOptions.Compiled);
         private static readonly Regex MultiSpacePattern = new Regex(@"\s+", RegexOptions.Compiled);
-        
+
         // Common album title suffixes to remove
-        private static readonly string[] AlbumSuffixes = 
+        private static readonly string[] AlbumSuffixes =
         {
             "(Deluxe Edition)", "(Deluxe)", "(Expanded Edition)", "(Remastered)",
             "(Remaster)", "(Anniversary Edition)", "(Special Edition)", "(Bonus Track Version)",
@@ -99,7 +99,7 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers.RequestGeneration
                     }
                 }
 
-                _logger.Debug("Generated {0} search queries for album: {1} - {2}", 
+                _logger.Debug("Generated {0} search queries for album: {1} - {2}",
                     queries.Count, artistName, albumTitle);
 
                 return queries;
@@ -160,10 +160,10 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers.RequestGeneration
             {
                 // Remove special characters except basic punctuation
                 var cleaned = SpecialCharsPattern.Replace(query, " ");
-                
+
                 // Normalize multiple spaces to single space
                 cleaned = MultiSpacePattern.Replace(cleaned, " ");
-                
+
                 // Trim whitespace
                 cleaned = cleaned.Trim();
 
@@ -199,7 +199,7 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers.RequestGeneration
                     else
                     {
                         // Capitalize first letter, lowercase the rest
-                        var titleCased = char.ToUpperInvariant(word[0]) + 
+                        var titleCased = char.ToUpperInvariant(word[0]) +
                             (word.Length > 1 ? word.Substring(1).ToLowerInvariant() : "");
                         result.Add(titleCased);
                     }
@@ -278,12 +278,12 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers.RequestGeneration
 
         private bool IsArticleOrPreposition(string word)
         {
-            var articlesAndPrepositions = new[] 
-            { 
-                "a", "an", "the", "and", "or", "but", "in", "on", "at", "to", 
-                "for", "of", "with", "by", "from", "up", "about", "into", "through" 
+            var articlesAndPrepositions = new[]
+            {
+                "a", "an", "the", "and", "or", "but", "in", "on", "at", "to",
+                "for", "of", "with", "by", "from", "up", "about", "into", "through"
             };
-            
+
             return articlesAndPrepositions.Contains(word);
         }
     }

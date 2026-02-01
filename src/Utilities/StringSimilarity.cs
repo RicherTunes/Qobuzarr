@@ -13,13 +13,13 @@ namespace Lidarr.Plugin.Qobuzarr.Utilities
     public static partial class StringSimilarity
     {
         private static readonly UnicodeNormalizer Unicode = new UnicodeNormalizer(NullLogger<UnicodeNormalizer>.Instance);
-        
+
         [GeneratedRegex(@"[^a-zA-Z0-9\s]")]
         private static partial Regex NonAlphanumericRegex();
-        
+
         [GeneratedRegex(@"\s+")]
         private static partial Regex MultipleSpacesRegex();
-        
+
         /// <summary>
         /// Calculates normalized string similarity using Levenshtein distance.
         /// Returns a value between 0.0 (completely different) and 1.0 (identical).
@@ -28,7 +28,7 @@ namespace Lidarr.Plugin.Qobuzarr.Utilities
         {
             if (string.IsNullOrEmpty(s1) && string.IsNullOrEmpty(s2))
                 return 1.0;
-            
+
             if (string.IsNullOrEmpty(s1) || string.IsNullOrEmpty(s2))
                 return 0.0;
 
@@ -53,7 +53,7 @@ namespace Lidarr.Plugin.Qobuzarr.Utilities
         {
             if (string.IsNullOrEmpty(s1))
                 return string.IsNullOrEmpty(s2) ? 0 : s2.Length;
-            
+
             if (string.IsNullOrEmpty(s2))
                 return s1.Length;
 
@@ -93,7 +93,7 @@ namespace Lidarr.Plugin.Qobuzarr.Utilities
                 return string.Empty;
 
             var normalized = title.ToLowerInvariant();
-            
+
             // Common replacements
             normalized = normalized
                 .Replace("&", "and")
@@ -118,10 +118,10 @@ namespace Lidarr.Plugin.Qobuzarr.Utilities
 
             // Remove any remaining non-alphanumeric characters
             normalized = NonAlphanumericRegex().Replace(normalized, " ");
-            
+
             // Collapse multiple spaces
             normalized = MultipleSpacesRegex().Replace(normalized, " ");
-            
+
             return normalized.Trim();
         }
 
@@ -133,7 +133,7 @@ namespace Lidarr.Plugin.Qobuzarr.Utilities
         {
             if (string.IsNullOrEmpty(s1) && string.IsNullOrEmpty(s2))
                 return 1.0;
-            
+
             if (string.IsNullOrEmpty(s1) || string.IsNullOrEmpty(s2))
                 return 0.0;
 
@@ -142,53 +142,53 @@ namespace Lidarr.Plugin.Qobuzarr.Utilities
 
             var s1Length = s1.Length;
             var s2Length = s2.Length;
-            
+
             var matchDistance = Math.Max(s1Length, s2Length) / 2 - 1;
             var s1Matches = new bool[s1Length];
             var s2Matches = new bool[s2Length];
-            
+
             var matches = 0;
             var transpositions = 0;
-            
+
             // Find matches
             for (int i = 0; i < s1Length; i++)
             {
                 var start = Math.Max(0, i - matchDistance);
                 var end = Math.Min(i + matchDistance + 1, s2Length);
-                
+
                 for (int j = start; j < end; j++)
                 {
                     if (s2Matches[j] || s1[i] != s2[j])
                         continue;
-                    
+
                     s1Matches[i] = true;
                     s2Matches[j] = true;
                     matches++;
                     break;
                 }
             }
-            
+
             if (matches == 0)
                 return 0.0;
-            
+
             // Find transpositions
             var k = 0;
             for (int i = 0; i < s1Length; i++)
             {
                 if (!s1Matches[i])
                     continue;
-                
+
                 while (!s2Matches[k])
                     k++;
-                
+
                 if (s1[i] != s2[k])
                     transpositions++;
-                
+
                 k++;
             }
-            
-            return (matches / (double)s1Length + 
-                    matches / (double)s2Length + 
+
+            return (matches / (double)s1Length +
+                    matches / (double)s2Length +
                     (matches - transpositions / 2.0) / matches) / 3.0;
         }
 
@@ -199,14 +199,14 @@ namespace Lidarr.Plugin.Qobuzarr.Utilities
         public static double JaroWinklerSimilarity(string s1, string s2, double prefixScale = 0.1)
         {
             var jaroSimilarity = JaroSimilarity(s1, s2);
-            
+
             if (jaroSimilarity < 0.7)
                 return jaroSimilarity;
-            
+
             // Calculate common prefix length (up to 4 characters)
             var prefixLength = 0;
             var maxPrefix = Math.Min(Math.Min(s1?.Length ?? 0, s2?.Length ?? 0), 4);
-            
+
             for (int i = 0; i < maxPrefix; i++)
             {
                 if (s1[i] == s2[i])
@@ -214,7 +214,7 @@ namespace Lidarr.Plugin.Qobuzarr.Utilities
                 else
                     break;
             }
-            
+
             return jaroSimilarity + prefixLength * prefixScale * (1 - jaroSimilarity);
         }
 
@@ -227,12 +227,12 @@ namespace Lidarr.Plugin.Qobuzarr.Utilities
             // For very short strings, use exact matching
             if ((s1?.Length ?? 0) < 3 || (s2?.Length ?? 0) < 3)
                 return string.Equals(s1, s2, StringComparison.OrdinalIgnoreCase);
-            
+
             // For strings with similar lengths, use Levenshtein
             var lengthRatio = (double)Math.Min(s1.Length, s2.Length) / Math.Max(s1.Length, s2.Length);
             if (lengthRatio > 0.7)
                 return Calculate(s1, s2) >= threshold;
-            
+
             // For strings with different lengths, use Jaro-Winkler
             return JaroWinklerSimilarity(s1, s2) >= threshold;
         }
@@ -247,17 +247,17 @@ namespace Lidarr.Plugin.Qobuzarr.Utilities
             TimeSpan? duration1, TimeSpan? duration2)
         {
             double score = 0.0;
-            
+
             // Title similarity (70% weight)
             var titleSimilarity = Calculate(NormalizeTitle(title1), NormalizeTitle(title2));
             score += titleSimilarity * 0.7;
-            
+
             // Track number match (20% weight)
             if (trackNumber1.HasValue && trackNumber2.HasValue && trackNumber1 == trackNumber2)
             {
                 score += 0.2;
             }
-            
+
             // Duration similarity (10% weight)
             if (duration1.HasValue && duration2.HasValue)
             {
@@ -271,7 +271,7 @@ namespace Lidarr.Plugin.Qobuzarr.Utilities
                     score += 0.05;
                 }
             }
-            
+
             return Math.Min(1.0, score);
         }
     }

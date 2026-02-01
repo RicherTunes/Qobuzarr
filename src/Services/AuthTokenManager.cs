@@ -30,19 +30,19 @@ namespace Lidarr.Plugin.Qobuzarr.Services
         private readonly Timer _refreshTimer;
         private readonly SemaphoreSlim _refreshSemaphore;
         private readonly object _tokenLock = new();
-        
+
         // Token management state
         private volatile string _currentToken;
         private DateTime _tokenExpiryTime; // Not volatile - accessed within locks
         private volatile bool _isRefreshing = false;
         private volatile int _refreshAttempts = 0;
-        
+
         // Configuration
         private readonly TimeSpan _refreshBufferTime = TimeSpan.FromMinutes(5); // Refresh 5 minutes before expiry
         private readonly TimeSpan _refreshCheckInterval = TimeSpan.FromMinutes(1); // Check every minute
         private readonly int _maxRefreshAttempts = 3;
         private readonly TimeSpan _refreshRetryDelay = TimeSpan.FromSeconds(30);
-        
+
         // Events
         public event EventHandler<TokenRefreshEventArgs> TokenRefreshed;
         public event EventHandler<TokenRefreshFailedEventArgs> TokenRefreshFailed;
@@ -52,12 +52,12 @@ namespace Lidarr.Plugin.Qobuzarr.Services
             _authService = authService ?? throw new ArgumentNullException(nameof(authService));
             _logger = logger ?? LogManager.GetCurrentClassLogger();
             _refreshSemaphore = new SemaphoreSlim(1, 1);
-            
+
             // Start background refresh monitoring
-            _refreshTimer = new Timer(CheckTokenRefreshAsync, null, 
+            _refreshTimer = new Timer(CheckTokenRefreshAsync, null,
                 _refreshCheckInterval, _refreshCheckInterval);
-            
-            _logger.Info("🔐 AUTH TOKEN MANAGER: Initialized with {0}min refresh buffer", 
+
+            _logger.Info("🔐 AUTH TOKEN MANAGER: Initialized with {0}min refresh buffer",
                         _refreshBufferTime.TotalMinutes);
         }
 
@@ -86,9 +86,9 @@ namespace Lidarr.Plugin.Qobuzarr.Services
                 }
 
                 _logger.Debug("🔐 TOKEN REFRESH: {0}", forceRefresh ? "Forced refresh" : "Token expired/invalid");
-                
+
                 await RefreshTokenInternalAsync(cancellationToken);
-                
+
                 if (string.IsNullOrEmpty(_currentToken))
                 {
                     throw new AuthenticationException("Failed to obtain valid authentication token");
@@ -127,26 +127,26 @@ namespace Lidarr.Plugin.Qobuzarr.Services
                 {
                     lastException = authEx;
                     _logger.Warn("🔐 AUTH FAILURE: Attempt {0} failed, refreshing token: {1}", attempt, authEx.Message);
-                    
+
                     // Mark token as invalid to force refresh
                     lock (_tokenLock)
                     {
                         _tokenExpiryTime = DateTime.UtcNow.AddSeconds(-1);
                     }
-                    
+
                     // Continue to next attempt which will force refresh
                 }
                 catch (Exception ex) when (IsAuthenticationError(ex) && attempt < maxAttempts)
                 {
                     lastException = ex;
                     _logger.Warn("🔐 POTENTIAL AUTH ERROR: Attempt {0} failed, trying token refresh: {1}", attempt, ex.Message);
-                    
+
                     // Mark token as invalid to force refresh
                     lock (_tokenLock)
                     {
                         _tokenExpiryTime = DateTime.UtcNow.AddSeconds(-1);
                     }
-                    
+
                     // Continue to next attempt
                 }
             }
@@ -164,17 +164,17 @@ namespace Lidarr.Plugin.Qobuzarr.Services
         public async Task InitializeAsync(CancellationToken cancellationToken = default)
         {
             _logger.Info("🔐 INITIALIZING: Getting initial authentication token");
-            
+
             await _refreshSemaphore.WaitAsync(cancellationToken);
             try
             {
                 await RefreshTokenInternalAsync(cancellationToken);
-                
+
                 if (string.IsNullOrEmpty(_currentToken))
                 {
                     throw new AuthenticationException("Failed to obtain initial authentication token");
                 }
-                
+
                 _logger.Info("✅ INITIALIZED: Authentication token obtained, expires: {0}", _tokenExpiryTime);
             }
             finally
@@ -193,7 +193,7 @@ namespace Lidarr.Plugin.Qobuzarr.Services
                 var now = DateTime.UtcNow;
                 var timeToExpiry = _tokenExpiryTime > now ? _tokenExpiryTime - now : TimeSpan.Zero;
                 var shouldRefreshSoon = timeToExpiry <= _refreshBufferTime;
-                
+
                 return new TokenStatus
                 {
                     HasToken = !string.IsNullOrEmpty(_currentToken),
@@ -216,7 +216,7 @@ namespace Lidarr.Plugin.Qobuzarr.Services
         {
             lock (_tokenLock)
             {
-                return !string.IsNullOrEmpty(_currentToken) && 
+                return !string.IsNullOrEmpty(_currentToken) &&
                        DateTime.UtcNow < (_tokenExpiryTime - _refreshBufferTime);
             }
         }
@@ -238,13 +238,13 @@ namespace Lidarr.Plugin.Qobuzarr.Services
 
             _isRefreshing = true;
             var refreshStartTime = DateTime.UtcNow;
-            
+
             try
             {
                 _logger.Debug("🔄 TOKEN REFRESH: Starting refresh process");
 
                 var authResult = await _authService.AuthenticateAsync(cancellationToken);
-                
+
                 if (authResult == null || string.IsNullOrEmpty(authResult.Token))
                 {
                     throw new AuthenticationException("Authentication service returned null or empty token");
@@ -258,7 +258,7 @@ namespace Lidarr.Plugin.Qobuzarr.Services
                 }
 
                 var refreshDuration = DateTime.UtcNow - refreshStartTime;
-                _logger.Info("✅ TOKEN REFRESHED: New token obtained in {0:F1}s, expires: {1}", 
+                _logger.Info("✅ TOKEN REFRESHED: New token obtained in {0:F1}s, expires: {1}",
                            refreshDuration.TotalSeconds, _tokenExpiryTime);
 
                 // Notify subscribers
@@ -273,8 +273,8 @@ namespace Lidarr.Plugin.Qobuzarr.Services
             {
                 _refreshAttempts++;
                 var refreshDuration = DateTime.UtcNow - refreshStartTime;
-                
-                _logger.Error(ex, "❌ TOKEN REFRESH FAILED: Attempt {0}/{1} failed after {2:F1}s", 
+
+                _logger.Error(ex, "❌ TOKEN REFRESH FAILED: Attempt {0}/{1} failed after {2:F1}s",
                              _refreshAttempts, _maxRefreshAttempts, refreshDuration.TotalSeconds);
 
                 // Notify subscribers of failure
@@ -294,7 +294,7 @@ namespace Lidarr.Plugin.Qobuzarr.Services
                         _currentToken = null;
                         _tokenExpiryTime = DateTime.UtcNow.AddSeconds(-1);
                     }
-                    
+
                     _logger.Error("💥 TOKEN EXHAUSTED: All refresh attempts failed, token cleared");
                 }
 
@@ -314,15 +314,15 @@ namespace Lidarr.Plugin.Qobuzarr.Services
             try
             {
                 var status = GetTokenStatus();
-                
+
                 if (status.HasToken && status.ShouldRefreshSoon && !status.IsRefreshing)
                 {
-                    _logger.Debug("⏰ PROACTIVE REFRESH: Token expires in {0:F1}min, refreshing preemptively", 
+                    _logger.Debug("⏰ PROACTIVE REFRESH: Token expires in {0:F1}min, refreshing preemptively",
                                  status.TimeToExpiry.TotalMinutes);
-                    
+
                     // Use a short timeout for background refresh to avoid blocking
                     using var cts = new CancellationTokenSource(TimeSpan.FromMinutes(2));
-                    
+
                     try
                     {
                         await GetValidTokenAsync(false, cts.Token);
@@ -349,8 +349,8 @@ namespace Lidarr.Plugin.Qobuzarr.Services
                 return true;
 
             var message = ex.Message?.ToLowerInvariant() ?? "";
-            return message.Contains("unauthorized") || 
-                   message.Contains("forbidden") || 
+            return message.Contains("unauthorized") ||
+                   message.Contains("forbidden") ||
                    message.Contains("authentication") ||
                    message.Contains("token") ||
                    message.Contains("401") ||
@@ -391,7 +391,7 @@ namespace Lidarr.Plugin.Qobuzarr.Services
         public bool ShouldRefreshSoon { get; set; }
         public bool IsRefreshing { get; set; }
         public int RefreshAttempts { get; set; }
-        
+
         public double MinutesToExpiry => TimeToExpiry.TotalMinutes;
         public bool IsHealthy => HasToken && !IsExpired && !ShouldRefreshSoon;
     }
@@ -415,7 +415,7 @@ namespace Lidarr.Plugin.Qobuzarr.Services
         public int AttemptNumber { get; set; }
         public int MaxAttempts { get; set; }
         public TimeSpan RefreshDuration { get; set; }
-        
+
         public bool IsLastAttempt => AttemptNumber >= MaxAttempts;
     }
 

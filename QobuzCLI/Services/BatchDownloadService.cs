@@ -55,7 +55,7 @@ public class BatchDownloadService : IBatchDownloadService
 
             // Load queries from file
             var (queries, exportData) = await LoadQueriesFromFileAsync(options.FilePath);
-            
+
             if (!queries.Any())
             {
                 AnsiConsole.MarkupLine("[yellow]⚠️ No valid queries found in file[/]");
@@ -115,12 +115,12 @@ public class BatchDownloadService : IBatchDownloadService
             {
                 var queries = exportData.Albums.Select(a => a.SearchQuery).ToList();
                 AnsiConsole.MarkupLine($"[green]✅ Loaded {queries.Count} albums from Lidarr export[/]");
-                
+
                 if (!string.IsNullOrEmpty(exportData.SchemaVersion))
                 {
                     AnsiConsole.MarkupLine($"[dim]📋 Format: {exportData.Format} v{exportData.SchemaVersion}[/]");
                 }
-                
+
                 return (queries, exportData);
             }
         }
@@ -145,12 +145,12 @@ public class BatchDownloadService : IBatchDownloadService
         // Command line args take precedence over JSON config
         string? effectiveOutput = options.OutputDirectory;
         string? effectiveQuality = options.Quality;
-        
+
         if (exportData?.Config != null)
         {
             effectiveOutput = options.OutputDirectory ?? exportData.Config.OutputDirectory;
             effectiveQuality = options.Quality ?? exportData.Config.Quality;
-            
+
             if (effectiveOutput != options.OutputDirectory || effectiveQuality != options.Quality)
             {
                 AnsiConsole.MarkupLine($"[dim]⚙️ Using config overrides from JSON[/]");
@@ -178,7 +178,7 @@ public class BatchDownloadService : IBatchDownloadService
     private async Task ProcessImmediateDownloadsAsync(List<string> queries, QobuzConfig config, BatchDownloadReport report, CancellationToken cancellationToken = default)
     {
         _dashboard.Start("🚀 Immediate Batch Download", queries.Count);
-        
+
         try
         {
             int successful = 0;
@@ -188,14 +188,14 @@ public class BatchDownloadService : IBatchDownloadService
             {
                 var stopwatch = System.Diagnostics.Stopwatch.StartNew();
                 var reportItem = new DownloadReportItem { Query = query };
-                
+
                 _dashboard.UpdateProgress(successful + failed, successful, failed, query);
-                
+
                 try
                 {
                     // Search and download
                     var result = await SearchAndDownloadAsync(query, config);
-                    
+
                     if (result.Success)
                     {
                         successful++;
@@ -221,13 +221,13 @@ public class BatchDownloadService : IBatchDownloadService
                 stopwatch.Stop();
                 reportItem.ProcessingTime = stopwatch.Elapsed;
                 report.Items.Add(reportItem);
-                
+
                 await Task.Delay(100); // Be nice to the API
             }
 
             report.SuccessfulItems = successful;
             report.FailedItems = failed;
-            
+
             // Show summary
             AnsiConsole.WriteLine();
             AnsiConsole.MarkupLine($"[green]✅ Batch download completed: {successful} successful, {failed} failed[/]");
@@ -241,7 +241,7 @@ public class BatchDownloadService : IBatchDownloadService
     private async Task ProcessQueuedDownloadsAsync(List<string> queries, QobuzConfig config, BatchDownloadOptions options, BatchDownloadReport report, CancellationToken cancellationToken = default)
     {
         _dashboard.Start("🚀 Queue-Based Batch Processing", queries.Count);
-        
+
         try
         {
             int successful = 0;
@@ -255,14 +255,14 @@ public class BatchDownloadService : IBatchDownloadService
                 {
                     var stopwatch = System.Diagnostics.Stopwatch.StartNew();
                     var reportItem = new DownloadReportItem { Query = query };
-                    
+
                     _dashboard.UpdateProgress(successful + failed, successful, failed, query);
-                    
+
                     try
                     {
                         // Search and queue
                         var result = await SearchAndQueueAsync(query, config, options.Priority, options.QueueId);
-                        
+
                         if (result.Success)
                         {
                             Interlocked.Increment(ref successful);
@@ -288,7 +288,7 @@ public class BatchDownloadService : IBatchDownloadService
                     stopwatch.Stop();
                     reportItem.ProcessingTime = stopwatch.Elapsed;
                     report.Items.Add(reportItem);
-                    
+
                     await Task.Delay(50); // Be nice to the API
                 }
                 finally
@@ -304,7 +304,7 @@ public class BatchDownloadService : IBatchDownloadService
 
             // Dashboard has finished tracking the queuing process
             _dashboard.StopOperation();
-            
+
             // Start queue monitoring if items were added
             if (successful > 0)
             {
@@ -336,23 +336,23 @@ public class BatchDownloadService : IBatchDownloadService
 
         if (!results.Any())
         {
-            return new BatchDownloadResult 
-            { 
-                Success = false, 
-                ErrorMessage = "No matching albums found" 
+            return new BatchDownloadResult
+            {
+                Success = false,
+                ErrorMessage = "No matching albums found"
             };
         }
 
         // Auto-select best match
         var bestResult = results.First();
-        
+
         // Create output directory
         var artistDir = Path.Combine(config.OutputDirectory, Lidarr.Plugin.Common.Utilities.FileSystemUtilities.SanitizeFileName(bestResult.Artist));
         var albumDir = Path.Combine(artistDir, Lidarr.Plugin.Common.Utilities.FileSystemUtilities.CreateAlbumDirectoryName(bestResult.Title, bestResult.Year));
 
         // Download using plugin host
         var downloadResult = await _pluginHost.DownloadAlbumAsync(bestResult.Id, albumDir, config.Quality);
-        
+
         return new BatchDownloadResult
         {
             Success = downloadResult.IsSuccessful(),
@@ -372,10 +372,10 @@ public class BatchDownloadService : IBatchDownloadService
 
         if (!results.Any())
         {
-            return new BatchDownloadResult 
-            { 
-                Success = false, 
-                ErrorMessage = "No matching albums found" 
+            return new BatchDownloadResult
+            {
+                Success = false,
+                ErrorMessage = "No matching albums found"
             };
         }
 
@@ -403,8 +403,8 @@ public class BatchDownloadService : IBatchDownloadService
 
         // Get target queue
         var queues = _queueService.GetQueues();
-        var targetQueue = string.IsNullOrEmpty(queueId) 
-            ? queues.FirstOrDefault() 
+        var targetQueue = string.IsNullOrEmpty(queueId)
+            ? queues.FirstOrDefault()
             : _queueService.GetQueue(queueId);
 
         if (targetQueue == null)
@@ -459,20 +459,20 @@ public class BatchDownloadService : IBatchDownloadService
     {
         AnsiConsole.MarkupLine("[cyan]🔄 Monitoring queue progress...[/]");
         AnsiConsole.MarkupLine("[dim]Press Ctrl+C to stop monitoring (queue will continue in background)[/]");
-        
+
         while (true)
         {
             var stats = _queueService.GetQueueStatistics(queueId);
             var remaining = stats.PendingItems + stats.ActiveDownloads;
-            
+
             if (remaining == 0)
             {
                 AnsiConsole.MarkupLine("[green]✅ All downloads completed[/]");
                 break;
             }
-            
+
             AnsiConsole.MarkupLine($"[blue]Progress:[/] Active: {stats.ActiveDownloads}, Completed: {stats.CompletedItems}, Failed: {stats.FailedItems}, Remaining: {remaining}");
-            
+
             try
             {
                 await Task.Delay(2000);
@@ -484,15 +484,15 @@ public class BatchDownloadService : IBatchDownloadService
             }
         }
     }
-    
+
     private async Task MonitorQueueWithDashboardAsync(string queueId)
     {
         var stats = _queueService.GetQueueStatistics(queueId);
         var totalItems = stats.TotalItems;
-        
+
         // Start a new dashboard for monitoring the actual downloads
         _dashboard.Start("📥 Downloading Queued Items", totalItems);
-        
+
         try
         {
             while (true)
@@ -501,11 +501,11 @@ public class BatchDownloadService : IBatchDownloadService
                 var remaining = stats.PendingItems + stats.ActiveDownloads;
                 var completed = stats.CompletedItems;
                 var failed = stats.FailedItems;
-                
+
                 // Update dashboard with download progress
                 var currentItem = "";
                 var lastSuccessful = "";
-                
+
                 // Try to get current downloading items from queue
                 var queue = _queueService.GetQueue(queueId);
                 if (queue != null)
@@ -516,7 +516,7 @@ public class BatchDownloadService : IBatchDownloadService
                         var active = activeItems.First();
                         currentItem = $"{active.Metadata?.GetValueOrDefault("artist")} - {active.Metadata?.GetValueOrDefault("title")}";
                     }
-                    
+
                     var lastCompleted = queue.Items
                         .Where(i => i.Status == QueueStatus.Completed && i.CompletedAt.HasValue)
                         .OrderByDescending(i => i.CompletedAt!.Value)
@@ -526,15 +526,15 @@ public class BatchDownloadService : IBatchDownloadService
                         lastSuccessful = $"{lastCompleted.Metadata?.GetValueOrDefault("artist")} - {lastCompleted.Metadata?.GetValueOrDefault("title")}";
                     }
                 }
-                
+
                 _dashboard.UpdateProgress(completed + failed, completed, failed, currentItem, lastSuccessful);
-                
+
                 // Add log messages for milestones
                 if (completed % 100 == 0 && completed > 0)
                 {
                     _dashboard.AddLogMessage($"Milestone: {completed} albums downloaded");
                 }
-                
+
                 // Check if all downloads are complete
                 if (remaining == 0)
                 {
@@ -542,7 +542,7 @@ public class BatchDownloadService : IBatchDownloadService
                     await Task.Delay(2000); // Show final state briefly
                     break;
                 }
-                
+
                 try
                 {
                     await Task.Delay(500); // Update every 500ms for smoother dashboard
@@ -557,7 +557,7 @@ public class BatchDownloadService : IBatchDownloadService
         finally
         {
             _dashboard.StopOperation();
-            
+
             // Show final summary
             AnsiConsole.WriteLine();
             AnsiConsole.MarkupLine($"[green]✅ Download queue processing complete![/]");
@@ -579,7 +579,7 @@ public class BatchDownloadService : IBatchDownloadService
 
             var fileName = outputPath ?? $"qobuz_batch_report_{DateTime.Now:yyyyMMdd_HHmmss}.{format}";
             await File.WriteAllTextAsync(fileName, content);
-            
+
             AnsiConsole.MarkupLine($"[green]📊 Report generated: {fileName}[/]");
         }
         catch (Exception ex)
@@ -604,7 +604,7 @@ public class BatchDownloadService : IBatchDownloadService
         sb.AppendLine($"<p>Source: {report.SourceFile}</p>");
         sb.AppendLine($"<p>Total: {report.TotalItems} | Success: {report.SuccessfulItems} | Failed: {report.FailedItems}</p>");
         sb.AppendLine("<table><tr><th>Query</th><th>Status</th><th>Album</th><th>Size</th><th>Time</th></tr>");
-        
+
         foreach (var item in report.Items)
         {
             var statusClass = item.Status == "Success" ? "success" : "failed";
@@ -614,7 +614,7 @@ public class BatchDownloadService : IBatchDownloadService
             sb.AppendLine($"<td>{item.FormattedSize}</td>");
             sb.AppendLine($"<td>{item.ProcessingTime.TotalSeconds:F1}s</td></tr>");
         }
-        
+
         sb.AppendLine("</table></body></html>");
         return sb.ToString();
     }
@@ -629,7 +629,7 @@ public class BatchDownloadService : IBatchDownloadService
         sb.AppendLine($"Total: {report.TotalItems} | Success: {report.SuccessfulItems} | Failed: {report.FailedItems}");
         sb.AppendLine();
         sb.AppendLine("RESULTS:");
-        
+
         foreach (var item in report.Items)
         {
             sb.AppendLine($"- {item.Query}: {item.Status}");
@@ -642,7 +642,7 @@ public class BatchDownloadService : IBatchDownloadService
                 sb.AppendLine($"  Error: {item.ErrorMessage}");
             }
         }
-        
+
         return sb.ToString();
     }
 
@@ -690,7 +690,7 @@ public class BatchDownloadService : IBatchDownloadService
         public List<DownloadReportItem> Items { get; set; } = new();
         public DownloadReportConfig Config { get; set; } = new();
         public string FormattedTotalSize => FormatFileSize(TotalSizeBytes);
-        
+
         private static string FormatFileSize(long bytes)
         {
             if (bytes == 0) return "0 B";
@@ -716,7 +716,7 @@ public class BatchDownloadService : IBatchDownloadService
         public TimeSpan ProcessingTime { get; set; }
         public long SizeBytes { get; set; }
         public string FormattedSize => FormatFileSize(SizeBytes);
-        
+
         private static string FormatFileSize(long bytes)
         {
             if (bytes == 0) return "0 B";

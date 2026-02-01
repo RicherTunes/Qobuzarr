@@ -19,25 +19,25 @@ namespace Qobuzarr.Tests.Unit.Download
         {
             // This basic test ensures we can successfully build the test project
             // and validates that all required dependencies are available
-            
+
             // Arrange
             var mockAuthService = new Mock<IQobuzAuthenticationService>();
             var mockApiClient = new Mock<IQobuzApiClient>();
-            
+
             // Act
             var canCreateMocks = mockAuthService != null && mockApiClient != null;
-            
+
             // Assert
             canCreateMocks.Should().BeTrue("mocking framework should be working correctly");
             typeof(QobuzDownloadClient).Should().NotBeNull("QobuzDownloadClient type should be available");
         }
-        
+
         [Fact]
         public void QobuzDownloadClient_Type_ShouldExist()
         {
             // Act
             var clientType = typeof(QobuzDownloadClient);
-            
+
             // Assert
             clientType.Should().NotBeNull("QobuzDownloadClient type should exist");
             clientType.Name.Should().Be("QobuzDownloadClient", "type should have correct name");

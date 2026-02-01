@@ -37,19 +37,19 @@ namespace Lidarr.Plugin.Qobuzarr.Security
                 return null;
 
             var secureString = new SecureString();
-            
+
             try
             {
                 foreach (char c in source)
                 {
                     secureString.AppendChar(c);
                 }
-                
+
                 secureString.MakeReadOnly();
-                
+
                 // Clear the source string from memory if possible
                 ClearString(ref source);
-                
+
                 return secureString;
             }
             catch (Exception ex)
@@ -102,7 +102,7 @@ namespace Lidarr.Plugin.Qobuzarr.Security
                 // due to string immutability. The GC will handle memory reclamation
                 // automatically and deterministically without blocking operations.
                 value = null;
-                
+
                 // Note: Forcing GC.Collect() is an anti-pattern that causes:
                 // - Performance degradation due to blocking all threads
                 // - Promotion of objects to higher generations unnecessarily
@@ -133,9 +133,9 @@ namespace Lidarr.Plugin.Qobuzarr.Security
 
             // Check for common security anti-patterns
             var lowerCredential = credential.ToLowerInvariant();
-            
-            if (lowerCredential.Contains("example") || 
-                lowerCredential.Contains("test") || 
+
+            if (lowerCredential.Contains("example") ||
+                lowerCredential.Contains("test") ||
                 lowerCredential.Contains("demo") ||
                 lowerCredential.Contains("placeholder") ||
                 lowerCredential.Contains("changeme") ||
@@ -173,12 +173,12 @@ namespace Lidarr.Plugin.Qobuzarr.Security
                 _logger.Warn("Credential appears to contain file path or environment variable instead of actual credential");
                 return false;
             }
-            
+
             // WARN ONLY: These patterns might appear in legitimate opaque tokens
             // Log a warning but don't reject - modern auth tokens can contain any characters
             // (including /, $, SQL keywords, etc.)
             var lowerCred = credential.ToLowerInvariant();
-            bool hasSuspiciousPatterns = 
+            bool hasSuspiciousPatterns =
                 credential.StartsWith("javascript:", StringComparison.OrdinalIgnoreCase) ||
                 credential.StartsWith("data:", StringComparison.OrdinalIgnoreCase) ||
                 credential.Contains("<script", StringComparison.OrdinalIgnoreCase) ||
@@ -190,7 +190,7 @@ namespace Lidarr.Plugin.Qobuzarr.Security
                 // Warn on likely env var/path patterns but don't reject
                 (credential.StartsWith("$") && credential.Contains("/")) ||  // Likely $HOME/path
                 (credential.StartsWith("/") && credential.Contains("/etc"));  // Likely /etc/passwd
-            
+
             if (hasSuspiciousPatterns)
             {
                 _logger.Warn("Credential contains patterns that may indicate a misconfiguration. " +
@@ -303,21 +303,21 @@ namespace Lidarr.Plugin.Qobuzarr.Security
             {
                 var credentialBytes = Encoding.UTF8.GetBytes(credential);
                 var saltedCredential = new byte[credentialBytes.Length + salt.Length];
-                
+
                 Array.Copy(credentialBytes, 0, saltedCredential, 0, credentialBytes.Length);
                 Array.Copy(salt, 0, saltedCredential, credentialBytes.Length, salt.Length);
-                
+
                 var hash = sha256.ComputeHash(saltedCredential);
-                
+
                 // Clear intermediate arrays
                 Array.Clear(credentialBytes, 0, credentialBytes.Length);
                 Array.Clear(saltedCredential, 0, saltedCredential.Length);
-                
+
                 // Combine salt and hash for storage
                 var result = new byte[salt.Length + hash.Length];
                 Array.Copy(salt, 0, result, 0, salt.Length);
                 Array.Copy(hash, 0, result, salt.Length, hash.Length);
-                
+
                 return Convert.ToBase64String(result);
             }
         }
@@ -373,7 +373,7 @@ namespace Lidarr.Plugin.Qobuzarr.Security
             // Store new secure credential
             var secureWrapper = new SecureCredentialWrapper(credential);
             _secureCredentials.TryAdd(key, secureWrapper);
-            
+
             _logger.Debug("Secure credential stored for key: {0}", key);
         }
 
@@ -458,7 +458,7 @@ namespace Lidarr.Plugin.Qobuzarr.Security
             {
                 wrapper.Dispose();
             }
-            
+
             _secureCredentials.Clear();
             _logger.Debug("All secure credentials cleared");
         }

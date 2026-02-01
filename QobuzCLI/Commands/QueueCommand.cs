@@ -49,214 +49,214 @@ public class QueueCommand
     private Command CreateListCommand()
     {
         var cmd = new Command("list", "List all download queues");
-        
+
         cmd.SetHandler(async () => await HandleListAsync());
-        
+
         return cmd;
     }
 
     private Command CreateShowCommand()
     {
         var cmd = new Command("show", "Show queue details");
-        
+
         var queueIdArg = new Argument<string?>("queue-id", () => null, "Queue ID (default: first queue)");
         cmd.AddArgument(queueIdArg);
-        
+
         cmd.SetHandler(async (string? queueId) => await HandleShowAsync(queueId), queueIdArg);
-        
+
         return cmd;
     }
 
     private Command CreateAddCommand()
     {
         var cmd = new Command("add", "Add items to download queue");
-        
+
         var queriesArg = new Argument<string[]>("queries", "Search queries to add to queue");
         var queueIdOption = new Option<string?>("--queue", "Target queue ID");
         var priorityOption = new Option<int>("--priority", () => 0, "Download priority (higher = sooner)");
         var typeOption = new Option<string?>("--type", "Force search type: album, artist, track");
-        
+
         cmd.AddArgument(queriesArg);
         cmd.AddOption(queueIdOption);
         cmd.AddOption(priorityOption);
         cmd.AddOption(typeOption);
-        
-        cmd.SetHandler(async (string[] queries, string? queueId, int priority, string? type) => 
+
+        cmd.SetHandler(async (string[] queries, string? queueId, int priority, string? type) =>
             await HandleAddAsync(queries, queueId, priority, type),
             queriesArg, queueIdOption, priorityOption, typeOption);
-        
+
         return cmd;
     }
 
     private Command CreateRemoveCommand()
     {
         var cmd = new Command("remove", "Remove item from queue");
-        
+
         var itemIdArg = new Argument<string>("item-id", "Item ID to remove");
         var queueIdOption = new Option<string?>("--queue", "Queue ID");
-        
+
         cmd.AddArgument(itemIdArg);
         cmd.AddOption(queueIdOption);
-        
-        cmd.SetHandler(async (string itemId, string? queueId) => 
+
+        cmd.SetHandler(async (string itemId, string? queueId) =>
             await HandleRemoveAsync(itemId, queueId),
             itemIdArg, queueIdOption);
-        
+
         return cmd;
     }
 
     private Command CreateClearCommand()
     {
         var cmd = new Command("clear", "Clear completed items from queue");
-        
+
         var queueIdOption = new Option<string?>("--queue", "Queue ID");
         var allOption = new Option<bool>("--all", "Clear all items, not just completed");
-        
+
         cmd.AddOption(queueIdOption);
         cmd.AddOption(allOption);
-        
-        cmd.SetHandler(async (string? queueId, bool all) => 
+
+        cmd.SetHandler(async (string? queueId, bool all) =>
             await HandleClearAsync(queueId, all),
             queueIdOption, allOption);
-        
+
         return cmd;
     }
 
     private Command CreateStartCommand()
     {
         var cmd = new Command("start", "Start processing queue");
-        
+
         var queueIdOption = new Option<string?>("--queue", "Queue ID");
-        
+
         cmd.AddOption(queueIdOption);
-        
+
         cmd.SetHandler(async (string? queueId) => await HandleStartAsync(queueId), queueIdOption);
-        
+
         return cmd;
     }
 
     private Command CreateStopCommand()
     {
         var cmd = new Command("stop", "Stop processing queue");
-        
+
         var queueIdOption = new Option<string?>("--queue", "Queue ID");
-        
+
         cmd.AddOption(queueIdOption);
-        
+
         cmd.SetHandler(async (string? queueId) => await HandleStopAsync(queueId), queueIdOption);
-        
+
         return cmd;
     }
 
     private Command CreatePauseCommand()
     {
         var cmd = new Command("pause", "Pause queue processing");
-        
+
         var queueIdOption = new Option<string?>("--queue", "Queue ID");
-        
+
         cmd.AddOption(queueIdOption);
-        
+
         cmd.SetHandler(async (string? queueId) => await HandlePauseAsync(queueId), queueIdOption);
-        
+
         return cmd;
     }
 
     private Command CreateResumeCommand()
     {
         var cmd = new Command("resume", "Resume queue processing");
-        
+
         var queueIdOption = new Option<string?>("--queue", "Queue ID");
-        
+
         cmd.AddOption(queueIdOption);
-        
+
         cmd.SetHandler(async (string? queueId) => await HandleResumeAsync(queueId), queueIdOption);
-        
+
         return cmd;
     }
 
     private Command CreateRetryCommand()
     {
         var cmd = new Command("retry", "Retry failed downloads");
-        
+
         var queueIdOption = new Option<string?>("--queue", "Queue ID");
-        
+
         cmd.AddOption(queueIdOption);
-        
+
         cmd.SetHandler(async (string? queueId) => await HandleRetryAsync(queueId), queueIdOption);
-        
+
         return cmd;
     }
 
     private Command CreatePriorityCommand()
     {
         var cmd = new Command("priority", "Set item priority");
-        
+
         var itemIdArg = new Argument<string>("item-id", "Item ID");
         var priorityArg = new Argument<int>("priority", "New priority (higher = sooner)");
         var queueIdOption = new Option<string?>("--queue", "Queue ID");
-        
+
         cmd.AddArgument(itemIdArg);
         cmd.AddArgument(priorityArg);
         cmd.AddOption(queueIdOption);
-        
-        cmd.SetHandler(async (string itemId, int priority, string? queueId) => 
+
+        cmd.SetHandler(async (string itemId, int priority, string? queueId) =>
             await HandlePriorityAsync(itemId, priority, queueId),
             itemIdArg, priorityArg, queueIdOption);
-        
+
         return cmd;
     }
 
     private Command CreateExportCommand()
     {
         var cmd = new Command("export", "Export queue to file");
-        
+
         var filePathArg = new Argument<string>("file-path", "Output file path");
         var queueIdOption = new Option<string?>("--queue", "Queue ID");
-        
+
         cmd.AddArgument(filePathArg);
         cmd.AddOption(queueIdOption);
-        
-        cmd.SetHandler(async (string filePath, string? queueId) => 
+
+        cmd.SetHandler(async (string filePath, string? queueId) =>
             await HandleExportAsync(filePath, queueId),
             filePathArg, queueIdOption);
-        
+
         return cmd;
     }
 
     private Command CreateImportCommand()
     {
         var cmd = new Command("import", "Import queue from file");
-        
+
         var filePathArg = new Argument<string>("file-path", "Queue file path");
-        
+
         cmd.AddArgument(filePathArg);
-        
+
         cmd.SetHandler(async (string filePath) => await HandleImportAsync(filePath), filePathArg);
-        
+
         return cmd;
     }
 
     private Command CreateCreateCommand()
     {
         var cmd = new Command("create", "Create a new download queue");
-        
+
         var nameArg = new Argument<string>("name", "Queue name");
         var maxConcurrentOption = new Option<int>("--max-concurrent", () => 4, "Maximum concurrent downloads");
-        
+
         cmd.AddArgument(nameArg);
         cmd.AddOption(maxConcurrentOption);
-        
-        cmd.SetHandler(async (string name, int maxConcurrent) => 
+
+        cmd.SetHandler(async (string name, int maxConcurrent) =>
             await HandleCreateAsync(name, maxConcurrent),
             nameArg, maxConcurrentOption);
-        
+
         return cmd;
     }
 
     private Task HandleListAsync()
     {
         var queues = _queueService.GetQueues();
-        
+
         if (!queues.Any())
         {
             AnsiConsole.MarkupLine("[yellow]No download queues found.[/]");
@@ -277,7 +277,7 @@ public class QueueCommand
         {
             var stats = _queueService.GetQueueStatistics(queue.Id);
             var status = queue.IsPaused ? "[yellow]Paused[/]" : "[green]Active[/]";
-            
+
             table.AddRow(
                 queue.Id.Substring(0, 8),
                 queue.Name,
@@ -299,7 +299,7 @@ public class QueueCommand
         if (queue == null) return Task.CompletedTask;
 
         var stats = _queueService.GetQueueStatistics(queue.Id);
-        
+
         // Queue header
         AnsiConsole.MarkupLine($"[blue]📋 Queue: {queue.Name}[/]");
         AnsiConsole.MarkupLine($"[dim]ID: {queue.Id} | Created: {queue.CreatedAt:yyyy-MM-dd HH:mm:ss}[/]");
@@ -311,7 +311,7 @@ public class QueueCommand
         statsTable.HideHeaders();
         statsTable.AddColumn("");
         statsTable.AddColumn("");
-        
+
         statsTable.AddRow("Status:", queue.IsPaused ? "[yellow]Paused[/]" : "[green]Active[/]");
         statsTable.AddRow("Max Concurrent:", queue.MaxConcurrentDownloads.ToString());
         statsTable.AddRow("Total Items:", stats.TotalItems.ToString());
@@ -319,12 +319,12 @@ public class QueueCommand
         statsTable.AddRow("Downloading:", $"[blue]{stats.ActiveDownloads}[/]");
         statsTable.AddRow("Completed:", $"[green]{stats.CompletedItems}[/]");
         statsTable.AddRow("Failed:", $"[red]{stats.FailedItems}[/]");
-        
+
         if (stats.EstimatedTimeRemaining.HasValue && stats.EstimatedTimeRemaining.Value.TotalSeconds > 0)
         {
             statsTable.AddRow("Est. Time:", FormatTimeSpan(stats.EstimatedTimeRemaining.Value));
         }
-        
+
         AnsiConsole.Write(statsTable);
         AnsiConsole.WriteLine();
 
@@ -332,7 +332,7 @@ public class QueueCommand
         if (queue.Items.Any())
         {
             AnsiConsole.MarkupLine("[blue]Queue Items:[/]");
-            
+
             var itemsTable = new Table();
             itemsTable.Border = TableBorder.Rounded;
             itemsTable.AddColumn("ID");
@@ -345,11 +345,11 @@ public class QueueCommand
             foreach (var item in queue.Items.OrderByDescending(i => i.Priority).ThenBy(i => i.AddedAt))
             {
                 var shortId = item.Id.Substring(0, 8);
-                var query = item.SearchQuery.Length > 30 
-                    ? item.SearchQuery.Substring(0, 27) + "..." 
+                var query = item.SearchQuery.Length > 30
+                    ? item.SearchQuery.Substring(0, 27) + "..."
                     : item.SearchQuery;
                 var status = FormatQueueStatus(item.Status);
-                
+
                 itemsTable.AddRow(
                     shortId,
                     query,
@@ -388,9 +388,9 @@ public class QueueCommand
         }
 
         var addedIds = await _queueService.AddBatchToQueueAsync(queue.Id, items);
-        
+
         AnsiConsole.MarkupLine($"[green]✅ Added {addedIds.Count} item{(addedIds.Count > 1 ? "s" : "")} to queue '{queue.Name}'[/]");
-        
+
         // Start processing if not already running
         await _queueService.StartQueueProcessingAsync(queue.Id);
     }
@@ -401,7 +401,7 @@ public class QueueCommand
         if (queue == null) return;
 
         var success = await _queueService.RemoveFromQueueAsync(queue.Id, itemId);
-        
+
         if (success)
         {
             AnsiConsole.MarkupLine($"[green]✅ Removed item {itemId} from queue[/]");
@@ -422,7 +422,7 @@ public class QueueCommand
             // Clear all items
             var items = queue.Items.Where(i => i.Status != QueueStatus.Downloading).ToList();
             var count = 0;
-            
+
             foreach (var item in items)
             {
                 if (await _queueService.RemoveFromQueueAsync(queue.Id, item.Id))
@@ -430,7 +430,7 @@ public class QueueCommand
                     count++;
                 }
             }
-            
+
             AnsiConsole.MarkupLine($"[green]✅ Cleared {count} items from queue[/]");
         }
         else
@@ -447,7 +447,7 @@ public class QueueCommand
         if (queue == null) return;
 
         await _queueService.StartQueueProcessingAsync(queue.Id);
-        
+
         AnsiConsole.MarkupLine($"[green]✅ Started processing queue '{queue.Name}'[/]");
         await MonitorQueueProgressAsync(queue.Id);
     }
@@ -485,7 +485,7 @@ public class QueueCommand
         if (queue == null) return;
 
         var count = await _queueService.RetryFailedItemsAsync(queue.Id);
-        
+
         if (count > 0)
         {
             AnsiConsole.MarkupLine($"[green]🔄 Queued {count} failed item{(count > 1 ? "s" : "")} for retry[/]");
@@ -503,7 +503,7 @@ public class QueueCommand
         if (queue == null) return;
 
         var success = await _queueService.SetPriorityAsync(queue.Id, itemId, priority);
-        
+
         if (success)
         {
             AnsiConsole.MarkupLine($"[green]✅ Set priority {priority} for item {itemId}[/]");
@@ -617,29 +617,29 @@ public class QueueCommand
             return $"{(int)timeSpan.TotalMinutes}m {timeSpan.Seconds}s";
         return $"{timeSpan.Seconds}s";
     }
-    
+
     private async Task MonitorQueueProgressAsync(string queueId)
     {
         AnsiConsole.MarkupLine("[cyan]🔄 Monitoring queue progress...[/]");
         AnsiConsole.MarkupLine("[dim]Press Ctrl+C to stop monitoring (queue will continue in background)[/]");
-        
+
         var queue = _queueService.GetQueue(queueId);
         if (queue == null) return;
-        
+
         // Simple progress monitoring without complex dashboard
         while (true)
         {
             var stats = _queueService.GetQueueStatistics(queueId);
             var remaining = stats.PendingItems + stats.ActiveDownloads;
-            
+
             if (remaining == 0)
             {
                 AnsiConsole.MarkupLine("[green]✅ All downloads completed[/]");
                 break;
             }
-            
+
             AnsiConsole.MarkupLine($"[blue]Progress:[/] Active: {stats.ActiveDownloads}, Completed: {stats.CompletedItems}, Failed: {stats.FailedItems}, Remaining: {remaining}");
-            
+
             try
             {
                 await Task.Delay(2000);

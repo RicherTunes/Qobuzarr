@@ -78,7 +78,7 @@ namespace Qobuzarr.Tests.Unit.Security
 
             // Assert
             converted.Should().Be("testpassword123");
-            
+
             // Clean up
             secureString?.Dispose();
         }
@@ -105,7 +105,7 @@ namespace Qobuzarr.Tests.Unit.Security
 
             // Assert
             result.Should().BeEmpty();
-            
+
             // Clean up
             emptySecure.Dispose();
         }
@@ -154,11 +154,11 @@ namespace Qobuzarr.Tests.Unit.Security
             // Assert
             // The original variable should be cleared (best effort in managed code)
             secureString.Should().NotBeNull();
-            
+
             // Verify the secure string still contains the value
             var retrieved = _credentialManager.SecureStringToString(secureString);
             retrieved.Should().Be(copyForVerification);
-            
+
             // Clean up
             secureString?.Dispose();
         }
@@ -380,7 +380,7 @@ namespace Qobuzarr.Tests.Unit.Security
 
             // Assert - should not throw
             act.Should().NotThrow("Validation should safely handle suspicious input");
-            
+
             // These patterns are logged as warnings but allowed (opaque auth tokens can contain anything)
             var result = _credentialManager.ValidateCredentialSecurity(suspiciousInput, "TestCredential");
             result.Should().BeTrue("Suspicious patterns are warned about but not rejected (could be valid opaque tokens)");
@@ -412,7 +412,7 @@ namespace Qobuzarr.Tests.Unit.Security
                         var hash = _credentialManager.GenerateSecureHash(plainText);
                         var verified = _credentialManager.VerifySecureHash(plainText, hash);
                         var masked = _credentialManager.MaskSensitiveData(plainText);
-                        
+
                         secureString?.Dispose();
                     }
                     catch (Exception ex)
@@ -454,7 +454,7 @@ namespace Qobuzarr.Tests.Unit.Security
             // This test verifies that we're creating SecureStrings that can be properly disposed
             // Arrange & Act
             var secureStrings = new SecureString[100];
-            
+
             for (int i = 0; i < secureStrings.Length; i++)
             {
                 secureStrings[i] = _credentialManager.CreateSecureString($"password{i}");
@@ -487,11 +487,11 @@ namespace Qobuzarr.Tests.Unit.Security
             // Assert
             secureString.Should().NotBeNull();
             secureString.Length.Should().Be(10000);
-            
+
             // Verify we can convert back
             var converted = _credentialManager.SecureStringToString(secureString);
             converted.Length.Should().Be(10000);
-            
+
             // Clean up
             secureString?.Dispose();
         }
@@ -517,7 +517,7 @@ namespace Qobuzarr.Tests.Unit.Security
         {
             // Arrange
             var unicodeCredential = "パスワード123🔒";
-            
+
             // Act
             var hash = _credentialManager.GenerateSecureHash(unicodeCredential);
             var verified = _credentialManager.VerifySecureHash(unicodeCredential, hash);

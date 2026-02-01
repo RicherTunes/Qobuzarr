@@ -9,23 +9,23 @@ namespace Lidarr.Plugin.Qobuzarr.Models
         /// MP3 320kbps
         /// </summary>
         MP3320 = 5,
-        
+
         /// <summary>
         /// FLAC CD Quality (16-bit/44.1kHz)
         /// </summary>
         FLACLossless = 6,
-        
+
         /// <summary>
         /// FLAC Hi-Res (24-bit/96kHz)
         /// </summary>
         FLACHiRes24Bit96kHz = 7,
-        
+
         /// <summary>
         /// FLAC Hi-Res (24-bit/192kHz)
         /// </summary>
         FLACHiRes24Bit192Khz = 27
     }
-    
+
     /// <summary>
     /// Extension methods for QobuzAudioQuality
     /// </summary>
@@ -45,7 +45,7 @@ namespace Lidarr.Plugin.Qobuzarr.Models
                 _ => "Unknown"
             };
         }
-        
+
         /// <summary>
         /// Get codec name that matches Lidarr's quality detection patterns
         /// </summary>
@@ -60,7 +60,7 @@ namespace Lidarr.Plugin.Qobuzarr.Models
                 _ => "Unknown"
             };
         }
-        
+
         /// <summary>
         /// Get container description that matches Lidarr's quality detection
         /// </summary>
@@ -69,13 +69,13 @@ namespace Lidarr.Plugin.Qobuzarr.Models
             return quality switch
             {
                 QobuzAudioQuality.MP3320 => "MP3 320kbps",
-                QobuzAudioQuality.FLACLossless => "FLAC", 
+                QobuzAudioQuality.FLACLossless => "FLAC",
                 QobuzAudioQuality.FLACHiRes24Bit96kHz => "FLAC 24-96",
                 QobuzAudioQuality.FLACHiRes24Bit192Khz => "FLAC 24-192",
                 _ => "Unknown"
             };
         }
-        
+
         /// <summary>
         /// Get estimated bitrate for size calculation
         /// </summary>

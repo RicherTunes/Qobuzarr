@@ -138,10 +138,10 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Clients
     {
         [Description("🤖 Adaptive (Recommended) - Optimizes download performance automatically")]
         Adaptive = 0,
-        
+
         [Description("🔧 Fixed - Uses constant number of concurrent downloads")]
         Fixed = 1,
-        
+
         [Description("👨‍💻 Manual (Advanced) - For custom download management")]
         Manual = 2
     }
@@ -172,13 +172,13 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Clients
             RuleFor(c => c.PreferredQuality)
                 .Must(q => q == 5 || q == 6 || q == 7 || q == 27)
                 .WithMessage("Invalid audio quality selection");
-            
+
             // Warn about format_id 27 not being available for streaming
             RuleFor(c => c.PreferredQuality)
                 .Must(q => true) // Always passes, just for warning
                 .When(c => c.PreferredQuality == 27)
                 .WithMessage("⚠️ WARNING: 24-bit/192kHz (format ID 27) is NOT available for streaming. " +
-                           "This quality level is only available when you purchase and download albums directly from Qobuz. " + 
+                           "This quality level is only available when you purchase and download albums directly from Qobuz. " +
                            "For streaming, the maximum available quality is 24-bit/96kHz (format ID 7). " +
                            "Your downloads will automatically fall back to 96kHz or CD quality.")
                 .WithSeverity(Severity.Warning);

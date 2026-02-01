@@ -8,7 +8,7 @@ public interface IConfigService
     // Modern Configuration API (QobuzConfiguration)
     Task<QobuzConfiguration> LoadConfigurationAsync();
     Task SaveConfigurationAsync(QobuzConfiguration configuration);
-    
+
     // Legacy ConfigService API (QobuzConfig) - for backward compatibility
     Task<QobuzConfig> LoadConfigAsync();
     Task SaveConfigAsync(QobuzConfig config);
@@ -17,7 +17,7 @@ public interface IConfigService
     Task<Dictionary<string, object>> GetAllValuesAsync();
     Task<List<Models.ConfigParameter>> GetParametersAsync();
     string GetConfigPath();
-    
+
     // Legacy ConfigManager API compatibility
     Task<T> GetAsync<T>(string key, T? defaultValue = default);
     Task SetAsync<T>(string key, T value);

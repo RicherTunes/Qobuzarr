@@ -30,18 +30,18 @@ namespace Minimal.Tests
             var album = "Modus Vivendi Instrumental";
 
             // Act - Follow the complete semantic workflow
-            
+
             // Step 1: Component analysis
             var components = _classifier.ClassifyComponents(album);
-            
+
             // Step 2: Strategy determination  
             var strategy = _semanticStrategy.DetermineStrategy(artist, album);
-            
+
             // Step 3: Query generation
             var queries = _semanticStrategy.BuildQueriesForStrategy(artist, album, strategy);
 
             // Assert - Verify end-to-end workflow integrity
-            
+
             // Step 1 validation
             components.Should().ContainKey("Instrumental");
             components["Instrumental"].Should().Be(AlbumComponentType.VersionDescriptor);
@@ -52,7 +52,7 @@ namespace Minimal.Tests
 
             // Step 3 validation
             queries.Should().NotBeEmpty();
-            queries.Should().OnlyContain(q => q.Contains("Instrumental"), 
+            queries.Should().OnlyContain(q => q.Contains("Instrumental"),
                 "End-to-end workflow must preserve version descriptors");
         }
 
@@ -88,17 +88,17 @@ namespace Minimal.Tests
             foreach (var album in testAlbums)
             {
                 var startTime = DateTime.UtcNow;
-                
+
                 var components = _classifier.ClassifyComponents(album);
                 var strategy = _semanticStrategy.DetermineStrategy("Artist", album);
                 var queries = _semanticStrategy.BuildQueriesForStrategy("Artist", album, strategy);
-                
+
                 var duration = DateTime.UtcNow - startTime;
-                
+
                 // Performance validation
-                duration.Should().BeLessThan(TimeSpan.FromMilliseconds(100), 
+                duration.Should().BeLessThan(TimeSpan.FromMilliseconds(100),
                     $"Semantic processing for '{album}' should complete under 100ms");
-                
+
                 // Correctness validation
                 components.Should().NotBeNull($"Classification should succeed for '{album}'");
                 strategy.Should().NotBeNull($"Strategy should be generated for '{album}'");
@@ -113,7 +113,7 @@ namespace Minimal.Tests
             var albumTitles = new[]
             {
                 "Album Live",
-                "Songs Instrumental", 
+                "Songs Instrumental",
                 "Music Acoustic",
                 "Complex Album Live Instrumental Acoustic Sessions Hi-Fi 24-Bit"
             };
@@ -127,7 +127,7 @@ namespace Minimal.Tests
                 {
                     _classifier.ClassifyComponents(album);
                     _semanticStrategy.DetermineStrategy("Artist", album);
-                    _semanticStrategy.BuildQueriesForStrategy("Artist", album, 
+                    _semanticStrategy.BuildQueriesForStrategy("Artist", album,
                         _semanticStrategy.DetermineStrategy("Artist", album));
                 }
             }
@@ -136,7 +136,7 @@ namespace Minimal.Tests
             GC.Collect();
             GC.WaitForPendingFinalizers();
             GC.Collect();
-            
+
             var finalMemory = GC.GetTotalMemory(false);
             var memoryIncrease = finalMemory - initialMemory;
 
@@ -172,7 +172,7 @@ namespace Minimal.Tests
                 foreach (var expectedDescriptor in testCase.ExpectedDescriptors)
                 {
                     // Either the exact descriptor or a containing token should be detected
-                    var found = detectedDescriptors.Any(d => 
+                    var found = detectedDescriptors.Any(d =>
                         d.Equals(expectedDescriptor, StringComparison.OrdinalIgnoreCase) ||
                         d.Contains(expectedDescriptor, StringComparison.OrdinalIgnoreCase) ||
                         expectedDescriptor.Contains(d, StringComparison.OrdinalIgnoreCase));
@@ -183,7 +183,7 @@ namespace Minimal.Tests
                 // Strategy should reflect the presence of version descriptors
                 if (detectedDescriptors.Any())
                 {
-                    strategy.CleaningLevel.Should().Be(CleaningLevel.Minimal, 
+                    strategy.CleaningLevel.Should().Be(CleaningLevel.Minimal,
                         $"Albums with version descriptors should use minimal cleaning: {testCase.Album}");
                 }
             }

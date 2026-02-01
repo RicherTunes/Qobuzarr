@@ -153,7 +153,7 @@ namespace Lidarr.Plugin.Qobuzarr.Models
         {
             // Sanitize version to prevent injection attacks
             var sanitizedVersion = MetadataSanitizer.SanitizeVersion(Version);
-            
+
             if (!string.IsNullOrWhiteSpace(sanitizedVersion) && !Title.Contains(sanitizedVersion))
             {
                 return $"{Title} ({sanitizedVersion})";

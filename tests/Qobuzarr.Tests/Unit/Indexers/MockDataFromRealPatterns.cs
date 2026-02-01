@@ -241,13 +241,13 @@ namespace Qobuzarr.Tests.Unit.Indexers
 
             foreach (var pattern in SimplePatterns)
                 patterns[pattern.Expected].Add((pattern.Artist, pattern.Album));
-            
+
             foreach (var pattern in MediumPatterns)
                 patterns[pattern.Expected].Add((pattern.Artist, pattern.Album));
-            
+
             foreach (var pattern in ComplexPatterns)
                 patterns[pattern.Expected].Add((pattern.Artist, pattern.Album));
-            
+
             foreach (var pattern in EdgeCases)
                 patterns[pattern.Expected].Add((pattern.Artist, pattern.Album));
 
@@ -263,15 +263,15 @@ namespace Qobuzarr.Tests.Unit.Indexers
             public const int SimpleAlbums = 60422;  // 60.4%
             public const int MediumAlbums = 29471;  // 29.5%
             public const int ComplexAlbums = 10107; // 10.1%
-            
+
             public const int LiveAlbums = 1423;     // 1.4%
             public const int DeluxeEditions = 501;  // 0.5%
             public const int Remasters = 6810;      // 6.8%
             public const int Compilations = 912;    // 0.9%
-            
+
             public const int UniqueArtists = 5703;
             public const double AlbumsPerArtist = 17.5;
-            
+
             public const double BaselineApiCalls = 300000;  // 3 per album
             public const double OptimizedApiCalls = 102556; // After all optimizations
             public const double ApiCallReduction = 65.8;    // Percentage

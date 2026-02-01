@@ -83,7 +83,7 @@ namespace Qobuzarr.Tests.Unit.Security
         {
             var input = "<script>alert('test')</script>";
             var result = InputSanitizer.HtmlEncode(input);
-            
+
             result.Should().Contain("&lt;");
             result.Should().Contain("&gt;");
             result.Should().NotContain("<script>");
@@ -128,7 +128,7 @@ namespace Qobuzarr.Tests.Unit.Security
         {
             var longName = new string('a', 260) + ".tar.gz";
             var result = InputSanitizer.SanitizeFileName(longName);
-            
+
             result.Length.Should().BeLessOrEqualTo(255);
             result.Should().EndWith(".tar.gz", "Multi-part extensions should be preserved");
         }
@@ -249,24 +249,24 @@ namespace Qobuzarr.Tests.Unit.Security
                     artistResult.Should().NotBeNull($"artist sanitizer should handle {testDescription}");
                     artistResult.Should().NotContain("<script>", $"artist should remove script tags from {testDescription}");
                     artistResult.Should().NotContain("javascript:", $"artist should remove javascript URLs from {testDescription}");
-                    
+
                     // Test album title sanitization  
                     var albumResult = InputSanitizer.SanitizeAlbumTitle(maliciousInput);
                     albumResult.Should().NotBeNull($"album sanitizer should handle {testDescription}");
                     albumResult.Should().NotContain("DROP TABLE", $"album should remove SQL injection from {testDescription}");
                     albumResult.Should().NotContain("';", $"album should remove SQL patterns from {testDescription}");
-                    
+
                     // Test version sanitization
                     var versionResult = InputSanitizer.SanitizeVersion(maliciousInput);
                     versionResult.Should().NotBeNull($"version sanitizer should handle {testDescription}");
                     versionResult.Should().NotContain("rm -rf", $"version should remove command injection from {testDescription}");
                     versionResult.Should().NotContain("../", $"version should remove path traversal from {testDescription}");
-                    
+
                     // Test HTML encoding
                     var htmlResult = InputSanitizer.HtmlEncode(maliciousInput);
                     htmlResult.Should().NotBeNull($"HTML encoder should handle {testDescription}");
                     htmlResult.Should().NotContain("<script>", $"HTML should encode script tags from {testDescription}");
-                    
+
                     // Test URL safety
                     if (maliciousInput.StartsWith("http") || maliciousInput.StartsWith("javascript") || maliciousInput.StartsWith("data:"))
                     {
@@ -276,7 +276,7 @@ namespace Qobuzarr.Tests.Unit.Security
                             isSafe.Should().BeFalse($"dangerous URL should be detected as unsafe: {testDescription}");
                         }
                     }
-                    
+
                     // All results should be reasonable length
                     artistResult.Length.Should().BeLessOrEqualTo(100, $"artist result should be reasonable length for {testDescription}");
                     albumResult.Length.Should().BeLessOrEqualTo(100, $"album result should be reasonable length for {testDescription}");
@@ -309,22 +309,22 @@ namespace Qobuzarr.Tests.Unit.Security
                     var artistResult = InputSanitizer.SanitizeArtistName(unicodeInput);
                     var albumResult = InputSanitizer.SanitizeAlbumTitle(unicodeInput);
                     var fileResult = InputSanitizer.SanitizeFileName(unicodeInput);
-                    
+
                     // Basic safety assertions
                     artistResult.Should().NotBeNull($"artist should handle Unicode case: {testDescription}");
                     albumResult.Should().NotBeNull($"album should handle Unicode case: {testDescription}");
                     fileResult.Should().NotBeNull($"file should handle Unicode case: {testDescription}");
-                    
+
                     // Should handle dangerous Unicode characters
                     artistResult.Should().NotContain("\u202E", $"artist should handle bidirectional override in {testDescription}");
                     albumResult.Should().NotContain("\u202D", $"album should handle bidirectional override in {testDescription}");
                     fileResult.Should().NotContain("\u200B", $"file should remove zero-width space from {testDescription}");
-                    
+
                     // Should handle BOM and other problematic characters
                     artistResult.Should().NotContain("\uFEFF", $"artist should remove BOM from {testDescription}");
                     albumResult.Should().NotContain("\u0000", $"album should remove null bytes from {testDescription}");
                     fileResult.Should().NotContain("\uFFFE", $"file should remove non-character from {testDescription}");
-                    
+
                     // Results should be reasonable
                     artistResult.Length.Should().BeLessOrEqualTo(100, $"Unicode artist result should be reasonable length for {testDescription}");
                     albumResult.Length.Should().BeLessOrEqualTo(100, $"Unicode album result should be reasonable length for {testDescription}");
@@ -364,13 +364,13 @@ namespace Qobuzarr.Tests.Unit.Security
                     var albumResult = InputSanitizer.SanitizeAlbumTitle(memoryBombInput);
                     var versionResult = InputSanitizer.SanitizeVersion(memoryBombInput);
                     var fileResult = InputSanitizer.SanitizeFileName(memoryBombInput);
-                    
+
                     // All results should be non-null and reasonable length
                     artistResult.Should().NotBeNull($"artist should handle memory bomb: {testDescription}");
                     albumResult.Should().NotBeNull($"album should handle memory bomb: {testDescription}");
                     versionResult.Should().NotBeNull($"version should handle memory bomb: {testDescription}");
                     fileResult.Should().NotBeNull($"file should handle memory bomb: {testDescription}");
-                    
+
                     // Results should be truncated to reasonable size
                     artistResult.Length.Should().BeLessOrEqualTo(100, $"artist memory bomb result should be truncated for {testDescription}");
                     albumResult.Length.Should().BeLessOrEqualTo(100, $"album memory bomb result should be truncated for {testDescription}");
@@ -425,7 +425,7 @@ namespace Qobuzarr.Tests.Unit.Security
                     albumResult.Should().NotBeNull($"concurrent album sanitization {index} should succeed for {testDescription}");
                     versionResult.Should().NotBeNull($"concurrent version sanitization {index} should succeed for {testDescription}");
                     fileResult.Should().NotBeNull($"concurrent file sanitization {index} should succeed for {testDescription}");
-                    
+
                     // Results should be reasonable
                     artistResult.Length.Should().BeLessOrEqualTo(100, $"concurrent artist result {index} should be reasonable");
                     albumResult.Length.Should().BeLessOrEqualTo(100, $"concurrent album result {index} should be reasonable");
@@ -461,17 +461,17 @@ namespace Qobuzarr.Tests.Unit.Security
                     var albumResult = InputSanitizer.SanitizeAlbumTitle(exploitInput);
                     var versionResult = InputSanitizer.SanitizeVersion(exploitInput);
                     var htmlResult = InputSanitizer.HtmlEncode(exploitInput);
-                    
+
                     // Should neutralize format string exploits
                     artistResult.Should().NotContain("%n", $"artist should neutralize format exploit in {testDescription}");
                     albumResult.Should().NotContain("%s", $"album should neutralize format exploit in {testDescription}");
                     versionResult.Should().NotContain("{0}", $"version should neutralize .NET format exploit in {testDescription}");
                     htmlResult.Should().NotContain("${", $"HTML should neutralize template injection in {testDescription}");
-                    
+
                     // Should handle dangerous log4j-style patterns
                     artistResult.Should().NotContain("${jndi:", $"artist should neutralize JNDI injection in {testDescription}");
                     albumResult.Should().NotContain("${jndi:", $"album should neutralize JNDI injection in {testDescription}");
-                    
+
                     // Results should be safe
                     artistResult.Should().NotBeNull($"format exploit artist result should not be null for {testDescription}");
                     albumResult.Should().NotBeNull($"format exploit album result should not be null for {testDescription}");
@@ -508,27 +508,27 @@ namespace Qobuzarr.Tests.Unit.Security
                     var versionResult = InputSanitizer.SanitizeVersion(extremeInput);
                     var fileResult = InputSanitizer.SanitizeFileName(extremeInput);
                     var htmlResult = InputSanitizer.HtmlEncode(extremeInput);
-                    
+
                     // All methods should survive extreme scenarios
                     artistResult.Should().NotBeNull($"extreme artist sanitization should survive {testDescription}");
                     albumResult.Should().NotBeNull($"extreme album sanitization should survive {testDescription}");
                     versionResult.Should().NotBeNull($"extreme version sanitization should survive {testDescription}");
                     fileResult.Should().NotBeNull($"extreme file sanitization should survive {testDescription}");
                     htmlResult.Should().NotBeNull($"extreme HTML encoding should survive {testDescription}");
-                    
+
                     // Results should be safe and reasonable
                     artistResult.Length.Should().BeLessOrEqualTo(100, $"extreme artist result should be bounded for {testDescription}");
                     albumResult.Length.Should().BeLessOrEqualTo(100, $"extreme album result should be bounded for {testDescription}");
                     versionResult.Length.Should().BeLessOrEqualTo(100, $"extreme version result should be bounded for {testDescription}");
                     fileResult.Length.Should().BeLessOrEqualTo(255, $"extreme file result should be bounded for {testDescription}");
-                    
+
                     // Safe defaults are acceptable for extreme inputs
                     var acceptableDefaults = new[] { "Unknown Artist", "Unknown Album", "Version", "unknown_file", "safe_file" };
-                    if (acceptableDefaults.Contains(artistResult) || acceptableDefaults.Contains(albumResult) || 
+                    if (acceptableDefaults.Contains(artistResult) || acceptableDefaults.Contains(albumResult) ||
                         acceptableDefaults.Contains(versionResult) || acceptableDefaults.Contains(fileResult))
                     {
                         // This is fine - safe defaults are appropriate for extreme inputs
-                        artistResult.Should().BeOneOf(acceptableDefaults.Concat(new[] { artistResult }).ToArray(), 
+                        artistResult.Should().BeOneOf(acceptableDefaults.Concat(new[] { artistResult }).ToArray(),
                             $"safe defaults are acceptable for extreme input: {testDescription}");
                     }
                 };

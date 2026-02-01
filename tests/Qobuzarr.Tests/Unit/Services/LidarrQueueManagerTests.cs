@@ -597,7 +597,7 @@ namespace Qobuzarr.Tests.Unit.Services
 
             // Assert
             var averageTimePerOperation = stopwatch.ElapsedMilliseconds / (double)iterations;
-            averageTimePerOperation.Should().BeLessThan(1.0, 
+            averageTimePerOperation.Should().BeLessThan(1.0,
                 "Each slot acquisition/release should average less than 1ms");
         }
 
@@ -619,7 +619,7 @@ namespace Qobuzarr.Tests.Unit.Services
 
             // Assert
             var averageTimePerOperation = stopwatch.ElapsedMilliseconds / (double)iterations;
-            averageTimePerOperation.Should().BeLessThan(0.1, 
+            averageTimePerOperation.Should().BeLessThan(0.1,
                 "Each status check should average less than 0.1ms");
         }
 

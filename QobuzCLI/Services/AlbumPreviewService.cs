@@ -91,22 +91,22 @@ namespace QobuzCLI.Services
         private string CreateAlbumContent(QobuzAlbum album, QobuzAudioQuality quality)
         {
             var content = new System.Text.StringBuilder();
-            
+
             content.AppendLine($"[bold]Artist:[/] {album.Artist?.Name ?? "Unknown"}");
             content.AppendLine($"[bold]Album:[/] {album.Title ?? "Unknown"}");
-            
+
             if (!string.IsNullOrEmpty(album.Version))
                 content.AppendLine($"[bold]Version:[/] {album.Version}");
-            
+
             if (album.ReleaseDateOriginal != null)
                 content.AppendLine($"[bold]Release Date:[/] {album.ReleaseDateOriginal:yyyy-MM-dd}");
-            
+
             content.AppendLine($"[bold]Label:[/] {album.Label?.Name ?? "Unknown"}");
             content.AppendLine($"[bold]Genre:[/] {album.Genre?.Name ?? "Unknown"}");
-            
+
             if (album.TracksCount > 0)
                 content.AppendLine($"[bold]Tracks:[/] {album.TracksCount}");
-            
+
             if (album.DurationSeconds > 0)
             {
                 var duration = TimeSpan.FromSeconds(album.DurationSeconds);
@@ -114,10 +114,10 @@ namespace QobuzCLI.Services
             }
 
             content.AppendLine($"[bold]Quality:[/] {GetQualityDescription(quality)}");
-            
+
             if (album.MaximumSampleRate > 0 && album.MaximumBitDepth > 0)
             {
-                content.AppendLine($"[bold]Max Available:[/] {album.MaximumBitDepth}bit/{album.MaximumSampleRate/1000.0:F1}kHz");
+                content.AppendLine($"[bold]Max Available:[/] {album.MaximumBitDepth}bit/{album.MaximumSampleRate / 1000.0:F1}kHz");
             }
 
             content.AppendLine($"[bold]Qobuz ID:[/] {album.Id}");
@@ -139,7 +139,7 @@ namespace QobuzCLI.Services
             {
                 var duration = TimeSpan.FromSeconds(track.DurationSeconds);
                 var quality = GetTrackQuality(track);
-                
+
                 table.AddRow(
                     track.TrackNumber.ToString(),
                     track.Title ?? "Unknown",
@@ -165,13 +165,13 @@ namespace QobuzCLI.Services
         private string CreateQualityContent(QobuzAlbum album, QobuzAudioQuality targetQuality)
         {
             var content = new System.Text.StringBuilder();
-            
+
             content.AppendLine($"[bold]Requested Quality:[/] {GetQualityDescription(targetQuality)}");
-            
+
             // Check if requested quality is available
             var maxAvailable = GetMaxAvailableQuality(album);
             content.AppendLine($"[bold]Maximum Available:[/] {GetQualityDescription(maxAvailable)}");
-            
+
             if ((int)targetQuality > (int)maxAvailable)
             {
                 content.AppendLine("[yellow]⚠ Requested quality exceeds available quality[/]");
@@ -195,7 +195,7 @@ namespace QobuzCLI.Services
         private string GetTrackQuality(QobuzTrack track)
         {
             if (track.MaximumSampleRate > 48000 || track.MaximumBitDepth > 16)
-                return $"{track.MaximumBitDepth}bit/{track.MaximumSampleRate/1000.0:F1}kHz";
+                return $"{track.MaximumBitDepth}bit/{track.MaximumSampleRate / 1000.0:F1}kHz";
             if (track.MaximumBitDepth == 16 && track.MaximumSampleRate == 44100)
                 return "CD Quality";
             return "Lossy";
@@ -248,7 +248,7 @@ namespace QobuzCLI.Services
             string[] sizes = { "B", "KB", "MB", "GB", "TB" };
             double len = bytes;
             int order = 0;
-            
+
             while (len >= 1024 && order < sizes.Length - 1)
             {
                 order++;

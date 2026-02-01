@@ -142,7 +142,7 @@ namespace Qobuzarr.Tests.Compliance
 
             // Act & Assert
             var foundForbidden = assemblies.Intersect(ForbiddenAssemblies, StringComparer.OrdinalIgnoreCase).ToList();
-            
+
             if (foundForbidden.Any())
             {
                 _output.WriteLine("FORBIDDEN assemblies found in package:");
@@ -209,11 +209,11 @@ namespace Qobuzarr.Tests.Compliance
 
             // Assert - package should be reasonable size (< 15 MB for a plugin)
             // Common causes of bloat: System.Text.Json, host DLLs, unused NuGet deps
-            sizeMB.Should().BeLessThan(15, 
+            sizeMB.Should().BeLessThan(15,
                 "plugin package should be under 15MB. Common bloat causes: " +
                 "System.Text.Json.dll, Lidarr.*.dll host assemblies, or unused NuGet dependencies. " +
                 "Check the forbidden assemblies list if this fails.");
-            
+
             // And not too small (sanity check)
             sizeMB.Should().BeGreaterThan(0.1,
                 "plugin package should be at least 100KB - smaller size suggests missing assemblies");
@@ -244,7 +244,7 @@ namespace Qobuzarr.Tests.Compliance
 
             // Act
             var actualAssemblies = GetPackageAssemblies(packagePath);
-            
+
             HashSet<string> metadataAssemblies;
             try
             {
@@ -258,7 +258,7 @@ namespace Qobuzarr.Tests.Compliance
                 _output.WriteLine("Skipping metadata validation due to parse error.");
                 return;
             }
-            
+
             _output.WriteLine($"Metadata lists {metadataAssemblies.Count} assemblies");
             _output.WriteLine($"Package contains {actualAssemblies.Count} assemblies");
 
@@ -309,7 +309,7 @@ namespace Qobuzarr.Tests.Compliance
         private static HashSet<string> GetPackageAssemblies(string packagePath)
         {
             var assemblies = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-            
+
             using var archive = ZipFile.OpenRead(packagePath);
             foreach (var entry in archive.Entries)
             {
@@ -326,7 +326,7 @@ namespace Qobuzarr.Tests.Compliance
         {
             // Simple parsing - find "assemblies": [...] and extract strings
             var assemblies = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-            
+
             var startMarker = "\"assemblies\"";
             var startIndex = json.IndexOf(startMarker, StringComparison.OrdinalIgnoreCase);
             if (startIndex < 0) return assemblies;
@@ -337,7 +337,7 @@ namespace Qobuzarr.Tests.Compliance
 
             var arrayContent = json.Substring(arrayStart + 1, arrayEnd - arrayStart - 1);
             var parts = arrayContent.Split(',');
-            
+
             foreach (var part in parts)
             {
                 var trimmed = part.Trim().Trim('"', ' ', '\r', '\n');

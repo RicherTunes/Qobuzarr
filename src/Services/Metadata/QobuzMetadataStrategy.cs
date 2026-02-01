@@ -47,15 +47,15 @@ namespace Lidarr.Plugin.Qobuzarr.Services.Metadata
             {
                 var streamingUrl = await GetStreamingUrlAsync(int.Parse(qobuzTrack.Id));
                 var qobuzMetadata = await GetQobuzTrackAsync(int.Parse(qobuzTrack.Id));
-                
+
                 var trackDownload = CreateTrackDownloadFromQobuz(streamingUrl, qobuzTrack, qobuzMetadata);
                 downloads.Add(trackDownload);
             }
 
             _logger.Info("Qobuz metadata: Standard download completed for {0} tracks", downloads.Count);
 
-            return new MetadataDownloadResult 
-            { 
+            return new MetadataDownloadResult
+            {
                 TrackDownloads = downloads,
                 MetadataStrategy = Constants.QobuzarrConstants.ServiceName,
                 ApiCallsSaved = 0,
@@ -64,15 +64,15 @@ namespace Lidarr.Plugin.Qobuzarr.Services.Metadata
         }
 
         private TrackDownload CreateTrackDownloadFromQobuz(
-            string streamingUrl, 
-            QobuzTrack qobuzTrack, 
+            string streamingUrl,
+            QobuzTrack qobuzTrack,
             QobuzTrack metadata)
         {
             return new TrackDownload
             {
                 StreamingUrl = streamingUrl,
                 QobuzTrackId = int.Parse(qobuzTrack.Id),
-                
+
                 // Qobuz metadata
                 Title = metadata.Title ?? qobuzTrack.Title,
                 Artist = metadata.Performer?.Name ?? qobuzTrack.GetPerformerName(),
@@ -82,19 +82,19 @@ namespace Lidarr.Plugin.Qobuzarr.Services.Metadata
                 DiscNumber = qobuzTrack.DiscNumber,
                 Duration = qobuzTrack.Duration,
                 ReleaseDate = metadata.Album?.ReleaseDate,
-                
+
                 // Genre from Qobuz  
                 Genre = metadata.Album?.GenresList?.FirstOrDefault(),
-                
+
                 // Composer and additional credits
                 Composer = metadata.Composer?.Name,
-                
+
                 // Quality information
                 Quality = qobuzTrack.Quality,
                 BitRate = qobuzTrack.BitRate,
                 SampleRate = (int?)qobuzTrack.SampleRate,
                 BitDepth = qobuzTrack.BitDepth,
-                
+
                 // Label information
                 Label = metadata.Album?.Label?.Name,
 

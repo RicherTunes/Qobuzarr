@@ -12,7 +12,7 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers.RequestGeneration
     {
         private readonly Logger _logger;
         private readonly object _metricsLock = new object();
-        
+
         // Metrics tracking
         private int _totalOriginalQueries = 0;
         private int _totalOptimizedQueries = 0;
@@ -32,12 +32,12 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers.RequestGeneration
                     _totalOriginalQueries += originalCount;
                     _totalOptimizedQueries += optimizedCount;
 
-                    var optimizationPercentage = _totalOriginalQueries > 0 
-                        ? (1.0 - (double)_totalOptimizedQueries / _totalOriginalQueries) * 100.0 
+                    var optimizationPercentage = _totalOriginalQueries > 0
+                        ? (1.0 - (double)_totalOptimizedQueries / _totalOriginalQueries) * 100.0
                         : 0.0;
 
                     _logger.Debug("Query optimization: {0} → {1} queries ({2:F1}% reduction)",
-                        originalCount, optimizedCount, 
+                        originalCount, optimizedCount,
                         originalCount > 0 ? (1.0 - (double)optimizedCount / originalCount) * 100.0 : 0.0);
 
                     // Log summary periodically
@@ -61,7 +61,7 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers.RequestGeneration
         {
             try
             {
-                if (string.IsNullOrWhiteSpace(query) || 
+                if (string.IsNullOrWhiteSpace(query) ||
                     (string.IsNullOrWhiteSpace(albumTitle) && string.IsNullOrWhiteSpace(artistName)))
                 {
                     return 0;
@@ -127,8 +127,8 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers.RequestGeneration
         {
             lock (_metricsLock)
             {
-                var optimizationPercentage = _totalOriginalQueries > 0 
-                    ? (1.0 - (double)_totalOptimizedQueries / _totalOriginalQueries) * 100.0 
+                var optimizationPercentage = _totalOriginalQueries > 0
+                    ? (1.0 - (double)_totalOptimizedQueries / _totalOriginalQueries) * 100.0
                     : 0.0;
 
                 return (_totalOriginalQueries, _totalOptimizedQueries, optimizationPercentage);
@@ -141,9 +141,9 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers.RequestGeneration
             {
                 lock (_metricsLock)
                 {
-                    _logger.Info("Resetting query metrics - Previous stats: {0} → {1} queries", 
+                    _logger.Info("Resetting query metrics - Previous stats: {0} → {1} queries",
                         _totalOriginalQueries, _totalOptimizedQueries);
-                    
+
                     _totalOriginalQueries = 0;
                     _totalOptimizedQueries = 0;
                     _lastMetricsReset = DateTime.UtcNow;

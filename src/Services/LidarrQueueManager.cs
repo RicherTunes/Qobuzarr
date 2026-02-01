@@ -52,7 +52,7 @@ namespace Lidarr.Plugin.Qobuzarr.Services
             _downloadSemaphore = new SemaphoreSlim(_maxConcurrentDownloads, _maxConcurrentDownloads);
             _searchSemaphore = new SemaphoreSlim(_maxConcurrentSearches, _maxConcurrentSearches);
 
-            _logger.Info("LidarrQueueManager initialized - Downloads: {0}, Searches: {1}", 
+            _logger.Info("LidarrQueueManager initialized - Downloads: {0}, Searches: {1}",
                 _maxConcurrentDownloads, _maxConcurrentSearches);
         }
 
@@ -85,14 +85,14 @@ namespace Lidarr.Plugin.Qobuzarr.Services
 
             var stopwatch = Stopwatch.StartNew();
             var wasAtCapacity = _downloadSemaphore.CurrentCount == 0;
-            
+
             await _downloadSemaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
             stopwatch.Stop();
 
             lock (_statsLock)
             {
                 _statistics.TotalDownloadSlotAcquisitions++;
-                
+
                 // Update average wait time
                 var totalWaitTime = _statistics.AverageDownloadWaitTime.Ticks * (_statistics.TotalDownloadSlotAcquisitions - 1) + stopwatch.Elapsed.Ticks;
                 _statistics.AverageDownloadWaitTime = new TimeSpan(totalWaitTime / _statistics.TotalDownloadSlotAcquisitions);
@@ -107,7 +107,7 @@ namespace Lidarr.Plugin.Qobuzarr.Services
                 }
             }
 
-            _logger.Debug("Download slot acquired - Active: {0}/{1}, Wait: {2:F1}ms", 
+            _logger.Debug("Download slot acquired - Active: {0}/{1}, Wait: {2:F1}ms",
                 ActiveDownloadCount, _maxConcurrentDownloads, stopwatch.Elapsed.TotalMilliseconds);
         }
 
@@ -139,14 +139,14 @@ namespace Lidarr.Plugin.Qobuzarr.Services
 
             var stopwatch = Stopwatch.StartNew();
             var wasAtCapacity = _searchSemaphore.CurrentCount == 0;
-            
+
             await _searchSemaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
             stopwatch.Stop();
 
             lock (_statsLock)
             {
                 _statistics.TotalSearchSlotAcquisitions++;
-                
+
                 // Update average wait time
                 var totalWaitTime = _statistics.AverageSearchWaitTime.Ticks * (_statistics.TotalSearchSlotAcquisitions - 1) + stopwatch.Elapsed.Ticks;
                 _statistics.AverageSearchWaitTime = new TimeSpan(totalWaitTime / _statistics.TotalSearchSlotAcquisitions);
@@ -161,7 +161,7 @@ namespace Lidarr.Plugin.Qobuzarr.Services
                 }
             }
 
-            _logger.Debug("Search slot acquired - Active: {0}/{1}, Wait: {2:F1}ms", 
+            _logger.Debug("Search slot acquired - Active: {0}/{1}, Wait: {2:F1}ms",
                 ActiveSearchCount, _maxConcurrentSearches, stopwatch.Elapsed.TotalMilliseconds);
         }
 

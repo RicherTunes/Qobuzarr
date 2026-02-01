@@ -45,33 +45,33 @@ namespace QobuzCLI.Services
         /// <param name="progressTask">Optional progress task for UI updates.</param>
         /// <returns>Result indicating success/failure and details about the download.</returns>
         public async Task<CliDownloadResult> ExecuteDownloadAsync(
-            string downloadId, 
-            SearchResult result, 
-            string outputDir, 
-            string? quality, 
+            string downloadId,
+            SearchResult result,
+            string outputDir,
+            string? quality,
             ProgressTask? progressTask)
         {
             _logger.LogInformation("Starting download: {Title} by {Artist}", result.Title, result.Artist);
             _logger.LogToDashboard($"📥 Starting download: {result.Title} by {result.Artist}", LogLevel.Information);
-            
+
             // Create output directory structure
             var artistDir = Path.Combine(outputDir, Lidarr.Plugin.Common.Utilities.FileSystemUtilities.SanitizeFileName(result.Artist));
             var albumDir = Path.Combine(artistDir, Lidarr.Plugin.Common.Utilities.FileSystemUtilities.CreateAlbumDirectoryName(result.Title, result.Year));
-            
+
             // Check if album already exists with adequate quality
             var config = await _configService.LoadConfigAsync().ConfigureAwait(false);
             if (config.EnableLocalCache && result.Type.ToLower() != "artist")
             {
                 var (alreadyExists, existingTrackCount, reason) = await _pluginHost.CheckExistingAlbumAsync(
                     result.Id, albumDir, quality ?? config.Quality).ConfigureAwait(false);
-                
+
                 if (alreadyExists)
                 {
                     _logger.LogInformation("Album already exists with adequate quality: {Reason}", reason);
                     _logger.LogToDashboard($"⚠️ Skipped: {result.Title} - {reason}", LogLevel.Warning);
                     if (progressTask != null) progressTask.Value = 100;
                     await _stateService.UpdateDownloadProgressAsync(downloadId, 100, $"Skipped - {reason}").ConfigureAwait(false);
-                    
+
                     var skipResult = new CliDownloadResult
                     {
                         Success = false,
@@ -86,9 +86,9 @@ namespace QobuzCLI.Services
                     return skipResult;
                 }
             }
-            
+
             Directory.CreateDirectory(albumDir);
-            
+
             // Use the plugin host for actual download - check type
             CliDownloadResult downloadResult;
             if (result.Type.ToLower() == "artist")
@@ -102,7 +102,7 @@ namespace QobuzCLI.Services
                 _logger.LogToDashboard($"💿 Downloading album: {result.Title}", LogLevel.Information);
                 downloadResult = await _pluginHost.DownloadAlbumAsync(result.Id, albumDir, quality).ConfigureAwait(false);
             }
-            
+
             if (downloadResult.IsSuccessful())
             {
                 _logger.LogToDashboard($"✅ Completed: {result.Title} by {result.Artist}", LogLevel.Information);
@@ -114,7 +114,7 @@ namespace QobuzCLI.Services
                 if (progressTask != null) progressTask.Value = 0;
                 await _stateService.UpdateDownloadProgressAsync(downloadId, 0, $"Download failed: {downloadResult.GetSummaryMessage()}").ConfigureAwait(false);
             }
-            
+
             return downloadResult;
         }
     }

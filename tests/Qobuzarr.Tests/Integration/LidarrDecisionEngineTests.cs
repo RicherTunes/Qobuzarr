@@ -94,9 +94,9 @@ namespace Qobuzarr.Tests.Integration
                 {
                     var remote = callInfo.Arg<RemoteAlbum>();
                     var criteria = callInfo.Arg<SearchCriteriaBase>();
-                    
+
                     // Simulate AlbumRequestedSpecification: check if any requested album matches
-                    return criteria.Albums?.Any(a => 
+                    return criteria.Albums?.Any(a =>
                         AlbumTitleMatchesWithVersion(a.Title, remote.ParsedAlbumInfo.AlbumTitle, remote.ParsedAlbumInfo.ReleaseVersion)) == true;
                 });
 
@@ -146,9 +146,9 @@ namespace Qobuzarr.Tests.Integration
                 {
                     var remote = callInfo.Arg<RemoteAlbum>();
                     var criteria = callInfo.Arg<SearchCriteriaBase>();
-                    
+
                     // Simulate matching logic: parsed title should match one of the requested albums
-                    return criteria.Albums?.Any(a => 
+                    return criteria.Albums?.Any(a =>
                         CleanTitle(a.Title).Equals(CleanTitle(remote.ParsedAlbumInfo.AlbumTitle), StringComparison.OrdinalIgnoreCase) ||
                         CleanTitle(a.Title).Contains(CleanTitle(remote.ParsedAlbumInfo.AlbumTitle), StringComparison.OrdinalIgnoreCase)) == true;
                 });
@@ -241,7 +241,7 @@ namespace Qobuzarr.Tests.Integration
                 .Build();
 
             var qobuzEdition = QobuzAlbumBuilder.New()
-                .WithTitle("Album Two") 
+                .WithTitle("Album Two")
                 .WithArtist("Artist")
                 .Build();
             qobuzEdition.Version = "Deluxe Edition";
@@ -258,7 +258,7 @@ namespace Qobuzarr.Tests.Integration
 
             // Standard album should use space format
             standardRelease.Title.Should().MatchRegex(@"^.+ - .+ \(\d{4}\) \[.+\] \[WEB\]$");
-            
+
             // Edition album should use hyphen format
             editionRelease.Title.Should().MatchRegex(@"^[^-]+-[^-]+-[^-]+-WEB-\d{4}$");
         }
@@ -291,10 +291,10 @@ namespace Qobuzarr.Tests.Integration
 
             // Assert
             release.Album.Should().NotBeNullOrEmpty("Parser should set Album property");
-            
+
             // The album property should match the Lidarr album title for proper mapping
             // This ensures the Decision Engine can match the release to the requested album
-            release.Album.Should().Be("They Want My Soul", 
+            release.Album.Should().Be("They Want My Soul",
                 "Album property should match Lidarr album for proper Decision Engine acceptance");
         }
 
@@ -311,10 +311,10 @@ namespace Qobuzarr.Tests.Integration
 
             mp3Release.Should().NotBeNull("Should have MP3 release");
             flacRelease.Should().NotBeNull("Should have FLAC release");
-            
-            mp3Release.Guid.Should().NotBe(flacRelease.Guid, 
+
+            mp3Release.Guid.Should().NotBe(flacRelease.Guid,
                 "Different qualities should have different GUIDs");
-            
+
             // Both should reference same Qobuz album but different quality
             mp3Release.Guid.Should().StartWith("qobuz-");
             flacRelease.Guid.Should().StartWith("qobuz-");
@@ -358,7 +358,7 @@ namespace Qobuzarr.Tests.Integration
             // Should use hyphen format for edition
             flacRelease.Title.Should().MatchRegex(@"^[^-]+-[^-]+-[^-]+-WEB-\d{4}$");
             flacRelease.Title.Should().Contain("Boys Don't Cry Magazine");
-            
+
             // Should properly map to Lidarr album for decision engine
             flacRelease.Album.Should().Be("Blond (Boys Don't Cry Magazine, Explicit)");
         }
@@ -453,7 +453,7 @@ namespace Qobuzarr.Tests.Integration
     /// <summary>
     /// Simulates Lidarr's SingleAlbumSearchMatchSpecification for single album searches
     /// </summary>
-    public interface ISingleAlbumSearchMatchSpecification  
+    public interface ISingleAlbumSearchMatchSpecification
     {
         bool IsSatisfiedBy(RemoteAlbum subject, SearchCriteriaBase searchCriteria);
     }

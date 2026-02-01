@@ -38,12 +38,12 @@ namespace Lidarr.Plugin.Qobuzarr.Utilities
         /// </summary>
         public static string FormatQualityFallback(int actualQuality, int preferredQuality)
         {
-            if (QobuzQuality.TryParse(actualQuality, out var actual) && 
+            if (QobuzQuality.TryParse(actualQuality, out var actual) &&
                 QobuzQuality.TryParse(preferredQuality, out var preferred))
             {
                 return actual.FormatFallbackMessage(preferred);
             }
-            
+
             // Fallback for unknown quality IDs
             return $"Q{actualQuality} (requested Q{preferredQuality})";
         }

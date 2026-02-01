@@ -30,10 +30,10 @@ public class ConfigServiceTests : IDisposable
         _mockLogger = new Mock<ILogger<ConfigService>>();
         _tempDirectory = Path.Combine(Path.GetTempPath(), $"qobuz-test-{Guid.NewGuid()}");
         Directory.CreateDirectory(_tempDirectory);
-        
+
         _legacyConfigPath = Path.Combine(_tempDirectory, "qobuz-config.json");
         _newConfigPath = Path.Combine(_tempDirectory, "qobuz-configuration.json");
-        
+
         // Create a test ConfigService that uses our temp directory
         _configService = new TestConfigService(_mockLogger.Object, _tempDirectory);
     }
@@ -98,10 +98,10 @@ public class ConfigServiceTests : IDisposable
         result.Download.CreateArtistFolders.Should().BeFalse();
         result.Search.SearchResultLimit.Should().Be(15);
         result.System.VerboseLogging.Should().BeTrue();
-        
+
         // Verify new config file was created
         File.Exists(_newConfigPath).Should().BeTrue();
-        
+
         // Verify migrated content in new file
         var savedJson = await File.ReadAllTextAsync(_newConfigPath);
         var savedConfig = JsonConvert.DeserializeObject<QobuzConfiguration>(savedJson);
@@ -123,7 +123,7 @@ public class ConfigServiceTests : IDisposable
         result.Download.Should().NotBeNull();
         result.Search.Should().NotBeNull();
         result.System.Should().NotBeNull();
-        
+
         // Verify default config file was created
         File.Exists(_newConfigPath).Should().BeTrue();
     }
@@ -143,7 +143,7 @@ public class ConfigServiceTests : IDisposable
 
         // Assert
         File.Exists(_newConfigPath).Should().BeTrue();
-        
+
         var savedJson = await File.ReadAllTextAsync(_newConfigPath);
         var savedConfig = JsonConvert.DeserializeObject<QobuzConfiguration>(savedJson);
         savedConfig!.Authentication.Email.Should().Be("save-test@example.com");
@@ -189,7 +189,7 @@ public class ConfigServiceTests : IDisposable
 
         // Assert - Should save in new format
         File.Exists(_newConfigPath).Should().BeTrue();
-        
+
         var savedJson = await File.ReadAllTextAsync(_newConfigPath);
         var savedConfig = JsonConvert.DeserializeObject<QobuzConfiguration>(savedJson);
         savedConfig!.Authentication.Email.Should().Be("convert-test@example.com");
@@ -315,12 +315,12 @@ public class ConfigServiceTests : IDisposable
     {
         // Arrange
         var legacyConfig = new QobuzConfig { Email = "legacy@example.com", Quality = "mp3-320" };
-        var newConfig = new QobuzConfiguration 
-        { 
+        var newConfig = new QobuzConfiguration
+        {
             Authentication = new AuthenticationConfig { Email = "new@example.com" },
             Quality = new QualityConfig { Quality = "flac-max" }
         };
-        
+
         await File.WriteAllTextAsync(_legacyConfigPath, JsonConvert.SerializeObject(legacyConfig));
         await File.WriteAllTextAsync(_newConfigPath, JsonConvert.SerializeObject(newConfig));
 
@@ -491,7 +491,7 @@ public class ConfigServiceTests : IDisposable
 
         // Act & Assert - Should not throw exceptions
         var result = await _configService.LoadConfigurationAsync();
-        
+
         result.Should().NotBeNull();
         result.Authentication.Email.Should().BeNull();
         result.Authentication.Password.Should().Be("");
@@ -562,7 +562,7 @@ internal class TestConfigService : IConfigService
                 var legacyJson = await File.ReadAllTextAsync(_legacyConfigPath);
                 var legacyConfig = JsonConvert.DeserializeObject<QobuzConfig>(legacyJson) ?? new QobuzConfig();
                 _configuration = QobuzConfiguration.FromLegacyConfig(legacyConfig);
-                
+
                 // Save the migrated configuration
                 await SaveConfigurationAsync(_configuration);
                 _logger.LogInformation("Configuration migrated successfully to {NewConfigPath}", _newConfigPath);
@@ -610,7 +610,7 @@ internal class TestConfigService : IConfigService
         // Load the new configuration and convert to legacy format for backward compatibility
         var newConfig = await LoadConfigurationAsync();
         _config = newConfig.ToLegacyConfig();
-        
+
         return _config;
     }
 
@@ -620,7 +620,7 @@ internal class TestConfigService : IConfigService
         var newConfig = QobuzConfiguration.FromLegacyConfig(config);
         await SaveConfigurationAsync(newConfig);
         _config = config;
-        
+
         _logger.LogDebug("Legacy configuration converted and saved to new format");
     }
 

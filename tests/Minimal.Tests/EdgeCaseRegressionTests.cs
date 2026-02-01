@@ -35,7 +35,7 @@ namespace Minimal.Tests
 
             // Assert
             components.Should().ContainKey(criticalTerm, reason);
-            components[criticalTerm].Should().Be(AlbumComponentType.VersionDescriptor, 
+            components[criticalTerm].Should().Be(AlbumComponentType.VersionDescriptor,
                 $"{criticalTerm} must be classified as version descriptor");
             preservedTerms.Should().Contain(criticalTerm, $"{criticalTerm} must be preserved for search");
             strategy.CleaningLevel.Should().Be(CleaningLevel.Minimal, "Audio format albums need minimal cleaning");
@@ -43,7 +43,7 @@ namespace Minimal.Tests
 
         [Theory]
         [InlineData("Manu Chao - La Radiolina En Vivo", "En Vivo", "Spanish live album")]
-        [InlineData("Céline Dion - Live En Direct", "En Direct", "French live album")]  
+        [InlineData("Céline Dion - Live En Direct", "En Direct", "French live album")]
         [InlineData("Caetano Veloso - Ao Vivo", "Ao Vivo", "Portuguese live album")]
         [InlineData("Rammstein - Live aus Berlin", "Live", "German live album")]
         [InlineData("Andrea Bocelli - Concerto Live", "Concerto", "Italian concert")]
@@ -74,7 +74,7 @@ namespace Minimal.Tests
 
             // Assert
             components.Should().ContainKey(criticalTerm, reason);
-            components[criticalTerm].Should().Be(AlbumComponentType.VersionDescriptor, 
+            components[criticalTerm].Should().Be(AlbumComponentType.VersionDescriptor,
                 $"{criticalTerm} represents performance context");
             preservedTerms.Should().Contain(criticalTerm, "Performance context must be preserved");
         }
@@ -89,10 +89,10 @@ namespace Minimal.Tests
         {
             // Act
             var components = _classifier.ClassifyComponents(albumTitle);
-            
+
             // Assert
             components.Should().ContainKey(criticalTerm, reason);
-            components[criticalTerm].Should().Be(AlbumComponentType.VersionDescriptor, 
+            components[criticalTerm].Should().Be(AlbumComponentType.VersionDescriptor,
                 $"{criticalTerm} indicates collection type");
         }
 
@@ -125,7 +125,7 @@ namespace Minimal.Tests
 
             // Assert - ALL version descriptors must be preserved
             var versionDescriptors = new[] { "Unplugged", "Live", "Acoustic", "Sessions" };
-            
+
             foreach (var descriptor in versionDescriptors)
             {
                 components.Should().ContainKey(descriptor, $"{descriptor} is a version descriptor");
@@ -133,7 +133,7 @@ namespace Minimal.Tests
                 preservedTerms.Should().Contain(descriptor, $"{descriptor} must be preserved");
             }
 
-            strategy.CleaningLevel.Should().Be(CleaningLevel.Minimal, 
+            strategy.CleaningLevel.Should().Be(CleaningLevel.Minimal,
                 "Albums with multiple version descriptors need minimal cleaning");
         }
 
@@ -172,7 +172,7 @@ namespace Minimal.Tests
         [InlineData("Album (Deluxe Edition)", "Deluxe", CleaningLevel.Moderate, "Edition markers still removable")]
         [InlineData("Songs (Remastered)", "Remastered", CleaningLevel.Moderate, "Remastered still removable")]
         [InlineData("Music - Anniversary Edition", "Anniversary", CleaningLevel.Moderate, "Anniversary still removable")]
-        public void Regression_EditionMarkers_ShouldStillBeRemovable(string albumTitle, string editionMarker, 
+        public void Regression_EditionMarkers_ShouldStillBeRemovable(string albumTitle, string editionMarker,
             CleaningLevel expectedLevel, string reason)
         {
             // Act
@@ -181,11 +181,11 @@ namespace Minimal.Tests
 
             // Assert - Edition markers should still be handled as before
             strategy.CleaningLevel.Should().Be(expectedLevel, reason);
-            
+
             // Edition markers should NOT be classified as version descriptors
             if (components.TryGetValue(editionMarker, out var componentType))
             {
-                componentType.Should().NotBe(AlbumComponentType.VersionDescriptor, 
+                componentType.Should().NotBe(AlbumComponentType.VersionDescriptor,
                     $"{editionMarker} should remain as edition marker, not version descriptor");
             }
         }
@@ -202,13 +202,13 @@ namespace Minimal.Tests
 
             // Assert
             var expectedTerms = new[] { "Live", "En Vivo", "Unplugged", "Sessions" };
-            
+
             foreach (var term in expectedTerms)
             {
                 // Handle multi-word terms like "En Vivo"
                 var termInComponents = components.Keys.Any(k => k.Contains(term, System.StringComparison.OrdinalIgnoreCase));
                 var termInPreserved = preservedTerms.Any(p => p.Contains(term, System.StringComparison.OrdinalIgnoreCase));
-                
+
                 termInComponents.Should().BeTrue($"'{term}' should be recognized in components");
                 termInPreserved.Should().BeTrue($"'{term}' should be preserved for search");
             }
@@ -228,13 +228,13 @@ namespace Minimal.Tests
             // Assert - Should preserve version descriptors but allow edition marker removal
             var versionDescriptors = new[] { "Complete", "Live", "Unplugged", "Acoustic", "Sessions", "Mono", "Audiophile", "24-Bit" };
             var editionMarkers = new[] { "Remaster" }; // This can be removed
-            
+
             foreach (var descriptor in versionDescriptors)
             {
                 components.Should().ContainKey(descriptor, $"{descriptor} is critical for this complex album");
             }
 
-            strategy.CleaningLevel.Should().Be(CleaningLevel.Minimal, 
+            strategy.CleaningLevel.Should().Be(CleaningLevel.Minimal,
                 "Ultra-complex albums with many version descriptors need minimal cleaning");
 
             queries.Should().OnlyContain(q => versionDescriptors.All(d => q.Contains(d, System.StringComparison.OrdinalIgnoreCase)),

@@ -83,20 +83,20 @@ namespace Lidarr.Plugin.Qobuzarr.Configuration
             public const string CredentialsCacheKey = "qobuz_credentials";
             public const int MaxAuthenticationAttempts = 3;
             public const int AuthenticationLockoutMinutes = 15;
-            
+
             // App credentials - will be fetched dynamically from Qobuz web player
             // Users can override by providing their own App ID and Secret in settings  
             public const string DefaultAppId = "";  // Fetched dynamically
             public const string DefaultAppSecret = "";  // Fetched dynamically
-            
+
             public const string AppIdEnvironmentVariable = "QOBUZ_APP_ID";
             public const string AppSecretEnvironmentVariable = "QOBUZ_APP_SECRET";
-            
+
             /// <summary>
             /// Gets the Qobuz App ID from environment variable or default (for internal use)
             /// </summary>
             public static string GetDefaultAppId() => Environment.GetEnvironmentVariable(AppIdEnvironmentVariable) ?? Api.DefaultAppId;
-            
+
             /// <summary>
             /// Gets the Qobuz App Secret from environment variable or default (for internal use)
             /// </summary>
@@ -123,13 +123,13 @@ namespace Lidarr.Plugin.Qobuzarr.Configuration
             public const int FLAC_CD = 6;
             public const int FLAC_HI_RES_96 = 7;
             public const int FLAC_HI_RES_192 = 27;
-            
+
             // Display names
             public const string MP3_320_NAME = "MP3 320kbps";
             public const string FLAC_CD_NAME = "FLAC CD 16bit/44.1kHz";
             public const string FLAC_HI_RES_96_NAME = "FLAC Hi-Res 24bit/96kHz";
             public const string FLAC_HI_RES_192_NAME = "FLAC Hi-Res 24bit/192kHz";
-            
+
             // Thresholds and bitrates
             public const int HiResThreshold = 96; // kHz
             public const int CDQualityBitrate = 1411; // kbps
@@ -137,7 +137,7 @@ namespace Lidarr.Plugin.Qobuzarr.Configuration
             public const int MP3_320_BITRATE = 320;
             public const int FLAC_HI_RES_96_BITRATE = 4608;
             public const int FLAC_HI_RES_192_BITRATE = 9216;
-            
+
             // File extensions
             public const string MP3_EXTENSION = ".mp3";
             public const string FLAC_EXTENSION = ".flac";
@@ -157,7 +157,7 @@ namespace Lidarr.Plugin.Qobuzarr.Configuration
                 /// Delay to wait for file system operations to complete (e.g., after file change events)
                 /// </summary>
                 public const int FileSystemStabilizationDelayMs = 100;
-                
+
                 /// <summary>
                 /// Base delay between retry attempts for file operations (multiplied by attempt number)
                 /// </summary>
@@ -202,17 +202,17 @@ namespace Lidarr.Plugin.Qobuzarr.Configuration
             public const string UserAgent = "Qobuzarr/1.0.0";
             public const int DefaultTimeoutSeconds = 30;
             public const int MaxRetries = 3;
-            
+
             /// <summary>
             /// Default page size for paginated requests
             /// </summary>
             public const int DefaultPageSize = 50;
-            
+
             /// <summary>
             /// Maximum page size allowed by Lidarr API
             /// </summary>
             public const int MaxPageSize = 250;
-            
+
             /// <summary>
             /// Cache duration for different types of Lidarr data
             /// </summary>
@@ -224,7 +224,7 @@ namespace Lidarr.Plugin.Qobuzarr.Configuration
                 public static readonly TimeSpan ArtistDetails = TimeSpan.FromHours(1);
                 public static readonly TimeSpan HealthCheck = TimeSpan.FromMinutes(1);
             }
-            
+
             /// <summary>
             /// Common sort fields for Lidarr API requests
             /// </summary>
@@ -236,7 +236,7 @@ namespace Lidarr.Plugin.Qobuzarr.Configuration
                 public const string DateAdded = "dateAdded";
                 public const string Id = "id";
             }
-            
+
             /// <summary>
             /// Common album types in Lidarr
             /// </summary>

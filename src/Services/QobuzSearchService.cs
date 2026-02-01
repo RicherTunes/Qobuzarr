@@ -51,7 +51,7 @@ namespace Lidarr.Plugin.Qobuzarr.Services
         {
             // Use minimal normalization; rely on URL encoding when building requests
             query = (query ?? string.Empty).Trim();
-            
+
             var session = _authService.GetCachedSession();
             if (session == null)
             {
@@ -142,7 +142,7 @@ namespace Lidarr.Plugin.Qobuzarr.Services
                 try
                 {
                     var playlist = await _httpClient.GetJsonAsync<QobuzPlaylist>(url);
-                    
+
                     if (playlist?.Tracks?.Items == null || playlist.Tracks.Items.Count == 0)
                         break;
 
@@ -154,7 +154,7 @@ namespace Lidarr.Plugin.Qobuzarr.Services
                     }
 
                     offset += pageSize;
-                    
+
                     // Check if we've fetched all tracks
                     if (allTracks.Count >= playlist.Tracks.Total)
                         break;
@@ -181,7 +181,7 @@ namespace Lidarr.Plugin.Qobuzarr.Services
         {
             // Use minimal normalization; rely on URL encoding when building requests
             query = (query ?? string.Empty).Trim();
-            
+
             var session = _authService.GetCachedSession();
             if (session == null)
             {
@@ -262,13 +262,13 @@ namespace Lidarr.Plugin.Qobuzarr.Services
                 try
                 {
                     var response = await _httpClient.GetJsonAsync<QobuzAlbumSearchResponse>(url);
-                    
+
                     if (response?.Albums?.Items == null || response.Albums.Items.Count == 0)
                         break;
 
                     allAlbums.AddRange(response.Albums.Items);
                     offset += pageSize;
-                    
+
                     // Check if we've fetched all albums
                     if (allAlbums.Count >= response.Albums.Total)
                         break;
@@ -332,13 +332,13 @@ namespace Lidarr.Plugin.Qobuzarr.Services
                 try
                 {
                     var response = await _httpClient.GetJsonAsync<QobuzAlbumSearchResponse>(url);
-                    
+
                     if (response?.Albums?.Items == null || response.Albums.Items.Count == 0)
                         break;
 
                     allAlbums.AddRange(response.Albums.Items);
                     offset += pageSize;
-                    
+
                     // Check if we've fetched all albums
                     if (allAlbums.Count >= response.Albums.Total)
                         break;
@@ -360,7 +360,7 @@ namespace Lidarr.Plugin.Qobuzarr.Services
         {
             // Sanitize the search query
             query = InputSanitizer.SanitizeSearchQuery(query);
-            
+
             var session = _authService.GetCachedSession();
             if (session == null)
             {
@@ -391,7 +391,7 @@ namespace Lidarr.Plugin.Qobuzarr.Services
         {
             // Sanitize the search query
             query = InputSanitizer.SanitizeSearchQuery(query);
-            
+
             var session = _authService.GetCachedSession();
             if (session == null)
             {
@@ -422,7 +422,7 @@ namespace Lidarr.Plugin.Qobuzarr.Services
         {
             // Sanitize the search query
             query = InputSanitizer.SanitizeSearchQuery(query);
-            
+
             var session = _authService.GetCachedSession();
             if (session == null)
             {
@@ -493,35 +493,35 @@ namespace Lidarr.Plugin.Qobuzarr.Services
             var cleaned = query;
 
             // Remove venue/location information patterns
-            cleaned = Regex.Replace(cleaned, 
-                @"\s*\(live\s+at\s+[^,)]+,\s*[^)]+\)\s*", " ", 
+            cleaned = Regex.Replace(cleaned,
+                @"\s*\(live\s+at\s+[^,)]+,\s*[^)]+\)\s*", " ",
                 RegexOptions.IgnoreCase);
 
-            cleaned = Regex.Replace(cleaned, 
-                @"\s*\(live\s+at\s+[^)]+\)\s*", " ", 
+            cleaned = Regex.Replace(cleaned,
+                @"\s*\(live\s+at\s+[^)]+\)\s*", " ",
                 RegexOptions.IgnoreCase);
 
-            cleaned = Regex.Replace(cleaned, 
-                @"\s*-\s*live\s+at\s+.+$", "", 
+            cleaned = Regex.Replace(cleaned,
+                @"\s*-\s*live\s+at\s+.+$", "",
                 RegexOptions.IgnoreCase);
 
             // Remove recording/performance date patterns
-            cleaned = Regex.Replace(cleaned, 
-                @"\s*\(recorded\s+[^)]+\)\s*", " ", 
+            cleaned = Regex.Replace(cleaned,
+                @"\s*\(recorded\s+[^)]+\)\s*", " ",
                 RegexOptions.IgnoreCase);
 
-            cleaned = Regex.Replace(cleaned, 
-                @"\s*\(live\s+[^)]+\)\s*", " ", 
+            cleaned = Regex.Replace(cleaned,
+                @"\s*\(live\s+[^)]+\)\s*", " ",
                 RegexOptions.IgnoreCase);
 
             // Remove year patterns
-            cleaned = Regex.Replace(cleaned, 
+            cleaned = Regex.Replace(cleaned,
                 @"\s*[\(\[]?\d{1,2}[\./]\d{1,2}[\./]\d{4}[\)\]]?\s*", " ");
 
-            cleaned = Regex.Replace(cleaned, 
+            cleaned = Regex.Replace(cleaned,
                 @"\s*\d{1,2}\.\d{1,2}\.\d{4}\s*", " ");
 
-            cleaned = Regex.Replace(cleaned, 
+            cleaned = Regex.Replace(cleaned,
                 @"\s*[\(\[]?\d{4}[\)\]]?\s*", " ");
 
             // Remove explicit version/performance indicators
@@ -588,22 +588,22 @@ namespace Lidarr.Plugin.Qobuzarr.Services
             var simplified = query;
 
             // Remove featuring information more aggressively
-            simplified = Regex.Replace(simplified, 
-                @"\s+(feat\.?|ft\.?|featuring|with)\s+.+$", "", 
+            simplified = Regex.Replace(simplified,
+                @"\s+(feat\.?|ft\.?|featuring|with)\s+.+$", "",
                 RegexOptions.IgnoreCase);
 
             // Remove remix/version information
-            simplified = Regex.Replace(simplified, 
-                @"\s*\([^)]*remix[^)]*\)\s*", " ", 
+            simplified = Regex.Replace(simplified,
+                @"\s*\([^)]*remix[^)]*\)\s*", " ",
                 RegexOptions.IgnoreCase);
 
-            simplified = Regex.Replace(simplified, 
-                @"\s*\([^)]*version[^)]*\)\s*", " ", 
+            simplified = Regex.Replace(simplified,
+                @"\s*\([^)]*version[^)]*\)\s*", " ",
                 RegexOptions.IgnoreCase);
 
             // Clean up and trim
             simplified = Regex.Replace(simplified, @"\s+", " ").Trim();
-            
+
             return simplified;
         }
     }

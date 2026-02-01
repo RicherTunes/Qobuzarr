@@ -254,7 +254,7 @@ namespace Qobuzarr.Tests.Unit.Models
             // Arrange & Act
             var credentials = new QobuzCredentials
             {
-                Email = "test@example.com", 
+                Email = "test@example.com",
                 MD5Password = "hashedpassword",
                 UserId = "12345678",
                 AuthToken = "auth_token_123",

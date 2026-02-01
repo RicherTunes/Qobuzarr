@@ -72,9 +72,9 @@ public class ConflictService : IConflictService
 
             if (albumGroups.Any())
             {
-                var qualityConflicts = albumGroups.Where(g => 
+                var qualityConflicts = albumGroups.Where(g =>
                     g.Select(r => r.Quality).Distinct().Count() > 1).ToList();
-                
+
                 if (qualityConflicts.Any())
                 {
                     conflict.Reason = ConflictReason.QualityConflict;
@@ -89,7 +89,7 @@ public class ConflictService : IConflictService
             {
                 var artistNames = results.Select(r => r.Artist.ToLower()).Distinct().ToList();
                 var similarArtists = new List<string>();
-                
+
                 foreach (var artist1 in artistNames)
                 {
                     foreach (var artist2 in artistNames)
@@ -104,7 +104,7 @@ public class ConflictService : IConflictService
                 if (similarArtists.Any())
                 {
                     conflict.Reason = ConflictReason.ArtistDisambiguation;
-                    conflict.CandidateResults = results.Where(r => 
+                    conflict.CandidateResults = results.Where(r =>
                         similarArtists.Contains(r.Artist.ToLower())).ToList();
                     _logger.LogDebug("Conflict detected: Artist disambiguation for query '{Query}'", query);
                     return conflict;
@@ -181,7 +181,7 @@ public class ConflictService : IConflictService
         table.AddColumn("Score");
 
         var options = new List<string>();
-        
+
         for (int i = 0; i < conflict.CandidateResults.Count; i++)
         {
             var result = conflict.CandidateResults[i];
@@ -207,13 +207,13 @@ public class ConflictService : IConflictService
 
         var actionPrompt = new SelectionPrompt<string>()
             .Title("How would you like to resolve this conflict?");
-        
+
         // Add numbered options
         foreach (var option in options.Take(conflict.CandidateResults.Count))
         {
             actionPrompt.AddChoice(option);
         }
-        
+
         // Add action options
         actionPrompt.AddChoice("s (Skip this query)");
         actionPrompt.AddChoice("r (Refine search - enter new query)");

@@ -37,7 +37,7 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Orchestration
             {
                 var albumTitle = remoteAlbum.Albums?.FirstOrDefault()?.Title ?? "Unknown Album";
                 var artistName = remoteAlbum.Artist?.Name ?? "Unknown Artist";
-                
+
                 _logger.Info("📥 Orchestrating download: {0} - {1}", artistName, albumTitle);
 
                 // Generate unique download ID
@@ -114,12 +114,12 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Orchestration
                 // Use default cleanup cutoff from configuration
                 var cutoff = TimeSpan.FromMinutes(30);
                 var cleanedUp = _queueService.CleanupCompletedDownloads(cutoff);
-                
+
                 if (cleanedUp > 0)
                 {
                     _logger.Info("Cleaned up {0} completed downloads", cleanedUp);
                 }
-                
+
                 return cleanedUp;
             }
             catch (Exception ex)
@@ -137,10 +137,10 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Orchestration
             // Simple progress calculation - can be made more sophisticated
             var completedWeight = stats.CompletedDownloads * 100.0;
             var failedWeight = stats.FailedDownloads * 0.0; // Failed downloads contribute 0%
-            
+
             // Estimate progress for active downloads (assume 50% average)
             var activeWeight = (stats.QueuedDownloads + stats.DownloadingDownloads) * 50.0;
-            
+
             return (completedWeight + activeWeight) / stats.TotalDownloads;
         }
     }

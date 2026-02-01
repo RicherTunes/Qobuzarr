@@ -17,7 +17,7 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers.Core
         private readonly ISecureMLModelLoader _secureModelLoader;
         private readonly QobuzIndexerSettings _settings;
         private readonly Logger _logger;
-        
+
         // ML Performance tracking
         private readonly Dictionary<string, MLPerformanceMetrics> _performanceMetrics = new();
         private readonly object _metricsLock = new object();
@@ -35,7 +35,7 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers.Core
         public IPatternLearningEngine CreateMLOptimizer(Logger logger)
         {
             var modelType = (MLModelType)(_settings?.MLModelType ?? (int)MLModelType.Baseline);
-            
+
             logger.Info($"Initializing ML optimizer: {modelType}");
 
             try
@@ -61,7 +61,7 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers.Core
                         logger.Info("Initializing hybrid ML model (baseline + personal)");
                         var baselineModel = new CompiledMLQueryOptimizer(logger);
                         var personalModelForHybrid = TryLoadPersonalModel(logger);
-                        
+
                         if (personalModelForHybrid != null)
                         {
                             logger.Info("✅ Hybrid ML model initialized with both baseline and personal models");
@@ -87,14 +87,14 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers.Core
             try
             {
                 var baselineCalls = 1; // Initial search request
-                
+
                 // Additional calls for pagination (rough estimate)
                 if (resultCount > 25) // Qobuz typical page size
                 {
                     var additionalPages = Math.Max(0, (resultCount - 25) / 25);
                     baselineCalls += additionalPages;
                 }
-                
+
                 // Additional calls for metadata enrichment (if applicable)
                 if (queryUrl?.Contains("track") == true)
                 {
@@ -135,7 +135,7 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers.Core
                     {
                         _performanceMetrics[key].ActualCalls = actualCalls;
                         _performanceMetrics[key].CallsSaved = callsSaved;
-                        _performanceMetrics[key].OptimizationPercentage = 
+                        _performanceMetrics[key].OptimizationPercentage =
                             baselineCalls > 0 ? (double)callsSaved / baselineCalls * 100.0 : 0.0;
                     }
                 }
@@ -160,11 +160,11 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers.Core
                     var totalBaseline = _performanceMetrics.Values.Sum(m => m.EstimatedBaselineCalls);
                     var totalActual = _performanceMetrics.Values.Sum(m => m.ActualCalls);
                     var totalSaved = _performanceMetrics.Values.Sum(m => m.CallsSaved);
-                    
-                    var overallOptimization = totalBaseline > 0 ? 
+
+                    var overallOptimization = totalBaseline > 0 ?
                         (double)totalSaved / totalBaseline * 100.0 : 0.0;
 
-                    _logger.Info("🤖 ML Performance Summary - API calls saved: {0}/{1} ({2:F1}%)", 
+                    _logger.Info("🤖 ML Performance Summary - API calls saved: {0}/{1} ({2:F1}%)",
                         totalSaved, totalBaseline, overallOptimization);
                 }
             }
@@ -188,11 +188,11 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers.Core
                     var report = new System.Text.StringBuilder();
                     report.AppendLine("ML Performance Report");
                     report.AppendLine("====================");
-                    
+
                     var totalBaseline = _performanceMetrics.Values.Sum(m => m.EstimatedBaselineCalls);
                     var totalActual = _performanceMetrics.Values.Sum(m => m.ActualCalls);
                     var totalSaved = _performanceMetrics.Values.Sum(m => m.CallsSaved);
-                    var overallOptimization = totalBaseline > 0 ? 
+                    var overallOptimization = totalBaseline > 0 ?
                         (double)totalSaved / totalBaseline * 100.0 : 0.0;
 
                     report.AppendLine($"Overall Optimization: {overallOptimization:F1}%");
@@ -200,7 +200,7 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers.Core
                     report.AppendLine($"Baseline Calls: {totalBaseline}");
                     report.AppendLine($"Actual Calls: {totalActual}");
                     report.AppendLine();
-                    
+
                     report.AppendLine("Per-Query Breakdown:");
                     foreach (var kvp in _performanceMetrics.OrderByDescending(x => x.Value.CallsSaved))
                     {
@@ -227,7 +227,7 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers.Core
                     var totalBaseline = _performanceMetrics.Values.Sum(m => m.EstimatedBaselineCalls);
                     var totalActual = _performanceMetrics.Values.Sum(m => m.ActualCalls);
                     var totalSaved = _performanceMetrics.Values.Sum(m => m.CallsSaved);
-                    
+
                     return new
                     {
                         overallOptimization = totalBaseline > 0 ? (double)totalSaved / totalBaseline * 100.0 : 0.0,
@@ -235,7 +235,7 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers.Core
                         totalBaselineCalls = totalBaseline,
                         totalActualCalls = totalActual,
                         queriesOptimized = _performanceMetrics.Count,
-                        averageOptimization = _performanceMetrics.Count > 0 ? 
+                        averageOptimization = _performanceMetrics.Count > 0 ?
                             _performanceMetrics.Values.Average(m => m.OptimizationPercentage) : 0.0
                     };
                 }
@@ -252,7 +252,7 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers.Core
             try
             {
                 var securityStats = _secureModelLoader.GetSecurityStats();
-                
+
                 return new
                 {
                     status = "healthy",
@@ -261,7 +261,7 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers.Core
                         totalLoadAttempts = securityStats.TotalLoadAttempts,
                         successfulLoads = securityStats.SuccessfulLoads,
                         failedValidations = securityStats.FailedValidations,
-                        successRate = securityStats.TotalLoadAttempts > 0 ? 
+                        successRate = securityStats.TotalLoadAttempts > 0 ?
                             (double)securityStats.SuccessfulLoads / securityStats.TotalLoadAttempts * 100.0 : 100.0
                     },
                     performance = GetMLPerformanceMetrics()
@@ -312,7 +312,7 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers.Core
                 };
 
                 logger.Info("Attempting to load personal ML model with security validation");
-                
+
                 var externalModel = _secureModelLoader.TryLoadFromPaths(possiblePaths, requireSignature: false);
                 if (externalModel != null)
                 {
@@ -333,7 +333,7 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers.Core
         private string GetMetricsKey(string queryUrl)
         {
             if (string.IsNullOrEmpty(queryUrl)) return "unknown";
-            
+
             try
             {
                 var uri = new Uri(queryUrl);

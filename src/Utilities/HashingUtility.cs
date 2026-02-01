@@ -34,7 +34,7 @@ namespace Lidarr.Plugin.Qobuzarr.Utilities
         {
             // Validate password for security
             password = InputSanitizer.ValidatePassword(password);
-            
+
             return ComputeMD5Hash(password);
         }
 

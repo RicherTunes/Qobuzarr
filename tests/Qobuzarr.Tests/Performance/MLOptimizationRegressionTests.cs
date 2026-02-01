@@ -37,7 +37,7 @@ namespace Qobuzarr.Tests.Performance
         private const int TARGET_MEMORY_MB = 50; // 50MB maximum memory overhead
         private const int BASELINE_API_CALLS = 3; // Baseline calls per query in analysis (3 → 1 gives 66.7% max reduction)
 
-        public MLOptimizationRegressionTests(ITestOutputHelper output)    
+        public MLOptimizationRegressionTests(ITestOutputHelper output)
         {
             _output = output;
             _logger = LogManager.GetCurrentClassLogger();
@@ -72,26 +72,26 @@ namespace Qobuzarr.Tests.Performance
                 var complexity = _optimizer.PredictComplexity(testCase.Artist, testCase.Album);
 
                 stopwatch.Stop();
-                
+
                 // Simulate API calls based on optimization
                 var baselineCalls = BASELINE_API_CALLS;
                 var optimizedCalls = CalculateOptimizedApiCalls(complexity);
 
                 totalApiCalls += baselineCalls;
                 savedApiCalls += (baselineCalls - optimizedCalls);
-                
+
                 _metrics.RecordApiOptimization(baselineCalls - optimizedCalls, baselineCalls);
-                _metrics.RecordPrediction(stopwatch.ElapsedMilliseconds, 
-                    optimizedCalls < baselineCalls, 
+                _metrics.RecordPrediction(stopwatch.ElapsedMilliseconds,
+                    optimizedCalls < baselineCalls,
                     CalculateConfidence(complexity));
             }
 
             // Assert
             var actualReduction = (savedApiCalls / (double)totalApiCalls) * 100;
-            
+
             actualReduction.Should().BeGreaterOrEqualTo(TARGET_API_REDUCTION,
                 $"ML optimization must achieve {TARGET_API_REDUCTION}% API call reduction, but achieved {actualReduction:F1}%");
-            
+
             // Log detailed results
             _output.WriteLine($"API Call Reduction Results:");
             _output.WriteLine($"  Total API calls (baseline): {totalApiCalls}");
@@ -158,7 +158,7 @@ namespace Qobuzarr.Tests.Performance
             // Assert
             p95Latency.Should().BeLessOrEqualTo(TARGET_PREDICTION_TIME_MS,
                 $"P95 prediction latency must be under {TARGET_PREDICTION_TIME_MS}ms, but was {p95Latency:F1}ms");
-            
+
             _output.WriteLine($"Prediction Latency Results:");
             _output.WriteLine($"  Samples: {latencies.Count}");
             _output.WriteLine($"  Min: {latencies.Min():F1}ms");
@@ -228,10 +228,10 @@ namespace Qobuzarr.Tests.Performance
 
             // Assert
             var hitRatio = _metrics.GetCacheHitRatio() * 100;
-            
+
             hitRatio.Should().BeGreaterOrEqualTo(TARGET_CACHE_HIT_RATIO,
                 $"Cache hit ratio must be at least {TARGET_CACHE_HIT_RATIO}%, but was {hitRatio:F1}%");
-            
+
             var summary = _metrics.GetPerformanceSummary();
             _output.WriteLine($"Cache Performance Results:");
             _output.WriteLine($"  Cache hits: {summary.CacheHits}");
@@ -248,16 +248,16 @@ namespace Qobuzarr.Tests.Performance
             GC.Collect();
             GC.WaitForPendingFinalizers();
             GC.Collect();
-            
+
             var initialMemory = GC.GetTotalMemory(false);
-            
+
             // Act - Load all ML components
             var optimizer = new CompiledMLQueryOptimizer(_logger);
             var hybridOptimizer = new HybridMLQueryOptimizer(_logger, new Mock<IPatternLearningEngine>().Object, new Mock<IPatternLearningEngine>().Object, new HybridConfiguration());
             var classifier = new QueryComplexityClassifier();
             var cache = new QobuzPatternCache();
             var substringCache = new QobuzSubstringCache();
-            
+
             // Process queries to populate caches
             foreach (var testCase in _productionQueries)
             {
@@ -268,17 +268,17 @@ namespace Qobuzarr.Tests.Performance
                 cache.GetCachedResult(testCase.Artist, testCase.Album);
                 substringCache.FindCachedResults(testCase.Artist, testCase.Album);
             }
-            
+
             GC.Collect();
             var finalMemory = GC.GetTotalMemory(false);
-            
+
             // Assert
             var memoryUsedBytes = finalMemory - initialMemory;
             var memoryUsedMB = memoryUsedBytes / (1024.0 * 1024.0);
-            
+
             memoryUsedMB.Should().BeLessOrEqualTo(TARGET_MEMORY_MB,
                 $"ML components must use less than {TARGET_MEMORY_MB}MB, but used {memoryUsedMB:F1}MB");
-            
+
             _output.WriteLine($"Memory Usage Results:");
             _output.WriteLine($"  Initial memory: {initialMemory / (1024.0 * 1024.0):F1}MB");
             _output.WriteLine($"  Final memory: {finalMemory / (1024.0 * 1024.0):F1}MB");
@@ -332,7 +332,7 @@ namespace Qobuzarr.Tests.Performance
 
             // Act - Simulate concurrent predictions
             stopwatch.Start();
-            
+
             for (int i = 0; i < concurrentTasks; i++)
             {
                 var testCase = _productionQueries[i % _productionQueries.Count];
@@ -344,7 +344,7 @@ namespace Qobuzarr.Tests.Performance
                     return (double)sw.ElapsedMilliseconds;
                 });
             }
-            
+
             // Safety timeout for stress runs (non-destructive)
             var timeoutMs = GetEnvInt("QOBUZ_TEST_TIMEOUT_MS", 15000);
             var allTasks = Task.WhenAll(tasks);
@@ -361,13 +361,13 @@ namespace Qobuzarr.Tests.Performance
             var maxLatency = latencies.Max();
             var totalTime = stopwatch.ElapsedMilliseconds;
             var throughput = (concurrentTasks / (totalTime / 1000.0));
-            
+
             avgLatency.Should().BeLessOrEqualTo(TARGET_PREDICTION_TIME_MS * 2,
                 "Average latency should not degrade significantly under load");
-            
+
             throughput.Should().BeGreaterThan(50,
                 "Should handle at least 50 predictions per second");
-            
+
             _output.WriteLine($"Concurrent Performance Results:");
             _output.WriteLine($"  Concurrent requests: {concurrentTasks}");
             _output.WriteLine($"  Total time: {totalTime}ms");
@@ -400,7 +400,7 @@ namespace Qobuzarr.Tests.Performance
                     _optimizer.PredictComplexity(testCase.Artist, testCase.Album);
                     _metrics.RecordPrediction(5.0, true, 0.92);
                 }
-                
+
                 _metrics.RecordApiOptimization(3, 10);
                 _metrics.RecordCacheHit();
             }
@@ -415,16 +415,16 @@ namespace Qobuzarr.Tests.Performance
             report.Should().Contain("ML Performance Report");
             report.Should().Contain("ACCURACY METRICS");
             report.Should().Contain("API OPTIMIZATION");
-            
+
             health.Should().NotBeNull();
             health.Score.Should().BeGreaterThan(0);
-            
+
             // Output comprehensive report
             _output.WriteLine("=== ML OPTIMIZATION PERFORMANCE REPORT ===");
             _output.WriteLine(report);
             _output.WriteLine($"\nHealth Score: {health.Score}/100");
             _output.WriteLine($"Health Status: {health.Status}");
-            
+
             if (health.Issues.Any())
             {
                 _output.WriteLine("\nIdentified Issues:");
@@ -547,7 +547,7 @@ namespace Qobuzarr.Tests.Performance
 
             public Task UpdateModelAsync(QueryResult actualResult) => Task.CompletedTask;
         }
-        
+
         private enum SecurityLevel
         {
             Standard,

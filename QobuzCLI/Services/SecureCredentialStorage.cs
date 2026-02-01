@@ -17,15 +17,15 @@ namespace QobuzCLI.Services
         public SecureCredentialStorage(ILogger<SecureCredentialStorage> logger)
         {
             _logger = logger;
-            
+
             var homeDirectory = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
             var qobuzDirectory = Path.Combine(homeDirectory, ".qobuz");
-            
+
             if (!Directory.Exists(qobuzDirectory))
             {
                 Directory.CreateDirectory(qobuzDirectory);
             }
-            
+
             _credentialStorePath = Path.Combine(qobuzDirectory, "credentials.dat");
         }
 
@@ -43,7 +43,7 @@ namespace QobuzCLI.Services
                 var credentials = await LoadCredentialsAsync();
                 credentials[key] = encryptedData;
                 await SaveCredentialsAsync(credentials);
-                
+
                 _logger.LogDebug("Credential stored securely for key: {Key}", key);
             }
             catch (Exception ex)
@@ -134,7 +134,7 @@ namespace QobuzCLI.Services
                     return new Dictionary<string, string>();
 
                 var json = DecryptString(Convert.ToBase64String(encryptedContent));
-                return System.Text.Json.JsonSerializer.Deserialize<Dictionary<string, string>>(json) 
+                return System.Text.Json.JsonSerializer.Deserialize<Dictionary<string, string>>(json)
                        ?? new Dictionary<string, string>();
             }
             catch
@@ -263,7 +263,7 @@ namespace QobuzCLI.Services
             var credentialsDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".qobuz", "credentials");
             Directory.CreateDirectory(credentialsDir);
             var keyPath = Path.Combine(credentialsDir, ".aeskey");
-            
+
             if (File.Exists(keyPath))
             {
                 try
@@ -285,7 +285,7 @@ namespace QobuzCLI.Services
             {
                 // Store the key securely
                 File.WriteAllBytes(keyPath, key);
-                
+
                 // Set file permissions on Unix-like systems (best effort)
                 try
                 {

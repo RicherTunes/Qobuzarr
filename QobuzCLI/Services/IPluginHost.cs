@@ -30,25 +30,25 @@ public interface IPluginHost
     /// <param name="config">The CLI configuration containing Qobuz credentials and settings.</param>
     /// <returns>A task representing the asynchronous initialization operation.</returns>
     Task InitializeAsync(QobuzConfig config);
-    
+
     /// <summary>
     /// Gets a value indicating whether the plugin host has been successfully initialized.
     /// </summary>
     bool IsInitialized { get; }
-    
+
     // Plugin services - direct access to plugin functionality
     IQobuzAuthenticationService Auth { get; }
     // IQobuzApiClient Api { get; }
     // QobuzIndexer Indexer { get; }  
     // QobuzDownloadClient DownloadClient { get; }
-    
+
     /// <summary>
     /// Tests the current authentication configuration by attempting to authenticate with Qobuz.
     /// Validates credentials and verifies API connectivity.
     /// </summary>
     /// <returns>True if authentication succeeds; false otherwise.</returns>
     Task<bool> TestAuthenticationAsync();
-    
+
     /// <summary>
     /// Performs a search in the Qobuz catalog using the specified query and type.
     /// </summary>
@@ -56,7 +56,7 @@ public interface IPluginHost
     /// <param name="type">The type of search to perform (Album, Artist, Track).</param>
     /// <returns>A list of search results matching the query.</returns>
     Task<List<SearchResult>> SearchAsync(string query, QobuzCLI.Models.SearchType type);
-    
+
     /// <summary>
     /// Downloads a complete album from Qobuz using the default quality settings.
     /// </summary>
@@ -64,7 +64,7 @@ public interface IPluginHost
     /// <param name="outputPath">The directory where album files should be saved.</param>
     /// <returns>The download result containing success status and file information.</returns>
     Task<Lidarr.Plugin.Qobuzarr.Services.DownloadResult> DownloadAlbumAsync(string albumId, string outputPath);
-    
+
     /// <summary>
     /// Downloads a complete album from Qobuz with the specified quality preference.
     /// </summary>
@@ -73,7 +73,7 @@ public interface IPluginHost
     /// <param name="quality">Optional quality preference (MP3, FLAC, Hi-Res). If null, uses default from config.</param>
     /// <returns>The download result containing success status and file information.</returns>
     Task<CliDownloadResult> DownloadAlbumAsync(string albumId, string outputPath, string? quality = null);
-    
+
     /// <summary>
     /// Downloads all albums from a specific artist's discography.
     /// </summary>
@@ -81,7 +81,7 @@ public interface IPluginHost
     /// <param name="outputPath">The directory where artist albums should be saved.</param>
     /// <returns>The download result containing success status and file information.</returns>
     Task<CliDownloadResult> DownloadArtistAsync(string artistId, string outputPath);
-    
+
     /// <summary>
     /// Downloads a complete playlist from Qobuz including all tracks.
     /// Creates M3U8 playlist file and preserves track order.
@@ -92,11 +92,11 @@ public interface IPluginHost
     /// <param name="createM3u8">Whether to create an M3U8 playlist file. Default is true.</param>
     /// <returns>The playlist download result containing success status and track information.</returns>
     Task<CliPlaylistDownloadResult> DownloadPlaylistAsync(
-        string playlistId, 
-        string outputPath, 
+        string playlistId,
+        string outputPath,
         string? quality = null,
         bool createM3u8 = true);
-    
+
     /// <summary>
     /// Downloads all albums from a specific record label.
     /// Organizes albums by artist within the label folder.
@@ -107,17 +107,17 @@ public interface IPluginHost
     /// <param name="maxAlbums">Maximum number of albums to download. Default is 100.</param>
     /// <returns>The label download result containing success status and album information.</returns>
     Task<Lidarr.Plugin.Qobuzarr.Download.Services.LabelDownloadResult> DownloadLabelAsync(
-        string labelId, 
-        string outputPath, 
+        string labelId,
+        string outputPath,
         string? quality = null,
         int maxAlbums = 100);
-    
+
     /// <summary>
     /// Logs performance metrics about plugin operations for monitoring and debugging.
     /// Includes API call statistics, download speeds, and error rates.
     /// </summary>
     void LogPerformanceMetrics();
-    
+
     /// <summary>
     /// Validates that an album is actually downloadable before queuing.
     /// Checks if the album exists and has tracks available for download.
@@ -126,7 +126,7 @@ public interface IPluginHost
     /// <param name="preferredQuality">The preferred quality ID to check availability for.</param>
     /// <returns>True if the album has downloadable content; false otherwise.</returns>
     Task<bool> ValidateAlbumDownloadabilityAsync(string albumId, int preferredQuality = 27);
-    
+
     /// <summary>
     /// Checks if an album already exists locally with adequate quality.
     /// </summary>
@@ -135,7 +135,7 @@ public interface IPluginHost
     /// <param name="requestedQuality">The requested quality level (e.g., "flac-max", "mp3-320").</param>
     /// <returns>Result indicating if the album exists with adequate quality.</returns>
     Task<(bool AlreadyExists, int ExistingTrackCount, string Reason)> CheckExistingAlbumAsync(string albumId, string albumDir, string requestedQuality);
-    
+
     /// <summary>
     /// Gets access to Lidarr integration functionality from the plugin.
     /// This provides CLI access to the plugin's LidarrIntegrationService without reimplementation.

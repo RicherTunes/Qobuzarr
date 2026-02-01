@@ -48,14 +48,14 @@ class Program
         //     await PluginCoreTest.RunBasicTest();
         //     return 0;
         // }
-        
+
         try
         {
             // Load .env file if it exists (for easier credential management)
             LoadEnvironmentVariables();
-            
+
             // Configuration logging simplified for CLI
-            
+
             // Setup dependency injection
             var services = new ServiceCollection();
             ConfigureServices(services);
@@ -64,7 +64,7 @@ class Program
             // Initialize state service
             var stateService = serviceProvider.GetRequiredService<IStateService>();
             await stateService.InitializeAsync();
-            
+
             // Initialize queue service
             var queueService = serviceProvider.GetRequiredService<IQueueService>();
             await queueService.InitializeAsync();
@@ -86,20 +86,20 @@ class Program
     {
         // Dashboard state provider for coordinated logging
         services.AddSingleton<IDashboardStateProvider, DashboardStateProvider>();
-        
+
         // Phase 1+: Enhanced logging with dashboard integration
         services.AddLogging(builder =>
         {
             builder.ClearProviders();
-            
+
             // Use console logging instead of NLog for CLI
-            
+
             // Add dashboard-aware console logging
             builder.Services.AddSingleton<ILoggerProvider>(serviceProvider =>
             {
                 var dashboardState = serviceProvider.GetRequiredService<IDashboardStateProvider>();
                 return new DashboardAwareConsoleLoggerProvider(
-                    Microsoft.Extensions.Options.Options.Create(new ConsoleLoggerOptions()), 
+                    Microsoft.Extensions.Options.Options.Create(new ConsoleLoggerOptions()),
                     dashboardState);
             });
             // Configure minimum level from env: LOG_LEVEL=Debug/Information/Warn/Error or DEBUG_MODE=true
@@ -121,7 +121,7 @@ class Program
         });
 
         // Dashboard service - register after logging to avoid circular dependency
-        services.AddSingleton<Dashboard>(sp => 
+        services.AddSingleton<Dashboard>(sp =>
         {
             var logger = sp.GetRequiredService<ILogger<Dashboard>>();
             return new Dashboard(logger, sp);
@@ -132,20 +132,20 @@ class Program
         services.AddSingleton<IConfigService, ConfigService>();
         services.AddSingleton<ISecureCredentialStorage, SecureCredentialStorage>();
         services.AddSingleton<ISecureConfigService, SecureConfigService>();
-        
+
         // Rate limiter removed - now integrated into plugin's API client
         services.AddSingleton<DownloadProgressTracker>();
         // PluginMetadataService removed - using plugin's QobuzTrackDownloader.ApplyBasicMetadata instead
         services.AddSingleton<DownloadOrchestrator>();
         services.AddSingleton<DownloadErrorAnalyzer>();
-        
+
         // Lidarr integration services
         services.AddSingleton<LidarrCredentialService>();
-        
+
         // Real Lidarr integration service - thin CLI adapter that delegates to plugin services
         // No longer needs HttpClient - plugin services handle all HTTP operations
         services.AddSingleton<Lidarr.Plugin.Qobuzarr.Services.ILidarrIntegrationService, RealLidarrIntegrationService>();
-        
+
         // Register DashboardLogger as IDashboardLogger
         services.AddSingleton<QobuzCLI.Services.Logging.IDashboardLogger>(sp =>
         {
@@ -153,7 +153,7 @@ class Program
             var dashboard = sp.GetRequiredService<Dashboard>();
             return new QobuzCLI.Services.Logging.DashboardLogger(logger, dashboard, "Default");
         });
-        
+
         // Register HttpClient with proper configuration
         services.AddHttpClient<HttpClient>(client =>
         {
@@ -162,21 +162,21 @@ class Program
         }).ConfigurePrimaryHttpMessageHandler(() =>
         {
             var handler = new HttpClientHandler();
-            
+
             // Use system proxy settings
             handler.UseProxy = true;
             handler.UseDefaultCredentials = true;
-            
+
             return handler;
         });
-        
+
         // Also register as singleton for backward compatibility
-        services.AddSingleton<HttpClient>(sp => 
+        services.AddSingleton<HttpClient>(sp =>
         {
             var factory = sp.GetRequiredService<IHttpClientFactory>();
             return factory.CreateClient(nameof(HttpClient));
         });
-        
+
         // Use SimplePluginService (transitional implementation)
         // This replaces the 1,776-line RealQobuzService god object with a focused implementation
         services.AddSingleton<IPluginHost>(sp =>
@@ -185,7 +185,7 @@ class Program
             var httpClient = sp.GetRequiredService<HttpClient>();
             return new PluginHost(logger, httpClient);
         });
-        
+
         services.AddSingleton<ISearchService, SearchService>();
         services.AddSingleton<IConflictService, ConflictService>();
         services.AddSingleton<IStateService, StateService>();
@@ -194,7 +194,7 @@ class Program
         services.AddSingleton<QueueMonitoringService>();
         services.AddSingleton<IConsoleUI, SpectreConsoleUI>();
         services.AddSingleton<IInteractiveSelectionService, InteractiveSelectionService>();
-        
+
         // Use improved queue service if enabled
         var useImprovedQueue = Environment.GetEnvironmentVariable("QOBUZ_USE_IMPROVED_QUEUE") == "true";
         if (useImprovedQueue)
@@ -245,7 +245,7 @@ class Program
 
         return rootCommand;
     }
-    
+
     /// <summary>
     /// Load environment variables from .env file if it exists
     /// </summary>
@@ -261,7 +261,7 @@ class Program
                 Console.WriteLine($"Loaded environment variables from {currentDirEnvFile}");
                 return;
             }
-            
+
             // Check for .env file in project root (for development)
             var projectRoot = FindProjectRoot();
             if (!string.IsNullOrEmpty(projectRoot))
@@ -274,7 +274,7 @@ class Program
                     return;
                 }
             }
-            
+
             // No .env file found - that's OK, environment variables might be set directly
         }
         catch (Exception ex)
@@ -283,7 +283,7 @@ class Program
             Console.WriteLine($"Warning: Could not load .env file: {ex.Message}");
         }
     }
-    
+
     /// <summary>
     /// Find the project root directory (containing .csproj or .sln files)
     /// </summary>
@@ -291,7 +291,7 @@ class Program
     {
         var currentDir = Directory.GetCurrentDirectory();
         var directory = new DirectoryInfo(currentDir);
-        
+
         while (directory != null)
         {
             if (directory.GetFiles("*.sln").Any() || directory.GetFiles("Qobuzarr.csproj").Any())
@@ -300,7 +300,7 @@ class Program
             }
             directory = directory.Parent;
         }
-        
+
         return null;
     }
 }

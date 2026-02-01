@@ -22,8 +22,8 @@ namespace Qobuzarr.Tests.Builders
         private bool _sampleable = false;
         private bool _parentalWarning = false;
         private string _upc = "123456789012";
-        private QobuzImage _image = new QobuzImage 
-        { 
+        private QobuzImage _image = new QobuzImage
+        {
             Small = "https://static.qobuz.com/images/covers/small/album123.jpg",
             Large = "https://static.qobuz.com/images/covers/large/album123.jpg"
         };
@@ -69,9 +69,9 @@ namespace Qobuzarr.Tests.Builders
         /// </summary>
         public QobuzAlbumBuilder WithArtist(string name, string id = null)
         {
-            _artist = new QobuzArtist 
-            { 
-                Name = name, 
+            _artist = new QobuzArtist
+            {
+                Name = name,
                 Id = id ?? $"artist_{name.ToLower().Replace(" ", "_")}"
             };
             return this;

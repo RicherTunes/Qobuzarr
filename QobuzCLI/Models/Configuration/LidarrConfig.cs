@@ -20,7 +20,7 @@ namespace QobuzCLI.Models.Configuration
         /// </summary>
         [JsonIgnore]
         public string ApiKey { get; set; } = string.Empty;
-        
+
         /// <summary>
         /// Indicates whether a secure API key is stored
         /// </summary>
@@ -131,7 +131,7 @@ namespace QobuzCLI.Models.Configuration
             // Validate URL format
             if (!string.IsNullOrEmpty(Url))
             {
-                if (!Uri.TryCreate(Url, UriKind.Absolute, out var uri) || 
+                if (!Uri.TryCreate(Url, UriKind.Absolute, out var uri) ||
                     (uri.Scheme != "http" && uri.Scheme != "https"))
                 {
                     throw new ValidationException($"Invalid Lidarr URL: {Url}. Must be a valid HTTP/HTTPS URL.");
@@ -247,13 +247,13 @@ namespace QobuzCLI.Models.Configuration
         public LidarrConfig ToSafeConfig()
         {
             var safeConfig = (LidarrConfig)MemberwiseClone();
-            
+
             // Mask API key for logging - since it's now JsonIgnore, just show status
             safeConfig.ApiKey = HasSecureApiKey ? "***SECURE***" : "***NOT_SET***";
 
             return safeConfig;
         }
-        
+
         /// <summary>
         /// Constants for secure credential storage keys
         /// </summary>

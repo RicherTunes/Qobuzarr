@@ -77,7 +77,7 @@ namespace Lidarr.Plugin.Qobuzarr.Services
             try
             {
                 _logger.Debug("Retrieving wanted albums from Lidarr (max: {0})", maxAlbums);
-                
+
                 // Apply resource limits
                 var clampedMaxAlbums = Math.Min(maxAlbums, MAX_ALBUMS_PER_REQUEST);
                 if (maxAlbums != clampedMaxAlbums)
@@ -90,7 +90,7 @@ namespace Lidarr.Plugin.Qobuzarr.Services
                 {
                     filterOptions = new LidarrFilterOptions();
                 }
-                
+
                 if (filterOptions.PageSize == 0)
                 {
                     filterOptions.PageSize = Math.Min(clampedMaxAlbums, 100); // Reasonable page size
@@ -98,13 +98,13 @@ namespace Lidarr.Plugin.Qobuzarr.Services
 
                 var allAlbums = new List<LidarrAlbum>();
                 var page = 1;
-                
+
                 while (allAlbums.Count < clampedMaxAlbums && !cancellationToken.IsCancellationRequested)
                 {
                     filterOptions.Page = page;
-                    
+
                     var response = await _lidarrApiClient.GetWantedAlbumsAsync(filterOptions).ConfigureAwait(false);
-                    
+
                     if (response?.Records == null || !response.Records.Any())
                     {
                         _logger.Debug("No more albums found on page {0}", page);
@@ -113,15 +113,15 @@ namespace Lidarr.Plugin.Qobuzarr.Services
 
                     var albumsToAdd = response.Records.Take(clampedMaxAlbums - allAlbums.Count);
                     allAlbums.AddRange(albumsToAdd);
-                    
+
                     _logger.Debug("Retrieved {0} albums from page {1}, total: {2}", response.Records.Count, page, allAlbums.Count);
-                    
+
                     // Check if we've reached the end
                     if (response.Records.Count < filterOptions.PageSize || allAlbums.Count >= clampedMaxAlbums)
                     {
                         break;
                     }
-                    
+
                     page++;
                 }
 
@@ -145,7 +145,7 @@ namespace Lidarr.Plugin.Qobuzarr.Services
             CancellationToken cancellationToken = default)
         {
             var albumList = lidarrAlbums?.ToList() ?? throw new ArgumentNullException(nameof(lidarrAlbums));
-            
+
             if (!albumList.Any())
             {
                 _logger.Info("No albums provided for Qobuz search");
@@ -162,7 +162,7 @@ namespace Lidarr.Plugin.Qobuzarr.Services
 
             // Create semaphore for this operation
             using var semaphore = new SemaphoreSlim(effectiveConcurrency, effectiveConcurrency);
-            
+
             // Create tasks for parallel execution
             var tasks = albumList.Select(async album =>
             {
@@ -170,18 +170,18 @@ namespace Lidarr.Plugin.Qobuzarr.Services
                 try
                 {
                     await _rateLimiter.WaitIfNeededAsync(QobuzarrConstants.ServiceName, "/album/search", cancellationToken).ConfigureAwait(false);
-                    
+
                     var qobuzAlbum = await SearchSingleAlbumAsync(album, cancellationToken).ConfigureAwait(false);
-                    
+
                     lock (resultLock)
                     {
                         if (qobuzAlbum != null)
                         {
                             results[album] = qobuzAlbum;
                         }
-                        
+
                         completed++;
-                        
+
                         // Update statistics
                         _statisticsCollector.RecordSearchAttempt(qobuzAlbum != null, effectiveConcurrency);
                     }
@@ -208,7 +208,7 @@ namespace Lidarr.Plugin.Qobuzarr.Services
 
             // Wait for all searches to complete
             await Task.WhenAll(tasks).ConfigureAwait(false);
-            
+
             _logger.Info("Completed parallel Qobuz search: {0}/{1} albums found", results.Count, albumList.Count);
             return results;
         }
@@ -229,13 +229,13 @@ namespace Lidarr.Plugin.Qobuzarr.Services
             }
 
             _logger.Info("Validating {0} album matches for download", albumMatches.Count);
-            
+
             var validatedItems = new List<AlbumDownloadItem>();
 
             foreach (var match in albumMatches)
             {
                 cancellationToken.ThrowIfCancellationRequested();
-                
+
                 try
                 {
                     var validationMessages = new List<string>();
@@ -265,10 +265,10 @@ namespace Lidarr.Plugin.Qobuzarr.Services
 
                     // Get quality profile for this album
                     var qualityProfile = await GetQualityProfileForAlbumAsync(match.Key, cancellationToken).ConfigureAwait(false);
-                    
+
                     // Map Lidarr quality profile to Qobuz quality
                     var mappedQuality = _qualityService.MapLidarrQuality(qualityProfile);
-                    
+
                     // Get quality recommendation with fallback chain
                     var qualityRecommendation = CreateQualityRecommendation(mappedQuality, qualityProfile);
 
@@ -292,9 +292,9 @@ namespace Lidarr.Plugin.Qobuzarr.Services
                         var hasHiRes = sampleTrack.HasHiResQuality();
                         var maxBitDepth = sampleTrack.MaximumBitDepth ?? 16;
                         var maxSampleRate = sampleTrack.MaximumSampleRate ?? 44100;
-                        
+
                         // Check if the selected quality meets profile requirements
-                        if (!string.IsNullOrEmpty(selectedQuality) && 
+                        if (!string.IsNullOrEmpty(selectedQuality) &&
                             !DoesQualityMeetProfileRequirements(qualityProfile, selectedQuality))
                         {
                             validationMessages.Add($"Selected quality {selectedQuality} does not meet profile requirements");
@@ -322,13 +322,13 @@ namespace Lidarr.Plugin.Qobuzarr.Services
                     }
                     else
                     {
-                        _logger.Warn("Album validation failed for {0} - {1}: {2}", 
+                        _logger.Warn("Album validation failed for {0} - {1}: {2}",
                             match.Key.Artist?.ArtistName, match.Key.Title, string.Join("; ", validationMessages));
                     }
                 }
                 catch (Exception ex)
                 {
-                    _logger.Error(ex, "Error validating album: {0} - {1}", 
+                    _logger.Error(ex, "Error validating album: {0} - {1}",
                         match.Key.Artist?.ArtistName, match.Key.Title);
                 }
             }
@@ -357,7 +357,7 @@ namespace Lidarr.Plugin.Qobuzarr.Services
         private QualityRecommendation CreateQualityRecommendation(QobuzQuality mappedQuality, LidarrQualityProfile profile)
         {
             var fallbackChain = _qualityService.GetQualityFallbackChain(mappedQuality);
-            
+
             return new QualityRecommendation
             {
                 PrimaryQuality = ConvertQobuzQualityToString(mappedQuality),
@@ -371,8 +371,8 @@ namespace Lidarr.Plugin.Qobuzarr.Services
         /// Selects the best available quality from the list based on the mapped quality preference.
         /// </summary>
         private async Task<string> SelectBestAvailableQualityAsync(
-            QobuzQuality mappedQuality, 
-            List<string> availableQualities, 
+            QobuzQuality mappedQuality,
+            List<string> availableQualities,
             LidarrQualityProfile profile)
         {
             if (!availableQualities.Any())
@@ -380,7 +380,7 @@ namespace Lidarr.Plugin.Qobuzarr.Services
 
             // Get the fallback chain from the quality manager
             var fallbackChain = _qualityService.GetQualityFallbackChain(mappedQuality);
-            
+
             // Try to find the best matching quality from the fallback chain
             foreach (var quality in fallbackChain)
             {
@@ -454,7 +454,7 @@ namespace Lidarr.Plugin.Qobuzarr.Services
         private async Task<LidarrQualityProfile> GetQualityProfileForAlbumAsync(LidarrAlbum album, CancellationToken cancellationToken)
         {
             var profileId = album.QualityProfileId > 0 ? album.QualityProfileId : album.ProfileId;
-            
+
             if (profileId <= 0)
             {
                 _logger.Debug("No quality profile ID found for album {0}, using default", album.GetFullTitle());
@@ -474,16 +474,16 @@ namespace Lidarr.Plugin.Qobuzarr.Services
             try
             {
                 var profile = await _lidarrApiClient.GetQualityProfileAsync(profileId).ConfigureAwait(false);
-                
+
                 // Cache the result
                 lock (_qualityProfileCacheLock)
                 {
                     _qualityProfileCache[profileId] = profile;
                 }
 
-                _logger.Debug("Retrieved quality profile '{0}' (ID: {1}) for album {2}", 
+                _logger.Debug("Retrieved quality profile '{0}' (ID: {1}) for album {2}",
                     profile?.Name, profileId, album.GetFullTitle());
-                
+
                 return profile;
             }
             catch (Exception ex)
@@ -500,7 +500,7 @@ namespace Lidarr.Plugin.Qobuzarr.Services
         {
             var availableQualities = new List<string>();
             var sampleTrack = album.GetTracks().FirstOrDefault();
-            
+
             if (sampleTrack == null)
             {
                 // If no track info, assume basic MP3 availability
@@ -560,9 +560,9 @@ namespace Lidarr.Plugin.Qobuzarr.Services
                     {"type", "albums"},
                     {"limit", "5"}
                 };
-                
+
                 var searchResponse = await _qobuzApiClient.GetAsync<QobuzSearchResponse>("/catalog/search", parameters).ConfigureAwait(false);
-                
+
                 if (searchResponse?.Albums?.Items == null || !searchResponse.Albums.Items.Any())
                 {
                     _logger.Debug("No Qobuz results found for: {0}", searchTerm);
@@ -571,10 +571,10 @@ namespace Lidarr.Plugin.Qobuzarr.Services
 
                 // Find best match using fuzzy matching
                 var bestMatch = FindBestAlbumMatch(lidarrAlbum, searchResponse.Albums.Items);
-                
+
                 if (bestMatch != null)
                 {
-                    _logger.Debug("Found Qobuz match: {0} - {1} (ID: {2})", 
+                    _logger.Debug("Found Qobuz match: {0} - {1} (ID: {2})",
                         bestMatch.Artist?.Name, bestMatch.Title, bestMatch.Id);
                 }
 
@@ -582,7 +582,7 @@ namespace Lidarr.Plugin.Qobuzarr.Services
             }
             catch (Exception ex)
             {
-                _logger.Error(ex, "Error searching for album: {0} - {1}", 
+                _logger.Error(ex, "Error searching for album: {0} - {1}",
                     lidarrAlbum.Artist?.ArtistName, lidarrAlbum.Title);
                 return null;
             }
@@ -592,12 +592,12 @@ namespace Lidarr.Plugin.Qobuzarr.Services
         {
             var artist = album.Artist?.ArtistName?.Trim();
             var title = album.Title?.Trim();
-            
+
             if (string.IsNullOrEmpty(artist) || string.IsNullOrEmpty(title))
             {
                 return title ?? artist ?? "Unknown";
             }
-            
+
             return $"{artist} {title}";
         }
 
@@ -634,7 +634,7 @@ namespace Lidarr.Plugin.Qobuzarr.Services
             // Simple similarity based on Levenshtein distance
             var distance = LidarrInputValidator.LevenshteinDistance(s1, s2);
             var maxLength = Math.Max(s1.Length, s2.Length);
-            
+
             return maxLength > 0 ? 1.0 - (double)distance / maxLength : 0;
         }
 
@@ -642,7 +642,7 @@ namespace Lidarr.Plugin.Qobuzarr.Services
         {
             if (requestedConcurrency <= 0)
                 return Math.Max(MIN_CONCURRENCY, Environment.ProcessorCount);
-            
+
             return Math.Min(MAX_CONCURRENCY, Math.Max(MIN_CONCURRENCY, requestedConcurrency));
         }
 

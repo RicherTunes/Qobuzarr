@@ -13,22 +13,22 @@ namespace Lidarr.Plugin.Qobuzarr.Security
     public static class MetadataSanitizer
     {
         private static readonly Logger Logger = LogManager.GetCurrentClassLogger();
-        
+
         // Timeout for regex operations to prevent ReDoS attacks
         private static readonly TimeSpan RegexTimeout = TimeSpan.FromMilliseconds(250);
-        
+
         // Regex for safe version strings - alphanumeric plus common punctuation
         private static readonly Regex SafeVersionRegex = new(@"^[a-zA-Z0-9\s\-_\.\(\)\[\]&',!]+$", RegexOptions.Compiled, RegexTimeout);
-        
+
         // Control characters and zero-width characters that should be removed
         private static readonly Regex ControlCharRegex = new(@"[\x00-\x08\x0B\x0C\x0E-\x1F\x7F\u200B-\u200D\uFEFF]", RegexOptions.Compiled, RegexTimeout);
-        
+
         // HTML/XML tags that should be stripped
         private static readonly Regex HtmlTagRegex = new(@"<[^>]*>", RegexOptions.Compiled, RegexTimeout);
-        
+
         // Script tags with their content should be completely removed
         private static readonly Regex ScriptTagRegex = new(@"<script[^>]*>.*?</script>", RegexOptions.Compiled | RegexOptions.IgnoreCase | RegexOptions.Singleline, RegexTimeout);
-        
+
         // Dangerous patterns that indicate potential attacks and should result in a safe default.
         // Note: Path traversal is handled via normalization/replacement, not rejection, to avoid false positives.
         private static readonly HashSet<string> DangerousPatternsReturnSafeDefault = new(StringComparer.OrdinalIgnoreCase)
@@ -49,10 +49,10 @@ namespace Lidarr.Plugin.Qobuzarr.Security
             // XML injection - use more specific patterns
             "<!ENTITY", "<!DOCTYPE", "SYSTEM\"", "SYSTEM '"
         };
-        
+
         // Maximum allowed length for version strings
         private const int MaxVersionLength = 100;
-        
+
         /// <summary>
         /// Sanitizes an album version string for safe usage in all contexts.
         /// Removes dangerous characters and patterns while preserving legitimate version indicators.
@@ -63,17 +63,17 @@ namespace Lidarr.Plugin.Qobuzarr.Security
         {
             if (string.IsNullOrWhiteSpace(version))
                 return string.Empty;
-            
+
             var original = version;
             string sanitized;
-            
+
             try
             {
                 // Step 1: Remove control characters and zero-width characters
-                sanitized = ControlCharRegex.Replace(version, "");        
+                sanitized = ControlCharRegex.Replace(version, "");
 
                 // Step 2: Remove script tags with their content entirely (XSS prevention)
-                sanitized = ScriptTagRegex.Replace(sanitized, "");        
+                sanitized = ScriptTagRegex.Replace(sanitized, "");
 
                 // Step 3: Reject clearly malicious inputs before normalization alters detection (e.g., ':' -> '-')
                 if (IsPotentiallyDangerousForVersion(sanitized))
@@ -87,7 +87,7 @@ namespace Lidarr.Plugin.Qobuzarr.Security
                 Logger.Warn("Regex timeout while sanitizing version string, returning safe default");
                 return "Version";
             }
-            
+
             // Step 4: Replace dangerous characters for file system safety
             sanitized = sanitized
                 .Replace("..", "_")  // Path traversal
@@ -118,14 +118,14 @@ namespace Lidarr.Plugin.Qobuzarr.Security
                 Logger.Warn("Regex timeout while normalizing whitespace in version string, returning safe default");
                 return "Version";
             }
-            
+
             // Step 6: Trim and enforce length limit
             sanitized = sanitized.Trim();
             if (sanitized.Length > MaxVersionLength)
             {
                 sanitized = sanitized.Substring(0, MaxVersionLength).TrimEnd();
             }
-            
+
             // Step 7: Re-check after normalization for patterns that may survive replacement.
             // Keep this list focused to avoid false positives (path traversal is handled above).
             if (IsPotentiallyDangerousForVersion(sanitized))
@@ -133,22 +133,22 @@ namespace Lidarr.Plugin.Qobuzarr.Security
                 Logger.Warn("Potentially malicious version string detected after normalization: '{0}'", original);
                 return "Version";
             }
-            
+
             // Step 8: Final validation - ensure result is safe
             if (string.IsNullOrWhiteSpace(sanitized))
             {
                 return string.Empty;
             }
-            
+
             // Log if significant changes were made (potential attack)
             if (!string.Equals(original, sanitized, StringComparison.Ordinal))
             {
                 Logger.Debug("Version string sanitized from '{0}' to '{1}'", original, sanitized);
             }
-            
+
             return sanitized;
         }
-        
+
         /// <summary>
         /// Sanitizes an artist name for safe usage.
         /// </summary>
@@ -158,12 +158,12 @@ namespace Lidarr.Plugin.Qobuzarr.Security
         {
             if (string.IsNullOrWhiteSpace(artistName))
                 return "Unknown Artist";
-            
+
             // Apply same sanitization as version but with different default
             var sanitized = SanitizeMetadataField(artistName, "Unknown Artist");
             return sanitized;
         }
-        
+
         /// <summary>
         /// Sanitizes an album title for safe usage.
         /// </summary>
@@ -173,19 +173,19 @@ namespace Lidarr.Plugin.Qobuzarr.Security
         {
             if (string.IsNullOrWhiteSpace(albumTitle))
                 return "Unknown Album";
-            
+
             // Apply same sanitization as version but with different default
             var sanitized = SanitizeMetadataField(albumTitle, "Unknown Album");
             return sanitized;
         }
-        
+
         /// <summary>
         /// Generic metadata field sanitization.
         /// </summary>
         private static string SanitizeMetadataField(string input, string defaultValue)
         {
             string sanitized;
-            
+
             try
             {
                 // Remove control characters
@@ -202,7 +202,7 @@ namespace Lidarr.Plugin.Qobuzarr.Security
                 Logger.Warn("Regex timeout while sanitizing metadata field, returning safe default");
                 return defaultValue;
             }
-            
+
             // Basic character replacement for file system safety
             sanitized = sanitized
                 .Replace("..", "_")
@@ -215,7 +215,7 @@ namespace Lidarr.Plugin.Qobuzarr.Security
                 .Replace("<", "(")
                 .Replace(">", ")")
                 .Replace("|", "_");
-            
+
             // Normalize whitespace
             try
             {
@@ -227,13 +227,13 @@ namespace Lidarr.Plugin.Qobuzarr.Security
                 Logger.Warn("Regex timeout while normalizing whitespace in metadata field, returning safe default");
                 return defaultValue;
             }
-            
+
             // Length limit
             if (sanitized.Length > 200)
             {
                 sanitized = sanitized.Substring(0, 200).TrimEnd();
             }
-            
+
             return string.IsNullOrWhiteSpace(sanitized) ? defaultValue : sanitized;
         }
 
@@ -254,7 +254,7 @@ namespace Lidarr.Plugin.Qobuzarr.Security
 
             return false;
         }
-        
+
         /// <summary>
         /// Escapes a string for safe inclusion in HTML content.
         /// </summary>
@@ -262,7 +262,7 @@ namespace Lidarr.Plugin.Qobuzarr.Security
         {
             if (string.IsNullOrEmpty(input))
                 return string.Empty;
-            
+
             return input
                 .Replace("&", "&amp;")
                 .Replace("<", "&lt;")
@@ -270,7 +270,7 @@ namespace Lidarr.Plugin.Qobuzarr.Security
                 .Replace("\"", "&quot;")
                 .Replace("'", "&#39;");
         }
-        
+
         /// <summary>
         /// Validates if a metadata field contains potentially dangerous content.
         /// </summary>

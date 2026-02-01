@@ -26,11 +26,11 @@ namespace Lidarr.Plugin.Qobuzarr.Testing
         {
             var serviceType = typeof(TService);
             var constructors = serviceType.GetConstructors();
-            
+
             // Find the constructor with the most parameters (likely the DI constructor)
             ConstructorInfo? bestConstructor = null;
             int maxParameters = -1;
-            
+
             foreach (var constructor in constructors)
             {
                 var parameters = constructor.GetParameters();
@@ -40,21 +40,21 @@ namespace Lidarr.Plugin.Qobuzarr.Testing
                     bestConstructor = constructor;
                 }
             }
-            
+
             if (bestConstructor == null)
             {
                 throw new InvalidOperationException($"No suitable constructor found for {serviceType.Name}");
             }
-            
+
             // Resolve constructor parameters
             var constructorParams = bestConstructor.GetParameters();
             var args = new object[constructorParams.Length];
-            
+
             for (int i = 0; i < constructorParams.Length; i++)
             {
                 var paramType = constructorParams[i].ParameterType;
                 var mockInstance = GetMockInstance(registry, paramType);
-                
+
                 if (mockInstance != null)
                 {
                     args[i] = mockInstance;
@@ -70,7 +70,7 @@ namespace Lidarr.Plugin.Qobuzarr.Testing
                         "Register a mock or provide a fallback factory.");
                 }
             }
-            
+
             return (TService)Activator.CreateInstance(serviceType, args)!;
         }
 
@@ -84,13 +84,13 @@ namespace Lidarr.Plugin.Qobuzarr.Testing
         {
             var result = new TestabilityValidationResult();
             var serviceType = typeof(TService);
-            
+
             // Check for dependency injection constructor
             var constructors = serviceType.GetConstructors();
-            var diConstructor = Array.Find(constructors, c => 
-                c.GetParameters().Length > 0 && 
+            var diConstructor = Array.Find(constructors, c =>
+                c.GetParameters().Length > 0 &&
                 Array.TrueForAll(c.GetParameters(), p => p.ParameterType.IsInterface));
-            
+
             if (diConstructor == null)
             {
                 result.AddIssue(TestabilityIssueLevel.Major,
@@ -101,7 +101,7 @@ namespace Lidarr.Plugin.Qobuzarr.Testing
             {
                 result.AddSuccess("Dependency injection constructor found");
             }
-            
+
             // Check for static dependencies
             var methods = serviceType.GetMethods(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
             foreach (var method in methods)
@@ -109,7 +109,7 @@ namespace Lidarr.Plugin.Qobuzarr.Testing
                 var methodBody = method.GetMethodBody();
                 // This is a simplified check - in a real implementation, you'd analyze IL code
                 // or use more sophisticated analysis tools
-                if (method.Name.Contains("DateTime.Now") || method.Name.Contains("File.") || 
+                if (method.Name.Contains("DateTime.Now") || method.Name.Contains("File.") ||
                     method.Name.Contains("Environment."))
                 {
                     result.AddIssue(TestabilityIssueLevel.Minor,
@@ -117,7 +117,7 @@ namespace Lidarr.Plugin.Qobuzarr.Testing
                         "Consider injecting system dependencies through interfaces");
                 }
             }
-            
+
             // Check for sealed class
             if (serviceType.IsSealed)
             {
@@ -125,7 +125,7 @@ namespace Lidarr.Plugin.Qobuzarr.Testing
                     "Class is sealed",
                     "Consider making non-sealed for easier mocking");
             }
-            
+
             return result;
         }
 
@@ -153,7 +153,7 @@ namespace Lidarr.Plugin.Qobuzarr.Testing
             var method = typeof(ITestableServiceRegistry)
                 .GetMethod(nameof(ITestableServiceRegistry.GetService))
                 .MakeGenericMethod(serviceType);
-            
+
             return method.Invoke(registry, null);
         }
     }
@@ -165,7 +165,7 @@ namespace Lidarr.Plugin.Qobuzarr.Testing
     {
         public System.Collections.Generic.List<TestabilityIssue> Issues { get; } = new System.Collections.Generic.List<TestabilityIssue>();
         public System.Collections.Generic.List<string> Successes { get; } = new System.Collections.Generic.List<string>();
-        
+
         public bool IsTestable => Issues.TrueForAll(i => i.Level != TestabilityIssueLevel.Critical);
         public int Score => Math.Max(0, 100 - Issues.Aggregate(0, (acc, issue) => acc + ((int)issue.Level * 10)));
 

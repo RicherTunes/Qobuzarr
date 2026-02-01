@@ -25,12 +25,12 @@ namespace QobuzCLI.Services
         private readonly IConfigService _configService;
         // Rate limiting now handled internally by plugin services
         // private readonly IUniversalAdaptiveRateLimiter _rateLimiter;
-        
+
         private readonly string _queuesFilePath;
         private readonly ConcurrentDictionary<string, DownloadQueue> _queues;
         private readonly ConcurrentDictionary<string, QueueProcessor> _processors;
         private readonly object _saveLock = new();
-        
+
         // Performance tracking
         private int _totalDownloads;
         private int _successfulDownloads;
@@ -48,7 +48,7 @@ namespace QobuzCLI.Services
             _pluginHost = pluginHost;
             _configService = configService;
             // _rateLimiter = rateLimiter;
-            
+
             var queueDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".qobuz");
             Directory.CreateDirectory(queueDir);
             _queuesFilePath = Path.Combine(queueDir, "download-queues.json");
@@ -64,20 +64,20 @@ namespace QobuzCLI.Services
                 {
                     var json = await File.ReadAllTextAsync(_queuesFilePath).ConfigureAwait(false);
                     var loadedQueues = JsonConvert.DeserializeObject<List<DownloadQueue>>(json);
-                    
+
                     if (loadedQueues != null)
                     {
                         foreach (var queue in loadedQueues)
                         {
                             _queues[queue.Id] = queue;
-                            
+
                             // Reset any downloading items to queued on startup
                             foreach (var item in queue.Items.Where(i => i.Status == Models.QueueStatus.Downloading))
                             {
                                 item.Status = Models.QueueStatus.Queued;
                             }
                         }
-                        
+
                         _logger.LogInformation("Loaded {QueueCount} download queues with {TotalItems} items",
                             _queues.Count, _queues.Values.Sum(q => q.Items.Count));
                     }
@@ -108,14 +108,14 @@ namespace QobuzCLI.Services
 
             _queues[queue.Id] = queue;
             await SaveQueuesAsync().ConfigureAwait(false);
-            
+
             _logger.LogInformation("Created queue '{Name}' with max concurrent: {MaxConcurrent}", name, maxConcurrent);
             return queue;
         }
 
         public List<DownloadQueue> GetQueues() => _queues.Values.ToList();
 
-        public DownloadQueue? GetQueue(string queueId) => 
+        public DownloadQueue? GetQueue(string queueId) =>
             _queues.TryGetValue(queueId, out var queue) ? queue : null;
 
         public async Task<string> AddToQueueAsync(string queueId, QueuedDownload item)
@@ -127,18 +127,18 @@ namespace QobuzCLI.Services
 
             item.Status = Models.QueueStatus.Queued;
             item.AddedAt = DateTime.UtcNow;
-            
+
             queue.Items.Add(item);
             await SaveQueuesAsync().ConfigureAwait(false);
-            
+
             _logger.LogDebug("Added item {ItemId} to queue {QueueId}", item.Id, queueId);
-            
+
             // Auto-start processing if not already running
             if (!_processors.ContainsKey(queueId))
             {
                 await StartQueueProcessingAsync(queueId).ConfigureAwait(false);
             }
-            
+
             return item.Id;
         }
 
@@ -151,7 +151,7 @@ namespace QobuzCLI.Services
 
             var itemIds = new List<string>();
             var now = DateTime.UtcNow;
-            
+
             foreach (var item in items)
             {
                 item.Status = Models.QueueStatus.Queued;
@@ -162,13 +162,13 @@ namespace QobuzCLI.Services
 
             await SaveQueuesAsync().ConfigureAwait(false);
             _logger.LogInformation("Added {Count} items to queue {QueueId}", items.Count, queueId);
-            
+
             // Auto-start processing
             if (!_processors.ContainsKey(queueId))
             {
                 await StartQueueProcessingAsync(queueId).ConfigureAwait(false);
             }
-            
+
             return itemIds;
         }
 
@@ -195,9 +195,9 @@ namespace QobuzCLI.Services
 
             var processor = new QueueProcessor(this, queue, _logger);
             _processors[queueId] = processor;
-            
+
             // Start processing in background with proper error handling
-            _ = Task.Run(async () => 
+            _ = Task.Run(async () =>
             {
                 try
                 {
@@ -210,8 +210,8 @@ namespace QobuzCLI.Services
                     _processors.TryRemove(queueId, out _);
                 }
             });
-            
-            _logger.LogInformation("Started processing queue {QueueId} with {Count} items", 
+
+            _logger.LogInformation("Started processing queue {QueueId} with {Count} items",
                 queueId, queue.Items.Count(i => i.Status == Models.QueueStatus.Queued));
         }
 
@@ -280,7 +280,7 @@ namespace QobuzCLI.Services
             if (item != null)
             {
                 item.Status = status;
-                
+
                 if (status == Models.QueueStatus.Completed)
                 {
                     Interlocked.Increment(ref _successfulDownloads);
@@ -291,7 +291,7 @@ namespace QobuzCLI.Services
                     Interlocked.Increment(ref _failedDownloads);
                     Interlocked.Increment(ref _totalDownloads);
                 }
-                
+
                 await SaveQueuesAsync().ConfigureAwait(false);
             }
         }
@@ -317,7 +317,7 @@ namespace QobuzCLI.Services
             {
                 await SaveQueuesAsync().ConfigureAwait(false);
                 _logger.LogInformation("Queued {Count} failed items for retry in queue {QueueId}", retryCount, queueId);
-                
+
                 // Restart processing if needed
                 if (!_processors.ContainsKey(queueId))
                 {
@@ -371,7 +371,7 @@ namespace QobuzCLI.Services
                     _queue.Id, _queue.MaxConcurrentDownloads);
 
                 var tasks = new List<Task>();
-                
+
                 try
                 {
                     while (!_cts.Token.IsCancellationRequested && !_queue.IsPaused)
@@ -436,16 +436,16 @@ namespace QobuzCLI.Services
                 try
                 {
                     await _service.UpdateQueueItemStatusAsync(_queue.Id, item.Id, Models.QueueStatus.Downloading).ConfigureAwait(false);
-                    
+
                     _logger.LogInformation("🎵 Downloading: {Query}", item.SearchQuery);
-                    
+
                     // Extract metadata
                     var title = item.Metadata?.GetValueOrDefault("title") ?? item.SearchQuery;
                     var artist = item.Metadata?.GetValueOrDefault("artist") ?? "Unknown";
                     var quality = item.Metadata?.GetValueOrDefault("qualityPreference") ?? "flac-max";
                     var outputDir = item.Metadata?.GetValueOrDefault("outputDirectory") ?? "./Downloads";
                     var qobuzId = item.Metadata?.GetValueOrDefault("qobuzId") ?? "";
-                    
+
                     // Create download tracking
                     var downloadItem = new DownloadItem
                     {
@@ -458,15 +458,15 @@ namespace QobuzCLI.Services
                     };
 
                     var downloadId = await _service._stateService.StartDownloadAsync(downloadItem).ConfigureAwait(false);
-                    
+
                     try
                     {
                         // Rate limiting now handled internally by plugin services
                         // await _service._rateLimiter.WaitIfNeededAsync("download", ct).ConfigureAwait(false);
-                        
+
                         // Perform download with retry
                         var success = await DownloadWithRetryAsync(item, downloadId, ct).ConfigureAwait(false);
-                        
+
                         if (success)
                         {
                             await _service.UpdateQueueItemStatusAsync(_queue.Id, item.Id, Models.QueueStatus.Completed).ConfigureAwait(false);
@@ -495,7 +495,7 @@ namespace QobuzCLI.Services
             {
                 var retryCount = 0;
                 var maxRetries = _queue.RetryCount;
-                
+
                 while (retryCount <= maxRetries)
                 {
                     try
@@ -506,25 +506,25 @@ namespace QobuzCLI.Services
                         {
                             await _service._pluginHost.InitializeAsync(config).ConfigureAwait(false);
                         }
-                        
+
                         // Perform download
                         var qobuzId = item.Metadata?.GetValueOrDefault("qobuzId") ?? "";
                         var outputDir = item.Metadata?.GetValueOrDefault("outputDirectory") ?? "./Downloads";
                         var artist = item.Metadata?.GetValueOrDefault("artist") ?? "Unknown";
                         var title = item.Metadata?.GetValueOrDefault("title") ?? item.SearchQuery;
-                        
+
                         var artistDir = Path.Combine(outputDir, Lidarr.Plugin.Common.Utilities.FileSystemUtilities.SanitizeFileName(artist));
                         var albumDir = Path.Combine(artistDir, Lidarr.Plugin.Common.Utilities.FileSystemUtilities.SanitizeFileName(title));
                         Directory.CreateDirectory(albumDir);
-                        
+
                         var result = await _service._pluginHost.DownloadAlbumAsync(qobuzId, albumDir, null).ConfigureAwait(false);
-                        
+
                         if (result.IsSuccessful)
                         {
                             await _service._stateService.CompleteDownloadAsync(downloadId, albumDir, result.TrackDownloads?.Count ?? 0).ConfigureAwait(false);
                             return true;
                         }
-                        
+
                         throw new Exception(result.Message ?? "Download failed");
                     }
                     catch (Exception ex) when (retryCount < maxRetries && !ct.IsCancellationRequested)
@@ -536,7 +536,7 @@ namespace QobuzCLI.Services
                         await Task.Delay(delay, ct).ConfigureAwait(false);
                     }
                 }
-                
+
                 return false;
             }
         }
@@ -554,7 +554,7 @@ namespace QobuzCLI.Services
                 await SaveQueuesAsync().ConfigureAwait(false);
                 return true;
             }
-            
+
             return false;
         }
 
@@ -564,8 +564,8 @@ namespace QobuzCLI.Services
                 return 0;
 
             var completed = queue.Items
-                .Where(i => i.Status == Models.QueueStatus.Completed || 
-                           i.Status == Models.QueueStatus.Failed || 
+                .Where(i => i.Status == Models.QueueStatus.Completed ||
+                           i.Status == Models.QueueStatus.Failed ||
                            i.Status == Models.QueueStatus.Cancelled)
                 .ToList();
 
@@ -627,10 +627,10 @@ namespace QobuzCLI.Services
 
             queue.Id = Guid.NewGuid().ToString("N");
             queue.Name = $"{queue.Name} (Imported)";
-            
+
             _queues[queue.Id] = queue;
             await SaveQueuesAsync().ConfigureAwait(false);
-            
+
             return queue;
         }
 
@@ -649,7 +649,7 @@ namespace QobuzCLI.Services
             _logger.LogInformation("  Total downloads: {Total}", _totalDownloads);
             _logger.LogInformation("  Successful: {Success}", _successfulDownloads);
             _logger.LogInformation("  Failed: {Failed}", _failedDownloads);
-            _logger.LogInformation("  Success rate: {Rate:P}", 
+            _logger.LogInformation("  Success rate: {Rate:P}",
                 _totalDownloads > 0 ? (double)_successfulDownloads / _totalDownloads : 0);
             _logger.LogInformation("  Average rate: {Rate:F1} downloads/minute",
                 _totalDownloads > 0 ? _totalDownloads / elapsed.TotalMinutes : 0);

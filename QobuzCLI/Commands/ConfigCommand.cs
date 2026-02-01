@@ -72,7 +72,7 @@ public class ConfigCommand
 
             if (!string.IsNullOrEmpty(category))
             {
-                parameters = parameters.Where(p => 
+                parameters = parameters.Where(p =>
                     p.Category.Equals(category, StringComparison.OrdinalIgnoreCase)).ToList();
             }
 
@@ -93,26 +93,26 @@ public class ConfigCommand
             {
                 // Add category header
                 table.AddRow($"[bold blue]{group.Key}[/]", "", "");
-                
+
                 foreach (var param in group)
                 {
                     var currentValue = config.TryGetValue(param.Key, out var value) ? value.ToString() : "not set";
                     var description = param.Description;
-                    
+
                     // Mask sensitive values with stars
                     if (param.IsSensitive && currentValue != "not set" && !string.IsNullOrEmpty(currentValue))
                     {
                         currentValue = "***set***";
                     }
-                    
+
                     if (param.AllowedValues != null && param.AllowedValues.Any())
                     {
                         description += $" (options: {string.Join(", ", param.AllowedValues)})";
                     }
-                    
+
                     table.AddRow($"  {param.Key}", $"[green]{currentValue}[/]", description);
                 }
-                
+
                 table.AddEmptyRow();
             }
 
@@ -131,7 +131,7 @@ public class ConfigCommand
         {
             var parameters = await _configService.GetParametersAsync();
             var param = parameters.FirstOrDefault(p => p.Key.Equals(key, StringComparison.OrdinalIgnoreCase));
-            
+
             if (param == null)
             {
                 AnsiConsole.MarkupLine($"[red]Unknown configuration key: {key}[/]");
@@ -140,10 +140,10 @@ public class ConfigCommand
             }
 
             var value = await _configService.GetValueAsync<object>(key);
-            
+
             AnsiConsole.MarkupLine($"[blue]{key}[/]: [green]{value ?? "not set"}[/]");
             AnsiConsole.MarkupLine($"[dim]{param.Description}[/]");
-            
+
             if (param.AllowedValues != null && param.AllowedValues.Any())
             {
                 AnsiConsole.MarkupLine($"[dim]Allowed values: {string.Join(", ", param.AllowedValues)}[/]");
@@ -162,7 +162,7 @@ public class ConfigCommand
         {
             var parameters = await _configService.GetParametersAsync();
             var param = parameters.FirstOrDefault(p => p.Key.Equals(key, StringComparison.OrdinalIgnoreCase));
-            
+
             if (param == null)
             {
                 AnsiConsole.MarkupLine($"[red]Unknown configuration key: {key}[/]");
@@ -203,7 +203,7 @@ public class ConfigCommand
         {
             var parameters = await _configService.GetParametersAsync();
             var param = parameters.FirstOrDefault(p => p.Key.Equals(key, StringComparison.OrdinalIgnoreCase));
-            
+
             if (param == null)
             {
                 AnsiConsole.MarkupLine($"[red]Unknown configuration key: {key}[/]");
@@ -231,7 +231,7 @@ public class ConfigCommand
     {
         var path = _configService.GetConfigPath();
         AnsiConsole.MarkupLine($"Configuration file: [blue]{path}[/]");
-        
+
         if (File.Exists(path))
         {
             var info = new FileInfo(path);
@@ -243,7 +243,7 @@ public class ConfigCommand
             AnsiConsole.MarkupLine("[yellow]Configuration file does not exist yet.[/]");
         }
     }
-    
+
     private async Task<string> GetParameterTypeAsync(string key)
     {
         var parameters = await _configService.GetParametersAsync();

@@ -166,7 +166,7 @@ namespace QobuzCLI.Models
             {
                 return $"{Format.ToUpper()} {Bitrate}kbps";
             }
-            
+
             return "Unknown";
         }
     }
@@ -191,7 +191,7 @@ namespace QobuzCLI.Models
 
             var difference = Math.Abs(Size - ExpectedSize);
             var toleranceBytes = ExpectedSize * tolerance;
-            
+
             return difference <= toleranceBytes;
         }
     }

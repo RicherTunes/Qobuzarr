@@ -33,7 +33,7 @@ namespace Lidarr.Plugin.Qobuzarr.Utilities
                 _logger.Info("Testing Qobuz authentication...");
 
                 var session = await _authService.AuthenticateAsync(credentials).ConfigureAwait(false);
-                
+
                 if (session?.IsValid() == true)
                 {
                     return new TestResult
@@ -214,9 +214,9 @@ namespace Lidarr.Plugin.Qobuzarr.Utilities
             // If search found results, test album details
             if (searchResult.Success && searchResult.Details is { } searchDetails)
             {
-                var firstAlbumId = searchDetails.GetType().GetProperty("FirstResults")?.GetValue(searchDetails) 
+                var firstAlbumId = searchDetails.GetType().GetProperty("FirstResults")?.GetValue(searchDetails)
                     as System.Collections.Generic.IEnumerable<dynamic>;
-                
+
                 var firstAlbum = firstAlbumId?.FirstOrDefault();
                 if (firstAlbum?.Id != null)
                 {

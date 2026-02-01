@@ -28,7 +28,7 @@ public class TestUtilityPerformanceCommand
         testCommand.AddOption(hashCountOption);
         testCommand.AddOption(stringCountOption);
 
-        testCommand.SetHandler(async (int hashCount, int stringCount) => 
+        testCommand.SetHandler(async (int hashCount, int stringCount) =>
             await HandleTestUtilityPerformanceAsync(hashCount, stringCount), hashCountOption, stringCountOption);
 
         return testCommand;
@@ -43,9 +43,9 @@ public class TestUtilityPerformanceCommand
 
             // Test HashingUtility Performance
             await TestHashingPerformance(hashCount);
-            
+
             AnsiConsole.WriteLine();
-            
+
             // Test StringExtensions Performance
             await TestStringExtensionsPerformance(stringCount);
 
@@ -63,11 +63,11 @@ public class TestUtilityPerformanceCommand
     private async Task TestHashingPerformance(int count)
     {
         AnsiConsole.MarkupLine($"[yellow]🔐 Testing HashingUtility.ComputeMD5Hash() - {count:N0} operations[/]");
-        
+
         // Generate test data
         var testStrings = new List<string>();
         var random = new Random(42); // Fixed seed for reproducible results
-        
+
         for (int i = 0; i < count; i++)
         {
             // Generate realistic test data similar to what the plugin processes
@@ -83,7 +83,7 @@ public class TestUtilityPerformanceCommand
 
         var results = new List<string>();
         var stopwatch = Stopwatch.StartNew();
-        
+
         await AnsiConsole.Progress()
             .Columns(new ProgressColumn[]
             {
@@ -96,7 +96,7 @@ public class TestUtilityPerformanceCommand
             .StartAsync(async ctx =>
             {
                 var hashTask = ctx.AddTask("Computing MD5 hashes", maxValue: count);
-                
+
                 await Task.Run(() =>
                 {
                     for (int i = 0; i < count; i++)
@@ -104,13 +104,13 @@ public class TestUtilityPerformanceCommand
                         // This uses the optimized plugin HashingUtility
                         var hash = HashingUtility.ComputeMD5Hash(testStrings[i]);
                         results.Add(hash);
-                        
+
                         if (i % 1000 == 0)
                         {
                             hashTask.Increment(1000);
                         }
                     }
-                    
+
                     // Complete any remaining increments
                     hashTask.Value = count;
                 });
@@ -133,10 +133,10 @@ public class TestUtilityPerformanceCommand
         table.AddRow("Hashes per Second", $"{hashesPerSecond:N0}");
         table.AddRow("Expected Improvement", $"{expectedImprovement:F1}x faster than StringBuilder approach");
         table.AddRow("Optimization Used", "[green]Convert.ToHexString() + ToLowerInvariant()[/]");
-        
+
         // Sample hash verification
         table.AddRow("Sample Hash", $"[dim]{results.First()}[/]");
-        
+
         AnsiConsole.Write(table);
 
         // Performance assessment
@@ -157,13 +157,13 @@ public class TestUtilityPerformanceCommand
     private async Task TestStringExtensionsPerformance(int count)
     {
         AnsiConsole.MarkupLine($"[yellow]🧹 Testing FileNamingUtils.ToSafeFileName() - {count:N0} operations[/]");
-        
+
         // Generate test data with problematic characters that need sanitization
         var testStrings = new List<string>();
         var problematicChars = new[] { '<', '>', ':', '"', '/', '\\', '|', '?', '*' };
         var reservedNames = new[] { "CON", "PRN", "AUX", "NUL", "COM1", "LPT1" };
         var random = new Random(42);
-        
+
         for (int i = 0; i < count; i++)
         {
             var testData = i switch
@@ -179,7 +179,7 @@ public class TestUtilityPerformanceCommand
 
         var results = new List<string>();
         var stopwatch = Stopwatch.StartNew();
-        
+
         await AnsiConsole.Progress()
             .Columns(new ProgressColumn[]
             {
@@ -192,7 +192,7 @@ public class TestUtilityPerformanceCommand
             .StartAsync(async ctx =>
             {
                 var sanitizeTask = ctx.AddTask("Sanitizing filenames", maxValue: count);
-                
+
                 await Task.Run(() =>
                 {
                     for (int i = 0; i < count; i++)
@@ -200,13 +200,13 @@ public class TestUtilityPerformanceCommand
                         // This uses the optimized plugin FileNamingUtils with static arrays
                         var sanitized = testStrings[i].ToSafeFileName();
                         results.Add(sanitized);
-                        
+
                         if (i % 500 == 0)
                         {
                             sanitizeTask.Increment(500);
                         }
                     }
-                    
+
                     // Complete any remaining increments
                     sanitizeTask.Value = count;
                 });
@@ -227,12 +227,12 @@ public class TestUtilityPerformanceCommand
         table.AddRow("Time Elapsed", $"{stopwatch.Elapsed.TotalMilliseconds:F2} ms");
         table.AddRow("Sanitizations per Second", $"{sanitizationsPerSecond:N0}");
         table.AddRow("Optimization Used", "[green]Static readonly arrays (no repeated allocations)[/]");
-        
+
         // Show before/after examples
         var exampleIndex = random.Next(results.Count);
         table.AddRow("Example Input", $"[dim]{testStrings[exampleIndex]}[/]");
         table.AddRow("Example Output", $"[dim]{results[exampleIndex]}[/]");
-        
+
         AnsiConsole.Write(table);
 
         // Performance assessment

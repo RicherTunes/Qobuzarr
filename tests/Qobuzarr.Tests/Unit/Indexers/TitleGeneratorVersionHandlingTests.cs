@@ -156,7 +156,7 @@ namespace Qobuzarr.Tests.Unit.Indexers
             var bracketPattern = $"[{version}]";
             var count = System.Text.RegularExpressions.Regex.Matches(
                 result, System.Text.RegularExpressions.Regex.Escape(bracketPattern)).Count;
-            
+
             count.Should().Be(1, $"Edition '{version}' should appear exactly once, not duplicated");
         }
 
@@ -182,8 +182,8 @@ namespace Qobuzarr.Tests.Unit.Indexers
             // Implementation may vary - key is no "deluxe" appearing twice in meaningful way
             var deluxeCount = System.Text.RegularExpressions.Regex.Matches(
                 result, "deluxe", System.Text.RegularExpressions.RegexOptions.IgnoreCase).Count;
-            
-            deluxeCount.Should().BeLessOrEqualTo(2, 
+
+            deluxeCount.Should().BeLessOrEqualTo(2,
                 "Deluxe should not appear excessively (once in cleaned title + once in bracket is acceptable)");
         }
 
@@ -208,7 +208,7 @@ namespace Qobuzarr.Tests.Unit.Indexers
                 .WithArtist("Test Artist", "test-artist")
                 .WithReleaseYear(2023)
                 .Build();
-            
+
             // Set version directly since builder may reject null
             album.Version = version;
 
@@ -280,7 +280,7 @@ namespace Qobuzarr.Tests.Unit.Indexers
 
             editionIndex.Should().BeGreaterThan(-1);
             explicitIndex.Should().BeGreaterThan(-1);
-            
+
             editionIndex.Should().BeLessThan(explicitIndex, "Edition should come before Explicit");
             explicitIndex.Should().BeLessThan(formatIndex, "Explicit should come before Format");
             formatIndex.Should().BeLessThan(webIndex, "Format should come before WEB");

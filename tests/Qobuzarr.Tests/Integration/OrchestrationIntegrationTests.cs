@@ -26,16 +26,16 @@ namespace Qobuzarr.Tests.Integration
         public OrchestrationIntegrationTests()
         {
             _mockLogger = new Mock<Logger>();
-            
+
             // Create real service instances for integration testing
             var mockDiskProvider = new Mock<NzbDrone.Common.Disk.IDiskProvider>();
             var mockRemotePathMappingService = new Mock<NzbDrone.Core.RemotePathMappings.IRemotePathMappingService>();
-            
+
             _fileService = new DownloadFileService(
-                mockDiskProvider.Object, 
-                mockRemotePathMappingService.Object, 
+                mockDiskProvider.Object,
+                mockRemotePathMappingService.Object,
                 _mockLogger.Object);
-            
+
             _queueService = new DownloadQueueService(_fileService, _mockLogger.Object);
             _concurrencyManager = new ConcurrencyManager(_mockLogger.Object, 3);
             _orchestrator = new DownloadOrchestrator(_queueService, _fileService, _concurrencyManager, _mockLogger.Object);
@@ -91,7 +91,7 @@ namespace Qobuzarr.Tests.Integration
 
             // Assert
             _queueService.ActiveDownloadCount.Should().Be(100);
-            
+
             // Act - Remove downloads concurrently
             Parallel.ForEach(downloads, download =>
             {
@@ -107,24 +107,24 @@ namespace Qobuzarr.Tests.Integration
         {
             // Arrange
             var initialLimit = _concurrencyManager.CurrentLimit;
-            
+
             // Act - Acquire some slots
             var slot1 = await _concurrencyManager.AcquireSlotAsync();
             var slot2 = await _concurrencyManager.AcquireSlotAsync();
-            
+
             _concurrencyManager.ActiveCount.Should().Be(2);
-            
+
             // Update concurrency limit
             _concurrencyManager.UpdateConcurrencyLimit(5);
-            
+
             // Should still track active slots correctly
             _concurrencyManager.ActiveCount.Should().Be(2);
             _concurrencyManager.CurrentLimit.Should().Be(5);
-            
+
             // Clean up
             slot1.Dispose();
             slot2.Dispose();
-            
+
             _concurrencyManager.ActiveCount.Should().Be(0);
         }
 
@@ -157,14 +157,14 @@ namespace Qobuzarr.Tests.Integration
 
             // Act - Simulate failure
             _queueService.UpdateDownloadStatus(download.DownloadId, DownloadItemStatus.Failed, "Network error");
-            
+
             // Cleanup old downloads
             var cleaned = _queueService.CleanupCompletedDownloads(TimeSpan.FromSeconds(-1)); // Cleanup all
-            
+
             // Assert
             cleaned.Should().Be(0); // Failed downloads aren't cleaned up by CleanupCompletedDownloads
             _queueService.GetDownloadCountByStatus(DownloadItemStatus.Failed).Should().Be(1);
-            
+
             // Manual removal should work
             var removed = _queueService.RemoveDownload(download.DownloadId, deleteData: true);
             removed.Should().BeTrue();

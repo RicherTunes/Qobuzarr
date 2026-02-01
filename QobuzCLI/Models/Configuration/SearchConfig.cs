@@ -9,10 +9,10 @@ namespace QobuzCLI.Models.Configuration
     {
         [JsonProperty("searchResultLimit")]
         public int SearchResultLimit { get; set; } = 20;
-        
+
         [JsonProperty("autoResolveExactMatches")]
         public bool AutoResolveExactMatches { get; set; } = true;
-        
+
         [JsonProperty("searchPreference")]
         public string SearchPreference { get; set; } = "smart"; // smart, albums, tracks
 

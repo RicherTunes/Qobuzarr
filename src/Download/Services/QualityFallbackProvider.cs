@@ -36,13 +36,13 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Services
 
             if (message.Contains("preview") || message.Contains("sample"))
                 return TrackUnavailableReason.PreviewOnly;
-            
+
             if (message.Contains("geo") || message.Contains("region") || message.Contains("country"))
                 return TrackUnavailableReason.RegionalRestriction;
-            
+
             if (message.Contains("subscription") || message.Contains("tier"))
                 return TrackUnavailableReason.SubscriptionRestriction;
-            
+
             if (message.Contains("format") && message.Contains("not available"))
                 return TrackUnavailableReason.NoQualityAvailable;
 

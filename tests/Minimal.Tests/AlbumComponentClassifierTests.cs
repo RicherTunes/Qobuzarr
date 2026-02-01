@@ -224,14 +224,14 @@ namespace Minimal.Tests
             // Assert
             var versionDescriptors = components.Where(c => c.Value == AlbumComponentType.VersionDescriptor).Select(c => c.Key);
             versionDescriptors.Should().NotBeEmpty($"'{albumPart}' should have version descriptors");
-            
+
             foreach (var descriptor in versionDescriptors)
             {
                 preservedTerms.Should().Contain(descriptor, $"Version descriptor '{descriptor}' should be preserved");
             }
         }
 
-        [Fact] 
+        [Fact]
         public void RecommendCleaningLevel_SpecificBugCase_ShouldUseMinimalCleaning()
         {
             // Arrange - This is the exact case from the bug report

@@ -136,17 +136,17 @@ namespace Lidarr.Plugin.Qobuzarr.Services
                 {
                     { "album_id", albumId }
                 };
-                
+
                 // Use a simple API client to check if album exists
                 // This is a basic availability check - could be enhanced with region-specific logic
                 var album = await Task.FromResult<QobuzAlbum>(null); // Will be implemented when IQobuzApiClient is injected
-                
+
                 if (album != null && album.Streamable)
                 {
                     _logger.Debug("Album {0} is available and streamable in region {1}", albumId, region);
                     return true;
                 }
-                
+
                 _logger.Debug("Album {0} is not available or not streamable in region {1}", albumId, region);
                 return false;
             }
@@ -165,25 +165,25 @@ namespace Lidarr.Plugin.Qobuzarr.Services
             try
             {
                 _logger.Info("Registering download for album {0} at path {1}", albumId, downloadPath);
-                
+
                 // Validate that the download path exists and contains audio files
                 if (!Directory.Exists(downloadPath))
                 {
                     _logger.Warn("Download path does not exist: {0}", downloadPath);
                     return false;
                 }
-                
+
                 // Check for audio files in the directory
                 var audioFiles = Directory.GetFiles(downloadPath, "*.flac")
                     .Concat(Directory.GetFiles(downloadPath, "*.mp3"))
                     .ToArray();
-                
+
                 if (!audioFiles.Any())
                 {
                     _logger.Warn("No audio files found in download path: {0}", downloadPath);
                     return false;
                 }
-                
+
                 // Validate file sizes (basic check that files aren't empty)
                 var validFiles = audioFiles.Where(f => new FileInfo(f).Length > 1024).ToArray();
                 if (!validFiles.Any())
@@ -191,9 +191,9 @@ namespace Lidarr.Plugin.Qobuzarr.Services
                     _logger.Warn("No valid audio files found (all files too small): {0}", downloadPath);
                     return false;
                 }
-                
+
                 _logger.Info("✅ Download validation passed: {0} valid audio files in {1}", validFiles.Length, downloadPath);
-                
+
                 await Task.CompletedTask;
                 return true;
             }
@@ -212,7 +212,7 @@ namespace Lidarr.Plugin.Qobuzarr.Services
             try
             {
                 // Update indexer status for health monitoring
-                _logger.Debug("Updated indexer statistics: {0} successful, {1} failed", 
+                _logger.Debug("Updated indexer statistics: {0} successful, {1} failed",
                     successfulQueries, failedQueries);
             }
             catch (Exception ex)
@@ -269,14 +269,14 @@ namespace Lidarr.Plugin.Qobuzarr.Services
             // MP3 320: ~2.5 MB/minute
             // FLAC CD: ~30 MB/track (3-4 min)
             // FLAC Hi-Res: ~60 MB/track
-            
+
             var durationMinutes = (track.DurationSeconds > 0 ? track.DurationSeconds : 180) / 60.0;
-            
+
             if (track.MaximumBitDepth.HasValue && track.MaximumBitDepth >= 24)
             {
                 return (long)(durationMinutes * 20 * 1024 * 1024); // ~20 MB/minute for Hi-Res
             }
-            
+
             return (long)(durationMinutes * 10 * 1024 * 1024); // ~10 MB/minute for CD quality
         }
 
@@ -284,7 +284,7 @@ namespace Lidarr.Plugin.Qobuzarr.Services
         {
             if (track.MaximumBitDepth >= 24)
                 return NzbDrone.Core.Qualities.Quality.FLAC;
-            
+
             return NzbDrone.Core.Qualities.Quality.FLAC;
         }
     }

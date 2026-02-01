@@ -28,14 +28,14 @@ namespace Lidarr.Plugin.Qobuzarr.Services
     public class LiveAlbumNormalizer
     {
         private readonly Logger _logger;
-        
+
         // Live album context indicators
         private static readonly string[] LiveContextMarkers =
         {
             "live", "concert", "recorded", "performance", "show", "tour",
             "festival", "session", "unplugged", "acoustic", "mtv", "bbc"
         };
-        
+
         // Common venue prefixes that should be normalized
         private static readonly Dictionary<string, string[]> VenuePatterns = new()
         {
@@ -44,7 +44,7 @@ namespace Lidarr.Plugin.Qobuzarr.Services
             ["arena"] = new[] { "arena", "stadium", "dome", "center", "centre", "coliseum", "colosseum" },
             ["club"] = new[] { "club", "bar", "pub", "tavern", "lounge", "café", "cafe" },
             ["festival"] = new[] { "festival", "fest", "celebration", "gathering", "jamboree" },
-            
+
             // Famous venue normalizations
             ["madison square garden"] = new[] { "msg", "madison square garden", "the garden" },
             ["royal albert hall"] = new[] { "albert hall", "royal albert hall", "rah" },
@@ -53,7 +53,7 @@ namespace Lidarr.Plugin.Qobuzarr.Services
             ["hollywood bowl"] = new[] { "hollywood bowl", "the bowl" },
             ["carnegie hall"] = new[] { "carnegie hall", "carnegie" }
         };
-        
+
         // Date format patterns for normalization (using compile-time generated regexes)
         private static readonly Regex[] DatePatterns =
         {
@@ -73,12 +73,12 @@ namespace Lidarr.Plugin.Qobuzarr.Services
             LiveAlbumNormalizerRegexes.TitleSuffixLive(),
             LiveAlbumNormalizerRegexes.SpecialSessionPrefix()
         };
-        
+
         // Special live album markers that indicate recording context
         private static readonly Dictionary<string, string> SpecialLiveMarkers = new()
         {
             ["mtv unplugged"] = "MTV Unplugged",
-            ["bbc session"] = "BBC Session", 
+            ["bbc session"] = "BBC Session",
             ["bbc live"] = "BBC Session",
             ["live session"] = "Live Session",
             ["acoustic session"] = "Acoustic Session",
@@ -110,7 +110,7 @@ namespace Lidarr.Plugin.Qobuzarr.Services
             }
 
             options ??= LiveAlbumNormalizationOptions.Default;
-            
+
             _logger.Debug("🎤 LIVE ALBUM NORMALIZATION: '{0}'", albumTitle);
 
             var result = new LiveAlbumNormalizationResult
@@ -129,29 +129,29 @@ namespace Lidarr.Plugin.Qobuzarr.Services
             {
                 // Extract live album components
                 ExtractLiveAlbumComponents(albumTitle, result);
-                
+
                 // Normalize venue information
                 if (!string.IsNullOrWhiteSpace(result.Venue) && options.NormalizeVenues)
                 {
                     result.NormalizedVenue = NormalizeVenueName(result.Venue);
                 }
-                
+
                 // Normalize date information
                 if (!string.IsNullOrWhiteSpace(result.Date) && options.NormalizeDates)
                 {
                     result.NormalizedDate = NormalizeDateString(result.Date);
                 }
-                
+
                 // Create final normalized title
                 result.NormalizedTitle = CreateNormalizedTitle(result, options);
-                
+
                 // Generate matching variations
                 if (options.GenerateVariations)
                 {
                     result.TitleVariations = GenerateTitleVariations(result);
                 }
 
-                _logger.Info("🎤 LIVE NORMALIZATION: '{0}' → '{1}' (Venue: {2}, Date: {3})", 
+                _logger.Info("🎤 LIVE NORMALIZATION: '{0}' → '{1}' (Venue: {2}, Date: {3})",
                             albumTitle, result.NormalizedTitle, result.NormalizedVenue ?? "None", result.NormalizedDate ?? "None");
 
                 return result;
@@ -179,13 +179,13 @@ namespace Lidarr.Plugin.Qobuzarr.Services
 
             // Check for explicit live markers
             var hasLiveMarker = LiveContextMarkers.Any(marker => normalizedTitle.Contains(marker));
-            
+
             // Check for special session markers
             var hasSpecialMarker = SpecialLiveMarkers.Keys.Any(marker => normalizedTitle.Contains(marker));
-            
+
             // Check for live album pattern matches
             var hasLivePattern = LiveAlbumPatterns.Any(pattern => pattern.IsMatch(albumTitle));
-            
+
             return hasLiveMarker || hasSpecialMarker || hasLivePattern;
         }
 
@@ -197,13 +197,13 @@ namespace Lidarr.Plugin.Qobuzarr.Services
         /// <param name="options">Normalization options</param>
         /// <returns>Similarity score from 0.0 to 1.0</returns>
         public double CalculateLiveAlbumSimilarity(
-            string title1, 
-            string title2, 
+            string title1,
+            string title2,
             LiveAlbumNormalizationOptions options = null)
         {
             if (string.IsNullOrEmpty(title1) && string.IsNullOrEmpty(title2))
                 return 1.0;
-                
+
             if (string.IsNullOrEmpty(title1) || string.IsNullOrEmpty(title2))
                 return 0.0;
 
@@ -213,7 +213,7 @@ namespace Lidarr.Plugin.Qobuzarr.Services
             var normalized2 = NormalizeLiveAlbum(title2, options);
 
             // Compare core album titles
-            var coreSimilarity = CalculateStringSimilarity(normalized1.CoreAlbumTitle ?? normalized1.NormalizedTitle, 
+            var coreSimilarity = CalculateStringSimilarity(normalized1.CoreAlbumTitle ?? normalized1.NormalizedTitle,
                                                           normalized2.CoreAlbumTitle ?? normalized2.NormalizedTitle);
 
             // If both are live albums, factor in venue/date matching
@@ -221,7 +221,7 @@ namespace Lidarr.Plugin.Qobuzarr.Services
             {
                 var venueSimilarity = CalculateVenueSimilarity(normalized1.NormalizedVenue, normalized2.NormalizedVenue);
                 var dateSimilarity = CalculateDateSimilarity(normalized1.NormalizedDate, normalized2.NormalizedDate);
-                
+
                 // Weight: 70% core title, 20% venue, 10% date
                 return (coreSimilarity * 0.7) + (venueSimilarity * 0.2) + (dateSimilarity * 0.1);
             }
@@ -246,7 +246,7 @@ namespace Lidarr.Plugin.Qobuzarr.Services
                         case 2: // Simple pattern: "Album Title Live"
                             result.CoreAlbumTitle = match.Groups[1].Value.Trim();
                             break;
-                            
+
                         case 3: // "Album Title - Live at Venue" or "Live at Venue: Album Title"
                             if (pattern.ToString().StartsWith("^(?:live", StringComparison.OrdinalIgnoreCase))
                             {
@@ -261,14 +261,14 @@ namespace Lidarr.Plugin.Qobuzarr.Services
                                 result.Venue = match.Groups[2].Value.Trim();
                             }
                             break;
-                            
+
                         case 4: // "Album Title (Live at Venue, Date)"
                             result.CoreAlbumTitle = match.Groups[1].Value.Trim();
                             result.Venue = match.Groups[2].Value.Trim();
                             result.Date = match.Groups[3]?.Value?.Trim();
                             break;
                     }
-                    
+
                     result.PatternMatched = pattern.ToString();
                     break;
                 }
@@ -312,7 +312,7 @@ namespace Lidarr.Plugin.Qobuzarr.Services
         private void CheckSpecialLiveMarkers(string albumTitle, LiveAlbumNormalizationResult result)
         {
             var normalizedTitle = albumTitle.ToLowerInvariant();
-            
+
             foreach (var marker in SpecialLiveMarkers)
             {
                 if (normalizedTitle.Contains(marker.Key))
@@ -365,7 +365,7 @@ namespace Lidarr.Plugin.Qobuzarr.Services
                 {
                     // Try to extract year as the most important component
                     var groups = match.Groups.Cast<Group>().Skip(1).Where(g => g.Success).ToList();
-                    
+
                     // Look for 4-digit year
                     var year = groups.FirstOrDefault(g => g.Value.Length == 4)?.Value;
                     if (!string.IsNullOrEmpty(year) && int.TryParse(year, out var yearInt) && yearInt >= 1950 && yearInt <= DateTime.Now.Year + 1)
@@ -440,7 +440,7 @@ namespace Lidarr.Plugin.Qobuzarr.Services
                 variations.Add($"{result.CoreAlbumTitle} (Live)");
                 variations.Add($"{result.CoreAlbumTitle} - Live");
                 variations.Add($"Live: {result.CoreAlbumTitle}");
-                
+
                 if (!string.IsNullOrWhiteSpace(result.NormalizedVenue))
                 {
                     variations.Add($"{result.CoreAlbumTitle} (Live at {result.NormalizedVenue})");
@@ -457,7 +457,7 @@ namespace Lidarr.Plugin.Qobuzarr.Services
         {
             if (string.IsNullOrEmpty(venue1) && string.IsNullOrEmpty(venue2))
                 return 1.0;
-                
+
             if (string.IsNullOrEmpty(venue1) || string.IsNullOrEmpty(venue2))
                 return 0.5; // Partial penalty for missing venue info
 
@@ -474,7 +474,7 @@ namespace Lidarr.Plugin.Qobuzarr.Services
         {
             if (string.IsNullOrEmpty(date1) && string.IsNullOrEmpty(date2))
                 return 1.0;
-                
+
             if (string.IsNullOrEmpty(date1) || string.IsNullOrEmpty(date2))
                 return 0.8; // Less penalty for missing date info
 
@@ -518,7 +518,7 @@ namespace Lidarr.Plugin.Qobuzarr.Services
         public bool ForceProcessing { get; set; } = false;
 
         public static LiveAlbumNormalizationOptions Default => new();
-        
+
         public static LiveAlbumNormalizationOptions CoreTitleOnly => new()
         {
             NormalizeVenues = true,
@@ -576,9 +576,9 @@ namespace Lidarr.Plugin.Qobuzarr.Services
                 return false;
 
             var normalizedOther = otherTitle.ToLowerInvariant();
-            
+
             // Check against all variations
-            return TitleVariations.Any(variation => 
+            return TitleVariations.Any(variation =>
                 normalizedOther.Contains(variation.ToLowerInvariant()) ||
                 variation.ToLowerInvariant().Contains(normalizedOther));
         }

@@ -22,35 +22,35 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Services
                 return null;
 
             // Try DownloadUrl first: "qobuz://album/{albumId}" or "qobuz://album/{albumId}/{quality}"
-            if (!string.IsNullOrEmpty(release.DownloadUrl) && 
+            if (!string.IsNullOrEmpty(release.DownloadUrl) &&
                 release.DownloadUrl.StartsWith("qobuz://album/"))
             {
                 var urlPart = release.DownloadUrl.Substring("qobuz://album/".Length);
-                
+
                 // Split by last slash to separate album ID from quality
                 var lastSlashIndex = urlPart.LastIndexOf('/');
                 if (lastSlashIndex > 0)
                 {
                     return urlPart.Substring(0, lastSlashIndex);
                 }
-                
+
                 // No slash - entire part is album ID
                 return urlPart;
             }
 
             // Try GUID: "qobuz-{albumId}" or "qobuz-{albumId}-{quality}"
-            if (!string.IsNullOrEmpty(release.Guid) && 
+            if (!string.IsNullOrEmpty(release.Guid) &&
                 release.Guid.StartsWith("qobuz-"))
             {
                 var guidPart = release.Guid.Substring("qobuz-".Length);
-                
+
                 // GUID format is "qobuz-{albumId}-{quality}", extract just album ID
                 var lastDashIndex = guidPart.LastIndexOf('-');
                 if (lastDashIndex > 0)
                 {
                     return guidPart.Substring(0, lastDashIndex);
                 }
-                
+
                 return guidPart;
             }
 

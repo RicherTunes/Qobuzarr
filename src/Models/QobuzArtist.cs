@@ -59,7 +59,7 @@ namespace Lidarr.Plugin.Qobuzarr.Models
             // Replace illegal filesystem characters
             var safeName = Name;
             var illegalChars = new char[] { '<', '>', ':', '"', '/', '\\', '|', '?', '*' };
-            
+
             foreach (var c in illegalChars)
             {
                 safeName = safeName.Replace(c, '_');

@@ -394,8 +394,8 @@ namespace Qobuzarr.Tests.Unit.Download.Orchestration
         private RemoteAlbum CreateTestRemoteAlbum(string artistName, string albumTitle)
         {
             var artist = new Artist { Name = artistName };
-            var album = new Album 
-            { 
+            var album = new Album
+            {
                 Title = albumTitle,
                 Artist = new NzbDrone.Core.Datastore.LazyLoaded<Artist>(artist)
             };

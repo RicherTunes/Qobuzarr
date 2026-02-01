@@ -52,7 +52,7 @@ namespace Lidarr.Plugin.Qobuzarr.Services
             Logger.Info("  - QobuzIndexer (implements IIndexer)");
             Logger.Info("  - QobuzDownloadClient (implements IDownloadClient)");
             Logger.Info("  - All services implementing interfaces will be registered as singletons");
-            
+
             // The following services are auto-registered by Lidarr through interface discovery:
             // - API.QobuzApiClient : IQobuzApiClient
             // - Authentication.QobuzAuthenticationService : IQobuzAuthenticationService
@@ -96,12 +96,12 @@ namespace Lidarr.Plugin.Qobuzarr.Services
         public static void LogServiceDiscovery()
         {
             Logger.Debug("Qobuzarr plugin service discovery:");
-            
+
             foreach (var (interfaceType, implementationType) in GetAutoRegisteredServices())
             {
                 Logger.Debug("  - {0} -> {1}", interfaceType.Name, implementationType.Name);
             }
-            
+
             Logger.Info("All services will be auto-discovered and registered by Lidarr");
         }
 #endif

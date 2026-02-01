@@ -131,7 +131,7 @@ namespace Lidarr.Plugin.Qobuzarr.Core
 
             var actual = actualQuality.GetShortName();
             var preferred = preferredQuality.GetShortName();
-            
+
             // Provide context-aware messages
             if (actualQuality == QobuzQualityId.Flac_CD && preferredQuality.IsHiRes())
                 return $"CD quality ({actual}) - Hi-Res not available";
@@ -152,7 +152,7 @@ namespace Lidarr.Plugin.Qobuzarr.Core
         /// <summary>
         /// Default quality fallback order from highest to lowest
         /// </summary>
-        public static readonly QobuzQualityId[] FallbackOrder = 
+        public static readonly QobuzQualityId[] FallbackOrder =
         {
             QobuzQualityId.Flac_HiRes_192,
             QobuzQualityId.Flac_HiRes_96,

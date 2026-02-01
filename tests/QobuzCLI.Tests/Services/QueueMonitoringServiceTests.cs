@@ -100,7 +100,7 @@ public class ArchitectureValidationTests
     public void QueueMonitoringService_ShouldBeSmallAndFocused()
     {
         // Validate that extracted service is focused and testable
-        
+
         // Arrange
         var serviceType = typeof(QueueMonitoringService);
         var methods = serviceType.GetMethods(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance)
@@ -108,7 +108,7 @@ public class ArchitectureValidationTests
 
         // Act & Assert
         methods.Count.Should().BeLessOrEqualTo(3, "Extracted service should be focused and small");
-        
+
         var constructorParams = serviceType.GetConstructors()[0].GetParameters();
         constructorParams.Length.Should().BeLessOrEqualTo(2, "Service should have minimal dependencies");
     }

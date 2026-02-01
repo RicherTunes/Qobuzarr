@@ -38,32 +38,32 @@ namespace Lidarr.Plugin.Qobuzarr.Authentication
     public partial class CredentialValidator : ICredentialValidator
     {
         private readonly Logger _logger;
-        
+
         // Generated regex patterns for performance (SYSLIB1045)
         [GeneratedRegex(@"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$", RegexOptions.IgnoreCase)]
         private static partial Regex EmailPattern();
-        
+
         [GeneratedRegex(@"^[a-zA-Z0-9]{8,32}$")]
         private static partial Regex AppIdPattern();
-        
+
         [GeneratedRegex(@"^[0-9]{1,20}$")]
         private static partial Regex UserIdPattern();
-        
+
         [GeneratedRegex(@"^[a-zA-Z0-9_\-+/=]{20,200}$")]
         private static partial Regex AuthTokenPattern();
-        
+
         [GeneratedRegex(@"^[a-fA-F0-9]{32}$")]
         private static partial Regex MD5HashPattern();
-        
+
         [GeneratedRegex(@"[a-z]")]
         private static partial Regex LowercasePattern();
-        
+
         [GeneratedRegex(@"[A-Z]")]
         private static partial Regex UppercasePattern();
-        
+
         [GeneratedRegex(@"[0-9]")]
         private static partial Regex DigitPattern();
-        
+
         [GeneratedRegex(@"[^a-zA-Z0-9]")]
         private static partial Regex SpecialCharPattern();
 
@@ -72,7 +72,7 @@ namespace Lidarr.Plugin.Qobuzarr.Authentication
         private const int MAX_CREDENTIAL_LENGTH = 500;
         private const int MAX_EMAIL_LENGTH = 320; // RFC 5321 limit
         private const int MIN_APP_SECRET_LENGTH = 20;
-        
+
         public CredentialValidator(Logger logger)
         {
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
@@ -93,16 +93,16 @@ namespace Lidarr.Plugin.Qobuzarr.Authentication
             }
 
             var result = new CredentialValidationResult();
-            
-            _logger.Debug("🔍 Validating Qobuz credentials - Type: {0}", 
-                credentials.IsEmailAuth() ? "Email/Password" : 
+
+            _logger.Debug("🔍 Validating Qobuz credentials - Type: {0}",
+                credentials.IsEmailAuth() ? "Email/Password" :
                 credentials.IsTokenAuth() ? "Token" : "Unknown");
 
             try
             {
                 // Validate credential completeness and consistency
                 ValidateCredentialCompleteness(credentials, result);
-                
+
                 if (!result.IsValid)
                 {
                     return result;
@@ -251,10 +251,10 @@ namespace Lidarr.Plugin.Qobuzarr.Authentication
 
         private void ValidateCredentialCompleteness(QobuzCredentials credentials, CredentialValidationResult result)
         {
-            var hasEmailAuth = !string.IsNullOrWhiteSpace(credentials.Email) && 
+            var hasEmailAuth = !string.IsNullOrWhiteSpace(credentials.Email) &&
                               !string.IsNullOrWhiteSpace(credentials.MD5Password);
-                              
-            var hasTokenAuth = !string.IsNullOrWhiteSpace(credentials.UserId) && 
+
+            var hasTokenAuth = !string.IsNullOrWhiteSpace(credentials.UserId) &&
                               !string.IsNullOrWhiteSpace(credentials.AuthToken);
 
             if (!hasEmailAuth && !hasTokenAuth)
@@ -287,7 +287,7 @@ namespace Lidarr.Plugin.Qobuzarr.Authentication
             // Validate email
             var emailResult = ValidateEmail(credentials.Email);
             result.Merge(emailResult);
-            
+
             if (emailResult.IsValid)
             {
                 result.SanitizedEmail = emailResult.SanitizedEmail;
@@ -449,10 +449,10 @@ namespace Lidarr.Plugin.Qobuzarr.Authentication
                 if (atIndex < 0 || atIndex == email.Length - 1) return false;
 
                 var domain = email.Substring(atIndex + 1).ToLowerInvariant();
-                
+
                 // Basic domain validation - in production, you might have more sophisticated checks
-                return !string.IsNullOrWhiteSpace(domain) && 
-                       domain.Contains('.') && 
+                return !string.IsNullOrWhiteSpace(domain) &&
+                       domain.Contains('.') &&
                        !domain.Contains("..") &&
                        !domain.StartsWith("-") &&
                        !domain.EndsWith("-");
@@ -500,7 +500,7 @@ namespace Lidarr.Plugin.Qobuzarr.Authentication
         private string MaskEmail(string email)
         {
             if (string.IsNullOrWhiteSpace(email)) return "[empty]";
-            
+
             var atIndex = email.IndexOf('@');
             if (atIndex <= 0) return "[invalid]";
 
@@ -508,7 +508,7 @@ namespace Lidarr.Plugin.Qobuzarr.Authentication
             var domain = email.Substring(atIndex);
 
             if (local.Length <= 2) return $"{local}***{domain}";
-            
+
             return $"{local.Substring(0, 2)}***{local.Substring(local.Length - 1)}{domain}";
         }
 

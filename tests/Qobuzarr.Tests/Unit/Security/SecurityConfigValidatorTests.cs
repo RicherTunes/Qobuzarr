@@ -200,7 +200,7 @@ namespace Qobuzarr.Tests.Unit.Security
             var result = _validator.ValidateConfiguration(settings);
 
             // Assert
-            result.CriticalIssues.Should().Contain(i => 
+            result.CriticalIssues.Should().Contain(i =>
                 i.Title.Contains("Suspicious") || i.Title.Contains("Injection"));
         }
 
@@ -223,7 +223,7 @@ namespace Qobuzarr.Tests.Unit.Security
 
             // Assert
             result.CriticalIssues.Count.Should().BeGreaterThan(1);
-            result.CriticalIssues.Should().OnlyContain(i => 
+            result.CriticalIssues.Should().OnlyContain(i =>
                 i.Title.Contains("Suspicious") || i.Title.Contains("Injection attempt") || i.Title.Contains("malicious"));
         }
 
@@ -247,7 +247,7 @@ namespace Qobuzarr.Tests.Unit.Security
 
             // Assert
             result.HasSecurityIssues.Should().BeTrue();
-            result.CriticalIssues.Should().Contain(i => 
+            result.CriticalIssues.Should().Contain(i =>
                 i.Title.Contains("Password") && i.Description.Contains("placeholder"));
         }
 
@@ -586,8 +586,8 @@ namespace Qobuzarr.Tests.Unit.Security
 
             // Assert
             _mockLogger.Verify(l => l.Info(
-                It.IsAny<string>(), 
-                It.IsAny<object[]>()), 
+                It.IsAny<string>(),
+                It.IsAny<object[]>()),
                 Times.AtLeastOnce());
         }
 
@@ -607,8 +607,8 @@ namespace Qobuzarr.Tests.Unit.Security
 
             // Assert
             _mockLogger.Verify(l => l.Warn(
-                It.IsAny<string>(), 
-                It.IsAny<object[]>()), 
+                It.IsAny<string>(),
+                It.IsAny<object[]>()),
                 Times.AtLeastOnce());
         }
 
@@ -619,9 +619,9 @@ namespace Qobuzarr.Tests.Unit.Security
             var mockCredentialManager = new Mock<SecureCredentialManager>(_mockLogger.Object);
             mockCredentialManager.Setup(m => m.ValidateCredentialSecurity(It.IsAny<string>(), It.IsAny<string>()))
                 .Throws(new Exception("Test exception"));
-            
+
             var validatorWithMock = new SecurityConfigValidator(_mockLogger.Object, mockCredentialManager.Object);
-            
+
             var settings = new QobuzIndexerSettings
             {
                 Email = "user@example.com",

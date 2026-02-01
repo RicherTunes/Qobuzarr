@@ -41,11 +41,11 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
             var hasEditionMarker = components.Values.Any(c => c == AlbumComponentType.EditionMarker);
             var preservedTerms = _componentClassifier.GetPreservedTerms(safeAlbum);
             var cleaningLevel = _componentClassifier.RecommendCleaningLevel(safeAlbum);
-            
+
             // Get traditional complexity for fallback decisions
             var complexity = _complexityClassifier.ClassifyComplexity(safeArtist, safeAlbum);
-            
-            _logger?.Debug("Semantic analysis for '{0} - {1}': HasVersionDescriptor={2}, HasEditionMarker={3}, CleaningLevel={4}, Complexity={5}", 
+
+            _logger?.Debug("Semantic analysis for '{0} - {1}': HasVersionDescriptor={2}, HasEditionMarker={3}, CleaningLevel={4}, Complexity={5}",
                           artist, album, hasVersionDescriptor, hasEditionMarker, cleaningLevel, complexity);
 
             // Determine strategy based on semantic analysis
@@ -128,12 +128,12 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
                     // Preserve all meaningful terms
                     var minimalClean = CleanQueryWithPreservation(safeAlbum, strategy.PreserveTerms);
                     queries.Add($"{safeArtist} {minimalClean}");
-                    
+
                     // For version descriptors, also try album-only search
                     if (strategy.PreserveTerms.Any(t => IsVersionDescriptor(t)))
                     {
                         queries.Add(minimalClean);
-                        
+
                         // Also try with artist last for some version descriptors
                         if (strategy.QueryVariants >= 3)
                         {
@@ -178,10 +178,10 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
         {
             var strategy = DetermineStrategy(artist, album);
             var queries = BuildQueriesForStrategy(artist, album, strategy);
-            
-            _logger?.Info("🐛 BUG FIX TEST: Generated {0} queries for '{1} - {2}': {3}", 
+
+            _logger?.Info("🐛 BUG FIX TEST: Generated {0} queries for '{1} - {2}': {3}",
                          queries.Count, artist, album, string.Join(", ", queries));
-            
+
             return queries;
         }
 
@@ -194,7 +194,7 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
             {
                 return hasEditionMarker ? 3 : 2; // More variants if also has edition markers
             }
-            
+
             return 2; // Standard version descriptor handling
         }
 
@@ -205,7 +205,7 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
                 "Instrumental", "Acoustic", "Live", "Unplugged", "Demo", "Sessions",
                 "Orchestra", "Symphony", "Quartet", "Ensemble", "Radio", "Mix", "Remix"
             };
-            
+
             return versionDescriptors.Contains(term);
         }
 
@@ -221,21 +221,21 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
             foreach (var word in words)
             {
                 var cleanWord = word.Trim('.', ',', '!', '?', '(', ')', '[', ']');
-                
+
                 // Always preserve terms flagged for preservation
                 if (preserveTerms.Any(p => p.Equals(cleanWord, StringComparison.OrdinalIgnoreCase)))
                 {
                     cleaned.Add(cleanWord);
                     continue;
                 }
-                
+
                 // Skip years in parentheses but keep standalone years
-                if (System.Text.RegularExpressions.Regex.IsMatch(cleanWord, @"^\d{4}$") && 
+                if (System.Text.RegularExpressions.Regex.IsMatch(cleanWord, @"^\d{4}$") &&
                     (word.Contains('(') || word.Contains('[')))
                 {
                     continue;
                 }
-                
+
                 // Keep everything else
                 if (!string.IsNullOrWhiteSpace(cleanWord))
                 {
@@ -253,19 +253,19 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
 
             // Moderate cleaning removes some edition markers but preserves core content
             var result = CleanQueryWithPreservation(query, preserveTerms);
-            
+
             // Remove edition markers that aren't in preserve list
             var editionMarkers = new[] { "Deluxe", "Remastered", "Anniversary", "Special", "Limited" };
             foreach (var marker in editionMarkers)
             {
                 if (!preserveTerms.Contains(marker, StringComparer.OrdinalIgnoreCase))
                 {
-                    result = System.Text.RegularExpressions.Regex.Replace(result, 
+                    result = System.Text.RegularExpressions.Regex.Replace(result,
                         $@"\b{marker}\b", "", System.Text.RegularExpressions.RegexOptions.IgnoreCase)
                         .Trim();
                 }
             }
-            
+
             // Clean up extra whitespace
             return System.Text.RegularExpressions.Regex.Replace(result, @"\s+", " ").Trim();
         }
@@ -277,23 +277,23 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
 
             // Aggressive cleaning for simple albums
             var result = query;
-            
+
             // Remove years
             result = System.Text.RegularExpressions.Regex.Replace(result, @"\b\d{4}\b", "");
-            
+
             // Remove common edition markers
             var editionPatterns = new[]
             {
                 @"\b(deluxe|expanded|remastered|anniversary|special|limited|collector|bonus|extended)\s*(edition|version)?\b",
                 @"\b(re-?master(ed)?|re-?issue|re-?release)\b"
             };
-            
+
             foreach (var pattern in editionPatterns)
             {
-                result = System.Text.RegularExpressions.Regex.Replace(result, pattern, " ", 
+                result = System.Text.RegularExpressions.Regex.Replace(result, pattern, " ",
                     System.Text.RegularExpressions.RegexOptions.IgnoreCase);
             }
-            
+
             // Remove extra whitespace and normalize
             return System.Text.RegularExpressions.Regex.Replace(result, @"\s+", " ").Trim();
         }

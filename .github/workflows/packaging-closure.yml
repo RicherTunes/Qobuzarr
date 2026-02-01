@@ -84,8 +84,14 @@ jobs:
     - name: Create Plugin Package
       run: |
         mkdir -p package
+        # Copy plugin DLL from build output
         cp bin/Lidarr.Plugin.Qobuzarr.dll package/ 2>/dev/null || cp bin/Release/*/Lidarr.Plugin.Qobuzarr.dll package/
-        cp plugin.json package/
+        # Copy plugin.json from build output (generated from template during build)
+        cp bin/plugin.json package/ 2>/dev/null || cp bin/Release/*/plugin.json package/ 2>/dev/null || {
+          # Fallback: generate from template
+          VERSION=$(grep -oP '(?<=<Version>)[^<]+' Qobuzarr.csproj || echo "0.0.0")
+          sed "s/{VERSION}/$VERSION/g" plugin.json.template > package/plugin.json
+        }
 
         cd package
         zip -r ../Qobuzarr-closure-test.zip .

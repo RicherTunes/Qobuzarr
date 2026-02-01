@@ -14,25 +14,25 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
         // Generated regex patterns for performance (SYSLIB1045)
         [GeneratedRegex(@"\b\w+\s+(edition|version|release)\b", RegexOptions.IgnoreCase)]
         private static partial Regex EditionVersionPattern();
-        
+
         [GeneratedRegex(@"[\(\[].*\b\w+\b.*[\)\]]", RegexOptions.IgnoreCase)]
         private static partial Regex ParenthesesContentPattern();
-        
+
         [GeneratedRegex(@"-\s*\w+\s*$", RegexOptions.IgnoreCase)]
         private static partial Regex DashEndPattern();
-        
+
         [GeneratedRegex(@"\b\d{4}\s+\w+\b", RegexOptions.IgnoreCase)]
         private static partial Regex YearEditionPattern();
-        
+
         [GeneratedRegex(@"^(19|20)[0-9]{2}$")]
         private static partial Regex YearPattern();
-        
+
         [GeneratedRegex(@"[^\w\s]")]
         private static partial Regex NonWordPattern();
-        
+
         [GeneratedRegex(@"[\(\[]([^\)\]]+)[\)\]]")]
         private static partial Regex ParentheticalPattern();
-        
+
         [GeneratedRegex(@"[\s,]+")]
         private static partial Regex WhitespaceCommaPattern();
 
@@ -67,7 +67,7 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
             "Hi-Fi", "Lo-Fi", "High-Quality", "Audiophile", "24-Bit",
             "Analog", "Digital", "Vinyl", "CD", "Studio", "Rehearsal"
         };
-        
+
         /// <summary>
         /// Edition markers that are ADDITIONS to the base album (can be safely removed for broader search)
         /// These typically indicate repackaging or remastering of existing content
@@ -89,7 +89,7 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
             "Bonus", "Complete", "Ultimate", "Definitive", "Essential", "Platinum",
             "Gold", "Silver", "Diamond", "Box", "Boxed", "Set"
         };
-        
+
         /// <summary>
         /// Metadata markers that provide context but aren't part of the search query
         /// </summary>
@@ -124,21 +124,21 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
                 return new Dictionary<string, AlbumComponentType>();
             }
             var components = new Dictionary<string, AlbumComponentType>();
-            
+
             if (string.IsNullOrWhiteSpace(albumTitle))
                 return components;
-            
+
             var tokens = TokenizeAlbumTitle(albumTitle);
-            
+
             foreach (var token in tokens)
             {
                 var cleanToken = CleanToken(token);
                 if (string.IsNullOrWhiteSpace(cleanToken))
                     continue;
-                
+
                 components[token] = ClassifyToken(cleanToken, albumTitle);
             }
-            
+
             return components;
         }
 
@@ -150,7 +150,7 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
         public List<string> GetPreservedTerms(string albumTitle)
         {
             var components = ClassifyComponents(albumTitle);
-            return components.Where(c => c.Value == AlbumComponentType.VersionDescriptor || 
+            return components.Where(c => c.Value == AlbumComponentType.VersionDescriptor ||
                                        c.Value == AlbumComponentType.CoreTitle)
                            .Select(c => c.Key)
                            .ToList();
@@ -165,17 +165,17 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
         public bool IsRemovableEditionMarker(string term, string context)
         {
             var cleanTerm = CleanToken(term);
-            
+
             // Never remove version descriptors
             if (VersionDescriptors.Contains(cleanTerm))
                 return false;
-            
+
             // Check if it's in edition context
             if (EditionMarkers.Contains(cleanTerm))
             {
                 return IsInEditionContext(term, context);
             }
-            
+
             return false;
         }
 
@@ -187,29 +187,29 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
         public CleaningLevel RecommendCleaningLevel(string albumTitle)
         {
             var components = ClassifyComponents(albumTitle);
-            
+
             var hasVersionDescriptor = components.Values.Any(c => c == AlbumComponentType.VersionDescriptor);
             var hasEditionMarker = components.Values.Any(c => c == AlbumComponentType.EditionMarker);
             var coreTermCount = components.Values.Count(c => c == AlbumComponentType.CoreTitle);
-            
+
             // Albums with version descriptors need careful handling
             if (hasVersionDescriptor)
             {
                 return CleaningLevel.Minimal;
             }
-            
+
             // Albums with only edition markers can be cleaned more aggressively
             if (hasEditionMarker && coreTermCount > 2)
             {
                 return CleaningLevel.Moderate;
             }
-            
+
             // Simple albums without special markers
             if (!hasVersionDescriptor && !hasEditionMarker && coreTermCount <= 3)
             {
                 return CleaningLevel.Aggressive;
             }
-            
+
             return CleaningLevel.Moderate;
         }
 
@@ -220,31 +220,31 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
             {
                 return AlbumComponentType.VersionDescriptor;
             }
-            
+
             // Check edition markers with context
             if (EditionMarkers.Contains(token) && IsInEditionContext(token, fullTitle))
             {
                 return AlbumComponentType.EditionMarker;
             }
-            
+
             // Check metadata markers
             if (MetadataMarkers.Contains(token))
             {
                 return AlbumComponentType.Metadata;
             }
-            
+
             // Check for year patterns
             if (IsYearPattern(token))
             {
                 return AlbumComponentType.Metadata;
             }
-            
+
             // Check for noise (common meaningless words)
             if (IsNoise(token))
             {
                 return AlbumComponentType.Noise;
             }
-            
+
             // Default to core title
             return AlbumComponentType.CoreTitle;
         }
@@ -253,7 +253,7 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
         {
             // The token parameter is already cleaned, but we need to check against both
             // the cleaned version and possible original forms in the full title
-            
+
             // Check if the cleaned token or its variants appear before "Edition", "Version", etc.
             // This handles cases like "Collector's Edition" -> cleaned token "Collectors"
             var tokenVariants = new[]
@@ -263,21 +263,21 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
                 token.TrimEnd('s') + "'s",      // Singular possessive (e.g., "Collector's" from "Collectors")
                 token.TrimEnd('s')              // Singular form (e.g., "Collector" from "Collectors")
             };
-            
+
             foreach (var variant in tokenVariants)
             {
                 if (string.IsNullOrWhiteSpace(variant)) continue;
-                
+
                 // Check if followed by "Edition" or "Version"
                 // Use the generated regex to find edition/version patterns, then check if variant precedes
                 var editionMatch = EditionVersionPattern().Match(fullTitle);
-                if (editionMatch.Success && 
+                if (editionMatch.Success &&
                     editionMatch.Value.StartsWith(variant, StringComparison.OrdinalIgnoreCase))
                 {
                     return true;
                 }
             }
-            
+
             // Check if the token appears in any edition context pattern
             foreach (var pattern in GetEditionContextPatterns())
             {
@@ -287,7 +287,7 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
                     // Check both the cleaned token and its variants
                     foreach (var variant in tokenVariants)
                     {
-                        if (!string.IsNullOrWhiteSpace(variant) && 
+                        if (!string.IsNullOrWhiteSpace(variant) &&
                             match.Value.Contains(variant, StringComparison.OrdinalIgnoreCase))
                         {
                             return true;
@@ -295,7 +295,7 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
                     }
                 }
             }
-            
+
             return false;
         }
 
@@ -311,7 +311,7 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
             {
                 "the", "a", "an", "and", "or", "but", "in", "on", "at", "to", "for", "of", "with", "by"
             };
-            
+
             return noiseWords.Contains(token);
         }
 
@@ -322,7 +322,7 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
             {
                 return token.Trim();
             }
-            
+
             // Remove punctuation and extra whitespace for single words
             return NonWordPattern().Replace(token, "").Trim();
         }
@@ -330,10 +330,10 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
         private IEnumerable<string> TokenizeAlbumTitle(string title)
         {
             var tokens = new List<string>();
-            
+
             if (string.IsNullOrWhiteSpace(title))
                 return tokens;
-            
+
             // First, identify and preserve multi-word version descriptors
             var preservedPhrases = new Dictionary<string, string>();
             var multiWordDescriptors = new[]
@@ -341,10 +341,10 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
                 "En Vivo", "En Direct", "Ao Vivo", "Im Studio", "Nel Studio",
                 "Hi-Fi", "Lo-Fi", "24-Bit", "B-Sides", "High-Quality"
             };
-            
+
             var workingTitle = title;
             int placeholderIndex = 0;
-            
+
             foreach (var phrase in multiWordDescriptors)
             {
                 if (workingTitle.Contains(phrase, StringComparison.OrdinalIgnoreCase))
@@ -355,23 +355,23 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
                     workingTitle = workingTitle.Replace(phrase, placeholder, StringComparison.OrdinalIgnoreCase);
                 }
             }
-            
+
             // Remove parentheses/brackets but keep their content
             var matches = ParentheticalPattern().Matches(workingTitle);
-            
+
             foreach (Match match in matches)
             {
                 var contentInside = match.Groups[1].Value.Trim();
                 workingTitle = workingTitle.Replace(match.Value, " " + contentInside + " ");
             }
-            
+
             // Split on whitespace and commas (but preserve hyphens in meaningful terms)
             var allTokens = WhitespaceCommaPattern().Split(workingTitle)
                                 .Where(t => !string.IsNullOrWhiteSpace(t))
                                 .Select(t => t.Trim().Trim(new char[] { '.', ',', '!', '?' }))
                                 .Where(t => !string.IsNullOrWhiteSpace(t))
                                 .ToList();
-            
+
             // Restore preserved phrases
             for (int i = 0; i < allTokens.Count; i++)
             {
@@ -380,11 +380,11 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
                     allTokens[i] = preservedPhrases[allTokens[i]];
                 }
             }
-            
+
             // Add the preserved phrases directly
             tokens.AddRange(preservedPhrases.Values);
             tokens.AddRange(allTokens.Where(t => !preservedPhrases.ContainsKey(t)));
-            
+
             return tokens.Distinct();
         }
     }
@@ -396,16 +396,16 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
     {
         /// <summary>Core album title content that should always be preserved</summary>
         CoreTitle,
-        
+
         /// <summary>Version descriptors that are part of the album's identity (Instrumental, Live, etc.)</summary>
         VersionDescriptor,
-        
+
         /// <summary>Edition markers that can be removed for broader search (Deluxe Edition, etc.)</summary>
         EditionMarker,
-        
+
         /// <summary>Metadata that provides context but isn't part of search (years, formats, etc.)</summary>
         Metadata,
-        
+
         /// <summary>Noise words that can be safely removed</summary>
         Noise
     }
@@ -417,13 +417,13 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
     {
         /// <summary>No cleaning - use exact query</summary>
         None,
-        
+
         /// <summary>Minimal cleaning - only remove obvious noise, preserve all meaningful terms</summary>
         Minimal,
-        
+
         /// <summary>Moderate cleaning - remove edition markers in context, preserve version descriptors</summary>
         Moderate,
-        
+
         /// <summary>Aggressive cleaning - remove all non-essential terms for broadest search</summary>
         Aggressive
     }

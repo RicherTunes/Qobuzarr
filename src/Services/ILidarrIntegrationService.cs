@@ -170,7 +170,7 @@ namespace Lidarr.Plugin.Qobuzarr.Services
         public string OutputPath { get; set; }
         public DateTime ValidatedAt { get; set; }
         public List<string> ValidationMessages { get; set; } = new();
-        
+
         // Quality profile integration fields
         public LidarrQualityProfile QualityProfile { get; set; }
         public string SelectedQobuzQuality { get; set; }
@@ -256,21 +256,21 @@ namespace Lidarr.Plugin.Qobuzarr.Services
         public int SuccessfulSearches { get; set; }
         public int FailedSearches { get; set; }
         public double SearchSuccessRate => TotalSearches > 0 ? (double)SuccessfulSearches / TotalSearches * 100 : 0;
-        
+
         public int TotalDownloads { get; set; }
         public int SuccessfulDownloads { get; set; }
         public int FailedDownloads { get; set; }
         public double DownloadSuccessRate => TotalDownloads > 0 ? (double)SuccessfulDownloads / TotalDownloads * 100 : 0;
-        
+
         public long TotalBytesDownloaded { get; set; }
         public TimeSpan TotalDownloadTime { get; set; }
-        public double AverageDownloadSpeedMBps => TotalDownloadTime.TotalSeconds > 0 
+        public double AverageDownloadSpeedMBps => TotalDownloadTime.TotalSeconds > 0
             ? (TotalBytesDownloaded / 1024.0 / 1024.0) / TotalDownloadTime.TotalSeconds : 0;
-        
+
         public int CurrentConcurrentOperations { get; set; }
         public int PeakConcurrentOperations { get; set; }
         public DateTime LastOperationAt { get; set; }
-        
+
         public Dictionary<string, int> ErrorCounts { get; set; } = new();
         public Dictionary<int, int> QualityDistribution { get; set; } = new();
     }

@@ -136,20 +136,20 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Services
                 catch (Exception ex)
                 {
                     lastException = ex;
-                    
+
                     await CleanupPartialFileAsync(outputPath + ".partial");
 
                     // Determine if this is a retryable error
                     var isRetryable = IsRetryableNetworkError(ex) || _qualityFallbackProvider.IsRetryableException(ex);
-                    
+
                     if (attempt < MaxRetries && isRetryable)
                     {
                         var errorType = GetErrorType(ex);
-                        _logger.Warn("Download failed due to {0} (attempt {1}/{2}), will retry: {3}", 
+                        _logger.Warn("Download failed due to {0} (attempt {1}/{2}), will retry: {3}",
                             errorType, attempt, MaxRetries, ex.Message);
-                        
+
                         // For network interruptions, log more details
-                        if (ex.Message.Contains("response ended prematurely") || 
+                        if (ex.Message.Contains("response ended prematurely") ||
                             ex.Message.Contains("copying content to a stream"))
                         {
                             _logger.Debug("Network interruption detected - this is common with large files or unstable connections");
@@ -162,7 +162,7 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Services
                     }
                 }
             }
-            
+
             // If we get here, all retries failed
             _logger.Error(lastException, "Failed to download audio file after {0} attempts: {1}", MaxRetries, streamUrl);
             throw lastException ?? new InvalidOperationException("Download failed after all retries");
@@ -186,7 +186,7 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Services
                 using var fileStream = File.OpenRead(filePath);
                 var buffer = new byte[1024];
                 var bytesRead = fileStream.Read(buffer, 0, buffer.Length);
-                
+
                 if (bytesRead == 0)
                 {
                     _logger.Debug("Could not read any bytes from downloaded file: {0}", filePath);
@@ -211,23 +211,23 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Services
         }
 
         private async Task<long> StreamLargeFileAsync(
-            byte[] responseData, 
-            FileStream fileStream, 
-            long totalBytes, 
-            IProgress<double> progress, 
+            byte[] responseData,
+            FileStream fileStream,
+            long totalBytes,
+            IProgress<double> progress,
             CancellationToken cancellationToken)
         {
             // Write in chunks to avoid memory issues and provide better progress
             var buffer = new byte[ChunkSize];
             var dataStream = new MemoryStream(responseData);
             var downloadedBytes = 0L;
-            
+
             int bytesRead;
             while ((bytesRead = await dataStream.ReadAsync(buffer, 0, ChunkSize, cancellationToken).ConfigureAwait(false)) > 0)
             {
                 await fileStream.WriteAsync(buffer, 0, bytesRead, cancellationToken).ConfigureAwait(false);
                 downloadedBytes += bytesRead;
-                
+
                 // Report progress more frequently for streaming
                 if (totalBytes > 0)
                 {
@@ -281,7 +281,7 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Services
                 _ => true // Assume valid for unknown extensions
             };
         }
-        
+
         private static bool IsRetryableNetworkError(Exception ex)
         {
             // Check for specific network-related errors that are worth retrying
@@ -291,26 +291,26 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Services
                 if (ioEx.Message.Contains("response ended prematurely", StringComparison.OrdinalIgnoreCase))
                     return true;
             }
-            
+
             if (ex is HttpRequestException httpEx)
             {
                 // "Error while copying content to a stream" indicates download interruption
                 if (httpEx.Message.Contains("copying content", StringComparison.OrdinalIgnoreCase))
                     return true;
             }
-            
+
             if (ex.InnerException != null)
             {
                 return IsRetryableNetworkError(ex.InnerException);
             }
-            
+
             // Check for WebException which often indicates network issues
             if (ex.GetType().Name == "WebException")
                 return true;
-                
+
             return false;
         }
-        
+
         private static string GetErrorType(Exception ex)
         {
             if (ex.Message.Contains("response ended prematurely", StringComparison.OrdinalIgnoreCase))
@@ -323,7 +323,7 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Services
                 return "IO error";
             if (ex is HttpRequestException)
                 return "HTTP error";
-                
+
             return "error";
         }
     }

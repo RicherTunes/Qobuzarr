@@ -15,7 +15,7 @@ namespace Lidarr.Plugin.Qobuzarr.Services.Matching
     {
         private readonly Logger _logger;
         private readonly List<ITrackMatchingStrategy> _strategies;
-        
+
         // Various artists patterns
         private static readonly string[] VariousArtistsPatterns =
         {
@@ -35,7 +35,7 @@ namespace Lidarr.Plugin.Qobuzarr.Services.Matching
         /// Performs advanced track matching that handles split tracks and complex scenarios
         /// </summary>
         public TrackMatchingResult PerformAdvancedMatching(
-            List<LidarrTrack> lidarrTracks, 
+            List<LidarrTrack> lidarrTracks,
             List<QobuzTrack> qobuzTracks)
         {
             if (!lidarrTracks?.Any() == true || !qobuzTracks?.Any() == true)
@@ -47,7 +47,7 @@ namespace Lidarr.Plugin.Qobuzarr.Services.Matching
                 };
             }
 
-            _logger.Debug("Advanced track matching: {0} Lidarr tracks vs {1} Qobuz tracks", 
+            _logger.Debug("Advanced track matching: {0} Lidarr tracks vs {1} Qobuz tracks",
                          lidarrTracks.Count, qobuzTracks.Count);
 
             var finalResult = new TrackMatchingResult
@@ -65,7 +65,7 @@ namespace Lidarr.Plugin.Qobuzarr.Services.Matching
             {
                 var standardResult = standardStrategy.PerformMatching(availableLidarrTracks, availableQobuzTracks);
                 MergeResults(finalResult, standardResult);
-                
+
                 // Remove matched tracks
                 RemoveMatchedTracks(availableLidarrTracks, availableQobuzTracks, standardResult);
             }
@@ -78,7 +78,7 @@ namespace Lidarr.Plugin.Qobuzarr.Services.Matching
                 {
                     var splitResult = splitStrategy.PerformMatching(availableLidarrTracks, availableQobuzTracks);
                     MergeResults(finalResult, splitResult);
-                    
+
                     // Remove matched tracks
                     RemoveMatchedTracks(availableLidarrTracks, availableQobuzTracks, splitResult);
                 }
@@ -92,7 +92,7 @@ namespace Lidarr.Plugin.Qobuzarr.Services.Matching
                 {
                     var mergedResult = mergedStrategy.PerformMatching(availableLidarrTracks, availableQobuzTracks);
                     MergeResults(finalResult, mergedResult);
-                    
+
                     // Remove matched tracks
                     RemoveMatchedTracks(availableLidarrTracks, availableQobuzTracks, mergedResult);
                 }
@@ -105,7 +105,7 @@ namespace Lidarr.Plugin.Qobuzarr.Services.Matching
             // Calculate final statistics
             CalculateFinalStatistics(finalResult, lidarrTracks.Count);
 
-            _logger.Info("Advanced matching complete: {0:P1} match rate, {1} split groups, {2} merged groups", 
+            _logger.Info("Advanced matching complete: {0:P1} match rate, {1} split groups, {2} merged groups",
                         finalResult.OverallMatchRate, finalResult.SplitTrackGroups.Count, finalResult.MergedTrackGroups.Count);
 
             return finalResult;
@@ -122,15 +122,15 @@ namespace Lidarr.Plugin.Qobuzarr.Services.Matching
 
             if (countDiff == 0)
                 return "StandardMatching";
-            
+
             if (qobuzCount > lidarrCount && countDiff <= lidarrCount * 0.5)
                 return "SplitTrackProbable";
-            
+
             if (lidarrCount > qobuzCount && countDiff <= qobuzCount * 0.5)
                 return "MergedTrackProbable";
 
             // Check for various artists patterns
-            var hasVariousArtists = VariousArtistsPatterns.Any(pattern => 
+            var hasVariousArtists = VariousArtistsPatterns.Any(pattern =>
                 lidarrTracks.Any(t => t.ArtistName?.ContainsIgnoreCase(pattern) == true) ||
                 qobuzTracks.Any(t => t.GetPerformerName()?.ContainsIgnoreCase(pattern) == true));
 
@@ -147,7 +147,7 @@ namespace Lidarr.Plugin.Qobuzarr.Services.Matching
             finalResult.StandardMatches.AddRange(partialResult.StandardMatches);
             finalResult.SplitTrackGroups.AddRange(partialResult.SplitTrackGroups);
             finalResult.MergedTrackGroups.AddRange(partialResult.MergedTrackGroups);
-            
+
             // Update strategy to reflect combined approach
             if (finalResult.MatchingStrategy != partialResult.MatchingStrategy)
             {
@@ -190,8 +190,8 @@ namespace Lidarr.Plugin.Qobuzarr.Services.Matching
 
         private void CalculateFinalStatistics(TrackMatchingResult result, int totalLidarrTracks)
         {
-            var matchedLidarrTracks = result.StandardMatches.Count + 
-                                     result.SplitTrackGroups.Count + 
+            var matchedLidarrTracks = result.StandardMatches.Count +
+                                     result.SplitTrackGroups.Count +
                                      result.MergedTrackGroups.Sum(g => g.LidarrTracks.Count);
 
             result.OverallMatchRate = totalLidarrTracks > 0 ? (double)matchedLidarrTracks / totalLidarrTracks : 0;

@@ -17,7 +17,7 @@ namespace Qobuzarr.Tests.Indexers
         public MLPerformanceMetricsTests(ITestOutputHelper output)
         {
             _output = output;
-            
+
             // Setup NLog for testing
             var config = new NLog.Config.LoggingConfiguration();
             var consoleTarget = new NLog.Targets.ConsoleTarget("console")
@@ -27,7 +27,7 @@ namespace Qobuzarr.Tests.Indexers
             config.AddTarget(consoleTarget);
             config.AddRule(LogLevel.Debug, LogLevel.Fatal, consoleTarget);
             LogManager.Configuration = config;
-            
+
             _logger = LogManager.GetCurrentClassLogger();
             _metrics = new MLPerformanceMetrics(_logger);
         }
@@ -37,7 +37,7 @@ namespace Qobuzarr.Tests.Indexers
         {
             // Act & Assert
             var summary = _metrics.GetPerformanceSummary();
-            
+
             Assert.NotNull(summary);
             Assert.True(summary.GeneratedAt <= DateTime.UtcNow);
             Assert.Equal(0, summary.TotalPredictions);
@@ -69,7 +69,7 @@ namespace Qobuzarr.Tests.Indexers
             {
                 Thread.Sleep(5); // Simulate prediction work
             }
-            
+
             _metrics.RecordPrediction(12.5, true, 0.95);
 
             // Assert
@@ -90,7 +90,7 @@ namespace Qobuzarr.Tests.Indexers
 
             // Assert
             var hitRatio = _metrics.GetCacheHitRatio();
-            Assert.Equal(2.0/3.0, hitRatio, 2);
+            Assert.Equal(2.0 / 3.0, hitRatio, 2);
 
             var summary = _metrics.GetPerformanceSummary();
             Assert.Equal(2, summary.CacheHits);
@@ -117,7 +117,7 @@ namespace Qobuzarr.Tests.Indexers
         {
             // Act
             _metrics.RecordMemorySnapshot("TestOperation");
-            
+
             // Force some memory allocation
             var largeArray = new byte[1024 * 1024]; // 1MB
             _metrics.RecordMemorySnapshot("AfterAllocation");
@@ -156,12 +156,12 @@ namespace Qobuzarr.Tests.Indexers
             {
                 _metrics.RecordPrediction(8.0, true, 0.92); // Good accuracy and timing
             }
-            
+
             for (int i = 0; i < 100; i++)
             {
                 _metrics.RecordCacheHit();
             }
-            
+
             _metrics.RecordApiOptimization(50, 100); // 50% reduction
 
             // Act
@@ -172,7 +172,7 @@ namespace Qobuzarr.Tests.Indexers
             Assert.NotNull(health);
             Assert.True(health.Score >= 80); // Should be healthy with good metrics
             Assert.True(health.IsHealthy || health.HasWarnings); // Should not be critical
-            
+
             _output.WriteLine($"Health Status: {health.Status}, Score: {health.Score}");
             foreach (var issue in health.Issues)
             {
@@ -186,13 +186,13 @@ namespace Qobuzarr.Tests.Indexers
             // Test benchmark comparison functions
             Assert.True(PerformanceBenchmarks.MeetsTarget("accuracy", 0.88));
             Assert.False(PerformanceBenchmarks.MeetsTarget("accuracy", 0.80));
-            
+
             Assert.True(PerformanceBenchmarks.MeetsTarget("api_reduction", 55.0));
             Assert.False(PerformanceBenchmarks.MeetsTarget("api_reduction", 40.0));
-            
+
             Assert.True(PerformanceBenchmarks.MeetsTarget("prediction_time", 8.0));
             Assert.False(PerformanceBenchmarks.MeetsTarget("prediction_time", 60.0));
-            
+
             // Test performance levels
             Assert.Equal("Target", PerformanceBenchmarks.GetPerformanceLevel("accuracy", 0.90));
             Assert.Equal("Warning", PerformanceBenchmarks.GetPerformanceLevel("accuracy", 0.86));
@@ -246,7 +246,7 @@ namespace Qobuzarr.Tests.Indexers
             Assert.Contains("CACHE PERFORMANCE", report);
             Assert.Contains("API OPTIMIZATION", report);
             Assert.Contains("MEMORY USAGE", report);
-            
+
             _output.WriteLine("Generated Report:");
             _output.WriteLine(report);
         }

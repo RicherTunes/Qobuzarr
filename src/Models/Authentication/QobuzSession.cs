@@ -52,8 +52,8 @@ namespace Lidarr.Plugin.Qobuzarr.Models.Authentication
         /// </summary>
         public bool IsValid()
         {
-            return !string.IsNullOrEmpty(UserId) && 
-                   !string.IsNullOrEmpty(AuthToken) && 
+            return !string.IsNullOrEmpty(UserId) &&
+                   !string.IsNullOrEmpty(AuthToken) &&
                    DateTime.UtcNow < ExpiresAt;
         }
 

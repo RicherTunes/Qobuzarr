@@ -15,14 +15,14 @@ namespace Lidarr.Plugin.Qobuzarr.Utilities
         public static string FormatTrackError(string trackTitle, TrackUnavailableReason reason, string additionalContext = null)
         {
             var sb = new StringBuilder();
-            
+
             // Header with error icon
             sb.AppendLine($"❌ Track unavailable: '{trackTitle}'");
-            
+
             // Reason with appropriate icon
             sb.Append(" ↳ Reason: ");
             sb.AppendLine(GetDetailedReason(reason, additionalContext));
-            
+
             // Add suggestion if applicable
             var suggestion = GetSuggestion(reason);
             if (!string.IsNullOrEmpty(suggestion))
@@ -30,7 +30,7 @@ namespace Lidarr.Plugin.Qobuzarr.Utilities
                 sb.Append(" ↳ Suggestion: ");
                 sb.AppendLine(suggestion);
             }
-            
+
             return sb.ToString().TrimEnd();
         }
 
@@ -41,36 +41,36 @@ namespace Lidarr.Plugin.Qobuzarr.Utilities
         {
             return reason switch
             {
-                TrackUnavailableReason.RegionalRestriction => 
-                    "🌍 Geographic restriction - Not available in your region" + 
+                TrackUnavailableReason.RegionalRestriction =>
+                    "🌍 Geographic restriction - Not available in your region" +
                     (context != null ? $" ({context})" : ""),
-                
-                TrackUnavailableReason.SubscriptionRestriction => 
-                    "💎 Subscription tier limitation - Requires Qobuz Studio/Sublime" + 
+
+                TrackUnavailableReason.SubscriptionRestriction =>
+                    "💎 Subscription tier limitation - Requires Qobuz Studio/Sublime" +
                     (context != null ? $" (Current: {context})" : ""),
-                
-                TrackUnavailableReason.PreviewOnly => 
+
+                TrackUnavailableReason.PreviewOnly =>
                     "🎧 Preview/sample only - Full track not available for streaming",
-                
-                TrackUnavailableReason.NoQualityAvailable => 
-                    "🎵 No suitable quality available" + 
+
+                TrackUnavailableReason.NoQualityAvailable =>
+                    "🎵 No suitable quality available" +
                     (context != null ? $" (Requested: {context})" : ""),
-                
-                TrackUnavailableReason.NotStreamable => 
+
+                TrackUnavailableReason.NotStreamable =>
                     "🚫 Not available for streaming - Purchase-only or exclusive content",
-                
-                TrackUnavailableReason.Restricted => 
-                    "🔒 Download restricted by rights holder" + 
+
+                TrackUnavailableReason.Restricted =>
+                    "🔒 Download restricted by rights holder" +
                     (context != null ? $" ({context})" : ""),
-                
-                TrackUnavailableReason.ApiError => 
-                    "⚠️ Technical error accessing Qobuz API" + 
+
+                TrackUnavailableReason.ApiError =>
+                    "⚠️ Technical error accessing Qobuz API" +
                     (context != null ? $" ({context})" : ""),
-                
-                TrackUnavailableReason.Unknown => 
-                    "❓ Unknown restriction" + 
+
+                TrackUnavailableReason.Unknown =>
+                    "❓ Unknown restriction" +
                     (context != null ? $" - {context}" : ""),
-                
+
                 _ => "Track currently unavailable"
             };
         }
@@ -82,27 +82,27 @@ namespace Lidarr.Plugin.Qobuzarr.Utilities
         {
             return reason switch
             {
-                TrackUnavailableReason.RegionalRestriction => 
+                TrackUnavailableReason.RegionalRestriction =>
                     "Check if track is available in your Qobuz account region settings",
-                
-                TrackUnavailableReason.SubscriptionRestriction => 
+
+                TrackUnavailableReason.SubscriptionRestriction =>
                     "Upgrade to Qobuz Studio/Sublime for Hi-Res access, or lower quality preference in settings",
-                
-                TrackUnavailableReason.PreviewOnly => 
+
+                TrackUnavailableReason.PreviewOnly =>
                     "This may be a pre-release or exclusive track. Check back later for full availability",
-                
-                TrackUnavailableReason.NoQualityAvailable => 
+
+                TrackUnavailableReason.NoQualityAvailable =>
                     "Try enabling quality fallback in settings to use best available quality",
-                
-                TrackUnavailableReason.NotStreamable => 
+
+                TrackUnavailableReason.NotStreamable =>
                     "This track may only be available for purchase, not streaming",
-                
-                TrackUnavailableReason.Restricted => 
+
+                TrackUnavailableReason.Restricted =>
                     "Contact Qobuz support if you believe you should have access",
-                
-                TrackUnavailableReason.ApiError => 
+
+                TrackUnavailableReason.ApiError =>
                     "Retry the download - this may be a temporary issue",
-                
+
                 _ => null
             };
         }
@@ -113,7 +113,7 @@ namespace Lidarr.Plugin.Qobuzarr.Utilities
         public static string FormatAlbumError(string albumTitle, string artist, int failedTracks, int totalTracks, string primaryReason = null)
         {
             var sb = new StringBuilder();
-            
+
             if (failedTracks == totalTracks)
             {
                 sb.AppendLine($"❌ Album completely unavailable: '{artist} - {albumTitle}'");
@@ -124,12 +124,12 @@ namespace Lidarr.Plugin.Qobuzarr.Utilities
                 sb.AppendLine($"⚠️ Album partially available: '{artist} - {albumTitle}'");
                 sb.AppendLine($" ↳ {failedTracks} of {totalTracks} tracks unavailable");
             }
-            
+
             if (!string.IsNullOrEmpty(primaryReason))
             {
                 sb.AppendLine($" ↳ Primary issue: {primaryReason}");
             }
-            
+
             return sb.ToString().TrimEnd();
         }
 
@@ -140,18 +140,18 @@ namespace Lidarr.Plugin.Qobuzarr.Utilities
         {
             var sb = new StringBuilder();
             sb.Append($"⬇️ Quality downgrade for '{trackTitle}': {actualQuality}");
-            
+
             if (requestedQuality != actualQuality)
             {
                 sb.Append($" (requested {requestedQuality})");
             }
-            
+
             if (!string.IsNullOrEmpty(reason))
             {
                 sb.AppendLine();
                 sb.Append($" ↳ Reason: {reason}");
             }
-            
+
             return sb.ToString();
         }
 
@@ -163,18 +163,18 @@ namespace Lidarr.Plugin.Qobuzarr.Utilities
             var sb = new StringBuilder();
             sb.AppendLine($"🌐 Network error during {operation}");
             sb.AppendLine($" ↳ Error: {ex.Message}");
-            
+
             if (attemptNumber > 0 && maxAttempts > 0)
             {
                 sb.AppendLine($" ↳ Attempt: {attemptNumber}/{maxAttempts}");
-                
+
                 if (attemptNumber < maxAttempts)
                 {
                     var retryDelay = Math.Pow(2, attemptNumber - 1) * 5; // Exponential backoff
                     sb.AppendLine($" ↳ Retrying in {retryDelay} seconds...");
                 }
             }
-            
+
             return sb.ToString().TrimEnd();
         }
     }

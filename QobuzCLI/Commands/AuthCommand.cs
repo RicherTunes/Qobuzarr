@@ -31,14 +31,14 @@ public class AuthCommand
         var passwordOption = new Option<string?>("--password", "Password for login");
         var userIdOption = new Option<string?>("--user-id", "User ID for token authentication");
         var tokenOption = new Option<string?>("--token", "Authentication token");
-        
+
         loginCommand.AddOption(emailOption);
         loginCommand.AddOption(passwordOption);
         loginCommand.AddOption(userIdOption);
         loginCommand.AddOption(tokenOption);
-        
-        loginCommand.SetHandler(async (string? email, string? password, string? userId, string? token) => 
-            await HandleLoginAsync(email, password, userId, token).ConfigureAwait(false), 
+
+        loginCommand.SetHandler(async (string? email, string? password, string? userId, string? token) =>
+            await HandleLoginAsync(email, password, userId, token).ConfigureAwait(false),
             emailOption, passwordOption, userIdOption, tokenOption);
 
         // qobuz auth status
@@ -173,9 +173,9 @@ public class AuthCommand
             {
                 var config = await _configService.LoadConfigAsync().ConfigureAwait(false);
                 await _pluginHost.InitializeAsync(config).ConfigureAwait(false);
-                
+
                 var success = await _pluginHost.TestAuthenticationAsync().ConfigureAwait(false);
-                
+
                 if (success)
                 {
                     AnsiConsole.MarkupLine("[green]✓ Authentication successful![/]");
@@ -205,7 +205,7 @@ public class AuthCommand
             table.AddColumn("Value");
 
             table.AddRow("Authentication Method", config.AuthMethod);
-            
+
             if (config.IsEmailAuth())
             {
                 table.AddRow("Email", config.Email ?? "not set");
@@ -233,7 +233,7 @@ public class AuthCommand
                                 await _pluginHost.InitializeAsync(config).ConfigureAwait(false);
 
                             var success = await _pluginHost.TestAuthenticationAsync().ConfigureAwait(false);
-                            
+
                             if (success)
                             {
                                 AnsiConsole.MarkupLine("[green]✓ Session is valid[/]");
@@ -262,7 +262,7 @@ public class AuthCommand
         try
         {
             var confirm = AnsiConsole.Confirm("Are you sure you want to clear all stored credentials?");
-            
+
             if (!confirm)
             {
                 AnsiConsole.MarkupLine("[yellow]Operation cancelled.[/]");

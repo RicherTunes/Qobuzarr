@@ -37,26 +37,26 @@ namespace Qobuzarr.Tests.Fixtures
             MockDiskProvider = new Mock<IDiskProvider>();
             MockRemotePathMappingService = new Mock<IRemotePathMappingService>();
             MockLocalizationService = new Mock<ILocalizationService>();
-            
+
             // Use NSubstitute for cache manager to avoid generic method issues
             MockCacheManager = Substitute.For<ICacheManager>();
             MockSessionCache = Substitute.For<ICached<QobuzSession>>();
-            
+
             // Make the cache mock functional - it should store and retrieve values
             var cacheStorage = new Dictionary<string, QobuzSession>();
             MockSessionCache.Find(Arg.Any<string>())
-                           .Returns(callInfo => 
+                           .Returns(callInfo =>
                            {
                                var key = callInfo.Arg<string>();
                                return cacheStorage.ContainsKey(key) ? cacheStorage[key] : default(QobuzSession);
                            });
             MockSessionCache.Get(Arg.Any<string>(), Arg.Any<Func<QobuzSession>>(), Arg.Any<TimeSpan?>())
-                           .Returns(callInfo => 
+                           .Returns(callInfo =>
                            {
                                var key = callInfo.Arg<string>();
                                var func = callInfo.Arg<Func<QobuzSession>>();
                                if (cacheStorage.ContainsKey(key)) return cacheStorage[key];
-                               if (func != null) 
+                               if (func != null)
                                {
                                    var value = func();
                                    cacheStorage[key] = value;
@@ -65,41 +65,41 @@ namespace Qobuzarr.Tests.Fixtures
                                return default(QobuzSession);
                            });
             MockSessionCache.When(x => x.Set(Arg.Any<string>(), Arg.Any<QobuzSession>(), Arg.Any<TimeSpan?>()))
-                           .Do(callInfo => 
+                           .Do(callInfo =>
                            {
                                var key = callInfo.Arg<string>();
                                var value = callInfo.Arg<QobuzSession>();
                                cacheStorage[key] = value;
                            });
             MockSessionCache.When(x => x.Remove(Arg.Any<string>()))
-                           .Do(callInfo => 
+                           .Do(callInfo =>
                            {
                                var key = callInfo.Arg<string>();
                                cacheStorage.Remove(key);
                            });
-            
+
             // Setup cache manager to return our mock cache
             MockCacheManager.GetCache<QobuzSession>(Arg.Any<Type>())
                            .Returns(MockSessionCache);
-            
+
             // Setup cache manager for object types (used by API client) 
             var mockObjectCache = Substitute.For<ICached<object>>();
             var objectCacheStorage = new Dictionary<string, object>();
             mockObjectCache.Find(Arg.Any<string>())
-                          .Returns(callInfo => 
+                          .Returns(callInfo =>
                           {
                               var key = callInfo.Arg<string>();
                               return objectCacheStorage.ContainsKey(key) ? objectCacheStorage[key] : null;
                           });
             mockObjectCache.When(x => x.Set(Arg.Any<string>(), Arg.Any<object>(), Arg.Any<TimeSpan?>()))
-                          .Do(callInfo => 
+                          .Do(callInfo =>
                           {
                               var key = callInfo.Arg<string>();
                               var value = callInfo.Arg<object>();
                               objectCacheStorage[key] = value;
                           });
             mockObjectCache.When(x => x.Remove(Arg.Any<string>()))
-                          .Do(callInfo => 
+                          .Do(callInfo =>
                           {
                               var key = callInfo.Arg<string>();
                               objectCacheStorage.Remove(key);

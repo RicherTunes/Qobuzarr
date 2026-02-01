@@ -105,7 +105,7 @@ public class SearchService : ISearchService
             if (queryWords.Length == 2 && artistPatterns.Any(pattern => Regex.IsMatch(cleanQuery, pattern)))
             {
                 // Only treat as artist if it doesn't have album/track indicators
-                if (!trackIndicators.Any(i => cleanQuery.Contains(i)) && 
+                if (!trackIndicators.Any(i => cleanQuery.Contains(i)) &&
                     !albumIndicators.Any(i => cleanQuery.Contains(i)))
                 {
                     _logger.LogDebug("Detected likely artist pattern: {Query}", query);
@@ -127,7 +127,7 @@ public class SearchService : ISearchService
 
             // For vague text that doesn't match patterns, return Auto instead of Album
             // This handles test case like "just text" that should default to Auto
-            if (cleanQuery.Split(' ').Length <= 2 && !trackIndicators.Any(i => cleanQuery.Contains(i)) && 
+            if (cleanQuery.Split(' ').Length <= 2 && !trackIndicators.Any(i => cleanQuery.Contains(i)) &&
                 !albumIndicators.Any(i => cleanQuery.Contains(i)) && !artistIndicators.Any(i => cleanQuery.Contains(i)))
             {
                 _logger.LogDebug("Ambiguous short query, returning Auto search type for: {Query}", query);
@@ -164,7 +164,7 @@ public class SearchService : ISearchService
 
     public List<SearchResult> ScoreResults(List<SearchResult> results, string query)
     {
-        var scoredResults = results.Select(result => 
+        var scoredResults = results.Select(result =>
         {
             result.Score = CalculateRelevanceScore(result, query);
             return result;
@@ -312,12 +312,12 @@ public class SearchService : ISearchService
         // Simple similarity bonus based on common characters
         var textChars = text.ToCharArray().Distinct().ToHashSet();
         var queryChars = query.ToCharArray().Distinct().ToHashSet();
-        
+
         var commonChars = textChars.Intersect(queryChars).Count();
         var totalChars = textChars.Union(queryChars).Count();
-        
+
         if (totalChars == 0) return 0;
-        
+
         var similarity = (double)commonChars / totalChars;
         return similarity * 5; // Max 5 point bonus
     }
@@ -332,7 +332,7 @@ public class SearchService : ISearchService
             return 0;
 
         var normalizedArtist = artistName.ToLower().Trim();
-        
+
         // Remove common prefixes to normalize artist names
         if (normalizedArtist.StartsWith("the "))
             normalizedArtist = normalizedArtist.Substring(4);
@@ -367,12 +367,12 @@ public class SearchService : ISearchService
     {
         // Process results in batches to avoid loading everything into memory
         var batch = new List<SearchResult>(pageSize);
-        
+
         foreach (var result in results)
         {
             result.Score = CalculateRelevanceScore(result, query);
             batch.Add(result);
-            
+
             if (batch.Count >= pageSize)
             {
                 // Sort and yield current batch
@@ -383,7 +383,7 @@ public class SearchService : ISearchService
                 batch.Clear();
             }
         }
-        
+
         // Process remaining items
         if (batch.Any())
         {

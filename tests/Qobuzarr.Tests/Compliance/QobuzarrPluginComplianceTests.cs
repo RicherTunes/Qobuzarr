@@ -201,7 +201,7 @@ public class QobuzarrPluginComplianceTests : IDisposable
     [Fact]
     public void Dependencies_ReferencesCommonLibrary()
     {
-        var references = _pluginAssembly.GetReferencedAssemblies();       
+        var references = _pluginAssembly.GetReferencedAssemblies();
         var hasCommon = references.Any(r =>
             r.Name?.Contains("Plugin.Common", StringComparison.OrdinalIgnoreCase) == true);
 

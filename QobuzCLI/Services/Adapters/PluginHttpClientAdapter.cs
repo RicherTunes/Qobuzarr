@@ -53,20 +53,20 @@ namespace QobuzCLI.Services.Adapters
 
             // Execute request
             var response = await _httpClient.SendAsync(requestMessage, cancellationToken);
-            
+
             // Create response headers
             var responseHeaders = new HttpHeader();
             foreach (var header in response.Headers)
             {
                 responseHeaders[header.Key] = string.Join(", ", header.Value);
             }
-            
+
             // Read response content
             var responseContent = await response.Content.ReadAsStringAsync();
-            
+
             // Create HttpResponse using the proper constructor
             var httpResponse = new HttpResponse(request, responseHeaders, responseContent, response.StatusCode);
-            
+
             return httpResponse;
         }
 
@@ -74,7 +74,7 @@ namespace QobuzCLI.Services.Adapters
         {
             // Create a new request builder for the given URL
             var builder = new HttpRequestBuilder(url);
-            
+
             // Set method based on string input
             builder.Method = method.ToUpperInvariant() switch
             {

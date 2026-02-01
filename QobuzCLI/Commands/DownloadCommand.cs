@@ -13,23 +13,23 @@ using Spectre.Console;
 
 namespace QobuzCLI.Commands;
 
-    public record DownloadOptions(
-        string? Query,
-        string? FromFile,
-        bool Immediate,
-        string? Output,
-        string? Quality,
-        bool SkipExisting,
-        string? ExistingBehavior,
-        bool Select,
-        bool All,
-        string? Type,
-        string? AlbumId,
-        int Priority,
-    string? QueueId,
-    string? ReportFormat,
-    string? ReportOutput,
-    int? Concurrency);
+public record DownloadOptions(
+    string? Query,
+    string? FromFile,
+    bool Immediate,
+    string? Output,
+    string? Quality,
+    bool SkipExisting,
+    string? ExistingBehavior,
+    bool Select,
+    bool All,
+    string? Type,
+    string? AlbumId,
+    int Priority,
+string? QueueId,
+string? ReportFormat,
+string? ReportOutput,
+int? Concurrency);
 
 /// <summary>
 /// Implements the 'download' command for the QobuzCLI application.
@@ -71,11 +71,11 @@ public partial class DownloadCommand
         _searchService = searchService;
         _queueService = queueService;
         _selectionService = selectionService;
-        
+
         // Handle both real dashboard and mock instances for testing
         try
         {
-            _logger = logger as IDashboardLogger ?? 
+            _logger = logger as IDashboardLogger ??
                       new DashboardLogger<DownloadCommand>(logger, dashboard);
         }
         catch
@@ -83,7 +83,7 @@ public partial class DownloadCommand
             // Fallback for testing scenarios where Dashboard might be mocked improperly
             _logger = new DashboardLogger<DownloadCommand>(logger, null);
         }
-        
+
         _batchDownloadService = batchDownloadService;
         _queueMonitoring = queueMonitoring;
         Command = CreateCommand();
@@ -147,7 +147,7 @@ public partial class DownloadCommand
                 context.ParseResult.GetValueForOption(reportOutputOption),
                 context.ParseResult.GetValueForOption(concurrencyOption)
             );
-            
+
             await HandleDownloadAsync(options).ConfigureAwait(false);
         });
 
@@ -185,7 +185,7 @@ public partial class DownloadCommand
                     ReportOutput = options.ReportOutput,
                     Concurrency = options.Concurrency
                 };
-                
+
                 await _batchDownloadService.ProcessBatchDownloadAsync(batchOptions).ConfigureAwait(false);
                 return;
             }
@@ -275,7 +275,7 @@ public partial class DownloadCommand
     // Moved to partial: DownloadCommand.Execution.cs
 
     private Task<List<Models.SearchResult>> ShowSelectionUIAsync(
-        List<Models.SearchResult> results, 
+        List<Models.SearchResult> results,
         string query,
         List<Models.SearchResult> exactMatches)
     {
@@ -326,7 +326,7 @@ public partial class DownloadCommand
         {
             prompt.AddChoice(choice);
         }
-        
+
         // Add action choices
         prompt.AddChoice("all (Download all results)");
         prompt.AddChoice("none (Cancel download)");
@@ -337,7 +337,7 @@ public partial class DownloadCommand
         {
             return Task.FromResult(new List<Models.SearchResult>());
         }
-        
+
         if (selection == "all")
         {
             return Task.FromResult(results.Take(10).ToList()); // Limit to top 10 for safety
@@ -380,7 +380,7 @@ public partial class DownloadCommand
 
                         // Use plugin's download service directly - no reimplementation!
                         var downloadResult = await ExecutePluginDownloadAsync(result, config.OutputDirectory, config.Quality).ConfigureAwait(false);
-                        
+
                         if (downloadResult.IsSuccessful())
                         {
                             if (downloadResult.GetTracksDownloaded() > 0)
@@ -418,15 +418,15 @@ public partial class DownloadCommand
     private async Task<CliDownloadResult> ExecutePluginDownloadAsync(Models.SearchResult result, string outputDir, string? quality)
     {
         _logger.LogInformation("Starting download: {Title} by {Artist}", result.Title, result.Artist);
-        
+
         try
         {
             // Create output directory structure using CLI naming conventions
             var artistDir = Path.Combine(outputDir, Lidarr.Plugin.Common.Utilities.FileSystemUtilities.SanitizeFileName(result.Artist));
             var albumDir = Path.Combine(artistDir, Lidarr.Plugin.Common.Utilities.FileSystemUtilities.CreateAlbumDirectoryName(result.Title, result.Year));
-            
+
             Directory.CreateDirectory(albumDir);
-            
+
             // Delegate to plugin's download service - this is the correct pattern!
             CliDownloadResult downloadResult;
             switch (result.Type.ToLower())
@@ -435,37 +435,37 @@ public partial class DownloadCommand
                     _logger.LogInformation("Downloading artist: {Artist}", result.Artist);
                     downloadResult = await _pluginHost.DownloadArtistAsync(result.Id, artistDir).ConfigureAwait(false);
                     break;
-                    
+
                 case "playlist":
                     _logger.LogInformation("Downloading playlist: {Title}", result.Title);
                     var playlistResult = await _pluginHost.DownloadPlaylistAsync(result.Id, outputDir, quality!).ConfigureAwait(false);
                     // Convert PlaylistDownloadResult to CliDownloadResult
                     downloadResult = ConvertPlaylistResultToCliResult(playlistResult);
                     break;
-                    
+
                 case "label":
                     _logger.LogInformation("Downloading label: {Title}", result.Title);
                     var labelResult = await _pluginHost.DownloadLabelAsync(result.Id, outputDir, quality!).ConfigureAwait(false);
                     // Convert LabelDownloadResult to CliDownloadResult
                     downloadResult = ConvertLabelResultToCliResult(labelResult);
                     break;
-                    
+
                 default: // album or track
                     _logger.LogInformation("Downloading album: {Title}", result.Title);
                     downloadResult = await _pluginHost.DownloadAlbumAsync(result.Id, albumDir, quality).ConfigureAwait(false);
                     break;
             }
-            
+
             if (downloadResult.IsSuccessful)
             {
-                _logger.LogInformation("Completed: {Title} by {Artist} ({TracksDownloaded} tracks)", 
+                _logger.LogInformation("Completed: {Title} by {Artist} ({TracksDownloaded} tracks)",
                     result.Title, result.Artist, downloadResult.TrackDownloads?.Count ?? 0);
             }
             else
             {
                 _logger.LogError("Failed: {Title} - {Error}", result.Title, downloadResult.Message);
             }
-            
+
             return downloadResult;
         }
         catch (Exception ex)
@@ -558,7 +558,7 @@ public partial class DownloadCommand
             var totalTracks = downloaded.Sum(r => r.GetTracksDownloaded());
             AnsiConsole.MarkupLine($"[dim]Total tracks: {totalTracks}[/]");
         }
-        
+
         if (skipped.Any())
         {
             AnsiConsole.MarkupLine($"[yellow]⏭️ Skipped {skipped.Count} item{(skipped.Count > 1 ? "s" : "")} (already exist)[/]");
@@ -605,7 +605,7 @@ public partial class DownloadCommand
         {
             var parts = result.Quality.Split("•").Select(p => p.Trim()).ToList();
             var formatted = new List<string>();
-            
+
             foreach (var part in parts)
             {
                 if (part.Contains("Hi-Res"))
@@ -625,10 +625,10 @@ public partial class DownloadCommand
                     formatted.Add($"[dim]{part}[/]");
                 }
             }
-            
+
             return string.Join(" [dim]•[/] ", formatted);
         }
-        
+
         // Legacy single format display
         return result.Quality switch
         {
@@ -655,7 +655,7 @@ public partial class DownloadCommand
         // Get target queue
         var queues = _queueService.GetQueues();
         DownloadQueue? targetQueue = null;
-        
+
         if (!string.IsNullOrEmpty(queueId))
         {
             targetQueue = _queueService.GetQueue(queueId);
@@ -732,23 +732,23 @@ public partial class DownloadCommand
         }).ToList();
 
         var addedIds = await _queueService.AddBatchToQueueAsync(targetQueue.Id, items).ConfigureAwait(false);
-        
+
         AnsiConsole.MarkupLine($"[green]✅ Added {addedIds.Count} item{(addedIds.Count > 1 ? "s" : "")} to queue '{targetQueue.Name}'[/]");
-        
+
         // Start queue processing if not already running
         await _queueService.StartQueueProcessingAsync(targetQueue.Id).ConfigureAwait(false);
-        
+
         // Show queue progress (only if we have items to monitor)
         if (addedIds.Any())
         {
             await _queueMonitoring.MonitorQueueProgressSimpleAsync(targetQueue.Id, addedIds).ConfigureAwait(false);
         }
-        
+
         // Show queue status
         var stats = _queueService.GetQueueStatistics(targetQueue.Id);
         AnsiConsole.MarkupLine($"[dim]Queue has {stats.PendingItems} pending items[/]");
     }
-    
+
     // Queue monitoring methods moved to QueueMonitoringService
     // This reduces DownloadCommand complexity and improves testability
 

@@ -149,13 +149,13 @@ namespace Lidarr.Plugin.Qobuzarr.Services.Caching
             if (_storage.TryGetValue(key, out var entries))
             {
                 var removed = entries.Remove(entry);
-                
+
                 // Remove key if list becomes empty
                 if (!entries.Any())
                 {
                     _storage.TryRemove(key, out _);
                 }
-                
+
                 return removed;
             }
 

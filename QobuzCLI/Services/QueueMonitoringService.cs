@@ -20,24 +20,24 @@ public class QueueMonitoringService
     {
         AnsiConsole.MarkupLine("[cyan]🔄 Monitoring queue progress...[/]");
         AnsiConsole.MarkupLine("[dim]Press Ctrl+C to stop monitoring (queue will continue in background)[/]");
-        
+
         var queue = _queueService.GetQueue(queueId);
         if (queue == null) return;
-        
+
         // Simple progress monitoring without complex dashboard
         while (true)
         {
             var stats = _queueService.GetQueueStatistics(queueId);
             var remaining = stats.PendingItems + stats.ActiveDownloads;
-            
+
             if (remaining == 0)
             {
                 AnsiConsole.MarkupLine("[green]✅ All downloads completed[/]");
                 break;
             }
-            
+
             AnsiConsole.MarkupLine($"[blue]Progress:[/] Active: {stats.ActiveDownloads}, Completed: {stats.CompletedItems}, Failed: {stats.FailedItems}, Remaining: {remaining}");
-            
+
             try
             {
                 await Task.Delay(2000).ConfigureAwait(false);

@@ -81,7 +81,7 @@ namespace Lidarr.Plugin.Qobuzarr.Models.Authentication
             {
                 return false;
             }
-            
+
             return !string.IsNullOrEmpty(UserId) && !string.IsNullOrEmpty(AuthToken);
         }
 
@@ -94,10 +94,10 @@ namespace Lidarr.Plugin.Qobuzarr.Models.Authentication
             {
                 var emailAttribute = new EmailAddressAttribute();
                 var isValidFormat = emailAttribute.IsValid(email);
-                
+
                 // Additional validation: email must have a username part before @
                 var hasUsernameBeforeAt = email.IndexOf('@') > 0;
-                
+
                 return isValidFormat && hasUsernameBeforeAt;
             }
             catch

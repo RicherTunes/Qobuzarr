@@ -33,7 +33,7 @@ namespace Qobuzarr.Tests.Unit.Search
         {
             // Act
             var result = FileNameSanitizer.SanitizeFileName(input);
-            
+
             // Assert
             result.Should().Be(expected);
         }
@@ -47,10 +47,10 @@ namespace Qobuzarr.Tests.Unit.Search
         {
             // Arrange
             _output.WriteLine($"Testing: {input} ({description})");
-            
+
             // Act
             var result = FileNameSanitizer.SanitizeFileName(input);
-            
+
             // Assert
             result.Should().NotBeNullOrWhiteSpace();
             result.Should().Be(input); // Unicode should be preserved
@@ -64,10 +64,10 @@ namespace Qobuzarr.Tests.Unit.Search
         {
             // Arrange
             _output.WriteLine($"Testing: {input} ({description})");
-            
+
             // Act
             var sanitizedPath = FileNameSanitizer.SanitizePath(input);
-            
+
             // Assert
             sanitizedPath.Should().NotContain("..");
             sanitizedPath.Should().NotContain("~");
@@ -80,20 +80,20 @@ namespace Qobuzarr.Tests.Unit.Search
         {
             // Act
             var allCases = SearchEdgeCases.AllTestCases.ToList();
-            
+
             // Assert
             allCases.Should().NotBeEmpty();
             allCases.Count.Should().BeGreaterThan(50, "Should have comprehensive edge cases");
-            
+
             // Check that we have various categories
-            var specialCharCases = allCases.Where(c => c.Description.Contains("special") || 
+            var specialCharCases = allCases.Where(c => c.Description.Contains("special") ||
                                                       c.ArtistName.Any(ch => !char.IsLetterOrDigit(ch) && ch != ' ')).ToList();
             specialCharCases.Should().NotBeEmpty("Should have special character cases");
-            
-            var unicodeCases = allCases.Where(c => c.ArtistName.Any(ch => ch > 127) || 
+
+            var unicodeCases = allCases.Where(c => c.ArtistName.Any(ch => ch > 127) ||
                                                   c.AlbumTitle.Any(ch => ch > 127)).ToList();
             unicodeCases.Should().NotBeEmpty("Should have Unicode cases");
-            
+
             _output.WriteLine($"Total test cases: {allCases.Count}");
             _output.WriteLine($"Special character cases: {specialCharCases.Count}");
             _output.WriteLine($"Unicode cases: {unicodeCases.Count}");
@@ -108,10 +108,10 @@ namespace Qobuzarr.Tests.Unit.Search
         {
             // Arrange
             _output.WriteLine($"Testing: '{input}' ({description})");
-            
+
             // Act
             var result = FileNameSanitizer.SanitizeFileName(input);
-            
+
             // Assert
             result.Should().NotBeNullOrWhiteSpace();
             if (string.IsNullOrWhiteSpace(input))
@@ -125,10 +125,10 @@ namespace Qobuzarr.Tests.Unit.Search
         {
             // Arrange
             var inputWithZeroWidth = "Arti\u200Bst"; // Zero-width space
-            
+
             // Act
             var result = FileNameSanitizer.SanitizeFileName(inputWithZeroWidth);
-            
+
             // Assert
             result.Should().Be("Artist");
             result.Should().NotContain("\u200B");

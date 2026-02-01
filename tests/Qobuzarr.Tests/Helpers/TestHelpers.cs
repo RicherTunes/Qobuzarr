@@ -17,20 +17,20 @@ namespace Qobuzarr.Tests.Helpers
         public static Mock<ICacheManager> CreateMockCacheManager()
         {
             var mockCacheManager = new Mock<ICacheManager>();
-            
+
             // Setup cache manager to return a working cache for QobuzSession
             var mockSessionCache = new Mock<ICached<QobuzSession>>();
             var cacheStorage = new Dictionary<string, QobuzSession>();
-            
+
             mockSessionCache.Setup(x => x.Find(It.IsAny<string>()))
                            .Returns<string>(key => cacheStorage.ContainsKey(key) ? cacheStorage[key] : null);
-            
+
             mockSessionCache.Setup(x => x.Set(It.IsAny<string>(), It.IsAny<QobuzSession>(), It.IsAny<TimeSpan?>()))
                            .Callback<string, QobuzSession, TimeSpan?>((key, value, lifetime) => cacheStorage[key] = value);
-            
+
             mockSessionCache.Setup(x => x.Remove(It.IsAny<string>()))
                            .Callback<string>(key => cacheStorage.Remove(key));
-            
+
             mockCacheManager.Setup(x => x.GetCache<QobuzSession>(It.IsAny<Type>()))
                             .Returns(mockSessionCache.Object);
 

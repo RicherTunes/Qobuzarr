@@ -27,19 +27,19 @@ namespace Lidarr.Plugin.Qobuzarr.Services.Caching
             // Normalize Unicode and remove accents
             var normalized = input.Normalize(NormalizationForm.FormD);
             var sb = new StringBuilder();
-            
+
             foreach (char c in normalized)
             {
                 if (CharUnicodeInfo.GetUnicodeCategory(c) != UnicodeCategory.NonSpacingMark)
                     sb.Append(c);
             }
-            
+
             normalized = sb.ToString().Normalize(NormalizationForm.FormC);
-            
+
             // Remove extra whitespace and punctuation
             normalized = Regex.Replace(normalized, @"\s+", " ");
             normalized = Regex.Replace(normalized, @"[^\w\s]", "");
-            
+
             return normalized.Trim().ToLowerInvariant();
         }
 
@@ -53,13 +53,13 @@ namespace Lidarr.Plugin.Qobuzarr.Services.Caching
         {
             if (string.IsNullOrEmpty(s1) && string.IsNullOrEmpty(s2))
                 return 1.0;
-                
+
             if (string.IsNullOrEmpty(s1) || string.IsNullOrEmpty(s2))
                 return 0.0;
 
             var distance = LevenshteinDistance(s1, s2);
             var maxLength = Math.Max(s1.Length, s2.Length);
-            
+
             return 1.0 - ((double)distance / maxLength);
         }
 
@@ -92,7 +92,7 @@ namespace Lidarr.Plugin.Qobuzarr.Services.Caching
             Guard.NotNull(albumAccessor);
 
             var normalizedSearchArtist = NormalizeString(searchArtist);
-            
+
             return entries.Where(entry =>
             {
                 var entryArtist = NormalizeString(artistAccessor(entry));
@@ -117,7 +117,7 @@ namespace Lidarr.Plugin.Qobuzarr.Services.Caching
             Guard.NotNull(albumAccessor);
 
             var normalizedSearchAlbum = NormalizeString(searchAlbum);
-            
+
             return entries.Where(entry =>
             {
                 var entryAlbum = NormalizeString(albumAccessor(entry));
@@ -145,9 +145,10 @@ namespace Lidarr.Plugin.Qobuzarr.Services.Caching
 
             var normalizedSearchArtist = NormalizeString(searchArtist);
             var normalizedSearchAlbum = NormalizeString(searchAlbum);
-            
+
             return entries
-                .Select(entry => new {
+                .Select(entry => new
+                {
                     Entry = entry,
                     ArtistSimilarity = CalculateSimilarity(normalizedSearchArtist, NormalizeString(artistAccessor(entry))),
                     AlbumSimilarity = CalculateSimilarity(normalizedSearchAlbum, NormalizeString(albumAccessor(entry)))
@@ -165,7 +166,7 @@ namespace Lidarr.Plugin.Qobuzarr.Services.Caching
         {
             if (string.IsNullOrEmpty(s1) || string.IsNullOrEmpty(s2))
                 return false;
-                
+
             return s1.Contains(s2, StringComparison.OrdinalIgnoreCase) ||
                    s2.Contains(s1, StringComparison.OrdinalIgnoreCase);
         }
@@ -177,7 +178,7 @@ namespace Lidarr.Plugin.Qobuzarr.Services.Caching
         {
             if (string.IsNullOrEmpty(source))
                 return target?.Length ?? 0;
-                
+
             if (string.IsNullOrEmpty(target))
                 return source.Length;
 
@@ -185,7 +186,7 @@ namespace Lidarr.Plugin.Qobuzarr.Services.Caching
 
             for (int i = 0; i <= source.Length; i++)
                 matrix[i, 0] = i;
-                
+
             for (int j = 0; j <= target.Length; j++)
                 matrix[0, j] = j;
 
@@ -194,7 +195,7 @@ namespace Lidarr.Plugin.Qobuzarr.Services.Caching
                 for (int j = 1; j <= target.Length; j++)
                 {
                     var cost = source[i - 1] == target[j - 1] ? 0 : 1;
-                    
+
                     matrix[i, j] = Math.Min(
                         Math.Min(matrix[i - 1, j] + 1, matrix[i, j - 1] + 1),
                         matrix[i - 1, j - 1] + cost);

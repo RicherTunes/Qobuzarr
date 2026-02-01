@@ -97,7 +97,7 @@ namespace Lidarr.Plugin.Qobuzarr.Models.Lidarr
         public string GetSafeFileName(string extension = "flac")
         {
             var fileName = GetFullTitle();
-            
+
             // Replace illegal filesystem characters
             var illegalChars = new char[] { '<', '>', ':', '"', '/', '\\', '|', '?', '*' };
             foreach (var c in illegalChars)

@@ -37,13 +37,13 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Services
         private readonly Logger _logger;
         private readonly object _lockObject = new object();
         private readonly List<DateTime> _acquisitionTimes = new List<DateTime>();
-        
+
         // Single semaphore with int.MaxValue max count - never replaced, only permit count changes
         private readonly SemaphoreSlim _semaphore;
         private int _currentLimit;
         private int _activeSlots = 0;
         private volatile bool _disposed = false;
-        
+
         // Permit tracking for dynamic limit adjustment (see class remarks)
         private int _reservedPermits = 0;
         private int _pendingPermitReductions = 0;
@@ -70,15 +70,15 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Services
             try
             {
                 await _semaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
-                
+
                 var waitTime = DateTime.UtcNow - acquisitionStart;
-                
+
                 lock (_lockObject)
                 {
                     _acquisitionTimes.Add(acquisitionStart);
                     _totalSlotsUsed++;
                     _activeSlots++;
-                    
+
                     // Keep only recent acquisition times for statistics
                     var cutoffTime = DateTime.UtcNow.AddMinutes(-5);
                     _acquisitionTimes.RemoveAll(time => time < cutoffTime);
@@ -90,7 +90,7 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Services
             }
             catch (OperationCanceledException)
             {
-                _logger.Debug("Concurrency slot acquisition cancelled after {0}ms", 
+                _logger.Debug("Concurrency slot acquisition cancelled after {0}ms",
                     (DateTime.UtcNow - acquisitionStart).TotalMilliseconds);
                 throw;
             }
@@ -171,36 +171,36 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Services
             }
         }
 
-        public int CurrentLimit 
-        { 
-            get 
-            { 
+        public int CurrentLimit
+        {
+            get
+            {
                 ThrowIfDisposed();
-                return _currentLimit; 
-            } 
+                return _currentLimit;
+            }
         }
 
-        public int ActiveCount 
-        { 
-            get 
-            { 
+        public int ActiveCount
+        {
+            get
+            {
                 ThrowIfDisposed();
                 lock (_lockObject)
                 {
                     return _activeSlots;
                 }
-            } 
+            }
         }
 
-        public int WaitingCount 
-        { 
-            get 
-            { 
+        public int WaitingCount
+        {
+            get
+            {
                 ThrowIfDisposed();
                 // SemaphoreSlim doesn't expose waiting count, so we can't provide accurate data
                 // For testing purposes, we'll use a simple heuristic
                 return 0; // Will be updated by tests that track this manually
-            } 
+            }
         }
 
         public ConcurrencyStatistics GetStatistics()
@@ -219,7 +219,7 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Services
                     // Estimate average wait time based on acquisition frequency
                     var timeSpan = recentAcquisitions.Max() - recentAcquisitions.Min();
                     var avgInterval = timeSpan.TotalMilliseconds / Math.Max(1, recentAcquisitions.Count - 1);
-                    
+
                     // If acquisitions are frequent relative to limit, there's likely waiting
                     if (recentAcquisitions.Count > _currentLimit * 2)
                     {

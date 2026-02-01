@@ -79,21 +79,21 @@ namespace QobuzCLI.Services.Adapters
             await EnsureSessionAsync().ConfigureAwait(false);
             // Build the URL with parameters
             var url = BuildUrl(endpoint, parameters);
-            
+
             // Create HTTP request using the IQobuzHttpClient interface
             var requestBuilder = _httpClient.BuildRequest(url, "GET");
             var request = requestBuilder.Build();
-            
+
             // Execute the request
             var response = await _httpClient.ExecuteAsync(request);
-            
+
             // Deserialize the response
             if (response.Content != null)
             {
                 var obj = JsonConvert.DeserializeObject<T>(response.Content);
                 return obj ?? default!;
             }
-            
+
             return default!;
         }
 
@@ -102,29 +102,29 @@ namespace QobuzCLI.Services.Adapters
             await EnsureSessionAsync().ConfigureAwait(false);
             // Build the URL
             var url = BuildUrl(endpoint, null);
-            
+
             // Create HTTP request
             var requestBuilder = _httpClient.BuildRequest(url, "POST");
             requestBuilder.SetHeader("Content-Type", "application/json");
-            
+
             var request = requestBuilder.Build();
-            
+
             // Add POST data if provided
             if (data != null)
             {
                 request.SetContent(JsonConvert.SerializeObject(data));
             }
-            
+
             // Execute the request
             var response = await _httpClient.ExecuteAsync(request);
-            
+
             // Deserialize the response
             if (response.Content != null)
             {
                 var obj = JsonConvert.DeserializeObject<T>(response.Content);
                 return obj ?? default!;
             }
-            
+
             return default!;
         }
 
@@ -151,13 +151,13 @@ namespace QobuzCLI.Services.Adapters
                 { "track_id", trackId },
                 { "format_id", formatId.ToString() }
             };
-            
+
             if (_session != null)
             {
                 parameters["user_auth_token"] = _session.AuthToken;
                 parameters["app_id"] = _session.AppId;
             }
-            
+
             var response = await GetAsync<dynamic>("/track/getFileUrl", parameters);
             return response?.url?.ToString() ?? string.Empty;
         }
@@ -176,12 +176,12 @@ namespace QobuzCLI.Services.Adapters
             var response = await GetAsync<QobuzStreamResponse>("/track/getFileUrl", parameters).ConfigureAwait(false);
             return response ?? new QobuzStreamResponse();
         }
-        
+
         private string BuildUrl(string endpoint, Dictionary<string, string>? parameters)
         {
             var baseUrl = "https://www.qobuz.com/api.json/0.2";
             var url = $"{baseUrl}{endpoint}";
-            
+
             // Add auth parameters if we have a session
             var allParams = new Dictionary<string, string>();
             if (_session != null)
@@ -189,7 +189,7 @@ namespace QobuzCLI.Services.Adapters
                 allParams["user_auth_token"] = _session.AuthToken;
                 allParams["app_id"] = _session.AppId;
             }
-            
+
             // Add any additional parameters
             if (parameters != null)
             {
@@ -198,15 +198,15 @@ namespace QobuzCLI.Services.Adapters
                     allParams[param.Key] = param.Value;
                 }
             }
-            
+
             // Build query string
             if (allParams.Count > 0)
             {
-                var queryString = string.Join("&", allParams.Select(kvp => 
+                var queryString = string.Join("&", allParams.Select(kvp =>
                     $"{Uri.EscapeDataString(kvp.Key)}={Uri.EscapeDataString(kvp.Value)}"));
                 url = $"{url}?{queryString}";
             }
-            
+
             return url;
         }
     }

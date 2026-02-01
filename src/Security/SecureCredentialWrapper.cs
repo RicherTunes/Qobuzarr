@@ -76,7 +76,7 @@ namespace Lidarr.Plugin.Qobuzarr.Security
         public string ToUnsecureString()
         {
             ThrowIfDisposed();
-            
+
             if (_secureValue == null || _secureValue.Length == 0)
                 return string.Empty;
 
@@ -103,7 +103,7 @@ namespace Lidarr.Plugin.Qobuzarr.Security
         public void UseCredential(Action<string> action)
         {
             ThrowIfDisposed();
-            
+
             var unsecuredCredential = ToUnsecureString();
             try
             {
@@ -126,7 +126,7 @@ namespace Lidarr.Plugin.Qobuzarr.Security
         public T UseCredential<T>(Func<string, T> func)
         {
             ThrowIfDisposed();
-            
+
             var unsecuredCredential = ToUnsecureString();
             try
             {
@@ -178,7 +178,7 @@ namespace Lidarr.Plugin.Qobuzarr.Security
         public async Task<T> UseCredentialAsync<T>(Func<string, Task<T>> func)
         {
             ThrowIfDisposed();
-            
+
             var unsecuredCredential = ToUnsecureString();
             try
             {
@@ -209,10 +209,10 @@ namespace Lidarr.Plugin.Qobuzarr.Security
         public void UpdateCredential(string newCredential)
         {
             ThrowIfDisposed();
-            
+
             _secureValue?.Clear();
             _secureValue?.Dispose();
-            
+
             _secureValue = new SecureString();
             if (!string.IsNullOrEmpty(newCredential))
             {

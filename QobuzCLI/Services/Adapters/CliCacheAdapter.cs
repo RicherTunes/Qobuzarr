@@ -17,7 +17,7 @@ namespace QobuzCLI.Services.Adapters
         {
             public object Value { get; set; } = null!;
             public DateTime? Expiration { get; set; }
-            
+
             public bool IsExpired => Expiration.HasValue && DateTime.UtcNow > Expiration.Value;
         }
 

@@ -33,10 +33,10 @@ public class SimpleDownloadedColumn : ProgressColumn
             return new Text("-", Style.Plain.Foreground(Color.Grey));
 
         var text = $"{task.Value:F0}%";
-        var style = task.IsFinished 
+        var style = task.IsFinished
             ? Style.Plain.Foreground(Color.Green)
             : Style.Plain.Foreground(Color.Blue);
-            
+
         return new Text(text, style);
     }
 

@@ -25,24 +25,24 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
         private readonly QobuzIndexerSettings _settings;
         private readonly Logger _logger;
         private readonly Func<QobuzSession> _getSession;
-        
+
         // Decomposed service dependencies
         private readonly IQueryBuilder _queryBuilder;
-        private readonly IRequestFactory _requestFactory; 
+        private readonly IRequestFactory _requestFactory;
         private readonly IQueryMetricsTracker _metricsTracker;
-        
+
         // ML optimization services (preserved from original)
         private readonly SmartQueryStrategy _smartQueryStrategy;
         private readonly SemanticQueryStrategy _semanticQueryStrategy;
         private readonly QobuzSubstringCache _substringCache;
-        
+
         // Context for parser integration
         private SearchCriteriaBase _currentSearchCriteria;
 
         public QobuzRequestGenerator(
-            QobuzIndexerSettings settings, 
-            Logger logger, 
-            Func<QobuzSession> getSession = null, 
+            QobuzIndexerSettings settings,
+            Logger logger,
+            Func<QobuzSession> getSession = null,
             IPatternLearningEngine patternLearningEngine = null)
         {
             _settings = settings ?? throw new ArgumentNullException(nameof(settings));
@@ -71,7 +71,7 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
             try
             {
                 _currentSearchCriteria = searchCriteria;
-                _logger.Debug("Generating album search requests for: {0} - {1}", 
+                _logger.Debug("Generating album search requests for: {0} - {1}",
                     searchCriteria.ArtistQuery, searchCriteria.AlbumQuery);
 
                 // Check substring cache first for optimization
@@ -156,10 +156,10 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
             try
             {
                 _logger.Debug("Generating recent releases requests");
-                
+
                 // Qobuz doesn't have a direct "recent releases" endpoint, so use a broad search
                 var recentQueries = new[] { "2024", "2023", "new releases" };
-                
+
                 var session = _getSession?.Invoke();
                 var requests = new List<IndexerRequest>();
 
@@ -204,7 +204,7 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
                     // For artist searches, use artist name as both parameters
                     optimizedQueries = _smartQueryStrategy.BuildOptimizedQueries(artistCriteria.ArtistQuery, "", queries);
                 }
-                
+
                 // Note: Semantic query strategy would need artist/album context to be useful
                 // Skipping semantic optimization for now since it requires specific context
 

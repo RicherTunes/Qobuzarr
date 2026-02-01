@@ -24,10 +24,10 @@ namespace Lidarr.Plugin.Qobuzarr.Security
         /// <param name="logger">Logger for security events</param>
         /// <returns>MD5 signature for the request</returns>
         public static string GenerateSecureTrackSignature(
-            string formatId, 
-            string trackId, 
-            string timestamp, 
-            ref string appSecret, 
+            string formatId,
+            string trackId,
+            string timestamp,
+            ref string appSecret,
             IQobuzLogger logger)
         {
             if (string.IsNullOrWhiteSpace(appSecret))
@@ -43,12 +43,12 @@ namespace Lidarr.Plugin.Qobuzarr.Security
                 // TrevTV's exact concatenation order from QobuzApiSharp:
                 // "trackgetFileUrlformat_id" + format_id + "intentstreamtrack_id" + track_id + timestamp + app_secret
                 signatureString = $"trackgetFileUrlformat_id{formatId}intentstreamtrack_id{trackId}{timestamp}{appSecret}";
-                
+
                 signature = HashingUtility.ComputeMD5Hash(signatureString);
-                
-                logger.Debug("Generated secure signature for track/getFileUrl: format_id={0}, track_id={1}", 
+
+                logger.Debug("Generated secure signature for track/getFileUrl: format_id={0}, track_id={1}",
                     formatId, trackId);
-                
+
                 return signature;
             }
             finally
@@ -58,7 +58,7 @@ namespace Lidarr.Plugin.Qobuzarr.Security
                 {
                     ClearSensitiveString(ref signatureString);
                 }
-                
+
                 // Clear the app secret parameter
                 ClearSensitiveString(ref appSecret);
             }
@@ -88,8 +88,8 @@ namespace Lidarr.Plugin.Qobuzarr.Security
 
                 // Sort parameters (excluding sensitive ones)
                 var signatureParams = parameters
-                    .Where(p => p.Key != "app_id" && 
-                               p.Key != "user_auth_token" && 
+                    .Where(p => p.Key != "app_id" &&
+                               p.Key != "user_auth_token" &&
                                p.Key != "request_sig" &&
                                p.Key != "request_ts")
                     .OrderBy(p => p.Key)
@@ -98,9 +98,9 @@ namespace Lidarr.Plugin.Qobuzarr.Security
 
                 signatureString = $"{objectName}{method}{string.Join("", signatureParams)}{appId}";
                 signature = HashingUtility.ComputeMD5Hash(signatureString);
-                
+
                 logger.Debug("Generated secure generic signature for {0}", endpoint);
-                
+
                 return signature;
             }
             finally
@@ -237,7 +237,7 @@ namespace Lidarr.Plugin.Qobuzarr.Security
                 return false;
 
             var lowerValue = value.ToLowerInvariant();
-            
+
             // Basic injection pattern detection
             return lowerValue.Contains("'; ") ||
                    lowerValue.Contains("\"; ") ||

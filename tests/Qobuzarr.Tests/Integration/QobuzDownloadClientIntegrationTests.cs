@@ -55,7 +55,7 @@ namespace Qobuzarr.Tests.Integration
             _output = output;
             _testOutputPath = Path.Combine(Path.GetTempPath(), "QobuzarrTests", Guid.NewGuid().ToString());
             Directory.CreateDirectory(_testOutputPath);
-            
+
             // Setup DI container for integration tests
             var services = new ServiceCollection();
             ConfigureServices(services);
@@ -65,7 +65,7 @@ namespace Qobuzarr.Tests.Integration
         private void ConfigureServices(IServiceCollection services)
         {
             // Configure logging
-            services.AddSingleton<IQobuzLogger>(sp => 
+            services.AddSingleton<IQobuzLogger>(sp =>
             {
                 var logger = LogManager.GetCurrentClassLogger();
                 return new NLogAdapter(logger);
@@ -83,7 +83,7 @@ namespace Qobuzarr.Tests.Integration
             services.AddScoped<IStreamUrlProvider, StreamUrlProvider>();
             services.AddScoped<IMetadataProcessor, MetadataProcessor>();
             services.AddScoped<IQualityFallbackProvider, QualityFallbackProvider>();
-            
+
             // Add download client
             services.AddScoped<QobuzDownloadClient>();
         }
@@ -149,27 +149,27 @@ namespace Qobuzarr.Tests.Integration
 
             // Act
             var downloadId = await _downloadClient.Download(remoteAlbum, Mock.Of<IIndexer>());
-            
+
             // Wait for download to complete (with timeout)
             var completed = await WaitForDownloadCompletion(downloadId, TimeSpan.FromMinutes(2));
 
             // Assert
             completed.Should().BeTrue("Download should complete within timeout");
-            
+
             var items = _downloadClient.GetItems();
             var downloadItem = items.FirstOrDefault(x => x.DownloadId == downloadId);
-            
+
             downloadItem.Should().NotBeNull();
             downloadItem.Status.Should().Be(DownloadItemStatus.Completed);
             downloadItem.TotalSize.Should().BeGreaterThan(0);
-            
+
             // Verify files were downloaded
             var downloadPath = Path.Combine(_testOutputPath, downloadItem.Title);
             Directory.Exists(downloadPath).Should().BeTrue();
-            
+
             var files = Directory.GetFiles(downloadPath, "*.flac", SearchOption.AllDirectories);
             files.Should().NotBeEmpty("FLAC files should be downloaded");
-            
+
             _downloadedFiles.AddRange(files);
             _output.WriteLine($"Downloaded {files.Length} tracks to {downloadPath}");
         }
@@ -179,13 +179,13 @@ namespace Qobuzarr.Tests.Integration
         {
             SkipIfNotReady();
             // Arrange - Multiple small albums
-            var albumIds = new[] 
-            { 
-                "0060254734592", 
-                "0060254788359", 
-                "0060254712345" 
+            var albumIds = new[]
+            {
+                "0060254734592",
+                "0060254788359",
+                "0060254712345"
             };
-            
+
             var downloadTasks = new List<Task<string>>();
 
             // Act - Start concurrent downloads
@@ -198,18 +198,18 @@ namespace Qobuzarr.Tests.Integration
             var downloadIds = await Task.WhenAll(downloadTasks);
 
             // Wait for all downloads
-            var completionTasks = downloadIds.Select(id => 
+            var completionTasks = downloadIds.Select(id =>
                 WaitForDownloadCompletion(id, TimeSpan.FromMinutes(5))
             ).ToArray();
-            
+
             var results = await Task.WhenAll(completionTasks);
 
             // Assert
             results.Should().AllSatisfy(r => r.Should().BeTrue());
-            
+
             var items = _downloadClient.GetItems();
             items.Should().HaveCount(albumIds.Length);
-            items.Should().AllSatisfy(item => 
+            items.Should().AllSatisfy(item =>
             {
                 item.Status.Should().Be(DownloadItemStatus.Completed);
                 item.TotalSize.Should().BeGreaterThan(0);
@@ -229,7 +229,7 @@ namespace Qobuzarr.Tests.Integration
                 AuthToken = _session.AuthToken,
                 ExpiresAt = DateTime.UtcNow.AddSeconds(30) // Expires in 30 seconds
             };
-            
+
             // Replace session with short-lived one
             _authService.StoreSession(shortSession);
 
@@ -238,20 +238,20 @@ namespace Qobuzarr.Tests.Integration
 
             // Act - Start download
             var downloadId = await _downloadClient.Download(remoteAlbum, Mock.Of<IIndexer>());
-            
+
             // Wait longer than token expiry
             await Task.Delay(TimeSpan.FromSeconds(35));
-            
+
             // Download should still complete with refreshed token
             var completed = await WaitForDownloadCompletion(downloadId, TimeSpan.FromMinutes(2));
 
             // Assert
             completed.Should().BeTrue("Download should complete even after token expiry");
-            
+
             var currentSession = _authService.GetCachedSession();
-            currentSession.ExpiresAt.Should().BeAfter(DateTime.UtcNow, 
+            currentSession.ExpiresAt.Should().BeAfter(DateTime.UtcNow,
                 "Session should be refreshed with new expiry");
-            
+
             _output.WriteLine("Token refresh during download succeeded");
         }
 
@@ -298,7 +298,7 @@ namespace Qobuzarr.Tests.Integration
             // Arrange - Request Hi-Res but accept fallback
             var albumId = "0060254734592";
             var remoteAlbum = CreateRemoteAlbum(albumId, "Quality Fallback Test");
-            
+
             // Configure to request highest quality
             var settings = new QobuzDownloadSettings
             {
@@ -311,14 +311,14 @@ namespace Qobuzarr.Tests.Integration
 
             // Assert
             completed.Should().BeTrue();
-            
+
             var items = _downloadClient.GetItems();
             var downloadItem = items.FirstOrDefault(x => x.DownloadId == downloadId);
-            
+
             // Quality might have fallen back to CD or lower
             downloadItem.Should().NotBeNull();
             downloadItem.Status.Should().Be(DownloadItemStatus.Completed);
-            
+
             _output.WriteLine($"Download completed with quality fallback");
         }
 
@@ -329,12 +329,12 @@ namespace Qobuzarr.Tests.Integration
             // Arrange - Album with many tracks
             var albumId = "0060254788359"; // Example: compilation album
             var remoteAlbum = CreateRemoteAlbum(albumId, "Large Album Test");
-            
+
             var initialMemory = GC.GetTotalMemory(true);
 
             // Act
             var downloadId = await _downloadClient.Download(remoteAlbum, Mock.Of<IIndexer>());
-            
+
             // Monitor memory during download
             var maxMemory = initialMemory;
             var monitorTask = Task.Run(async () =>
@@ -356,13 +356,13 @@ namespace Qobuzarr.Tests.Integration
 
             // Assert
             completed.Should().BeTrue();
-            
+
             var memoryIncrease = maxMemory - initialMemory;
             var memoryIncreaseMB = memoryIncrease / (1024 * 1024);
-            
-            memoryIncreaseMB.Should().BeLessThan(500, 
+
+            memoryIncreaseMB.Should().BeLessThan(500,
                 "Memory usage should not exceed 500MB during download");
-            
+
             _output.WriteLine($"Peak memory increase: {memoryIncreaseMB}MB");
         }
 
@@ -373,14 +373,14 @@ namespace Qobuzarr.Tests.Integration
             // Arrange - Download an album first
             var albumId = "0060254734592";
             var remoteAlbum = CreateRemoteAlbum(albumId, "Cleanup Test");
-            
+
             var downloadId = await _downloadClient.Download(remoteAlbum, Mock.Of<IIndexer>());
             await WaitForDownloadCompletion(downloadId, TimeSpan.FromMinutes(2));
-            
+
             var items = _downloadClient.GetItems();
             var downloadItem = items.FirstOrDefault(x => x.DownloadId == downloadId);
             downloadItem.Should().NotBeNull();
-            
+
             var downloadPath = Path.Combine(_testOutputPath, downloadItem.Title);
             Directory.Exists(downloadPath).Should().BeTrue();
 
@@ -390,7 +390,7 @@ namespace Qobuzarr.Tests.Integration
             // Assert
             _downloadClient.GetItems().Should().NotContain(x => x.DownloadId == downloadId);
             Directory.Exists(downloadPath).Should().BeFalse("Files should be deleted");
-            
+
             _output.WriteLine("Download removed and files cleaned up successfully");
         }
 
@@ -409,11 +409,11 @@ namespace Qobuzarr.Tests.Integration
             // Assert
             var items = _downloadClient.GetItems();
             var downloadItem = items.FirstOrDefault(x => x.DownloadId == downloadId);
-            
+
             downloadItem.Should().NotBeNull();
             downloadItem.Status.Should().Be(DownloadItemStatus.Failed);
             downloadItem.Message.Should().NotBeNullOrEmpty();
-            
+
             _output.WriteLine($"Invalid album handled gracefully: {downloadItem.Message}");
         }
 
@@ -427,35 +427,35 @@ namespace Qobuzarr.Tests.Integration
 
             // Act
             var downloadId = await _downloadClient.Download(remoteAlbum, Mock.Of<IIndexer>());
-            
+
             var progressUpdates = new List<double>();
             var statusChecks = 0;
-            
+
             while (statusChecks < 20) // Check status 20 times
             {
                 await Task.Delay(500);
-                
+
                 var items = _downloadClient.GetItems();
                 var downloadItem = items.FirstOrDefault(x => x.DownloadId == downloadId);
-                
+
                 if (downloadItem != null)
                 {
                     progressUpdates.Add(downloadItem.RemainingSize);
-                    
+
                     if (downloadItem.Status == DownloadItemStatus.Completed ||
                         downloadItem.Status == DownloadItemStatus.Failed)
                     {
                         break;
                     }
                 }
-                
+
                 statusChecks++;
             }
 
             // Assert
             progressUpdates.Should().NotBeEmpty();
             progressUpdates.Should().BeInDescendingOrder("Progress should increase over time");
-            
+
             _output.WriteLine($"Tracked {progressUpdates.Count} progress updates");
         }
 
@@ -490,29 +490,29 @@ namespace Qobuzarr.Tests.Integration
         private async Task<bool> WaitForDownloadCompletion(string downloadId, TimeSpan timeout)
         {
             var endTime = DateTime.UtcNow.Add(timeout);
-            
+
             while (DateTime.UtcNow < endTime)
             {
                 var items = _downloadClient.GetItems();
                 var downloadItem = items.FirstOrDefault(x => x.DownloadId == downloadId);
-                
+
                 if (downloadItem != null)
                 {
                     if (downloadItem.Status == DownloadItemStatus.Completed)
                     {
                         return true;
                     }
-                    
+
                     if (downloadItem.Status == DownloadItemStatus.Failed)
                     {
                         _output.WriteLine($"Download failed: {downloadItem.Message}");
                         return false;
                     }
                 }
-                
+
                 await Task.Delay(1000);
             }
-            
+
             _output.WriteLine($"Download timed out after {timeout}");
             return false;
         }
@@ -521,7 +521,7 @@ namespace Qobuzarr.Tests.Integration
         {
             _testCancellation?.Cancel();
             _downloadClient?.Dispose();
-            
+
             // Cleanup test files
             try
             {

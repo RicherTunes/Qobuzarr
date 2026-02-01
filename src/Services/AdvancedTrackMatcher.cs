@@ -28,11 +28,11 @@ namespace Lidarr.Plugin.Qobuzarr.Services
         /// Performs advanced track matching that handles split tracks and complex scenarios
         /// </summary>
         public AdvancedTrackMatchResult PerformAdvancedMatching(
-            List<LidarrTrack> lidarrTracks, 
+            List<LidarrTrack> lidarrTracks,
             List<QobuzTrack> qobuzTracks)
         {
             var result = _coordinator.PerformAdvancedMatching(lidarrTracks, qobuzTracks);
-            
+
             // Convert to legacy format for backward compatibility
             return new AdvancedTrackMatchResult
             {
@@ -66,7 +66,7 @@ namespace Lidarr.Plugin.Qobuzarr.Services
         public List<StandardTrackMatch> StandardMatches { get; set; } = new();
         public List<SplitTrackGroup> SplitTrackGroups { get; set; } = new();
         public List<MergedTrackGroup> MergedTrackGroups { get; set; } = new();
-        
+
         public List<LidarrTrack> UnmatchedLidarrTracks { get; set; } = new();
         public List<QobuzTrack> UnmatchedQobuzTracks { get; set; } = new();
 

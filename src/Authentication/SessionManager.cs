@@ -51,12 +51,12 @@ namespace Lidarr.Plugin.Qobuzarr.Authentication
         private readonly TimeSpan _sessionCacheTtl = TimeSpan.FromHours(24); // Qobuz session lifetime
         private readonly TimeSpan _refreshBuffer = TimeSpan.FromMinutes(30); // Refresh 30 minutes before expiry
         private readonly TimeSpan _gracePeriod = TimeSpan.FromMinutes(5); // Allow grace period for transitions
-        
+
         // Session state
         private QobuzSession? _currentSession;
         private DateTime? _lastValidationCheck;
         private readonly TimeSpan _validationCacheDuration = TimeSpan.FromMinutes(2); // Cache validation for 2 minutes
-        
+
         // Metrics
         private long _sessionsCreated = 0;
         private long _sessionsExpired = 0;
@@ -76,9 +76,9 @@ namespace Lidarr.Plugin.Qobuzarr.Authentication
             _cacheManager = cacheManager ?? throw new ArgumentNullException(nameof(cacheManager));
             _authenticationService = authenticationService ?? throw new ArgumentNullException(nameof(authenticationService));
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
-            
+
             _sessionCache = _cacheManager.GetCache<QobuzSession>(GetType(), "sessions");
-            
+
             _logger.Debug("SessionManager initialized with {0}min refresh buffer", _refreshBuffer.TotalMinutes);
         }
 
@@ -89,14 +89,14 @@ namespace Lidarr.Plugin.Qobuzarr.Authentication
             {
                 // Use the real authentication service instead of dummy values
                 var session = await _authenticationService.AuthenticateAsync(credentials);
-                
+
                 if (session != null && session.IsValid())
                 {
                     StoreSession(session);
                     _logger.Info("✅ Real authentication session created for user: {0}", session.UserId);
                     return session;
                 }
-                
+
                 _logger.Error("❌ Authentication failed - invalid credentials");
                 return null;
             }
@@ -127,7 +127,7 @@ namespace Lidarr.Plugin.Qobuzarr.Authentication
         {
             // Placeholder - would normally make API calls to refresh the session
             if (session == null) return null;
-            
+
             var refreshedSession = new QobuzSession
             {
                 UserId = session.UserId,
@@ -135,7 +135,7 @@ namespace Lidarr.Plugin.Qobuzarr.Authentication
                 ExpiresAt = DateTime.UtcNow.AddHours(24),
                 CreatedAt = DateTime.UtcNow
             };
-            
+
             StoreSession(refreshedSession);
             return await Task.FromResult(refreshedSession);
         }
@@ -162,16 +162,16 @@ namespace Lidarr.Plugin.Qobuzarr.Authentication
                 {
                     // Store in cache with TTL
                     _sessionCache.Set(SESSION_CACHE_KEY, session, _sessionCacheTtl);
-                    
+
                     // Update current session reference
                     _currentSession = session;
                     _lastValidationCheck = DateTime.UtcNow;
-                    
+
                     Interlocked.Increment(ref _sessionsCreated);
-                    
-                    _logger.Info("✅ Session stored successfully - UserId: {0}, Expires: {1}", 
+
+                    _logger.Info("✅ Session stored successfully - UserId: {0}, Expires: {1}",
                         session.UserId, session.ExpiresAt);
-                        
+
                     // Check if session needs refresh soon
                     if (session.NeedsRefresh())
                     {
@@ -251,7 +251,7 @@ namespace Lidarr.Plugin.Qobuzarr.Authentication
                 try
                 {
                     var hadSession = _currentSession != null;
-                    
+
                     _currentSession = null;
                     _lastValidationCheck = null;
                     _sessionCache.Remove(SESSION_CACHE_KEY);
@@ -289,7 +289,7 @@ namespace Lidarr.Plugin.Qobuzarr.Authentication
                 Interlocked.Increment(ref _validationChecks);
 
                 // Check if we can skip validation due to recent check
-                if (!forceCheck && _lastValidationCheck.HasValue && 
+                if (!forceCheck && _lastValidationCheck.HasValue &&
                     now - _lastValidationCheck.Value < _validationCacheDuration)
                 {
                     var session = GetCurrentSession(false);
@@ -320,7 +320,7 @@ namespace Lidarr.Plugin.Qobuzarr.Authentication
                     result.IsValid = false;
                     result.NeedsRefresh = false;
                     result.Status = SessionStatus.NoSession;
-                    
+
                     _logger.Debug("Validation: No session available");
                 }
                 else
@@ -335,9 +335,9 @@ namespace Lidarr.Plugin.Qobuzarr.Authentication
                     if (!result.IsValid)
                     {
                         result.Status = SessionStatus.Expired;
-                        _logger.Warn("Validation: Session expired {0:F1} minutes ago", 
+                        _logger.Warn("Validation: Session expired {0:F1} minutes ago",
                             Math.Abs(timeToExpiry.TotalMinutes));
-                        
+
                         // Auto-cleanup expired session
                         ClearSession();
                         Interlocked.Increment(ref _sessionsExpired);
@@ -346,15 +346,15 @@ namespace Lidarr.Plugin.Qobuzarr.Authentication
                     else if (result.NeedsRefresh)
                     {
                         result.Status = SessionStatus.NeedsRefresh;
-                        _logger.Debug("Validation: Session valid but needs refresh in {0:F1} minutes", 
+                        _logger.Debug("Validation: Session valid but needs refresh in {0:F1} minutes",
                             timeToExpiry.TotalMinutes);
-                        
+
                         OnSessionExpiring(currentSession, timeToExpiry);
                     }
                     else
                     {
                         result.Status = SessionStatus.Valid;
-                        _logger.Trace("Validation: Session valid for {0:F1} more minutes", 
+                        _logger.Trace("Validation: Session valid for {0:F1} more minutes",
                             timeToExpiry.TotalMinutes);
                     }
                 }
@@ -392,7 +392,7 @@ namespace Lidarr.Plugin.Qobuzarr.Authentication
         {
             var session = GetCurrentSession(false);
             if (session == null) return null;
-            
+
             var timeToExpiry = session.ExpiresAt - DateTime.UtcNow;
             return timeToExpiry > TimeSpan.Zero ? timeToExpiry : TimeSpan.Zero;
         }
@@ -442,13 +442,13 @@ namespace Lidarr.Plugin.Qobuzarr.Authentication
             try
             {
                 _logger.Trace("Performing session maintenance");
-                
+
                 // Force validation to cleanup expired sessions
                 var validation = ValidateSession(forceCheck: true);
-                
+
                 // Additional maintenance tasks could be added here
                 // such as cache cleanup, metrics aggregation, etc.
-                
+
                 _logger.Trace("Session maintenance completed - Status: {0}", validation.Status);
             }
             catch (Exception ex)

@@ -75,10 +75,10 @@ namespace Lidarr.Plugin.Qobuzarr.Utilities
 
             // Check for basic script injection attempts
             var lowerInput = input.ToLowerInvariant();
-            
+
             // Check for script tags or obvious injection attempts
-            if (lowerInput.Contains("<script") || 
-                lowerInput.Contains("javascript:") || 
+            if (lowerInput.Contains("<script") ||
+                lowerInput.Contains("javascript:") ||
                 lowerInput.Contains("vbscript:") ||
                 lowerInput.Contains("onload=") ||
                 lowerInput.Contains("onerror="))
@@ -109,7 +109,7 @@ namespace Lidarr.Plugin.Qobuzarr.Utilities
             try
             {
                 var uri = new Uri(url);
-                
+
                 // Only allow HTTP/HTTPS
                 if (uri.Scheme != "http" && uri.Scheme != "https")
                     return false;
@@ -134,8 +134,8 @@ namespace Lidarr.Plugin.Qobuzarr.Utilities
                 return false;
 
             // Basic checks - Lidarr API keys are typically alphanumeric
-            return apiKey.Length >= 20 && 
-                   apiKey.Length <= 100 && 
+            return apiKey.Length >= 20 &&
+                   apiKey.Length <= 100 &&
                    apiKey.All(c => char.IsLetterOrDigit(c));
         }
 
@@ -157,7 +157,7 @@ namespace Lidarr.Plugin.Qobuzarr.Utilities
         public static bool IsResponseSizeAcceptable(long? contentLength)
         {
             const long MaxResponseSize = 50 * 1024 * 1024; // 50MB limit
-            
+
             return !contentLength.HasValue || contentLength.Value <= MaxResponseSize;
         }
 

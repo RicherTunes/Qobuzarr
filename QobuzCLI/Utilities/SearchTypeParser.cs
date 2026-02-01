@@ -39,7 +39,7 @@ namespace QobuzCLI.Utilities
         public static bool TryParse(string type, out SearchType searchType)
         {
             searchType = Parse(type);
-            
+
             // Only return true if we matched a specific type (not defaulted to Auto)
             if (string.IsNullOrWhiteSpace(type))
                 return false;
@@ -47,7 +47,7 @@ namespace QobuzCLI.Utilities
             var normalized = type.ToLowerInvariant();
             return normalized switch
             {
-                "album" or "albums" or "artist" or "artists" or 
+                "album" or "albums" or "artist" or "artists" or
                 "track" or "tracks" or "song" or "songs" or
                 "playlist" or "playlists" or "label" or "labels" => true,
                 _ => false

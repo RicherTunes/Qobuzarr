@@ -45,7 +45,7 @@ namespace Qobuzarr.Tests.Quality
             var report = new QualityReport();
             var testAssembly = Assembly.GetExecutingAssembly();
             var testTypes = testAssembly.GetTypes()
-                .Where(t => t.GetMethods().Any(m => m.GetCustomAttributes<FactAttribute>().Any() || 
+                .Where(t => t.GetMethods().Any(m => m.GetCustomAttributes<FactAttribute>().Any() ||
                                                   m.GetCustomAttributes<TheoryAttribute>().Any()))
                 .ToList();
 
@@ -67,7 +67,7 @@ namespace Qobuzarr.Tests.Quality
         private static void AnalyzeTestClass(Type testType, QualityReport report)
         {
             var testMethods = testType.GetMethods()
-                .Where(m => m.GetCustomAttributes<FactAttribute>().Any() || 
+                .Where(m => m.GetCustomAttributes<FactAttribute>().Any() ||
                            m.GetCustomAttributes<TheoryAttribute>().Any())
                 .ToList();
 
@@ -86,7 +86,7 @@ namespace Qobuzarr.Tests.Quality
             var className = testType.Name;
 
             // Unit tests
-            if (className.EndsWith("Tests") && !className.Contains("Integration") && 
+            if (className.EndsWith("Tests") && !className.Contains("Integration") &&
                 !className.Contains("Performance") && !className.Contains("Concurrency"))
             {
                 report.UnitTests++;
@@ -124,7 +124,7 @@ namespace Qobuzarr.Tests.Quality
         private static void AnalyzeTestMethodContent(MethodInfo method, QualityReport report)
         {
             // This would require source code analysis - for now we'll use reflection-based heuristics
-            
+
             // Check if method likely uses builders (by parameter types or naming)
             var methodBody = method.GetMethodBody();
             if (methodBody != null)

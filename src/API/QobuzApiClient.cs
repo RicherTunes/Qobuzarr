@@ -254,12 +254,12 @@ namespace Lidarr.Plugin.Qobuzarr.API
                     ? string.Empty
                     : (endpoint.StartsWith("/") ? endpoint : "/" + endpoint);
                 var url = $"{baseUrl}{ep}";
-                
+
                 _logger.Trace("🔗 API Client building request: {0} {1}", method, url);
-                
+
                 // Prepare parameters
                 var allParameters = new Dictionary<string, string>();
-                
+
                 // Inject auth params via pre-handler if present
                 var currentSession = _preRequestHandler == null
                     ? (await _sessionManager.GetCurrentSessionAsync().ConfigureAwait(false) ?? _fallbackSession)
@@ -285,7 +285,7 @@ namespace Lidarr.Plugin.Qobuzarr.API
                         var value = param.Value?.Trim() ?? string.Empty;
                         allParameters[param.Key] = value;
                     }
-                    _logger.Trace("📋 Custom parameters added: {0}", 
+                    _logger.Trace("📋 Custom parameters added: {0}",
                         string.Join(", ", parameters.Select(kv => $"{kv.Key}={kv.Value}")));
                 }
 
@@ -319,7 +319,7 @@ namespace Lidarr.Plugin.Qobuzarr.API
                     {
                         requestBuilder.AddQueryParam(param.Key, param.Value);
                     }
-                    
+
                     // Log the final URL being called (without auth token for security)
                     var safeParams = allParameters.Where(kv => kv.Key != "user_auth_token")
                                                  .Select(kv => $"{kv.Key}={kv.Value}");
@@ -339,7 +339,7 @@ namespace Lidarr.Plugin.Qobuzarr.API
                 // Execute request through HTTP client (includes rate limiting and retries)
                 var response = await _httpClient.ExecuteAsync(request).ConfigureAwait(false);
 
-                _logger.Debug("📡 API response received: Status={0}, Length={1} chars", 
+                _logger.Debug("📡 API response received: Status={0}, Length={1} chars",
                     response.StatusCode, response.Content?.Length ?? 0);
 
                 if (response.HasHttpError)
@@ -350,9 +350,9 @@ namespace Lidarr.Plugin.Qobuzarr.API
 
                 // Deserialize response
                 var result = JsonConvert.DeserializeObject<T>(response.Content);
-                
+
                 _logger.Debug("✅ Response deserialized to: {0}", typeof(T).Name);
-                
+
                 // Log first 500 chars of response for debugging (sanitized)
                 if (response.Content?.Length > 0)
                 {
@@ -379,12 +379,12 @@ namespace Lidarr.Plugin.Qobuzarr.API
         private void HandleErrorResponse(HttpResponse response)
         {
             var statusCode = (int)response.StatusCode;
-            
+
             try
             {
                 var errorResponse = JsonConvert.DeserializeObject<QobuzErrorResponse>(response.Content);
                 var message = errorResponse?.Message ?? $"HTTP {statusCode}";
-                
+
                 throw statusCode switch
                 {
                     401 => new QobuzApiException("Authentication failed", statusCode, "AuthenticationFailed"),
@@ -477,12 +477,12 @@ namespace Lidarr.Plugin.Qobuzarr.API
         public async Task<QobuzTrack> GetTrackMetadataAsync(string trackId, CancellationToken cancellationToken = default)
         {
             _logger.Debug("Getting metadata for track {0}", trackId);
-            
+
             var parameters = new Dictionary<string, string>
             {
                 ["track_id"] = trackId
             };
-            
+
             return await GetAsync<QobuzTrack>("track/get", parameters);
         }
 
@@ -514,7 +514,7 @@ namespace Lidarr.Plugin.Qobuzarr.API
             while (true)
             {
                 var playlist = await GetPlaylistAsync(playlistId, pageSize, offset, cancellationToken);
-                
+
                 if (playlist?.Tracks?.Items == null || playlist.Tracks.Items.Count == 0)
                     break;
 
@@ -526,7 +526,7 @@ namespace Lidarr.Plugin.Qobuzarr.API
                 }
 
                 offset += pageSize;
-                
+
                 // Check if we've fetched all tracks
                 if (allTracks.Count >= playlist.Tracks.Total)
                     break;
@@ -582,13 +582,13 @@ namespace Lidarr.Plugin.Qobuzarr.API
                 };
 
                 var response = await GetAsync<QobuzAlbumSearchResponse>("label/getAlbums", parameters);
-                
+
                 if (response?.Albums?.Items == null || response.Albums.Items.Count == 0)
                     break;
 
                 allAlbums.AddRange(response.Albums.Items);
                 offset += pageSize;
-                
+
                 // Check if we've fetched all albums
                 if (allAlbums.Count >= response.Albums.Total)
                     break;
@@ -630,13 +630,13 @@ namespace Lidarr.Plugin.Qobuzarr.API
                 };
 
                 var response = await GetAsync<QobuzAlbumSearchResponse>("artist/getAlbums", parameters);
-                
+
                 if (response?.Albums?.Items == null || response.Albums.Items.Count == 0)
                     break;
 
                 allAlbums.AddRange(response.Albums.Items);
                 offset += pageSize;
-                
+
                 // Check if we've fetched all albums
                 if (allAlbums.Count >= response.Albums.Total)
                     break;
@@ -679,7 +679,7 @@ namespace Lidarr.Plugin.Qobuzarr.API
         /// Gets the HTTP status code returned by the Qobuz API.
         /// </summary>
         public int StatusCode { get; }
-        
+
         /// <summary>
         /// Gets the categorized error type for programmatic error handling.
         /// Common values: AuthenticationFailed, AccessForbidden, NotFound, RateLimited, ServerError, ApiError.

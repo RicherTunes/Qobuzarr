@@ -54,7 +54,7 @@ namespace Lidarr.Plugin.Qobuzarr.Exceptions
             var message = $"Rate limit exceeded for endpoint: {endpoint}";
             if (retryAfter.HasValue)
                 message += $". Retry after {retryAfter.Value.TotalSeconds} seconds.";
-            
+
             return new QobuzApiException(message, endpoint, HttpStatusCode.TooManyRequests, "rate_limit_exceeded", isRetryable: true);
         }
 

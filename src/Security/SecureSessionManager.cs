@@ -59,7 +59,7 @@ namespace Lidarr.Plugin.Qobuzarr.Security
 
                 _lastSecurityCheck = DateTime.UtcNow;
 
-                _logger.Debug("Session stored securely for user {0}", 
+                _logger.Debug("Session stored securely for user {0}",
                     _credentialManager.MaskSensitiveData(session.UserId));
             }
             catch (Exception ex)
@@ -143,7 +143,7 @@ namespace Lidarr.Plugin.Qobuzarr.Security
                 // Validate auth token format (should be non-empty)
                 var authToken = _credentialManager.SecureStringToString(_secureAuthToken);
                 bool isValid = !string.IsNullOrWhiteSpace(authToken);
-                
+
                 // Clear the plaintext token immediately
                 _credentialManager.ClearString(ref authToken);
 
@@ -175,8 +175,8 @@ namespace Lidarr.Plugin.Qobuzarr.Security
         /// <returns>True if session exists and is valid</returns>
         public bool HasValidSession()
         {
-            return _currentSession != null && 
-                   _secureAuthToken != null && 
+            return _currentSession != null &&
+                   _secureAuthToken != null &&
                    _currentSession.ExpiresAt > DateTime.UtcNow &&
                    ValidateSessionSecurity();
         }
@@ -237,7 +237,7 @@ namespace Lidarr.Plugin.Qobuzarr.Security
                 // Check for obvious signs of compromise
                 var authTokenPlain = _credentialManager.SecureStringToString(_secureAuthToken);
                 bool isSecure = _credentialManager.ValidateCredentialSecurity(authTokenPlain, "Auth Token");
-                
+
                 // Clear plaintext immediately
                 _credentialManager.ClearString(ref authTokenPlain);
 

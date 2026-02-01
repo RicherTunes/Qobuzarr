@@ -85,16 +85,16 @@ namespace Qobuzarr.Tests.Unit.Models
             var flacPattern = @"(?i)(web)?flac(?:24(?:[-._ ]?bit)?)?|TR24";
 
             // Act & Assert for each quality
-            QobuzAudioQuality.MP3320.GetCodec().Should().MatchRegex(mp3Pattern, 
+            QobuzAudioQuality.MP3320.GetCodec().Should().MatchRegex(mp3Pattern,
                 "MP3 320 must match Lidarr's MP3 codec pattern");
-            
-            QobuzAudioQuality.FLACLossless.GetCodec().Should().MatchRegex(flacPattern, 
+
+            QobuzAudioQuality.FLACLossless.GetCodec().Should().MatchRegex(flacPattern,
                 "FLAC must match Lidarr's FLAC codec pattern");
-            
-            QobuzAudioQuality.FLACHiRes24Bit96kHz.GetCodec().Should().MatchRegex(flacPattern, 
+
+            QobuzAudioQuality.FLACHiRes24Bit96kHz.GetCodec().Should().MatchRegex(flacPattern,
                 "FLAC24bit must match Lidarr's FLAC codec pattern");
-            
-            QobuzAudioQuality.FLACHiRes24Bit192Khz.GetCodec().Should().MatchRegex(flacPattern, 
+
+            QobuzAudioQuality.FLACHiRes24Bit192Khz.GetCodec().Should().MatchRegex(flacPattern,
                 "FLAC24bit must match Lidarr's FLAC codec pattern");
         }
 
@@ -194,7 +194,7 @@ namespace Qobuzarr.Tests.Unit.Models
         /// Test that ensures all enum values are handled by extension methods
         /// Prevents runtime exceptions from unhandled enum cases
         /// </summary>
-        [Fact] 
+        [Fact]
         public void QualityExtensions_WithAllEnumValues_ShouldNotThrowExceptions()
         {
             // Arrange

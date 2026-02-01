@@ -16,7 +16,7 @@ namespace QobuzCLI.Commands;
 /// </summary>
 record TestConnectionOptions(
     string? Url,
-    string? ApiKey, 
+    string? ApiKey,
     int Timeout,
     bool Verbose
 );
@@ -44,7 +44,7 @@ record ExportOptions(
 /// </summary>
 record DownloadWantedOptions(
     int? YearFrom,
-    int? YearTo, 
+    int? YearTo,
     int? LastDays,
     string? Artists,
     string? ArtistsExclude,
@@ -99,9 +99,9 @@ public class LidarrCommand
         _lidarrIntegrationService = lidarrIntegrationService ?? throw new ArgumentNullException(nameof(lidarrIntegrationService));
         _queueService = queueService ?? throw new ArgumentNullException(nameof(queueService));
         _dashboard = dashboard ?? throw new ArgumentNullException(nameof(dashboard));
-        _logger = logger as IDashboardLogger ?? 
+        _logger = logger as IDashboardLogger ??
                   new DashboardLogger<LidarrCommand>(logger, dashboard);
-        
+
         Command = CreateCommand();
     }
 
@@ -124,7 +124,7 @@ public class LidarrCommand
     private Command CreateTestConnectionCommand()
     {
         var command = new Command("test-connection", "Test connection to Lidarr and verify configuration");
-        
+
         var urlOption = new Option<string?>("--url", "Lidarr server URL (overrides config)");
         var apiKeyOption = new Option<string?>("--api-key", "Lidarr API key (overrides config)");
         var timeoutOption = new Option<int>("--timeout", () => 30, "Connection timeout in seconds");
@@ -143,7 +143,7 @@ public class LidarrCommand
                 context.ParseResult.GetValueForOption(timeoutOption),
                 context.ParseResult.GetValueForOption(verboseOption)
             );
-            
+
             await HandleTestConnectionAsync(options).ConfigureAwait(false);
         });
 
@@ -153,27 +153,27 @@ public class LidarrCommand
     private Command CreateExportCommand()
     {
         var command = new Command("export", "Export wanted albums from Lidarr to various formats");
-        
+
         // URL and API key options
         var urlOption = new Option<string?>("--url", "Lidarr server URL (overrides config)");
         var apiKeyOption = new Option<string?>("--api-key", "Lidarr API key (overrides config)");
-        
+
         // Output options
         var outputOption = new Option<string>("--output", () => "lidarr-wanted-albums.json", "Output file path");
         var formatOption = new Option<string>("--format", () => "json", "Output format: json, txt, csv");
-        
+
         // Filter options
         var limitOption = new Option<int?>("--limit", "Limit number of albums to export");
         var filterTypeOption = new Option<string?>("--filter-type", "Filter by album type (album, single, ep)");
         var minYearOption = new Option<int?>("--min-year", "Minimum release year");
         var maxYearOption = new Option<int?>("--max-year", "Maximum release year");
         var artistsOption = new Option<string?>("--artists", "Comma-separated list of artists to include");
-        
+
         // Export behavior options
         var optimizeOrderOption = new Option<bool>("--optimize-order", () => true, "Optimize album order for efficient downloading");
         var includeMetadataOption = new Option<bool>("--include-metadata", () => true, "Include detailed metadata in export");
         var verboseOption = new Option<bool>("--verbose", "Show detailed export information");
-        
+
         command.AddOption(urlOption);
         command.AddOption(apiKeyOption);
         command.AddOption(outputOption);
@@ -203,7 +203,7 @@ public class LidarrCommand
                 context.ParseResult.GetValueForOption(includeMetadataOption),
                 context.ParseResult.GetValueForOption(verboseOption)
             );
-            
+
             await HandleExportAsync(options).ConfigureAwait(false);
         });
 
@@ -213,21 +213,21 @@ public class LidarrCommand
     private Command CreateDownloadWantedCommand()
     {
         var command = new Command("download-wanted", "Download wanted albums from Lidarr via Qobuz");
-        
+
         // Date filter options
         var yearFromOption = new Option<int?>("--year-from", "Filter albums from this year onwards");
         var yearToOption = new Option<int?>("--year-to", "Filter albums up to this year");
         var lastDaysOption = new Option<int?>("--last-days", "Filter albums added in the last N days");
-        
+
         // Artist filter options
         var artistsOption = new Option<string?>("--artists", "Comma-separated list of artists to include");
         var artistsExcludeOption = new Option<string?>("--artists-exclude", "Comma-separated list of artists to exclude");
-        
+
         // Album filter options
         var albumTypesOption = new Option<string?>("--album-types", "Comma-separated album types (album,ep,single,compilation)");
         var minTracksOption = new Option<int?>("--min-tracks", "Minimum number of tracks per album");
         var maxTracksOption = new Option<int?>("--max-tracks", "Maximum number of tracks per album");
-        
+
         // Download behavior options
         var immediateOption = new Option<bool>("--immediate", "Download immediately instead of queueing");
         var qualityOption = new Option<string?>("--quality", "Override quality setting (mp3-320, flac-cd, flac-hires, flac-max)");
@@ -237,11 +237,11 @@ public class LidarrCommand
         var limitOption = new Option<int>("--limit", () => 50, "Maximum number of albums to process");
         var dryRunOption = new Option<bool>("--dry-run", "Show what would be downloaded without downloading");
         var concurrencyOption = new Option<int>("--concurrency", () => 0, "Max concurrent operations (0 = auto)");
-        
+
         // Output options
         var outputPathOption = new Option<string?>("--output", "Output directory for downloads (required for immediate downloads)");
         var verboseOption = new Option<bool>("--verbose", "Show detailed progress information");
-        
+
         command.AddOption(yearFromOption);
         command.AddOption(yearToOption);
         command.AddOption(lastDaysOption);
@@ -283,7 +283,7 @@ public class LidarrCommand
                 context.ParseResult.GetValueForOption(outputPathOption),
                 context.ParseResult.GetValueForOption(verboseOption)
             );
-            
+
             await HandleDownloadWantedAsync(options).ConfigureAwait(false);
         });
 
@@ -296,7 +296,7 @@ public class LidarrCommand
         {
             // Load configuration from unified config system
             var config = await _configService.LoadConfigAsync().ConfigureAwait(false);
-            
+
             if (string.IsNullOrWhiteSpace(config.LidarrUrl))
             {
                 AnsiConsole.MarkupLine("[red]❌ Lidarr URL not configured[/]");
@@ -330,7 +330,7 @@ public class LidarrCommand
 
             // Build filter options
             var filterOptions = BuildFilterOptions(options.YearFrom, options.YearTo, options.LastDays, options.AlbumTypes);
-            
+
             // Parse quality setting
             var preferredQuality = GetQualityId(options.Quality ?? "flac-max");
 
@@ -348,7 +348,7 @@ public class LidarrCommand
             {
                 // Step 1: Fetch wanted albums from Lidarr
                 AnsiConsole.MarkupLine("[cyan]📋 Fetching wanted albums from Lidarr...[/]");
-                
+
                 var wantedAlbums = await _lidarrIntegrationService.GetFilteredWantedAlbumsAsync(
                     filterOptions, options.Limit, null!, CancellationToken.None).ConfigureAwait(false);
 
@@ -361,7 +361,7 @@ public class LidarrCommand
                 AnsiConsole.MarkupLine($"[green]✅ Found {wantedAlbums.Count()} wanted albums[/]");
 
                 // Step 2: Apply CLI-specific filters
-                var filteredAlbums = ApplyCliFilters(wantedAlbums, options.Artists, options.ArtistsExclude, 
+                var filteredAlbums = ApplyCliFilters(wantedAlbums, options.Artists, options.ArtistsExclude,
                     options.MinTracks, options.MaxTracks, options.Verbose);
 
                 if (!filteredAlbums.Any())
@@ -380,7 +380,7 @@ public class LidarrCommand
 
                 // Step 3: Search Qobuz for matching albums
                 AnsiConsole.MarkupLine("[cyan]🔍 Searching Qobuz for matching albums...[/]");
-                
+
                 var progress = new Progress<ProgressReport>(report =>
                 {
                     _dashboard.UpdateProgress(report.Completed, report.Completed, 0, report.CurrentItem ?? "Processing...");
@@ -399,7 +399,7 @@ public class LidarrCommand
 
                 // Step 4: Validate albums for download
                 AnsiConsole.MarkupLine("[cyan]🔍 Validating albums for download...[/]");
-                
+
                 var validatedItems = await _lidarrIntegrationService.ValidateAlbumsAsync(
                     albumMatches, preferredQuality, CancellationToken.None).ConfigureAwait(false);
 
@@ -447,7 +447,7 @@ public class LidarrCommand
         {
             AnsiConsole.MarkupLine($"[red]❌ Download-wanted operation failed: {ex.Message}[/]");
             _logger.LogError(ex, "Download-wanted operation failed");
-            
+
             if (options.Verbose)
             {
                 AnsiConsole.WriteLine();
@@ -465,7 +465,7 @@ public class LidarrCommand
 
             // Load configuration from unified config system
             var config = await _configService.LoadConfigAsync().ConfigureAwait(false);
-            
+
             // Use values from unified config or overrides
             var url = options.Url ?? config.LidarrUrl;
             var apiKey = options.ApiKey ?? config.LidarrApiKey;
@@ -491,7 +491,7 @@ public class LidarrCommand
 
             // Validate basic configuration
             AnsiConsole.MarkupLine("[cyan]📋 Validating configuration...[/]");
-            
+
             if (string.IsNullOrWhiteSpace(url))
             {
                 AnsiConsole.MarkupLine("[red]❌ Lidarr URL not configured[/]");
@@ -517,10 +517,10 @@ public class LidarrCommand
             // Note: This CLI command performs basic HTTP connectivity testing.
             // Full integration with the plugin's LidarrApiClient occurs when the plugin is loaded within Lidarr.
             AnsiConsole.MarkupLine("[cyan]🌐 Testing connection to Lidarr...[/]");
-            
+
             // Use service for connection testing - maintains CLI adapter pattern
             bool connectionSuccess = false;
-            
+
             await AnsiConsole.Status()
                 .Spinner(Spinner.Known.Dots)
                 .StartAsync("Connecting to Lidarr...", async ctx =>
@@ -528,14 +528,14 @@ public class LidarrCommand
                     try
                     {
                         // Use the service for connection testing
-                        var filterOptions = new Lidarr.Plugin.Qobuzarr.Models.Lidarr.LidarrFilterOptions 
-                        { 
-                            Page = 1, 
-                            PageSize = 1 
+                        var filterOptions = new Lidarr.Plugin.Qobuzarr.Models.Lidarr.LidarrFilterOptions
+                        {
+                            Page = 1,
+                            PageSize = 1
                         };
                         var testResponse = await _lidarrIntegrationService.GetFilteredWantedAlbumsAsync(filterOptions, 1);
                         connectionSuccess = testResponse != null;
-                        
+
                         if (connectionSuccess && options.Verbose)
                         {
                             ctx.Status = "Connection validated";
@@ -552,43 +552,43 @@ public class LidarrCommand
             if (connectionSuccess)
             {
                 AnsiConsole.MarkupLine("[green]✅ Successfully connected to Lidarr[/]");
-                
+
                 if (options.Verbose)
                 {
                     AnsiConsole.WriteLine();
                     AnsiConsole.MarkupLine("[cyan]📊 Lidarr Connection Information:[/]");
-                    
+
                     var table = new Table();
                     table.Border = TableBorder.Rounded;
                     table.AddColumn("Property");
                     table.AddColumn("Value");
-                    
+
                     table.AddRow("URL", url);
                     table.AddRow("API Key", $"{apiKey[..Math.Min(8, apiKey.Length)]}...");
                     table.AddRow("Status", "Connected");
-                    
+
                     AnsiConsole.Write(table);
                 }
 
                 // Test API permissions
                 AnsiConsole.WriteLine();
                 AnsiConsole.MarkupLine("[cyan]🔐 Testing API permissions...[/]");
-                
+
                 try
                 {
                     // Try to get wanted albums to test read permissions
-                    var filterOptions = new Lidarr.Plugin.Qobuzarr.Models.Lidarr.LidarrFilterOptions 
-                    { 
-                        Page = 1, 
-                        PageSize = 1 
+                    var filterOptions = new Lidarr.Plugin.Qobuzarr.Models.Lidarr.LidarrFilterOptions
+                    {
+                        Page = 1,
+                        PageSize = 1
                     };
                     var albums = await _lidarrIntegrationService.GetFilteredWantedAlbumsAsync(filterOptions, 1).ConfigureAwait(false);
-                    
+
                     if (albums != null)
                     {
                         var albumCount = albums.Count();
                         AnsiConsole.MarkupLine($"[green]✅ API permissions verified[/]");
-                        
+
                         if (albumCount > 0)
                         {
                             AnsiConsole.MarkupLine($"[dim]Found {albumCount} wanted album(s) in test query[/]");
@@ -607,9 +607,9 @@ public class LidarrCommand
                 {
                     AnsiConsole.MarkupLine("[red]❌ API permission test failed[/]");
                     AnsiConsole.MarkupLine($"[dim]Error: {ex.Message}[/]");
-                    
+
                     _logger.LogError(ex, "API permission test failed");
-                    
+
                     AnsiConsole.WriteLine();
                     AnsiConsole.MarkupLine("[yellow]💡 Troubleshooting suggestions:[/]");
                     AnsiConsole.MarkupLine("[dim]• Verify the API key has read permissions[/]");
@@ -638,7 +638,7 @@ public class LidarrCommand
         {
             AnsiConsole.MarkupLine($"[red]❌ Test connection failed: {ex.Message}[/]");
             _logger.LogError(ex, "Test connection failed");
-            
+
             if (options.Verbose)
             {
                 AnsiConsole.WriteLine();
@@ -656,7 +656,7 @@ public class LidarrCommand
 
             // Load configuration from unified config system
             var config = await _configService.LoadConfigAsync().ConfigureAwait(false);
-            
+
             // Use overrides or config values
             var url = options.Url ?? config.LidarrUrl;
             var apiKey = options.ApiKey ?? config.LidarrApiKey;
@@ -698,10 +698,10 @@ public class LidarrCommand
             {
                 // Step 1: Fetch wanted albums from Lidarr
                 AnsiConsole.MarkupLine("[cyan]📋 Fetching wanted albums from Lidarr...[/]");
-                
+
                 // Build filter options
                 var filterOptions = BuildExportFilterOptions(options.FilterType, options.MinYear, options.MaxYear);
-                
+
                 // Create progress reporter to update dashboard
                 var progressReporter = new Progress<ProgressReport>(progress =>
                 {
@@ -713,7 +713,7 @@ public class LidarrCommand
                         lastSuccessful: progress.Phase == "Fetch Complete" ? $"Completed {progress.Completed} albums" : ""
                     );
                 });
-                
+
                 var wantedAlbums = await _lidarrIntegrationService.GetFilteredWantedAlbumsAsync(
                     filterOptions, options.Limit ?? int.MaxValue, progressReporter, CancellationToken.None).ConfigureAwait(false);
 
@@ -737,7 +737,7 @@ public class LidarrCommand
                 AnsiConsole.MarkupLine($"[green]✅ {filteredAlbums.Count()} albums passed filtering[/]");
 
                 // Step 3: Optimize order if requested
-                var finalAlbums = options.OptimizeOrder 
+                var finalAlbums = options.OptimizeOrder
                     ? OptimizeExportOrder(filteredAlbums, options.Verbose)
                     : filteredAlbums.ToList();
 
@@ -750,12 +750,12 @@ public class LidarrCommand
 
                 // Step 5: Create export data
                 AnsiConsole.MarkupLine("[cyan]📄 Creating export data...[/]");
-                
+
                 var exportData = CreateExportData(finalAlbums, options.IncludeMetadata);
 
                 // Step 6: Write to file
                 AnsiConsole.MarkupLine($"[cyan]💾 Writing to {options.Format.ToUpper()} file...[/]");
-                
+
                 await WriteExportFile(exportData, options.Output, options.Format.ToLower()).ConfigureAwait(false);
 
                 AnsiConsole.WriteLine();
@@ -773,7 +773,7 @@ public class LidarrCommand
         {
             AnsiConsole.MarkupLine($"[red]❌ Export operation failed: {ex.Message}[/]");
             _logger.LogError(ex, "Export operation failed");
-            
+
             if (options.Verbose)
             {
                 AnsiConsole.WriteLine();
@@ -787,23 +787,23 @@ public class LidarrCommand
     private LidarrFilterOptions BuildFilterOptions(int? yearFrom, int? yearTo, int? lastDays, string? albumTypes)
     {
         var filterOptions = LidarrFilterOptions.ForWantedAlbums();
-        
+
         // Apply date filters
         if (yearFrom.HasValue)
         {
             filterOptions.ReleaseDateFrom = new DateTime(yearFrom.Value, 1, 1);
         }
-        
+
         if (yearTo.HasValue)
         {
             filterOptions.ReleaseDateTo = new DateTime(yearTo.Value, 12, 31);
         }
-        
+
         if (lastDays.HasValue && lastDays.Value > 0)
         {
             filterOptions.ReleaseDateFrom = DateTime.UtcNow.AddDays(-lastDays.Value);
         }
-        
+
         // Apply album type filters
         if (!string.IsNullOrWhiteSpace(albumTypes))
         {
@@ -812,11 +812,11 @@ public class LidarrCommand
                                  .ToList();
             filterOptions.AlbumTypes = types;
         }
-        
+
         return filterOptions;
     }
 
-    private IEnumerable<LidarrAlbum> ApplyCliFilters(IEnumerable<LidarrAlbum> albums, 
+    private IEnumerable<LidarrAlbum> ApplyCliFilters(IEnumerable<LidarrAlbum> albums,
         string? artists, string? artistsExclude, int? minTracks, int? maxTracks, bool verbose)
     {
         var filtered = albums.AsEnumerable();
@@ -828,8 +828,8 @@ public class LidarrCommand
             var artistList = artists.Split(',', StringSplitOptions.RemoveEmptyEntries)
                                    .Select(a => a.Trim().ToLowerInvariant())
                                    .ToHashSet();
-            
-            filtered = filtered.Where(album => 
+
+            filtered = filtered.Where(album =>
             {
                 var albumArtist = album.Artist?.ArtistName?.ToLowerInvariant() ?? "";
                 return artistList.Any(artist => albumArtist.Contains(artist));
@@ -848,8 +848,8 @@ public class LidarrCommand
             var excludeList = artistsExclude.Split(',', StringSplitOptions.RemoveEmptyEntries)
                                            .Select(a => a.Trim().ToLowerInvariant())
                                            .ToHashSet();
-            
-            filtered = filtered.Where(album => 
+
+            filtered = filtered.Where(album =>
             {
                 var albumArtist = album.Artist?.ArtistName?.ToLowerInvariant() ?? "";
                 return !excludeList.Any(artist => albumArtist.Contains(artist));
@@ -866,7 +866,7 @@ public class LidarrCommand
         if (minTracks.HasValue)
         {
             filtered = filtered.Where(album => (album.Statistics?.TrackFileCount ?? 0) >= minTracks.Value);
-            
+
             if (verbose)
             {
                 AnsiConsole.MarkupLine($"[dim]Minimum tracks filter ({minTracks}): {filtered.Count()} albums remain[/]");
@@ -876,7 +876,7 @@ public class LidarrCommand
         if (maxTracks.HasValue)
         {
             filtered = filtered.Where(album => (album.Statistics?.TrackFileCount ?? 0) <= maxTracks.Value);
-            
+
             if (verbose)
             {
                 AnsiConsole.MarkupLine($"[dim]Maximum tracks filter ({maxTracks}): {filtered.Count()} albums remain[/]");
@@ -929,7 +929,7 @@ public class LidarrCommand
         foreach (var item in validatedItems.Take(10))
         {
             var qobuzAlbum = item.QobuzAlbum;
-            var warnings = item.ValidationMessages?.Any() == true 
+            var warnings = item.ValidationMessages?.Any() == true
                 ? string.Join("; ", item.ValidationMessages)
                 : "None";
 
@@ -983,11 +983,11 @@ public class LidarrCommand
         AnsiConsole.MarkupLine("[dim]Use --dry-run=false to proceed with the operation[/]");
     }
 
-    private async Task PerformImmediateDownloads(IList<AlbumDownloadItem> validatedItems, 
+    private async Task PerformImmediateDownloads(IList<AlbumDownloadItem> validatedItems,
         string outputPath, int concurrency, bool verbose)
     {
         AnsiConsole.MarkupLine("[cyan]🎵 Starting immediate downloads...[/]");
-        
+
         var progress = new Progress<DownloadProgressReport>(report =>
         {
             _dashboard.UpdateProgress(report.Completed, report.SuccessCount, report.FailureCount, report.CurrentAlbum ?? "Downloading...");
@@ -998,12 +998,12 @@ public class LidarrCommand
 
         AnsiConsole.WriteLine();
         AnsiConsole.MarkupLine($"[green]✅ Download complete: {result.SuccessfulDownloads} successful, {result.FailedDownloads} failed[/]");
-        
+
         if (result.SuccessfulDownloads > 0)
         {
             var avgSpeedMB = result.AverageDownloadSpeed;
             var totalSizeGB = result.TotalBytesDownloaded / 1024.0 / 1024.0 / 1024.0;
-            
+
             AnsiConsole.MarkupLine($"[dim]Total size: {totalSizeGB:F2} GB, Average speed: {avgSpeedMB:F2} MB/s[/]");
         }
 
@@ -1011,12 +1011,12 @@ public class LidarrCommand
         {
             AnsiConsole.WriteLine();
             AnsiConsole.MarkupLine("[red]Failed downloads:[/]");
-            
+
             foreach (var failure in result.FailureItems.Take(5))
             {
                 AnsiConsole.MarkupLine($"[dim]• {failure.OriginalItem.LidarrAlbum.Artist?.ArtistName} - {failure.OriginalItem.LidarrAlbum.Title}: {failure.FailureReason}[/]");
             }
-            
+
             if (result.FailureItems.Count > 5)
             {
                 AnsiConsole.MarkupLine($"[dim]... and {result.FailureItems.Count - 5} more failures[/]");
@@ -1027,7 +1027,7 @@ public class LidarrCommand
     private async Task AddToDownloadQueue(IList<AlbumDownloadItem> validatedItems, string? quality, bool verbose)
     {
         AnsiConsole.MarkupLine("[cyan]📥 Adding albums to download queue...[/]");
-        
+
         var successCount = 0;
         var failedCount = 0;
 
@@ -1049,7 +1049,7 @@ public class LidarrCommand
                 // Add to the default queue
                 var queues = _queueService.GetQueues();
                 var defaultQueue = queues.FirstOrDefault() ?? await _queueService.CreateQueueAsync("Default").ConfigureAwait(false);
-                
+
                 await _queueService.AddToQueueAsync(defaultQueue.Id, queuedDownload).ConfigureAwait(false);
                 successCount++;
 
@@ -1061,20 +1061,20 @@ public class LidarrCommand
             catch (Exception ex)
             {
                 failedCount++;
-                
+
                 if (verbose)
                 {
                     AnsiConsole.MarkupLine($"[red]❌ Failed to queue: {item.LidarrAlbum.Artist?.ArtistName} - {item.LidarrAlbum.Title}: {ex.Message}[/]");
                 }
-                
-                _logger.LogError(ex, "Failed to add album to queue: {Artist} - {Album}", 
+
+                _logger.LogError(ex, "Failed to add album to queue: {Artist} - {Album}",
                     item.LidarrAlbum.Artist?.ArtistName, item.LidarrAlbum.Title);
             }
         }
 
         AnsiConsole.WriteLine();
         AnsiConsole.MarkupLine($"[green]✅ Queue operation complete: {successCount} added, {failedCount} failed[/]");
-        
+
         if (successCount > 0)
         {
             AnsiConsole.MarkupLine("[dim]Use 'qobuz queue start' to begin downloading the queued items[/]");
@@ -1097,7 +1097,7 @@ public class LidarrCommand
     {
         var maxBitDepth = album.MaximumBitDepth ?? 16;
         var maxSampleRate = album.MaximumSampleRate ?? 44100;
-        
+
         if (maxBitDepth >= 24 && maxSampleRate >= 192000)
         {
             return $"Hi-Res FLAC {maxBitDepth}bit/{maxSampleRate / 1000}kHz";
@@ -1179,18 +1179,18 @@ public class LidarrCommand
     private LidarrFilterOptions BuildExportFilterOptions(string? filterType, int? minYear, int? maxYear)
     {
         var filterOptions = LidarrFilterOptions.ForWantedAlbums();
-        
+
         // Apply date filters
         if (minYear.HasValue)
         {
             filterOptions.ReleaseDateFrom = new DateTime(minYear.Value, 1, 1);
         }
-        
+
         if (maxYear.HasValue)
         {
             filterOptions.ReleaseDateTo = new DateTime(maxYear.Value, 12, 31);
         }
-        
+
         // Apply album type filters
         if (!string.IsNullOrWhiteSpace(filterType))
         {
@@ -1199,7 +1199,7 @@ public class LidarrCommand
                                  .ToList();
             filterOptions.AlbumTypes = types;
         }
-        
+
         return filterOptions;
     }
 
@@ -1214,8 +1214,8 @@ public class LidarrCommand
             var artistList = artists.Split(',', StringSplitOptions.RemoveEmptyEntries)
                                    .Select(a => a.Trim().ToLowerInvariant())
                                    .ToHashSet();
-            
-            filtered = filtered.Where(album => 
+
+            filtered = filtered.Where(album =>
             {
                 var albumArtist = album.Artist?.ArtistName?.ToLowerInvariant() ?? "";
                 return artistList.Any(artist => albumArtist.Contains(artist));
@@ -1234,18 +1234,18 @@ public class LidarrCommand
     private List<LidarrAlbum> OptimizeExportOrder(IEnumerable<LidarrAlbum> albums, bool verbose)
     {
         AnsiConsole.MarkupLine("[cyan]🔄 Optimizing album order for efficient downloading...[/]");
-        
+
         var optimized = albums.OrderBy(album =>
         {
             // Priority order based on Python script logic:
             // 1. Release date (newer first - more likely to be available)
             // 2. Album type (albums before singles/EPs)
             // 3. Artist name (alphabetical for consistency)
-            
+
             // Release date score (newer = lower sort value)
             var releaseYear = album.ReleaseDate?.Year ?? 1900;
             var dateScore = 3000 - releaseYear; // Invert so newer = lower
-            
+
             // Album type score
             var albumType = album.AlbumType?.ToLowerInvariant() ?? "unknown";
             var typeScore = albumType switch
@@ -1256,10 +1256,10 @@ public class LidarrCommand
                 "broadcast" => 300,
                 _ => 400
             };
-            
+
             // Combine scores for sorting
             var combinedScore = (dateScore * 1000) + typeScore;
-            
+
             return (combinedScore, album.Artist?.ArtistName?.ToLowerInvariant() ?? "");
         }).ToList();
 
@@ -1290,15 +1290,15 @@ public class LidarrCommand
         var artist = album.Artist;
         var artistName = artist?.ArtistName ?? "Unknown Artist";
         var albumTitle = album.Title ?? "Unknown Album";
-        
+
         // Clean up common suffixes that might confuse search (like Python script)
         var albumTitleClean = albumTitle;
-        var suffixesToRemove = new[] 
-        { 
-            " (Deluxe Edition)", " (Remastered)", " (Expanded Edition)", 
+        var suffixesToRemove = new[]
+        {
+            " (Deluxe Edition)", " (Remastered)", " (Expanded Edition)",
             " (Special Edition)", " (Anniversary Edition)", " (Collector's Edition)"
         };
-        
+
         foreach (var suffix in suffixesToRemove)
         {
             albumTitleClean = albumTitleClean.Replace(suffix, "", StringComparison.OrdinalIgnoreCase);
@@ -1461,7 +1461,7 @@ public class LidarrCommand
         {
             AnsiConsole.WriteLine();
             AnsiConsole.MarkupLine("[cyan]📅 Release Year Distribution:[/]");
-            
+
             var yearGroups = albums.Where(a => a.ReleaseDate.HasValue)
                                   .GroupBy(a => a.ReleaseDate!.Value.Year / 10 * 10) // Group by decade
                                   .OrderBy(g => g.Key);
@@ -1475,7 +1475,7 @@ public class LidarrCommand
 
         AnsiConsole.WriteLine();
         AnsiConsole.MarkupLine("[green]💡 Usage with Qobuz CLI:[/]");
-        
+
         switch (format.ToLower())
         {
             case "json":

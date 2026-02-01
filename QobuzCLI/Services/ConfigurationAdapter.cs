@@ -30,15 +30,15 @@ namespace QobuzCLI.Services
                 AppId = cliConfig.AppId ?? string.Empty,
                 AppSecret = cliConfig.AppSecret ?? string.Empty,
                 CountryCode = cliConfig.CountryCode ?? "US",
-                
+
                 // Determine auth method
                 AuthMethod = DetermineAuthMethod(cliConfig),
-                
+
                 // Search settings
                 SearchLimit = cliConfig.SearchResultLimit,
                 IncludeSingles = cliConfig.IncludeSingles,
                 IncludeCompilations = cliConfig.IncludeCompilations,
-                
+
                 // Advanced settings
                 ApiRateLimit = cliConfig.ApiRateLimit,
                 SearchCacheDuration = cliConfig.SearchCacheDuration,
@@ -67,12 +67,12 @@ namespace QobuzCLI.Services
                 PreferredQuality = qualityId,
                 CreateAlbumFolders = cliConfig.CreateAlbumFolders,
                 // MaxConcurrentDownloads is read-only in plugin, handled via GetEffectiveConcurrency()
-                
+
                 // Use defaults for plugin-specific settings
                 MinimumSuccessRatePercent = 80,
                 TreatPreviewAsFailure = false,
                 SkipPreviewTracks = true
-                
+
                 // Note: QobuzDownloadSettings doesn't include authentication properties
                 // Those should be handled through the QobuzConfig instead
             };
@@ -96,7 +96,7 @@ namespace QobuzCLI.Services
                 AppSecret = indexerSettings.AppSecret,
                 CountryCode = indexerSettings.CountryCode,
                 Region = indexerSettings.CountryCode, // Duplicate for compatibility
-                
+
                 // Search settings (only using properties that exist in QobuzConfig)
                 SearchResultLimit = indexerSettings.SearchLimit,
                 ApiTimeoutSeconds = indexerSettings.ConnectionTimeout
@@ -124,10 +124,10 @@ namespace QobuzCLI.Services
             // Check which auth method is configured
             if (!string.IsNullOrEmpty(config.Email) && !string.IsNullOrEmpty(config.Password))
                 return (int)AuthenticationMethod.Email;
-            
+
             if (!string.IsNullOrEmpty(config.UserId) && !string.IsNullOrEmpty(config.AuthToken))
                 return (int)AuthenticationMethod.Token;
-            
+
             // Default to email if nothing configured
             return (int)AuthenticationMethod.Email;
         }
