@@ -19,14 +19,14 @@ namespace Lidarr.Plugin.Qobuzarr.Security
         // Security patterns and validation rules (GeneratedRegex for SYSLIB1045)
         [GeneratedRegex(@"^[^@\s]+@[^@\s]+\.[^@\s]+$")]
         private static partial Regex EmailPattern();
-        
+
         [GeneratedRegex(@"^\d+$")]
         private static partial Regex NumericPattern();
         private static readonly string[] SuspiciousPatterns =
         {
             "javascript:", "<script", "<img", "onerror=", "onload=", "eval(", "document.", "window.",
             "../", "..\\", "/etc/", "c:\\", "%2e%2e", "0x",
-            "union select", "' or ", "\" or ", "; drop ", "; delete "     
+            "union select", "' or ", "\" or ", "; drop ", "; delete "
         };
 
         public SecurityConfigValidator(IQobuzLogger logger, SecureCredentialManager credentialManager = null)
@@ -46,24 +46,24 @@ namespace Lidarr.Plugin.Qobuzarr.Security
                 throw new ArgumentNullException(nameof(settings));
 
             var result = new SecurityValidationResult();
-            
+
             try
             {
                 // Authentication security validation
                 ValidateAuthenticationSecurity(settings, result);
-                
+
                 // Credential format validation
                 ValidateCredentialFormats(settings, result);
-                
+
                 // App credentials validation
                 ValidateAppCredentials(settings, result);
-                
+
                 // Configuration injection validation
                 ValidateConfigurationInjection(settings, result);
-                
+
                 // Network security settings
                 ValidateNetworkSecurity(settings, result);
-                
+
                 // Privacy and exposure validation
                 ValidatePrivacySettings(settings, result);
 
@@ -76,7 +76,7 @@ namespace Lidarr.Plugin.Qobuzarr.Security
             catch (Exception ex)
             {
                 _logger.Error(ex, "Security validation failed");
-                result.AddCriticalIssue("Security validation process failed", 
+                result.AddCriticalIssue("Security validation process failed",
                     "An error occurred during security validation. Please review configuration manually.");
                 return result;
             }
@@ -289,13 +289,13 @@ namespace Lidarr.Plugin.Qobuzarr.Security
         private void CalculateSecurityScore(SecurityValidationResult result)
         {
             int score = 100;
-            
+
             score -= result.CriticalIssues.Count * 25;
             score -= result.MajorIssues.Count * 10;
             score -= result.MinorIssues.Count * 3;
-            
+
             result.SecurityScore = Math.Max(0, score);
-            
+
             if (result.SecurityScore >= 90)
                 result.SecurityLevel = SecurityLevel.High;
             else if (result.SecurityScore >= 70)
@@ -308,7 +308,7 @@ namespace Lidarr.Plugin.Qobuzarr.Security
 
         private void LogSecurityFindings(SecurityValidationResult result)
         {
-            _logger.Info("Security validation completed: Score={0}, Level={1}", 
+            _logger.Info("Security validation completed: Score={0}, Level={1}",
                 result.SecurityScore, result.SecurityLevel);
 
             if (result.CriticalIssues.Any())
@@ -358,10 +358,10 @@ namespace Lidarr.Plugin.Qobuzarr.Security
         public List<SecurityIssue> MajorIssues { get; } = new List<SecurityIssue>();
         public List<SecurityIssue> MinorIssues { get; } = new List<SecurityIssue>();
         public List<SecurityIssue> InfoItems { get; } = new List<SecurityIssue>();
-        
+
         public int SecurityScore { get; set; } = 100;
         public SecurityLevel SecurityLevel { get; set; } = SecurityLevel.High;
-        
+
         public bool HasCriticalIssues => CriticalIssues.Any();
         public bool HasSecurityIssues => CriticalIssues.Any() || MajorIssues.Any();
         public bool IsSecure => SecurityLevel >= SecurityLevel.Medium && !HasCriticalIssues;

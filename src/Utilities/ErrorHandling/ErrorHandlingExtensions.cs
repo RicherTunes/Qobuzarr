@@ -127,7 +127,7 @@ namespace Lidarr.Plugin.Qobuzarr.Utilities.ErrorHandling
             Action operation,
             IQobuzLogger logger,
             string operationContext,
-            bool logSwallowedExceptions = true) 
+            bool logSwallowedExceptions = true)
             where TException : Exception
         {
             try
@@ -148,7 +148,7 @@ namespace Lidarr.Plugin.Qobuzarr.Utilities.ErrorHandling
         {
             var contextMessage = FormatContextMessage(operationContext, additionalContext);
             logger.Error(ex, "❌ CRITICAL ERROR: {0} - {1}", contextMessage, ex.Message);
-            
+
             // Log additional exception details for debugging
             if (ex.InnerException != null)
             {
@@ -159,7 +159,7 @@ namespace Lidarr.Plugin.Qobuzarr.Utilities.ErrorHandling
         private static void LogGracefulError(IQobuzLogger logger, Exception ex, string operationContext, LogLevel logLevel, object additionalContext)
         {
             var contextMessage = FormatContextMessage(operationContext, additionalContext);
-            
+
             switch (logLevel)
             {
                 case LogLevel.Error:
@@ -181,7 +181,7 @@ namespace Lidarr.Plugin.Qobuzarr.Utilities.ErrorHandling
         {
             if (additionalContext == null)
                 return operationContext;
-                
+
             return $"{operationContext} (Context: {additionalContext})";
         }
     }

@@ -35,7 +35,7 @@ namespace Lidarr.Plugin.Qobuzarr.Services
         {
             var tracker = new ProgressTracker(totalItems, operationType, progress, _logger, OnTrackerCompleted);
             _activeTrackers[tracker.Id] = tracker;
-            
+
             _logger.Debug("Created progress tracker for {0} operation with {1} items", operationType, totalItems);
             return tracker;
         }
@@ -47,7 +47,7 @@ namespace Lidarr.Plugin.Qobuzarr.Services
         {
             var tracker = new DownloadProgressTracker(totalItems, operationType, progress, _logger, OnTrackerCompleted);
             _activeTrackers[tracker.Id] = tracker;
-            
+
             _logger.Debug("Created download progress tracker for {0} operation with {1} items", operationType, totalItems);
             return tracker;
         }
@@ -219,7 +219,7 @@ namespace Lidarr.Plugin.Qobuzarr.Services
             }
 
             ReportToCallback();
-            
+
             if (_completedItems >= TotalItems)
             {
                 _logger.Debug("Progress tracker completed: {0} items in {1:F1}s", TotalItems, _stopwatch.Elapsed.TotalSeconds);

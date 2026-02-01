@@ -78,7 +78,7 @@ public class DownloadCommandTests
         // Assert
         // System.CommandLine's Option.Name may not include dashes; check aliases instead
         var optionNames = command.Options.SelectMany(o => o.Aliases).ToList();
-        
+
         optionNames.Should().Contain("--from-file");
         optionNames.Should().Contain("--immediate");
         optionNames.Should().Contain("--output");
@@ -100,7 +100,7 @@ public class DownloadCommandTests
     {
         // This test verifies the refactored CLI correctly applies quality overrides
         // while delegating actual download logic to the plugin
-        
+
         // Arrange
         var originalConfig = new QobuzConfig
         {
@@ -110,7 +110,7 @@ public class DownloadCommandTests
         };
 
         // Act - Use reflection to test the private method
-        var method = typeof(DownloadCommand).GetMethod("ApplyDownloadOverrides", 
+        var method = typeof(DownloadCommand).GetMethod("ApplyDownloadOverrides",
             System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
         var result = (QobuzConfig)method!.Invoke(_downloadCommand, new object?[] { originalConfig, null, quality })!;
 
@@ -124,7 +124,7 @@ public class DownloadCommandTests
     public void ParseSearchType_ShouldHandleAllValidTypes()
     {
         // Arrange & Act - Use reflection to test the private method
-        var method = typeof(DownloadCommand).GetMethod("ParseSearchType", 
+        var method = typeof(DownloadCommand).GetMethod("ParseSearchType",
             System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
 
         var albumResult = (SearchType)method!.Invoke(_downloadCommand, new object[] { "album" })!;
@@ -184,7 +184,7 @@ public class QualityMappingTests
     public void GetQualityId_ShouldReturnCorrectMappings(string quality, int expectedId)
     {
         // Arrange & Act - Use reflection to test the private method
-        var method = typeof(DownloadCommand).GetMethod("GetQualityId", 
+        var method = typeof(DownloadCommand).GetMethod("GetQualityId",
             System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
         var result = (int)method!.Invoke(_downloadCommand, new object[] { quality })!;
 

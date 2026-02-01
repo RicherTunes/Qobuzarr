@@ -15,7 +15,7 @@ namespace Lidarr.Plugin.Qobuzarr.Services
         private readonly Logger _logger;
         private readonly FileSystemWatcher _watcher;
         private readonly object _lockObject = new();
-        
+
         private volatile QobuzPluginConfiguration _currentConfig;
         private DateTime _lastConfigChange = DateTime.MinValue;
 
@@ -24,21 +24,21 @@ namespace Lidarr.Plugin.Qobuzarr.Services
         public ConfigurationMonitor(string configFilePath, Logger logger = null)
         {
             _logger = logger ?? LogManager.GetCurrentClassLogger();
-            
+
             if (File.Exists(configFilePath))
             {
                 var directory = Path.GetDirectoryName(configFilePath);
                 var fileName = Path.GetFileName(configFilePath);
-                
+
                 _watcher = new FileSystemWatcher(directory, fileName)
                 {
                     NotifyFilter = NotifyFilters.LastWrite | NotifyFilters.Size,
                     EnableRaisingEvents = true
                 };
-                
+
                 _watcher.Changed += OnConfigFileChanged;
                 LoadConfiguration(configFilePath);
-                
+
                 _logger.Debug("📁 CONFIG MONITOR: Watching {0}", configFilePath);
             }
             else
@@ -77,9 +77,9 @@ namespace Lidarr.Plugin.Qobuzarr.Services
                 }
 
                 _logger.Debug("📝 CONFIG CHANGE: Configuration file modified");
-                
+
                 // REMOVED: Thread.Sleep anti-pattern - file system should stabilize naturally
-                
+
                 LoadConfiguration(e.FullPath);
             }
             catch (Exception ex)
@@ -124,7 +124,7 @@ namespace Lidarr.Plugin.Qobuzarr.Services
             {
                 // Defensive: Use file sharing to prevent conflicts with other processes
                 using var fileStream = new FileStream(configPath, FileMode.Open, FileAccess.Read, FileShare.Read);
-                
+
                 // Simplified config loading - real implementation would parse JSON/XML
                 return new QobuzPluginConfiguration
                 {

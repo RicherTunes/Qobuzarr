@@ -53,24 +53,24 @@ public class PluginHost : IPluginHost, IDisposable
     }
 
     public bool IsInitialized => _isInitialized;
-    
+
     public IQobuzAuthenticationService Auth => _authAdapter ?? throw new InvalidOperationException("Plugin host not initialized");
 
-        public async Task InitializeAsync(QobuzConfig config)
+    public async Task InitializeAsync(QobuzConfig config)
+    {
+        try
         {
+            _config = config;
+            // Propagate existing-file behavior to environment for CLI downloader
             try
             {
-                _config = config;
-                // Propagate existing-file behavior to environment for CLI downloader
-                try
+                if (!string.IsNullOrWhiteSpace(config.ExistingFileBehavior))
                 {
-                    if (!string.IsNullOrWhiteSpace(config.ExistingFileBehavior))
-                    {
-                        Environment.SetEnvironmentVariable("QOBUZ_EXISTING_FILE_BEHAVIOR", config.ExistingFileBehavior);
-                    }
+                    Environment.SetEnvironmentVariable("QOBUZ_EXISTING_FILE_BEHAVIOR", config.ExistingFileBehavior);
                 }
-                catch { /* non-fatal */ }
-            
+            }
+            catch { /* non-fatal */ }
+
             // Check if we have valid credentials
             var strictInit = config.StrictInitialization || string.Equals(Environment.GetEnvironmentVariable("QOBUZ_CLI_STRICT_INIT"), "true", StringComparison.OrdinalIgnoreCase);
             if (!config.HasValidAuth())
@@ -89,19 +89,19 @@ public class PluginHost : IPluginHost, IDisposable
             {
                 InitializeAdapters();
                 InitializePluginServices();
-                
+
                 // Attempt authentication
                 var credentials = new QobuzCredentials();
                 credentials.AppId = string.IsNullOrEmpty(config.AppId) ? QobuzConstants.Authentication.GetDefaultAppId() : config.AppId;
                 credentials.AppSecret = string.IsNullOrEmpty(config.AppSecret) ? QobuzConstants.Authentication.GetDefaultAppSecret() : config.AppSecret;
-                
+
                 // Validate that we have credentials from environment or config
                 if (string.IsNullOrEmpty(credentials.AppId) || string.IsNullOrEmpty(credentials.AppSecret))
                 {
                     throw new InvalidOperationException(
                         $"Qobuz API credentials not found. Please set environment variables {QobuzConstants.Authentication.AppIdEnvironmentVariable} and {QobuzConstants.Authentication.AppSecretEnvironmentVariable}, or configure them in the application settings.");
                 }
-                
+
                 if (config.IsTokenAuth())
                 {
                     credentials.UserId = config.UserId;
@@ -114,7 +114,7 @@ public class PluginHost : IPluginHost, IDisposable
                     credentials.MD5Password = HashingUtility.ComputeMD5Hash(config.Password ?? "");
                     _logger.LogInformation("Creating email auth credentials");
                 }
-                
+
                 _logger.LogInformation("Credentials validation completed");
 
                 _session = await _authService!.AuthenticateAsync(credentials);
@@ -172,7 +172,7 @@ public class PluginHost : IPluginHost, IDisposable
         {
             // Progressive fallback search strategy with query cleaning
             var results = await ProgressiveFallbackSearchAsync(query, type);
-            
+
             _logger.LogInformation("Search completed: {Query} ({Type}) -> {ResultCount} results", query, type, results.Count);
             return results;
         }
@@ -194,7 +194,7 @@ public class PluginHost : IPluginHost, IDisposable
 
         // Generate search variations using proven query cleaning
         var queryVariations = _apiClient!.GenerateSearchVariations(originalQuery);
-        _logger.LogDebug("Generated {Count} query variations for '{Query}': [{Variations}]", 
+        _logger.LogDebug("Generated {Count} query variations for '{Query}': [{Variations}]",
             queryVariations.Count, originalQuery, string.Join(", ", queryVariations));
 
         // Strategy 1: Try album search first (primary approach)
@@ -206,12 +206,12 @@ public class PluginHost : IPluginHost, IDisposable
                 {
                     var albums = await _apiClient.SearchAlbumsAsync(query, limit);
                     var albumResults = ConvertAlbumsToSearchResults(albums);
-                    
+
                     if (albumResults.Any())
                     {
                         _logger.LogDebug("Album search success with query variation: '{Query}' -> {Count} results", query, albumResults.Count);
                         allResults.AddRange(albumResults);
-                        
+
                         // If we found good results, we can stop here
                         if (allResults.Count >= 5)
                             break;
@@ -237,12 +237,12 @@ public class PluginHost : IPluginHost, IDisposable
                 {
                     var tracks = await _apiClient.SearchTracksAsync(query, limit);
                     var trackResults = ConvertTracksToSearchResults(tracks);
-                    
+
                     if (trackResults.Any())
                     {
                         _logger.LogDebug("Track search success with query variation: '{Query}' -> {Count} results", query, trackResults.Count);
                         allResults.AddRange(trackResults);
-                        
+
                         if (allResults.Count >= 5)
                             break;
                     }
@@ -267,7 +267,7 @@ public class PluginHost : IPluginHost, IDisposable
                 {
                     var artists = await _apiClient.SearchArtistsAsync(query, limit);
                     var artistResults = ConvertArtistsToSearchResults(artists);
-                    
+
                     if (artistResults.Any())
                     {
                         _logger.LogDebug("Artist search success with query variation: '{Query}' -> {Count} results", query, artistResults.Count);
@@ -295,7 +295,7 @@ public class PluginHost : IPluginHost, IDisposable
                 {
                     var playlists = await _apiClient.SearchPlaylistsAsync(query, limit);
                     var playlistResults = ConvertPlaylistsToSearchResults(playlists);
-                    
+
                     if (playlistResults.Any())
                     {
                         _logger.LogDebug("Playlist search success with query variation: '{Query}' -> {Count} results", query, playlistResults.Count);
@@ -323,7 +323,7 @@ public class PluginHost : IPluginHost, IDisposable
                 {
                     var labels = await _apiClient.SearchLabelsAsync(query, limit);
                     var labelResults = ConvertLabelsToSearchResults(labels);
-                    
+
                     if (labelResults.Any())
                     {
                         _logger.LogDebug("Label search success with query variation: '{Query}' -> {Count} results", query, labelResults.Count);
@@ -349,7 +349,7 @@ public class PluginHost : IPluginHost, IDisposable
             .Take(limit)
             .ToList();
 
-        _logger.LogInformation("Progressive search completed: '{Query}' -> {UniqueResults} unique results from {TotalAttempts} attempts", 
+        _logger.LogInformation("Progressive search completed: '{Query}' -> {UniqueResults} unique results from {TotalAttempts} attempts",
             originalQuery, uniqueResults.Count, allResults.Count);
 
         return uniqueResults;
@@ -388,7 +388,7 @@ public class PluginHost : IPluginHost, IDisposable
     private List<SearchResult> ConvertPlaylistsToSearchResults(List<Lidarr.Plugin.Qobuzarr.Models.QobuzPlaylist> playlists)
     {
         if (playlists == null) return new List<SearchResult>();
-        
+
         return playlists.Select(playlist => new SearchResult
         {
             Id = playlist.Id,
@@ -405,7 +405,7 @@ public class PluginHost : IPluginHost, IDisposable
     private List<SearchResult> ConvertLabelsToSearchResults(List<Lidarr.Plugin.Qobuzarr.Models.QobuzLabel> labels)
     {
         if (labels == null) return new List<SearchResult>();
-        
+
         return labels.Select(label => new SearchResult
         {
             Id = label.Id,
@@ -438,7 +438,7 @@ public class PluginHost : IPluginHost, IDisposable
     async Task<Lidarr.Plugin.Qobuzarr.Services.DownloadResult> IPluginHost.DownloadAlbumAsync(string albumId, string outputPath)
     {
         var cliResult = await DownloadAlbumAsync(albumId, outputPath, null);
-        
+
         // Convert CLI result to plugin result
         return new Lidarr.Plugin.Qobuzarr.Services.DownloadResult
         {
@@ -492,7 +492,7 @@ public class PluginHost : IPluginHost, IDisposable
             var qualityId = GetQualityId(quality ?? _config.Quality);
             var maxConcurrency = _config.MaxConcurrentDownloads;
             var trackResults = new ConcurrentBag<TrackDownload>();
-            
+
             _logger.LogInformation("Downloading {TrackCount} tracks with concurrency limit of {MaxConcurrency}", tracks.Count, maxConcurrency);
 
             using var semaphore = new SemaphoreSlim(maxConcurrency, maxConcurrency);
@@ -536,7 +536,7 @@ public class PluginHost : IPluginHost, IDisposable
                 catch (Exception ex)
                 {
                     _logger.LogWarning(ex, "Failed to download track: {TrackTitle}", track.GetFullTitle());
-                    
+
                     // Add failed track to results
                     var failedTrackDownload = new TrackDownload
                     {
@@ -569,10 +569,10 @@ public class PluginHost : IPluginHost, IDisposable
                 Message = $"Downloaded {successfulDownloads}/{tracks.Count} tracks",
                 StartedAt = DateTime.UtcNow.AddMinutes(-5), // Estimate
                 CompletedAt = DateTime.UtcNow,
-                TrackDownloads = trackResults.Select(t => new TrackDownloadInfo 
-                { 
-                    TrackId = t.QobuzTrackId?.ToString() ?? "", 
-                    StreamingUrl = t.StreamingUrl ?? "", 
+                TrackDownloads = trackResults.Select(t => new TrackDownloadInfo
+                {
+                    TrackId = t.QobuzTrackId?.ToString() ?? "",
+                    StreamingUrl = t.StreamingUrl ?? "",
                     Success = !string.IsNullOrEmpty(t.StreamingUrl) && t.StreamingUrl != null,
                     Message = !string.IsNullOrEmpty(t.StreamingUrl) ? "Downloaded" : "Failed"
                 }).ToList(),
@@ -595,8 +595,8 @@ public class PluginHost : IPluginHost, IDisposable
     }
 
     public async Task<CliPlaylistDownloadResult> DownloadPlaylistAsync(
-        string playlistId, 
-        string outputPath, 
+        string playlistId,
+        string outputPath,
         string? quality = null,
         bool createM3u8 = true)
     {
@@ -612,7 +612,7 @@ public class PluginHost : IPluginHost, IDisposable
         try
         {
             var startTime = DateTime.UtcNow;
-            _logger.LogInformation("Starting playlist download: {PlaylistId} to {OutputPath} with quality {Quality}", 
+            _logger.LogInformation("Starting playlist download: {PlaylistId} to {OutputPath} with quality {Quality}",
                 playlistId, outputPath, quality ?? "default");
 
             // Get playlist details
@@ -629,7 +629,7 @@ public class PluginHost : IPluginHost, IDisposable
                 throw new InvalidOperationException($"No tracks found in playlist: {playlistId}");
             }
 
-            _logger.LogInformation("Found {TrackCount} tracks in playlist '{PlaylistName}'", 
+            _logger.LogInformation("Found {TrackCount} tracks in playlist '{PlaylistName}'",
                 tracks.Count, playlist.Name);
 
             // Create output directory
@@ -650,7 +650,7 @@ public class PluginHost : IPluginHost, IDisposable
                 {
                     // For playlist tracks, we need to get the album info separately
                     var album = track.Album;
-                    
+
                     var fileName = $"{(index + 1):D3} - {SanitizeFileName(track.GetFullTitle())}.flac";
                     var filePath = await _downloadService.DownloadSingleAsync(
                         track,
@@ -663,11 +663,11 @@ public class PluginHost : IPluginHost, IDisposable
                     if (!string.IsNullOrEmpty(filePath) && File.Exists(filePath))
                     {
                         successfulDownloads.Add(fileName);
-                        _logger.LogDebug("Downloaded playlist track {Index}/{Total}: {TrackTitle}", 
+                        _logger.LogDebug("Downloaded playlist track {Index}/{Total}: {TrackTitle}",
                             index + 1, tracks.Count, track.GetFullTitle());
                         return true;
                     }
-                    
+
                     failedDownloads.Add(track.GetFullTitle());
                     return false;
                 }
@@ -693,7 +693,7 @@ public class PluginHost : IPluginHost, IDisposable
                 _logger.LogInformation("Created M3U8 playlist file: {M3u8Path}", m3u8Path);
             }
 
-            _logger.LogInformation("Playlist download completed: {SuccessfulDownloads}/{TotalTracks} tracks", 
+            _logger.LogInformation("Playlist download completed: {SuccessfulDownloads}/{TotalTracks} tracks",
                 successfulDownloads.Count, tracks.Count);
 
             return new CliPlaylistDownloadResult
@@ -703,7 +703,7 @@ public class PluginHost : IPluginHost, IDisposable
                 TotalTracks = tracks.Count,
                 SuccessfulTracks = successfulDownloads.Count,
                 FailedTracks = failedDownloads.Count,
-                M3u8FilePath = createM3u8 && successfulDownloads.Any() ? 
+                M3u8FilePath = createM3u8 && successfulDownloads.Any() ?
                     Path.Combine(playlistDir, $"{SanitizeFileName(playlist.Name)}.m3u8") : null!,
                 Success = successfulDownloads.Count > 0,
                 StartedAt = startTime,
@@ -726,8 +726,8 @@ public class PluginHost : IPluginHost, IDisposable
     }
 
     public async Task<LabelDownloadResult> DownloadLabelAsync(
-        string labelId, 
-        string outputPath, 
+        string labelId,
+        string outputPath,
         string? quality = null,
         int maxAlbums = 100)
     {
@@ -743,7 +743,7 @@ public class PluginHost : IPluginHost, IDisposable
         try
         {
             var startTime = DateTime.UtcNow;
-            _logger.LogInformation("Starting label download: {LabelId} to {OutputPath} with quality {Quality}, max albums: {MaxAlbums}", 
+            _logger.LogInformation("Starting label download: {LabelId} to {OutputPath} with quality {Quality}, max albums: {MaxAlbums}",
                 labelId, outputPath, quality ?? "default", maxAlbums);
 
             // Get label details
@@ -764,11 +764,11 @@ public class PluginHost : IPluginHost, IDisposable
             if (maxAlbums > 0 && albums.Count > maxAlbums)
             {
                 albums = albums.Take(maxAlbums).ToList();
-                _logger.LogInformation("Limiting download to {MaxAlbums} albums out of {TotalAlbums}", 
+                _logger.LogInformation("Limiting download to {MaxAlbums} albums out of {TotalAlbums}",
                     maxAlbums, albums.Count);
             }
 
-            _logger.LogInformation("Found {AlbumCount} albums for label '{LabelName}'", 
+            _logger.LogInformation("Found {AlbumCount} albums for label '{LabelName}'",
                 albums.Count, label.Name);
 
             // Create output directory for the label
@@ -788,19 +788,19 @@ public class PluginHost : IPluginHost, IDisposable
                     // Create artist directory within label directory
                     var artistName = album.Artist?.Name ?? "Unknown Artist";
                     var artistDir = Path.Combine(labelDir, SanitizeFileName(artistName));
-                    
-                    _logger.LogInformation("Downloading album '{AlbumTitle}' by '{ArtistName}'", 
+
+                    _logger.LogInformation("Downloading album '{AlbumTitle}' by '{ArtistName}'",
                         album.Title, artistName);
 
                     // Download the album
                     var result = await DownloadAlbumAsync(album.Id, artistDir, quality);
-                    
+
                     if (result != null && result.TrackDownloads != null)
                     {
                         var albumSuccessCount = result.TrackDownloads.Count(t => t.StreamingUrl != null);
                         totalTracks += result.TrackDownloads.Count;
                         successfulTracks += albumSuccessCount;
-                        
+
                         if (albumSuccessCount > 0)
                         {
                             successfulAlbums.Add($"{artistName} - {album.Title}");
@@ -818,7 +818,7 @@ public class PluginHost : IPluginHost, IDisposable
                 }
             }
 
-            _logger.LogInformation("Label download completed: {SuccessfulAlbums}/{TotalAlbums} albums, {SuccessfulTracks}/{TotalTracks} tracks", 
+            _logger.LogInformation("Label download completed: {SuccessfulAlbums}/{TotalAlbums} albums, {SuccessfulTracks}/{TotalTracks} tracks",
                 successfulAlbums.Count, albums.Count, successfulTracks, totalTracks);
 
             return new LabelDownloadResult
@@ -857,7 +857,7 @@ public class PluginHost : IPluginHost, IDisposable
     {
         var maxBitDepth = album.MaximumBitDepth ?? 16;
         var maxSampleRate = album.MaximumSampleRate ?? 44100;
-        
+
         if (maxBitDepth >= 24 && maxSampleRate >= 96000)
         {
             return $"Hi-Res FLAC {maxBitDepth}bit/{maxSampleRate / 1000}kHz";
@@ -888,7 +888,7 @@ public class PluginHost : IPluginHost, IDisposable
     {
         var maxBitDepth = track.MaximumBitDepth ?? 16;
         var maxSampleRate = track.MaximumSampleRate ?? 44100;
-        
+
         if (maxBitDepth >= 24 && maxSampleRate >= 96000)
         {
             return $"Hi-Res FLAC {maxBitDepth}bit/{maxSampleRate / 1000}kHz";
@@ -936,7 +936,7 @@ public class PluginHost : IPluginHost, IDisposable
             // Create file service instance
             var fileService = new Lidarr.Plugin.Qobuzarr.Core.QobuzFileService(_pluginLogger!);
             var result = await fileService.CheckExistingAlbumAsync(albumId, albumDir, requestedQuality);
-            
+
             return (result.AlreadyExists, result.ExistingTrackCount, result.Reason);
         }
         catch (Exception ex)
@@ -986,7 +986,7 @@ public class PluginHost : IPluginHost, IDisposable
         return searchType.ToLower() switch
         {
             "album" => "album",
-            "artist" => "artist", 
+            "artist" => "artist",
             "track" => "track",
             "playlist" => "playlist",
             "label" => "label",
@@ -1018,10 +1018,10 @@ public class PluginHost : IPluginHost, IDisposable
         // Create CLI authentication adapter and set its dependencies
         _authAdapter = new CliQobuzAuthenticationAdapter();
         _authAdapter.SetDependencies(_pluginHttpClient!, _pluginLogger!);
-        
+
         // Use the adapter as the auth service
         _authService = _authAdapter;
-        
+
         // Prefer the plugin's concrete API client over the simple CLI adapter to share functionality
         var nlogLogger = NLog.LogManager.GetCurrentClassLogger();
         var sessionManager = new QobuzCLI.Services.Adapters.CliSessionManager(_authService);
@@ -1037,20 +1037,20 @@ public class PluginHost : IPluginHost, IDisposable
             () => Task.FromResult(BuildCredentialsFromConfig(_config!)),
             nlogLogger);
         pluginApiClient.SetPreRequestHandler(preHandler);
-        
+
         // Create unified quality service and adapter
         var memoryCache = new Microsoft.Extensions.Caching.Memory.MemoryCache(new Microsoft.Extensions.Caching.Memory.MemoryCacheOptions());
         var unifiedQualityService = new UnifiedQualityService(nlogLogger, memoryCache);
         var qualityServiceAdapter = new QobuzCLI.Services.Adapters.CliQualityServiceAdapter(
             unifiedQualityService, pluginApiClient, nlogLogger);
-        
+
         // Use the adapter for validation service
         var safeLogger = _pluginLogger ?? new QobuzCLI.Services.Adapters.CliLoggerAdapter(_logger);
         var cliValidationService = new CliQobuzValidationService(pluginApiClient, qualityServiceAdapter, safeLogger, _cache);
-        
+
         // Create CLI-specific API service with the adapter
         _apiClient = new CliApiService(null, null, qualityServiceAdapter, cliValidationService, safeLogger, pluginApiClient);
-        
+
         // Use enhanced CliDownloadService with REAL download functionality
         _downloadService = new CliDownloadService(_abstractionsHttpClient!, safeLogger, _apiClient);
     }

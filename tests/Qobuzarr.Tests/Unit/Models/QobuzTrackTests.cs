@@ -259,9 +259,9 @@ namespace Qobuzarr.Tests.Unit.Models
             };
 
             // Act
-            var isValid = !string.IsNullOrWhiteSpace(track.Id) && 
-                         !string.IsNullOrWhiteSpace(track.Title) && 
-                         track.TrackNumber > 0 && 
+            var isValid = !string.IsNullOrWhiteSpace(track.Id) &&
+                         !string.IsNullOrWhiteSpace(track.Title) &&
+                         track.TrackNumber > 0 &&
                          track.Duration.TotalSeconds > 0;
 
             // Assert
@@ -285,9 +285,9 @@ namespace Qobuzarr.Tests.Unit.Models
             };
 
             // Act
-            var isValid = !string.IsNullOrWhiteSpace(track.Id) && 
-                         !string.IsNullOrWhiteSpace(track.Title) && 
-                         track.TrackNumber > 0 && 
+            var isValid = !string.IsNullOrWhiteSpace(track.Id) &&
+                         !string.IsNullOrWhiteSpace(track.Title) &&
+                         track.TrackNumber > 0 &&
                          track.Duration.TotalSeconds > 0;
 
             // Assert

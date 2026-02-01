@@ -70,7 +70,7 @@ public class SearchResult
     public string? Label { get; set; }
     public string? Country { get; set; }
     public long? Duration { get; set; }
-    
+
     // Quality information for duplicate detection
     public string? AlbumId { get; set; }
     public string? Format { get; set; }

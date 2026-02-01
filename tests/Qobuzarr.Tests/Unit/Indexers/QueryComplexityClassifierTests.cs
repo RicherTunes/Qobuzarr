@@ -87,9 +87,9 @@ namespace Qobuzarr.Tests.Unit.Indexers
 
             // Assert
             _output.WriteLine($"Testing: {artist} - {album} -> {result}");
-            
+
             // For truly complex cases with compilations and multiple artists, expect at least Medium
-            if (artist.Contains("Various Artists") || artist.Contains("V.A.") || 
+            if (artist.Contains("Various Artists") || artist.Contains("V.A.") ||
                 artist.Contains("&") || album.Contains("/"))
             {
                 result.Should().BeOneOf(QueryComplexity.Medium, QueryComplexity.Complex);

@@ -11,7 +11,7 @@ public interface IDashboardLogger : ILogger
     /// Logs a message directly to the dashboard display
     /// </summary>
     void LogToDashboard(string message, LogLevel level = LogLevel.Information);
-    
+
     /// <summary>
     /// Logs progress update information to the dashboard
     /// </summary>

@@ -34,27 +34,27 @@ namespace Qobuzarr.Tests.Quality
             _output.WriteLine(summary);
 
             // Assert - Primary quality gate
-            report.QualityScore.Should().BeGreaterOrEqualTo(95, 
+            report.QualityScore.Should().BeGreaterOrEqualTo(95,
                 "we should achieve at least 95% quality score to be considered '100% quality'");
 
             // Additional quality requirements
-            report.TotalTestMethods.Should().BeGreaterThan(50, 
+            report.TotalTestMethods.Should().BeGreaterThan(50,
                 "comprehensive test suite should have substantial test coverage");
-            
-            report.IntegrationTests.Should().BeGreaterThan(0, 
+
+            report.IntegrationTests.Should().BeGreaterThan(0,
                 "quality test suite must include integration tests");
-            
-            report.PerformanceTests.Should().BeGreaterThan(0, 
+
+            report.PerformanceTests.Should().BeGreaterThan(0,
                 "quality test suite must include performance tests");
-            
-            report.PropertyBasedTests.Should().BeGreaterThan(0, 
+
+            report.PropertyBasedTests.Should().BeGreaterThan(0,
                 "quality test suite should include property-based tests");
 
             // Verify test organization
-            report.TotalTestClasses.Should().BeGreaterOrEqualTo(5, 
+            report.TotalTestClasses.Should().BeGreaterOrEqualTo(5,
                 "tests should be well-organized across multiple classes");
 
-            report.TestCategoryCounts.Should().HaveCountGreaterOrEqualTo(3, 
+            report.TestCategoryCounts.Should().HaveCountGreaterOrEqualTo(3,
                 "tests should span multiple categories (unit, integration, performance)");
         }
 
@@ -67,10 +67,10 @@ namespace Qobuzarr.Tests.Quality
             var report = TestQualityAnalyzer.AnalyzeTestSuite();
 
             // Verify we have tests for core functionality
-            report.UnitTests.Should().BeGreaterThan(20, 
+            report.UnitTests.Should().BeGreaterThan(20,
                 "should have substantial unit test coverage");
 
-            report.IntegrationTests.Should().BeGreaterOrEqualTo(5, 
+            report.IntegrationTests.Should().BeGreaterOrEqualTo(5,
                 "should have meaningful integration test coverage");
 
             // Test diversity requirements (based on categories tracked by TestQualityAnalyzer)
@@ -87,18 +87,18 @@ namespace Qobuzarr.Tests.Quality
             var report = TestQualityAnalyzer.AnalyzeTestSuite();
 
             // Advanced pattern requirements for 100% quality
-            report.TestsWithCustomAssertions.Should().BeGreaterThan(0, 
+            report.TestsWithCustomAssertions.Should().BeGreaterThan(0,
                 "quality test suite should use custom domain-specific assertions");
 
-            report.TestsWithBuilders.Should().BeGreaterThan(0, 
+            report.TestsWithBuilders.Should().BeGreaterThan(0,
                 "quality test suite should use test data builders for maintainability");
 
             // Property-based testing - require meaningful presence (FsCheck tests are high-value)
-            report.PropertyBasedTests.Should().BeGreaterOrEqualTo(5, 
+            report.PropertyBasedTests.Should().BeGreaterOrEqualTo(5,
                 "should have meaningful property-based test coverage");
 
             // Performance/concurrency testing - require category exists
-            report.PerformanceTests.Should().BeGreaterThan(0, 
+            report.PerformanceTests.Should().BeGreaterThan(0,
                 "should have performance or concurrency tests");
         }
 
@@ -112,20 +112,20 @@ namespace Qobuzarr.Tests.Quality
 
             // Organization metrics
             var averageTestsPerClass = (double)report.TotalTestMethods / Math.Max(report.TotalTestClasses, 1);
-            averageTestsPerClass.Should().BeLessOrEqualTo(20, 
+            averageTestsPerClass.Should().BeLessOrEqualTo(20,
                 "test classes should not be overly large (good organization)");
 
-            averageTestsPerClass.Should().BeGreaterOrEqualTo(3, 
+            averageTestsPerClass.Should().BeGreaterOrEqualTo(3,
                 "test classes should have meaningful test count");
 
             // Quality distribution - require presence of key categories with minimal counts
             // These are intentionally low to allow refactoring while ensuring categories exist
-            report.IntegrationTests.Should().BeGreaterOrEqualTo(10,    
-                "should maintain meaningful integration test coverage");  
+            report.IntegrationTests.Should().BeGreaterOrEqualTo(10,
+                "should maintain meaningful integration test coverage");
 
             // Note: "PerformanceTests" in analyzer includes concurrency tests and ML metrics tests,
             // not actual benchmarks. We just require the category exists.
-            report.PerformanceTests.Should().BeGreaterThan(0, 
+            report.PerformanceTests.Should().BeGreaterThan(0,
                 "should have at least some performance/concurrency tests");
         }
 
@@ -184,18 +184,18 @@ namespace Qobuzarr.Tests.Quality
             if (targetScore <= 95)
             {
                 // We should definitely meet targets up to 95%
-                report.QualityScore.Should().BeGreaterOrEqualTo(targetScore, 
+                report.QualityScore.Should().BeGreaterOrEqualTo(targetScore,
                     $"should achieve {milestone} quality level");
             }
             else
             {
                 // 100% is aspirational - document how close we got
                 _output.WriteLine($"Aspirational target: {targetScore}%, Achieved: {report.QualityScore:F1}%");
-                
+
                 // Any score above 95% is excellent
                 if (report.QualityScore >= 95)
                 {
-                    report.QualityScore.Should().BeGreaterOrEqualTo(95, 
+                    report.QualityScore.Should().BeGreaterOrEqualTo(95,
                         "achieving 95%+ demonstrates excellent test quality");
                 }
             }
@@ -211,18 +211,18 @@ namespace Qobuzarr.Tests.Quality
             var report = TestQualityAnalyzer.AnalyzeTestSuite();
 
             // Assert - Verify the analyzer produces reasonable results
-            report.TotalTestMethods.Should().BeGreaterThan(0, 
+            report.TotalTestMethods.Should().BeGreaterThan(0,
                 "analyzer should detect test methods");
-            
-            report.TotalTestClasses.Should().BeGreaterThan(0, 
+
+            report.TotalTestClasses.Should().BeGreaterThan(0,
                 "analyzer should detect test classes");
-            
-            report.QualityScore.Should().BeInRange(0, 100, 
+
+            report.QualityScore.Should().BeInRange(0, 100,
                 "quality score should be within valid range");
-            
+
             report.QualityMetrics.Should().NotBeEmpty(
                 "analyzer should provide quality metrics");
-            
+
             report.Recommendations.Should().NotBeEmpty(
                 "analyzer should provide recommendations");
 

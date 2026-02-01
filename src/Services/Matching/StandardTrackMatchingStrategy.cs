@@ -24,10 +24,10 @@ namespace Lidarr.Plugin.Qobuzarr.Services.Matching
             new(@"\s+(?:with|&)\s+(.+)$", RegexOptions.IgnoreCase),
             new(@"\s*\((?:ft\.?|feat\.?|featuring)\s+(.+)\)$", RegexOptions.IgnoreCase)
         };
-        
+
         // Live album venue patterns  
         private static readonly Regex LiveVenueRegex = new(
-            @"\s*-?\s*(?:live\s+(?:at|from|in)?|recorded\s+(?:at|in)?)\s+[^,]+(?:,\s*[\d/\-\s]+)?$", 
+            @"\s*-?\s*(?:live\s+(?:at|from|in)?|recorded\s+(?:at|in)?)\s+[^,]+(?:,\s*[\d/\-\s]+)?$",
             RegexOptions.IgnoreCase);
 
         public string StrategyName => "Standard";
@@ -54,7 +54,7 @@ namespace Lidarr.Plugin.Qobuzarr.Services.Matching
                 };
             }
 
-            _logger.Debug("Standard track matching: {0} Lidarr tracks vs {1} Qobuz tracks", 
+            _logger.Debug("Standard track matching: {0} Lidarr tracks vs {1} Qobuz tracks",
                          lidarrTracks.Count, qobuzTracks.Count);
 
             var result = new TrackMatchingResult
@@ -91,7 +91,7 @@ namespace Lidarr.Plugin.Qobuzarr.Services.Matching
             foreach (var lidarrTrack in lidarrTracks.ToList())
             {
                 var bestMatch = FindBestStandardMatch(lidarrTrack, qobuzTracks.Where(q => !matchedQobuz.Contains(q)));
-                
+
                 if (bestMatch.Match != null && bestMatch.Confidence >= 0.85) // High confidence for standard matches
                 {
                     result.StandardMatches.Add(new StandardTrackMatch
@@ -105,7 +105,7 @@ namespace Lidarr.Plugin.Qobuzarr.Services.Matching
                     matchedLidarr.Add(lidarrTrack);
                     matchedQobuz.Add(bestMatch.Match);
 
-                    _logger.Debug("Standard match: '{0}' → '{1}' ({2:P1} confidence)", 
+                    _logger.Debug("Standard match: '{0}' → '{1}' ({2:P1} confidence)",
                                  lidarrTrack.Title, bestMatch.Match.Title, bestMatch.Confidence);
                 }
             }
@@ -113,13 +113,13 @@ namespace Lidarr.Plugin.Qobuzarr.Services.Matching
             // Remove matched tracks from available lists
             foreach (var matched in matchedLidarr)
                 lidarrTracks.Remove(matched);
-            
+
             foreach (var matched in matchedQobuz)
                 qobuzTracks.Remove(matched);
         }
 
         private (QobuzTrack Match, double Confidence, string MatchType) FindBestStandardMatch(
-            LidarrTrack lidarrTrack, 
+            LidarrTrack lidarrTrack,
             IEnumerable<QobuzTrack> qobuzTracks)
         {
             QobuzTrack? bestMatch = null;
@@ -156,7 +156,7 @@ namespace Lidarr.Plugin.Qobuzarr.Services.Matching
                 {
                     var durationDiff = Math.Abs(lidarrTrack.Duration.TotalSeconds - qobuzTrack.Duration.TotalSeconds);
                     var titleSimilarity = CommonStringSimilarity.Calculate(normalizedLidarr, normalizedQobuz);
-                    
+
                     if (durationDiff <= 15 && titleSimilarity >= 0.7) // 15 second tolerance
                     {
                         score = 0.85 * titleSimilarity * (1 - (durationDiff / 60)); // Reduce score for duration differences
@@ -213,8 +213,8 @@ namespace Lidarr.Plugin.Qobuzarr.Services.Matching
 
         private void CalculateMatchingStatistics(TrackMatchingResult result, int totalLidarrTracks)
         {
-            var matchedLidarrTracks = result.StandardMatches.Count + 
-                                     result.SplitTrackGroups.Count + 
+            var matchedLidarrTracks = result.StandardMatches.Count +
+                                     result.SplitTrackGroups.Count +
                                      result.MergedTrackGroups.Sum(g => g.LidarrTracks.Count);
 
             result.OverallMatchRate = totalLidarrTracks > 0 ? (double)matchedLidarrTracks / totalLidarrTracks : 0;

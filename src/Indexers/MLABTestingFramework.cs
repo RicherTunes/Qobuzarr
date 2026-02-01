@@ -16,7 +16,7 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
         private readonly Logger _logger;
         private readonly IPerformanceMonitoringService? _performanceMonitor;
         private readonly Random _random = new Random();
-        
+
         // A/B test configuration
         private readonly double _testGroupPercentage = 0.1; // 10% of queries use test model
         private readonly Dictionary<string, ABTestResult> _testResults = new();
@@ -39,11 +39,11 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
         /// <summary>
         /// Records A/B test result for comparison
         /// </summary>
-        public void RecordABTestResult(string query, QueryComplexity controlResult, QueryComplexity testResult, 
+        public void RecordABTestResult(string query, QueryComplexity controlResult, QueryComplexity testResult,
             double controlConfidence, double testConfidence, int actualApiCalls)
         {
             var testId = GenerateTestId(query);
-            
+
             lock (_testLock)
             {
                 var result = new ABTestResult
@@ -57,18 +57,18 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
                     ActualApiCalls = actualApiCalls,
                     TestId = testId
                 };
-                
+
                 _testResults[testId] = result;
-                
+
                 // Record for production monitoring
                 _performanceMonitor?.RecordMLOptimization(
-                    $"AB_Control: {query}", 
-                    $"AB_Test: {query}", 
-                    testConfidence > controlConfidence, 
+                    $"AB_Control: {query}",
+                    $"AB_Test: {query}",
+                    testConfidence > controlConfidence,
                     Math.Max(controlConfidence, testConfidence));
             }
-            
-            _logger.Debug("A/B test recorded: {0} - Control: {1} ({2:F2}), Test: {3} ({4:F2})", 
+
+            _logger.Debug("A/B test recorded: {0} - Control: {1} ({2:F2}), Test: {3} ({4:F2})",
                 query, controlResult, controlConfidence, testResult, testConfidence);
         }
 
@@ -131,10 +131,10 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
         public void LogPerformanceSummary()
         {
             var analysis = AnalyzeResults();
-            
+
             _logger.Info("ML A/B Testing Summary: {0} samples, Test wins: {1:F1}%, Avg confidence - Control: {2:F2}, Test: {3:F2}",
                 analysis.SampleSize, analysis.TestWinRate, analysis.AverageControlConfidence, analysis.AverageTestConfidence);
-                
+
             _logger.Info("A/B Test Conclusion: {0}", analysis.Conclusion);
         }
 

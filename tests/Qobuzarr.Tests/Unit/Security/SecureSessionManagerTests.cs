@@ -41,7 +41,7 @@ namespace Qobuzarr.Tests.Unit.Security
 
             // Assert
             _sessionManager.HasValidSession().Should().BeTrue();
-            
+
             // Verify that sensitive data is not exposed through public methods
             var maskedUserId = _sessionManager.GetMaskedUserId();
             maskedUserId.Should().NotBeNullOrEmpty();
@@ -284,7 +284,7 @@ namespace Qobuzarr.Tests.Unit.Security
             // After storing, the original session should have tokens cleared
             // This simulates that the internal storage doesn't keep plain text tokens
             _sessionManager.HasValidSession().Should().BeTrue();
-            
+
             // When retrieved, tokens should be reconstructed from secure storage
             var retrieved = _sessionManager.GetSecureSession();
             retrieved.AuthToken.Should().Be("supersecrettoken123");
@@ -306,7 +306,7 @@ namespace Qobuzarr.Tests.Unit.Security
             retrieved1.Should().NotBeNull();
             retrieved2.Should().NotBeNull();
             ReferenceEquals(retrieved1, retrieved2).Should().BeFalse("Should return new instances to prevent external modification");
-            
+
             // But values should be the same
             retrieved1.UserId.Should().Be(retrieved2.UserId);
             retrieved1.AuthToken.Should().Be(retrieved2.AuthToken);
@@ -371,7 +371,7 @@ namespace Qobuzarr.Tests.Unit.Security
                         {
                             _sessionManager.ClearSession();
                         }
-                        
+
                         // Try to read
                         var current = _sessionManager.GetSecureSession();
                         var hasSession = _sessionManager.HasValidSession();
@@ -417,10 +417,10 @@ namespace Qobuzarr.Tests.Unit.Security
             // The warning is logged but validation passes.
             var hasValid = _sessionManager.HasValidSession();
             hasValid.Should().BeTrue("Suspicious patterns log warnings but don't reject credentials");
-            
+
             // Verify warning was logged
             _mockLogger.Verify(
-                l => l.Warn(It.IsAny<string>(), It.IsAny<object[]>()), 
+                l => l.Warn(It.IsAny<string>(), It.IsAny<object[]>()),
                 Times.AtLeastOnce(),
                 "Should log warning for suspicious credential patterns");
         }
@@ -444,7 +444,7 @@ namespace Qobuzarr.Tests.Unit.Security
                 masked.Should().NotBeNullOrEmpty();
                 masked.Should().NotBe(userId);
                 masked.Should().Contain("*");
-                
+
                 _sessionManager.ClearSession();
             }
         }
@@ -511,7 +511,7 @@ namespace Qobuzarr.Tests.Unit.Security
 
             // Assert
             act.Should().NotThrow();
-            
+
             var retrieved = _sessionManager.GetSecureSession();
             retrieved.Should().NotBeNull();
             retrieved.AuthToken.Length.Should().Be(10000);

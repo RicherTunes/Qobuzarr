@@ -28,32 +28,32 @@ namespace Qobuzarr.Tests.Unit.Packaging
             // Arrange - Get the plugin assembly location (use QobuzIndexer as anchor type)
             var pluginAssembly = typeof(Lidarr.Plugin.Qobuzarr.Indexers.QobuzIndexer).Assembly;
             var pluginDirectory = Path.GetDirectoryName(pluginAssembly.Location);
-            
+
             // Act - Check if FluentValidation.dll exists in the same directory
             var fluentValidationPath = Path.Combine(pluginDirectory!, "FluentValidation.dll");
             var fluentValidationExists = File.Exists(fluentValidationPath);
-            
+
             // Also check the bin directory (for Release builds)
             var binDirectory = FindBinDirectory();
-            var fluentValidationInBin = binDirectory != null && 
+            var fluentValidationInBin = binDirectory != null &&
                 File.Exists(Path.Combine(binDirectory, "FluentValidation.dll"));
-            
+
             // Assert
             // Note: During test runs, FluentValidation.dll may be present in the test output
             // because the test project references it. The critical check is that the main
             // plugin's ILRepack output doesn't include it, which is enforced by the
             // PluginPackaging.targets Remove directive.
-            
+
             // This test serves as documentation and a reminder. The actual packaging
             // exclusion is enforced in Qobuzarr.csproj line ~284:
             // <PluginFiles Remove="$(OutputPath)FluentValidation.dll" />
-            
+
             // For a stricter check, we verify the plugin assembly doesn't have
             // FluentValidation internalized (merged) into it
             var pluginReferences = pluginAssembly.GetReferencedAssemblies();
             var hasFluentValidationReference = pluginReferences
                 .Any(r => r.Name == "FluentValidation");
-            
+
             hasFluentValidationReference.Should().BeTrue(
                 "Plugin should reference FluentValidation externally (not internalized), " +
                 "so it resolves to host's copy at runtime");
@@ -73,13 +73,13 @@ namespace Qobuzarr.Tests.Unit.Packaging
             var pluginAssembly = typeof(Lidarr.Plugin.Qobuzarr.Indexers.QobuzIndexer).Assembly;
             var fluentValidationRef = pluginAssembly.GetReferencedAssemblies()
                 .FirstOrDefault(r => r.Name == "FluentValidation");
-            
+
             // Get host's FluentValidation version from extracted assemblies
             var hostFluentValidationVersion = GetHostFluentValidationVersion();
-            
+
             // Assert
             fluentValidationRef.Should().NotBeNull("Plugin should reference FluentValidation");
-            
+
             if (hostFluentValidationVersion != null)
             {
                 fluentValidationRef!.Version!.Major.Should().Be(hostFluentValidationVersion.Major,
@@ -95,7 +95,7 @@ namespace Qobuzarr.Tests.Unit.Packaging
                     "For precise validation, ensure ext/Lidarr/_output contains host assemblies.");
             }
         }
-        
+
         /// <summary>
         /// Verify the plugin references the same NLog major version as the Lidarr host.
         /// NLog types cross the plugin boundary via constructors and ILogger injection.
@@ -110,13 +110,13 @@ namespace Qobuzarr.Tests.Unit.Packaging
             var pluginAssembly = typeof(Lidarr.Plugin.Qobuzarr.Indexers.QobuzIndexer).Assembly;
             var nlogRef = pluginAssembly.GetReferencedAssemblies()
                 .FirstOrDefault(r => r.Name == "NLog");
-            
+
             // Get host's NLog version from extracted assemblies
             var hostNLogVersion = GetHostAssemblyVersion("NLog.dll");
-            
+
             // Assert
             nlogRef.Should().NotBeNull("Plugin should reference NLog");
-            
+
             if (hostNLogVersion != null)
             {
                 nlogRef!.Version!.Major.Should().Be(hostNLogVersion.Major,
@@ -131,7 +131,7 @@ namespace Qobuzarr.Tests.Unit.Packaging
                     "For precise validation, ensure ext/Lidarr/_output contains host assemblies.");
             }
         }
-        
+
         /// <summary>
         /// Reads the FluentValidation version from the extracted Lidarr host assemblies.
         /// Returns null if the assemblies are not available (e.g., CI builds without full setup).
@@ -140,7 +140,7 @@ namespace Qobuzarr.Tests.Unit.Packaging
         {
             return GetHostAssemblyVersion("FluentValidation.dll");
         }
-        
+
         /// <summary>
         /// Reads an assembly version from the extracted Lidarr host assemblies.
         /// Returns null if the assemblies are not available (e.g., CI builds without full setup).
@@ -157,7 +157,7 @@ namespace Qobuzarr.Tests.Unit.Packaging
                     Path.Combine(currentDir, "ext", "Lidarr", "_output", "net8.0", assemblyFileName),
                     Path.Combine(currentDir, "ext", "Lidarr", "_output", "net6.0", assemblyFileName),
                 };
-                
+
                 foreach (var path in lidarrOutputPaths)
                 {
                     if (File.Exists(path))
@@ -172,10 +172,10 @@ namespace Qobuzarr.Tests.Unit.Packaging
                         }
                     }
                 }
-                
+
                 currentDir = Path.GetDirectoryName(currentDir);
             }
-            
+
             return null;
         }
 
@@ -188,7 +188,7 @@ namespace Qobuzarr.Tests.Unit.Packaging
                 var binPath = Path.Combine(currentDir, "bin");
                 if (Directory.Exists(binPath))
                 {
-                    var pluginDll = Directory.GetFiles(binPath, "Lidarr.Plugin.Qobuzarr.dll", 
+                    var pluginDll = Directory.GetFiles(binPath, "Lidarr.Plugin.Qobuzarr.dll",
                         SearchOption.AllDirectories).FirstOrDefault();
                     if (pluginDll != null)
                         return Path.GetDirectoryName(pluginDll);

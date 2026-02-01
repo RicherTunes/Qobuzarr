@@ -56,9 +56,9 @@ namespace Lidarr.Plugin.Qobuzarr.Services.Caching
                 }
 
                 var json = JsonSerializer.Serialize(entryList, _jsonOptions);
-                _logger?.Debug("Serialized {0} cache entries to JSON ({1} characters)", 
+                _logger?.Debug("Serialized {0} cache entries to JSON ({1} characters)",
                     entryList.Count, json.Length);
-                
+
                 return json;
             }
             catch (Exception ex)
@@ -84,10 +84,10 @@ namespace Lidarr.Plugin.Qobuzarr.Services.Caching
             {
                 var entries = JsonSerializer.Deserialize<List<TEntry>>(serializedData, _jsonOptions);
                 var entryCount = entries?.Count ?? 0;
-                
-                _logger?.Debug("Deserialized {0} cache entries from JSON ({1} characters)", 
+
+                _logger?.Debug("Deserialized {0} cache entries from JSON ({1} characters)",
                     entryCount, serializedData.Length);
-                
+
                 return entries ?? Enumerable.Empty<TEntry>();
             }
             catch (Exception ex)
@@ -205,13 +205,13 @@ namespace Lidarr.Plugin.Qobuzarr.Services.Caching
                     var sample = entryList.Take(sampleSize);
                     var sampleJson = SerializeEntries(sample);
                     var sampleSize_ = Encoding.UTF8.GetByteCount(sampleJson);
-                    
+
                     // Estimate total size with overhead for array structure
                     var estimatedSize = (long)(sampleSize_ * ((double)entryList.Count / sampleSize));
-                    
-                    _logger?.Debug("Estimated serialized size: {0} bytes for {1} entries (based on {2} sample entries)", 
+
+                    _logger?.Debug("Estimated serialized size: {0} bytes for {1} entries (based on {2} sample entries)",
                         estimatedSize, entryList.Count, sampleSize);
-                    
+
                     return estimatedSize;
                 }
             }

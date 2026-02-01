@@ -61,8 +61,8 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
         /// </code>
         /// </example>
         public QobuzSubstringCache(
-            Logger logger = null, 
-            int maxCacheSize = CacheConfiguration.DefaultSubstringCacheSize, 
+            Logger logger = null,
+            int maxCacheSize = CacheConfiguration.DefaultSubstringCacheSize,
             TimeSpan? cacheExpiration = null,
             double similarityThreshold = CacheConfiguration.DefaultSimilarityThreshold,
             ICacheStorage<SubstringCacheEntry> artistCache = null,
@@ -235,7 +235,7 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
                     return;
                 }
 
-                _logger?.Info("📚 STORING ARTIST DISCOGRAPHY: Caching {0} albums for '{1}' - future searches will hit cache", 
+                _logger?.Info("📚 STORING ARTIST DISCOGRAPHY: Caching {0} albums for '{1}' - future searches will hit cache",
                             albums.Count, artist);
 
                 // Store each album individually for precise matching
@@ -247,7 +247,7 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
                 // Also store the complete discography for general artist searches
                 var normalizedArtist = _substringMatcher.NormalizeString(artist);
                 var discographyKey = $"discography_{normalizedArtist}";
-                
+
                 var discographyEntry = new SubstringCacheEntry
                 {
                     Key = discographyKey,
@@ -290,9 +290,9 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
                 if (validEntry != null)
                 {
                     _statistics.RecordHit(validEntry.Key);
-                    
+
                     _logger?.Info("🎯 DISCOGRAPHY CACHE HIT: Found complete catalog for '{0}' - no API call needed!", artist);
-                    
+
                     return new SubstringCacheResult
                     {
                         MatchType = "ArtistDiscography",
@@ -462,7 +462,7 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
 
             var allEntries = GetNonExpiredEntries(_artistCache);
             var match = allEntries.FirstOrDefault(e => e.Key == key);
-            
+
             if (match != null)
             {
                 result = new SubstringCacheResult
@@ -500,7 +500,7 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
             var matchList = matches.ToList();
             var bestMatch = matchList.First();
             var key = bestMatch.Key;
-            
+
             return new SubstringCacheResult
             {
                 MatchType = matchType,
@@ -541,10 +541,10 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
         {
             var allEntries = _artistCache.GetAllEntries();
             var currentSize = allEntries.Count();
-            
+
             var entriesToEvict = _evictionStrategy.SelectEntriesForEviction(
-                allEntries, 
-                _maxCacheSize, 
+                allEntries,
+                _maxCacheSize,
                 currentSize);
 
             foreach (var entry in entriesToEvict)
@@ -559,7 +559,7 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
                 _statistics.RemoveKey(entry.Key);
             }
 
-            _logger?.Debug("Evicted {0} entries using {1} strategy", 
+            _logger?.Debug("Evicted {0} entries using {1} strategy",
                 entriesToEvict.Count(), _evictionStrategy.StrategyName);
         }
 
@@ -590,9 +590,9 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
             var totalEntries = GetTotalCacheSize();
             var uniqueArtists = _artistCache.GetAllKeys().Count();
             var uniqueAlbums = _albumCache.GetAllKeys().Count();
-            
+
             var newStats = _statistics.GetStatistics(totalEntries, uniqueArtists, uniqueAlbums);
-            
+
             return new SubstringCacheStatistics
             {
                 TotalEntries = newStats.TotalEntries,
@@ -613,7 +613,7 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
             var totalEntries = GetTotalCacheSize();
             var uniqueArtists = _artistCache.GetAllKeys().Count();
             var uniqueAlbums = _albumCache.GetAllKeys().Count();
-            
+
             return _statistics.GetStatistics(totalEntries, uniqueArtists, uniqueAlbums);
         }
 

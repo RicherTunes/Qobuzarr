@@ -103,7 +103,7 @@ namespace Lidarr.Plugin.Qobuzarr.Configuration
         /// </summary>
         public static class PreviewPatterns
         {
-            public static readonly string[] PreviewUrlPatterns = 
+            public static readonly string[] PreviewUrlPatterns =
             {
                 "_preview_",
                 "_sample_",
@@ -129,7 +129,7 @@ namespace Lidarr.Plugin.Qobuzarr.Configuration
         {
             public const string TrackNumberFormat = "D2"; // Zero-padded 2 digits
             public const string DateFormat = "yyyy-MM-dd";
-            public static readonly char[] InvalidFileNameChars = 
+            public static readonly char[] InvalidFileNameChars =
             {
                 '<', '>', ':', '"', '/', '\\', '|', '?', '*'
             };

@@ -40,7 +40,7 @@ namespace Lidarr.Plugin.Qobuzarr.Services.Caching
 
             // Calculate number of entries to evict
             var entriesToEvict = Math.Max(1, (int)Math.Ceiling(currentSize * EvictionPercentage));
-            
+
             // For LRU, we would ideally sort by access time, but since we don't have that metadata
             // in the interface, we'll just return the first N entries (FIFO as fallback)
             return allEntries.Take(entriesToEvict);

@@ -40,13 +40,13 @@ namespace Lidarr.Plugin.Qobuzarr.Observability
 
             // Populate if provided
             if (!string.IsNullOrWhiteSpace(correlationId)) scope[LogScopeKeys.CorrelationId] = correlationId;
-            if (!string.IsNullOrWhiteSpace(requestId))     scope[LogScopeKeys.RequestId]     = requestId;
-            if (!string.IsNullOrWhiteSpace(sessionId))     scope[LogScopeKeys.SessionId]     = sessionId;
-            if (!string.IsNullOrWhiteSpace(albumId))       scope[LogScopeKeys.AlbumId]       = albumId;
-            if (!string.IsNullOrWhiteSpace(trackId))       scope[LogScopeKeys.TrackId]       = trackId;
-            if (!string.IsNullOrWhiteSpace(artistId))      scope[LogScopeKeys.ArtistId]      = artistId;
-            if (!string.IsNullOrWhiteSpace(jobId))         scope[LogScopeKeys.JobId]         = jobId;
-            if (retryAttempt.HasValue)                      scope[LogScopeKeys.RetryAttempt]  = retryAttempt.Value;
+            if (!string.IsNullOrWhiteSpace(requestId)) scope[LogScopeKeys.RequestId] = requestId;
+            if (!string.IsNullOrWhiteSpace(sessionId)) scope[LogScopeKeys.SessionId] = sessionId;
+            if (!string.IsNullOrWhiteSpace(albumId)) scope[LogScopeKeys.AlbumId] = albumId;
+            if (!string.IsNullOrWhiteSpace(trackId)) scope[LogScopeKeys.TrackId] = trackId;
+            if (!string.IsNullOrWhiteSpace(artistId)) scope[LogScopeKeys.ArtistId] = artistId;
+            if (!string.IsNullOrWhiteSpace(jobId)) scope[LogScopeKeys.JobId] = jobId;
+            if (retryAttempt.HasValue) scope[LogScopeKeys.RetryAttempt] = retryAttempt.Value;
             if (!string.IsNullOrWhiteSpace(rateLimitBucket)) scope[LogScopeKeys.RateLimitBucket] = rateLimitBucket;
 
             // Ensure a top-level correlation id exists

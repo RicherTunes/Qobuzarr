@@ -156,7 +156,7 @@ namespace Qobuzarr.Tests.TestData
             new("Arti‍st", "Alb‍um", "Zero-width joiner (U+200D)"),
             
             // Very long names
-            new("This Is An Extremely Long Artist Name That Might Cause Issues With Database Field Lengths Or File System Path Limitations When Combined With Album Names", 
+            new("This Is An Extremely Long Artist Name That Might Cause Issues With Database Field Lengths Or File System Path Limitations When Combined With Album Names",
                 "This Is An Extremely Long Album Title That When Combined With The Artist Name And Track Titles Could Exceed Maximum Path Lengths On Various Operating Systems",
                 "Extremely long names"),
             
@@ -219,7 +219,7 @@ namespace Qobuzarr.Tests.TestData
             public string AlbumTitle { get; }
             public string Description { get; }
             public string ExpectedIssue { get; }
-            
+
             public SearchTestCase(string artistName, string albumTitle, string description, string expectedIssue = null)
             {
                 ArtistName = artistName;
@@ -227,7 +227,7 @@ namespace Qobuzarr.Tests.TestData
                 Description = description;
                 ExpectedIssue = expectedIssue ?? "Should handle correctly";
             }
-            
+
             public override string ToString() => $"{ArtistName} - {AlbumTitle} ({Description})";
         }
 

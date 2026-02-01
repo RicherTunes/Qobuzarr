@@ -17,10 +17,10 @@ namespace Lidarr.Plugin.Qobuzarr.Services
         private readonly Logger _logger;
         private readonly Dictionary<string, ApiEndpointHealth> _endpointHealth;
         private readonly object _lockObject = new();
-        
+
         // ENHANCED: Use shared library performance monitoring
         private readonly PerformanceMonitor _performanceMonitor;
-        
+
         private DateTime _lastHealthCheck = DateTime.MinValue;
         private readonly TimeSpan _healthCheckInterval = TimeSpan.FromMinutes(5);
 
@@ -28,7 +28,7 @@ namespace Lidarr.Plugin.Qobuzarr.Services
         {
             _logger = logger ?? LogManager.GetCurrentClassLogger();
             _endpointHealth = new Dictionary<string, ApiEndpointHealth>();
-            
+
             // ENHANCED: Initialize shared library performance monitoring
             _performanceMonitor = new PerformanceMonitor(TimeSpan.FromMinutes(5));
         }
@@ -40,7 +40,7 @@ namespace Lidarr.Plugin.Qobuzarr.Services
         {
             // ENHANCED: Use shared library performance monitoring
             _performanceMonitor.RecordApiCall(endpoint, responseTime, fromCache: false, statusCode: 200);
-            
+
             // Maintain existing Qobuz-specific health tracking
             lock (_lockObject)
             {
@@ -62,7 +62,7 @@ namespace Lidarr.Plugin.Qobuzarr.Services
             // ENHANCED: Use shared library performance monitoring for failures
             var statusCode = GetStatusCodeFromError(errorType, exception);
             _performanceMonitor.RecordApiCall(endpoint, TimeSpan.Zero, fromCache: false, statusCode: statusCode);
-            
+
             // Maintain existing Qobuz-specific health tracking
             lock (_lockObject)
             {
@@ -77,7 +77,7 @@ namespace Lidarr.Plugin.Qobuzarr.Services
                 // Log concerning patterns
                 if (health.ConsecutiveFailures >= 3)
                 {
-                    _logger.Warn("⚠️ API DEGRADATION: {0} has {1} consecutive failures", 
+                    _logger.Warn("⚠️ API DEGRADATION: {0} has {1} consecutive failures",
                                endpoint, health.ConsecutiveFailures);
                 }
             }
@@ -146,7 +146,7 @@ namespace Lidarr.Plugin.Qobuzarr.Services
                     UnhealthyEndpoints = unhealthyEndpoints,
                     TotalEndpoints = _endpointHealth.Count,
                     LastHealthCheck = _lastHealthCheck,
-                    OverallHealth = unhealthyEndpoints > 0 ? "Unhealthy" : 
+                    OverallHealth = unhealthyEndpoints > 0 ? "Unhealthy" :
                                    degradedEndpoints > 0 ? "Degraded" : "Healthy"
                 };
             }
@@ -171,10 +171,10 @@ namespace Lidarr.Plugin.Qobuzarr.Services
                 foreach (var health in _endpointHealth.Values)
                 {
                     health.UpdateMetrics();
-                    
+
                     if (health.SuccessRate < 0.5 && health.TotalCalls > 10)
                     {
-                        _logger.Warn("🏥 UNHEALTHY ENDPOINT: {0} has {1:P1} success rate", 
+                        _logger.Warn("🏥 UNHEALTHY ENDPOINT: {0} has {1:P1} success rate",
                                    health.Endpoint, health.SuccessRate);
                     }
                 }
@@ -205,7 +205,7 @@ namespace Lidarr.Plugin.Qobuzarr.Services
         {
             var sharedSummary = _performanceMonitor.GetSummary();
             var customHealth = GetHealthSummary();
-            
+
             return new
             {
                 SharedLibraryMetrics = new
@@ -224,16 +224,16 @@ namespace Lidarr.Plugin.Qobuzarr.Services
         /// </summary>
         private static int GetStatusCodeFromError(string errorType, Exception exception)
         {
-            if (errorType?.ToLowerInvariant().Contains("rate") == true || 
+            if (errorType?.ToLowerInvariant().Contains("rate") == true ||
                 errorType?.ToLowerInvariant().Contains("limit") == true)
                 return 429;
-                
+
             if (errorType?.ToLowerInvariant().Contains("auth") == true)
                 return 401;
-                
+
             if (exception?.Message?.Contains("404") == true)
                 return 404;
-                
+
             return 500; // Default server error
         }
 
@@ -244,7 +244,7 @@ namespace Lidarr.Plugin.Qobuzarr.Services
         {
             var sharedHealth = 100 - Math.Min(shared.OverallErrorRate, 100);
             var customHealth = custom.HealthPercentage;
-            
+
             // Weight: 70% shared library metrics, 30% Qobuz-specific health
             return (sharedHealth * 0.7) + (customHealth * 0.3);
         }
@@ -272,8 +272,8 @@ namespace Lidarr.Plugin.Qobuzarr.Services
         public Dictionary<string, int> ErrorCounts { get; private set; } = new();
 
         public double SuccessRate => TotalCalls > 0 ? (double)SuccessfulCalls / TotalCalls : 1.0;
-        
-        public TimeSpan AverageResponseTime => RecentResponseTimes.Any() 
+
+        public TimeSpan AverageResponseTime => RecentResponseTimes.Any()
             ? TimeSpan.FromMilliseconds(RecentResponseTimes.Average(t => t.TotalMilliseconds))
             : TimeSpan.Zero;
 
@@ -283,7 +283,7 @@ namespace Lidarr.Plugin.Qobuzarr.Services
             SuccessfulCalls++;
             ConsecutiveFailures = 0;
             LastActivity = DateTime.UtcNow;
-            
+
             RecentResponseTimes.Add(responseTime);
             if (RecentResponseTimes.Count > 50) // Keep last 50 response times
             {
@@ -327,8 +327,8 @@ namespace Lidarr.Plugin.Qobuzarr.Services
         public int TotalEndpoints { get; set; }
         public DateTime LastHealthCheck { get; set; }
         public string OverallHealth { get; set; }
-        
-        public double HealthPercentage => TotalEndpoints > 0 ? 
+
+        public double HealthPercentage => TotalEndpoints > 0 ?
             (double)HealthyEndpoints / TotalEndpoints * 100 : 100;
     }
 

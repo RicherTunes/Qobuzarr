@@ -57,7 +57,7 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
         public QobuzPatternCache(Logger logger = null, int maxCacheSize = CacheConfiguration.DefaultPatternCacheSize, TimeSpan? cacheExpiration = null)
         {
             CacheConfiguration.ValidateCacheSize(maxCacheSize, nameof(maxCacheSize));
-                
+
             _logger = logger ?? LogManager.GetCurrentClassLogger();
             _patternCache = new ConcurrentDictionary<string, PatternCacheEntry>();
             _patternHitCount = new ConcurrentDictionary<string, int>();
@@ -97,7 +97,7 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
                 return null;
 
             var cacheKey = GenerateCacheKey(artist, album, patterns);
-            
+
             if (_patternCache.TryGetValue(cacheKey, out var entry))
             {
                 if (entry.IsExpired(_cacheExpiration))
@@ -107,9 +107,9 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
                 }
 
                 _patternHitCount.AddOrUpdate(cacheKey, 1, (k, v) => v + 1);
-                _logger?.Debug("Pattern cache hit for '{0} - {1}' with patterns: {2}", 
+                _logger?.Debug("Pattern cache hit for '{0} - {1}' with patterns: {2}",
                     artist, album, string.Join(", ", patterns));
-                
+
                 return new CachedQueryResult
                 {
                     CacheKey = cacheKey,
@@ -169,7 +169,7 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
             };
 
             _patternCache.AddOrUpdate(cacheKey, entry, (k, v) => entry);
-            _logger?.Debug("Stored pattern cache for '{0} - {1}' with patterns: {2}", 
+            _logger?.Debug("Stored pattern cache for '{0} - {1}' with patterns: {2}",
                 artist, album, string.Join(", ", patterns));
         }
 
@@ -230,7 +230,7 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
             var normalizedArtist = NormalizeString(artist);
             var normalizedAlbum = NormalizeString(album);
             var patternKey = string.Join("_", patterns.OrderBy(p => p));
-            
+
             return $"{normalizedArtist}|{normalizedAlbum}|{patternKey}";
         }
 
@@ -251,10 +251,10 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
 
             // Convert to lowercase and remove extra whitespace
             var normalized = Regex.Replace(input.ToLowerInvariant(), @"\s+", " ").Trim();
-            
+
             // Remove common punctuation variations
             normalized = Regex.Replace(normalized, @"['""`]", "");
-            
+
             return normalized;
         }
 
@@ -271,7 +271,7 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
         private void EvictLeastUsedEntries()
         {
             var entriesToRemove = _maxCacheSize / 10; // Remove 10% of cache
-            
+
             var leastUsed = _patternHitCount
                 .OrderBy(kvp => kvp.Value)
                 .Take(entriesToRemove)

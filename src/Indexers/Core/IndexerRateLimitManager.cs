@@ -14,7 +14,7 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers.Core
         private readonly Logger _logger;
         private readonly object _rateLimitLock = new object();
         private DateTime _lastRequestTime = DateTime.MinValue;
-        
+
         // Rate limiting configuration
         private static readonly TimeSpan MinRequestInterval = TimeSpan.FromMilliseconds(100); // 10 requests/second max
         private static readonly TimeSpan BurstDelay = TimeSpan.FromSeconds(1); // Delay after burst detected
@@ -27,12 +27,12 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers.Core
         public async Task ApplyRateLimitAsync()
         {
             TimeSpan delayNeeded;
-            
+
             lock (_rateLimitLock)
             {
                 var timeSinceLastRequest = DateTime.UtcNow - _lastRequestTime;
                 delayNeeded = MinRequestInterval - timeSinceLastRequest;
-                
+
                 if (delayNeeded > TimeSpan.Zero)
                 {
                     _logger.Debug("⏳ Rate limiting: Waiting {0}ms before next request", delayNeeded.TotalMilliseconds);

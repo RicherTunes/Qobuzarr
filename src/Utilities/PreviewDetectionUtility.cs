@@ -25,12 +25,12 @@ namespace Lidarr.Plugin.Qobuzarr.Utilities
             "preview=true", "sample=true", "preview=1", "sample=1",
             
             // Demo and duration-limited patterns
-            "_demo_", "_demo.", "demo_", 
+            "_demo_", "_demo.", "demo_",
             "_30sec_", "_30s_", "_clip_", "_short_",
             "duration=30", "clip_", 
             
             // Format-specific patterns
-            "_excerpt_", "excerpt_", 
+            "_excerpt_", "excerpt_",
             "_teaser_", "teaser_",
             "_snippet_", "snippet_"
         };
@@ -85,7 +85,7 @@ namespace Lidarr.Plugin.Qobuzarr.Utilities
             if (!string.IsNullOrWhiteSpace(restrictionMessage))
             {
                 var messageLower = restrictionMessage.ToLowerInvariant();
-                if (messageLower.Contains("preview") || messageLower.Contains("sample") || 
+                if (messageLower.Contains("preview") || messageLower.Contains("sample") ||
                     messageLower.Contains("excerpt") || messageLower.Contains("clip"))
                 {
                     return true;

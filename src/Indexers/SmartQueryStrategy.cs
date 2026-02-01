@@ -52,7 +52,7 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
             _logger = logger;
             _patternLearningEngine = patternLearningEngine;
             _useMLPredictions = useMLPredictions && patternLearningEngine != null;
-            
+
             // Log ML configuration status
             if (_useMLPredictions)
             {
@@ -130,7 +130,7 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
                 return new List<string>();
 
             var complexity = _classifier.ClassifyComplexity(artist, album);
-            
+
             _logger?.Debug("Query complexity for '{0} - {1}': {2}", artist, album, complexity);
 
             return complexity switch
@@ -186,16 +186,16 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
         private List<string> BuildMediumQueries(List<string> originalQueries)
         {
             var optimizedQueries = new List<string>();
-            
+
             // Always include primary query
             optimizedQueries.Add(originalQueries.First());
-            
+
             // Add one alternative if available (prefer dash format for medium complexity)
             if (originalQueries.Count > 1)
             {
                 optimizedQueries.Add(originalQueries[1]);
             }
-            
+
             return optimizedQueries;
         }
 
@@ -254,20 +254,20 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
                 try
                 {
                     var prediction = await _patternLearningEngine.PredictOptimalStrategyAsync(artist, album);
-                    
-                    _logger?.Info("🤖 ML PREDICTION for '{0} - {1}': {2} (confidence: {3:P2})", 
+
+                    _logger?.Info("🤖 ML PREDICTION for '{0} - {1}': {2} (confidence: {3:P2})",
                         artist, album, prediction.PredictedComplexity, prediction.Confidence);
-                    
+
                     // Use ML-recommended queries if confidence is high
                     if (prediction.Confidence > 0.7f && prediction.RecommendedQueries?.Any() == true)
                     {
-                        _logger?.Info("✅ Using ML-recommended queries ({0} queries) - confidence above threshold", 
+                        _logger?.Info("✅ Using ML-recommended queries ({0} queries) - confidence above threshold",
                             prediction.RecommendedQueries.Count);
                         return prediction.RecommendedQueries;
                     }
-                    
+
                     // Fall back to complexity-based optimization for lower confidence
-                    _logger?.Info("⚠️  ML confidence too low ({0:P2}), falling back to rule-based classification", 
+                    _logger?.Info("⚠️  ML confidence too low ({0:P2}), falling back to rule-based classification",
                         prediction.Confidence);
                     return BuildOptimizedQueriesForComplexity(prediction.PredictedComplexity, originalQueries);
                 }
@@ -276,7 +276,7 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
                     _logger?.Warn(ex, "ML prediction failed, falling back to rule-based classification");
                 }
             }
-            
+
             // Fallback to synchronous rule-based approach
             return BuildOptimizedQueries(artist, album, originalQueries);
         }
@@ -315,8 +315,8 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
                 try
                 {
                     await _patternLearningEngine.UpdateModelAsync(result);
-                    _logger?.Debug("ML feedback provided for '{0} - {1}': {2} prediction", 
-                        result.Artist, result.Album, 
+                    _logger?.Debug("ML feedback provided for '{0} - {1}': {2} prediction",
+                        result.Artist, result.Album,
                         result.WasPredictionCorrect ? "Correct" : "Incorrect");
                 }
                 catch (Exception ex)
@@ -376,7 +376,7 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
         public double CalculateExpectedReduction(string artist, string album, int originalQueryCount)
         {
             var complexity = _classifier.ClassifyComplexity(artist, album);
-            
+
             return complexity switch
             {
                 QueryComplexity.Simple => originalQueryCount > 1 ? (originalQueryCount - 1.0) / originalQueryCount : 0.0,

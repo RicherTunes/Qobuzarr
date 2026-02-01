@@ -142,7 +142,7 @@ namespace Qobuzarr.Tests.PropertyBased
             var hasEmailAuth = !string.IsNullOrEmpty(email) && email.Contains("@") && !string.IsNullOrEmpty(password);
             var hasTokenAuth = !string.IsNullOrEmpty(userId) && !string.IsNullOrEmpty(token);
             var shouldBeValid = hasEmailAuth || hasTokenAuth;
-            
+
             credentials.IsValid().Should().Be(shouldBeValid);
         }
 
@@ -196,7 +196,7 @@ namespace Qobuzarr.Tests.PropertyBased
             sanitized.Should().NotContain("|");
             sanitized.Should().NotContain("?");
             sanitized.Should().NotContain("*");
-            
+
             // Should preserve alphanumeric content
             var alphanumericInput = new string(input.Where(char.IsLetterOrDigit).ToArray());
             var alphanumericOutput = new string(sanitized.Where(char.IsLetterOrDigit).ToArray());
@@ -252,14 +252,14 @@ namespace Qobuzarr.Tests.PropertyBased
             // This is a mathematical invariant test
             // Assert that the components always add up correctly
             var accountedFor = successRequests + errorRequests + rateLimitRequests;
-            
+
             // Property: Total should equal sum of all categorized requests
             accountedFor.Should().Be(totalRequests);
-            
+
             // Property: Success rate should be mathematically correct
             var expectedSuccessRate = totalRequests > 0 ? (double)successRequests / totalRequests : 0;
             expectedSuccessRate.Should().BeInRange(0.0, 1.0);
-            
+
             // Property: All counts should be non-negative
             totalRequests.Should().BeGreaterOrEqualTo(0);
             successRequests.Should().BeGreaterOrEqualTo(0);

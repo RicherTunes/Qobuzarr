@@ -25,7 +25,7 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers.Parsing
             var artist = MetadataSanitizer.SanitizeArtistName(album.GetArtistName());
             var albumTitle = album.Title; // Use base title without version
             var version = album.Version?.Trim(); // Get version separately
-            
+
             // Generate quality string
             var formatStr = quality switch
             {
@@ -35,7 +35,7 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers.Parsing
                 QobuzAudioQuality.FLACHiRes24Bit192Khz => "FLAC 24bit 192kHz",
                 _ => "Unknown"
             };
-            
+
             // Determine edition string (from Version field or extracted from title)
             var editionStr = "";
             var cleanAlbumTitle = albumTitle;
@@ -70,19 +70,19 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers.Parsing
                 {
                     editionStr = $" [{extractedVersion}]";
                     cleanAlbumTitle = albumTitle.Replace($"({extractedVersion})", "").Replace($"[{extractedVersion}]", "").Trim();
-                    _logger.Debug("Extracted version from title: '{0}' → album='{1}', version='{2}'", 
+                    _logger.Debug("Extracted version from title: '{0}' → album='{1}', version='{2}'",
                         albumTitle, cleanAlbumTitle, extractedVersion);
                 }
             }
-            
+
             // Use clean album title if we extracted edition, otherwise original
             var titleToUse = string.IsNullOrWhiteSpace(editionStr) ? albumTitle : cleanAlbumTitle;
-            
+
             // Build canonical format: Artist - Album (Year) [Edition] [Explicit] [LIVE] [FORMAT] [WEB]
             var yearStr = year > 0 ? $" ({year})" : "";
             var explicitStr = album.ParentalWarning ? " [Explicit]" : "";
             var liveIndicator = IsLiveAlbum(albumTitle) ? " [LIVE]" : "";
-            
+
             var title = $"{artist} - {titleToUse}{yearStr}{editionStr}{explicitStr}{liveIndicator} [{formatStr}] [WEB]";
             _logger.Trace("Generated title: '{0}'", title);
             return title;
@@ -94,19 +94,19 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers.Parsing
             artist = SanitizeForHyphenFormat(artist);
             albumTitle = SanitizeForHyphenFormat(albumTitle);
             version = SanitizeForHyphenFormat(version);
-            
+
             // Handle missing year gracefully
             var yearStr = year > 1900 ? year.ToString() : DateTime.Now.Year.ToString();
-            
+
             // Primary format: Artist-Album-Version-Source-Year
             // This matches the regex at Parser.cs:73 for version extraction
             var primaryFormat = $"{artist}-{albumTitle}-{version}-WEB-{yearStr}";
-            
+
             // Validate format won't break parser (basic sanity checks)
             if (primaryFormat.Length > 500) // Excessive length might cause issues
             {
                 _logger.Warn("Hyphen format title too long ({0} chars), truncating components", primaryFormat.Length);
-                
+
                 // Intelligently truncate to preserve important info
                 if (version.Length > 50)
                 {
@@ -116,17 +116,17 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers.Parsing
                 {
                     albumTitle = albumTitle.Substring(0, 97) + "...";
                 }
-                
+
                 primaryFormat = $"{artist}-{albumTitle}-{version}-WEB-{yearStr}";
             }
-            
+
             // Final validation pass
             primaryFormat = ValidateHyphenFormat(primaryFormat);
-            
+
             // Log format for debugging
             _logger.Trace("Hyphen format components: Artist='{0}', Album='{1}', Version='{2}', Year='{3}'",
                 artist, albumTitle, version, yearStr);
-            
+
             return primaryFormat;
         }
 
@@ -134,7 +134,7 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers.Parsing
         {
             if (string.IsNullOrWhiteSpace(text))
                 return "Unknown";
-                
+
             // Replace problematic characters that might confuse parser
             text = text.Replace("/", " ");
             text = text.Replace("\\", " ");
@@ -145,13 +145,13 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers.Parsing
             text = text.Replace("<", "");
             text = text.Replace(">", "");
             text = text.Replace("\"", "'");
-            
+
             // Normalize whitespace
             text = Regex.Replace(text, @"\s+", " ").Trim();
-            
+
             // Ensure no leading/trailing hyphens
             text = text.Trim('-');
-            
+
             return text;
         }
 
@@ -159,7 +159,7 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers.Parsing
         {
             // Ensure no double hyphens that might confuse parser
             format = Regex.Replace(format, @"-{2,}", "-");
-            
+
             // Ensure format has expected structure (at least 4 hyphens for Artist-Album-Version-Source-Year)
             var hyphenCount = format.Count(c => c == '-');
             if (hyphenCount < 4)
@@ -167,7 +167,7 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers.Parsing
                 _logger.Warn("Hyphen format has insufficient delimiters ({0}), format may not parse correctly: '{1}'",
                     hyphenCount, format);
             }
-            
+
             return format;
         }
 
@@ -183,7 +183,7 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers.Parsing
                     return content;
                 }
             }
-            
+
             // Extract content from brackets: "Album [Live at Venue]" → "Live at Venue"  
             var bracketsMatch = Regex.Match(title, @"\[([^\]]+)\]");
             if (bracketsMatch.Success)
@@ -194,7 +194,7 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers.Parsing
                     return content;
                 }
             }
-            
+
             return "";
         }
 
@@ -202,7 +202,7 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers.Parsing
         {
             if (string.IsNullOrWhiteSpace(text))
                 return false;
-                
+
             // Comprehensive edition patterns based on production data analysis
             var editionKeywords = new[]
             {
@@ -221,14 +221,14 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers.Parsing
                 // Special releases
                 "legacy", "archive", "complete", "sessions", "demos"
             };
-            
+
             var hasEdition = editionKeywords.Any(keyword => text.Contains(keyword, StringComparison.OrdinalIgnoreCase));
-            
+
             if (hasEdition)
             {
                 _logger.Trace("Edition keywords detected in '{0}'", text);
             }
-            
+
             return hasEdition;
         }
 
@@ -236,7 +236,7 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers.Parsing
         {
             if (string.IsNullOrWhiteSpace(albumTitle))
                 return false;
-                
+
             var liveTerms = new[] { " live", "(live)", "[live]", "live at", "live in", "concert", "unplugged" };
             return liveTerms.Any(term => albumTitle.Contains(term, StringComparison.OrdinalIgnoreCase));
         }

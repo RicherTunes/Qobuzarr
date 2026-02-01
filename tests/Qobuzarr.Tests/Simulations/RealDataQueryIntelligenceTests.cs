@@ -36,7 +36,7 @@ namespace Qobuzarr.Tests.Simulations
                 realAlbums = realAlbums.Take(maxSamples).ToList();
                 _output.WriteLine($"Limiting real album samples to: {maxSamples}");
             }
-            
+
             if (realAlbums.Count == 0)
             {
                 _output.WriteLine("❌ No real album data found. Skipping test.");
@@ -45,7 +45,7 @@ namespace Qobuzarr.Tests.Simulations
 
             var currentStrategy = new CurrentQueryStrategy();
             var smartStrategy = new SmartQueryStrategy();
-            
+
             int currentApiCalls = 0;
             int smartApiCalls = 0;
             var qualityAnalysis = new List<QualityAnalysis>();
@@ -59,14 +59,14 @@ namespace Qobuzarr.Tests.Simulations
 
                 var currentQueries = currentStrategy.BuildQueries(album.ArtistName, album.AlbumTitle);
                 var smartQueries = smartStrategy.BuildQueries(album.ArtistName, album.AlbumTitle);
-                
+
                 currentApiCalls += currentQueries.Count;
                 smartApiCalls += smartQueries.Count;
 
                 // Analyze complexity and quality impact
                 var complexity = new QueryComplexityClassifier().ClassifyComplexity(album.ArtistName, album.AlbumTitle);
                 var qualityLoss = EstimateQualityLoss(currentQueries, smartQueries, complexity);
-                
+
                 qualityAnalysis.Add(new QualityAnalysis
                 {
                     Album = album,
@@ -79,7 +79,7 @@ namespace Qobuzarr.Tests.Simulations
                 // Track category statistics
                 if (!categoryBreakdown.ContainsKey(complexity))
                     categoryBreakdown[complexity] = new CategoryStats();
-                
+
                 var stats = categoryBreakdown[complexity];
                 stats.Count++;
                 stats.CurrentQueries += currentQueries.Count;
@@ -94,7 +94,7 @@ namespace Qobuzarr.Tests.Simulations
             var maxQualityLoss = qualityAnalysis.Max(q => q.QualityLoss);
 
             // Generate detailed report
-            GenerateDetailedReport(totalAlbums, currentApiCalls, smartApiCalls, apiCallReduction, 
+            GenerateDetailedReport(totalAlbums, currentApiCalls, smartApiCalls, apiCallReduction,
                                  avgQualityLoss, maxQualityLoss, categoryBreakdown, qualityAnalysis);
 
             // Validate results
@@ -129,7 +129,7 @@ namespace Qobuzarr.Tests.Simulations
             {
                 var currentQueries = 3; // Always 3 in current strategy
                 var smartQueries = smartStrategy.BuildQueries(album.ArtistName, album.AlbumTitle).Count;
-                
+
                 var gain = (double)(currentQueries - smartQueries) / currentQueries;
                 if (gain < worstCaseGain)
                 {
@@ -180,9 +180,9 @@ namespace Qobuzarr.Tests.Simulations
             // Report distribution
             var total = realAlbums.Count;
             _output.WriteLine($"=== COMPLEXITY DISTRIBUTION ===");
-            _output.WriteLine($"Simple: {distribution[QueryComplexity.Simple]} ({(double)distribution[QueryComplexity.Simple]/total:P1})");
-            _output.WriteLine($"Medium: {distribution[QueryComplexity.Medium]} ({(double)distribution[QueryComplexity.Medium]/total:P1})");
-            _output.WriteLine($"Complex: {distribution[QueryComplexity.Complex]} ({(double)distribution[QueryComplexity.Complex]/total:P1})");
+            _output.WriteLine($"Simple: {distribution[QueryComplexity.Simple]} ({(double)distribution[QueryComplexity.Simple] / total:P1})");
+            _output.WriteLine($"Medium: {distribution[QueryComplexity.Medium]} ({(double)distribution[QueryComplexity.Medium] / total:P1})");
+            _output.WriteLine($"Complex: {distribution[QueryComplexity.Complex]} ({(double)distribution[QueryComplexity.Complex] / total:P1})");
 
             // Assert - Distribution should be reasonable
             distribution[QueryComplexity.Simple].Should().BeGreaterThan(0, "Should have some simple cases");
@@ -260,15 +260,15 @@ namespace Qobuzarr.Tests.Simulations
 
         private string GetStringProperty(JsonElement element, string propertyName)
         {
-            return element.TryGetProperty(propertyName, out var prop) && prop.ValueKind == JsonValueKind.String 
-                ? prop.GetString() ?? "" 
+            return element.TryGetProperty(propertyName, out var prop) && prop.ValueKind == JsonValueKind.String
+                ? prop.GetString() ?? ""
                 : "";
         }
 
         private int GetIntProperty(JsonElement element, string propertyName)
         {
-            return element.TryGetProperty(propertyName, out var prop) && prop.ValueKind == JsonValueKind.Number 
-                ? prop.GetInt32() 
+            return element.TryGetProperty(propertyName, out var prop) && prop.ValueKind == JsonValueKind.Number
+                ? prop.GetInt32()
                 : 0;
         }
 
@@ -297,7 +297,7 @@ namespace Qobuzarr.Tests.Simulations
             };
         }
 
-        private void GenerateDetailedReport(int totalAlbums, int currentApiCalls, int smartApiCalls, 
+        private void GenerateDetailedReport(int totalAlbums, int currentApiCalls, int smartApiCalls,
             double apiCallReduction, double avgQualityLoss, double maxQualityLoss,
             Dictionary<QueryComplexity, CategoryStats> categoryBreakdown, List<QualityAnalysis> qualityAnalysis)
         {
@@ -320,7 +320,7 @@ namespace Qobuzarr.Tests.Simulations
                 var categoryReduction = (double)(stats.CurrentQueries - stats.SmartQueries) / stats.CurrentQueries;
                 var avgQualityLossForCategory = stats.TotalQualityLoss / stats.Count;
 
-                _output.WriteLine($"{category} ({stats.Count:N0} albums, {(double)stats.Count/totalAlbums:P1}):");
+                _output.WriteLine($"{category} ({stats.Count:N0} albums, {(double)stats.Count / totalAlbums:P1}):");
                 _output.WriteLine($"  API reduction: {categoryReduction:P1} ({stats.CurrentQueries - stats.SmartQueries:N0} fewer calls)");
                 _output.WriteLine($"  Avg quality loss: {avgQualityLossForCategory:P3}");
             }

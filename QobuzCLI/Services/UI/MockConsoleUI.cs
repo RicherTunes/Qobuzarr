@@ -59,14 +59,14 @@ namespace QobuzCLI.Services.UI
         public string Prompt(SelectionPrompt<string> prompt)
         {
             _outputCapture.Add($"[SELECTION_PROMPT] {prompt.Title}");
-            
+
             if (_selectionResponses.Count > 0)
             {
                 var response = _selectionResponses.Dequeue();
                 _outputCapture.Add($"[SELECTION_RESPONSE] {response}");
                 return response;
             }
-            
+
             // Default response for testing
             var defaultChoice = "1";
             _outputCapture.Add($"[SELECTION_RESPONSE] {defaultChoice} (default)");
@@ -76,28 +76,28 @@ namespace QobuzCLI.Services.UI
         public string Ask(string prompt)
         {
             _outputCapture.Add($"[INPUT_PROMPT] {prompt}");
-            
+
             if (_inputResponses.Count > 0)
             {
                 var response = _inputResponses.Dequeue();
                 _outputCapture.Add($"[INPUT_RESPONSE] {response}");
                 return response;
             }
-            
+
             return "test-input";
         }
 
         public bool Confirm(string prompt, bool defaultValue = false)
         {
             _outputCapture.Add($"[CONFIRM_PROMPT] {prompt} (default: {defaultValue})");
-            
+
             if (_confirmationResponses.Count > 0)
             {
                 var response = _confirmationResponses.Dequeue();
                 _outputCapture.Add($"[CONFIRM_RESPONSE] {response}");
                 return response;
             }
-            
+
             _outputCapture.Add($"[CONFIRM_RESPONSE] {defaultValue} (default)");
             return defaultValue;
         }

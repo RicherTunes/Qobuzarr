@@ -128,42 +128,42 @@ namespace Lidarr.Plugin.Qobuzarr.Models
         {
             return formatId switch
             {
-                5 => new QobuzQualityInfo 
-                { 
-                    FormatId = 5, 
-                    Format = "MP3", 
-                    Bitrate = 320, 
-                    QualityDescription = "MP3 320kbps" 
+                5 => new QobuzQualityInfo
+                {
+                    FormatId = 5,
+                    Format = "MP3",
+                    Bitrate = 320,
+                    QualityDescription = "MP3 320kbps"
                 },
-                6 => new QobuzQualityInfo 
-                { 
-                    FormatId = 6, 
-                    Format = "FLAC", 
-                    BitDepth = 16, 
-                    SampleRate = 44100, 
-                    QualityDescription = "FLAC CD Quality" 
+                6 => new QobuzQualityInfo
+                {
+                    FormatId = 6,
+                    Format = "FLAC",
+                    BitDepth = 16,
+                    SampleRate = 44100,
+                    QualityDescription = "FLAC CD Quality"
                 },
-                7 => new QobuzQualityInfo 
-                { 
-                    FormatId = 7, 
-                    Format = "FLAC", 
-                    BitDepth = 24, 
-                    SampleRate = 96000, 
-                    QualityDescription = "FLAC Hi-Res 24bit/96kHz" 
+                7 => new QobuzQualityInfo
+                {
+                    FormatId = 7,
+                    Format = "FLAC",
+                    BitDepth = 24,
+                    SampleRate = 96000,
+                    QualityDescription = "FLAC Hi-Res 24bit/96kHz"
                 },
-                27 => new QobuzQualityInfo 
-                { 
-                    FormatId = 27, 
-                    Format = "FLAC", 
-                    BitDepth = 24, 
-                    SampleRate = 192000, 
-                    QualityDescription = "FLAC Hi-Res 24bit/192kHz" 
+                27 => new QobuzQualityInfo
+                {
+                    FormatId = 27,
+                    Format = "FLAC",
+                    BitDepth = 24,
+                    SampleRate = 192000,
+                    QualityDescription = "FLAC Hi-Res 24bit/192kHz"
                 },
-                _ => new QobuzQualityInfo 
-                { 
-                    FormatId = formatId, 
-                    Format = "Unknown", 
-                    QualityDescription = $"Unknown Format (ID: {formatId})" 
+                _ => new QobuzQualityInfo
+                {
+                    FormatId = formatId,
+                    Format = "Unknown",
+                    QualityDescription = $"Unknown Format (ID: {formatId})"
                 }
             };
         }

@@ -125,7 +125,7 @@ namespace Minimal.Tests
             // Assert
             queries.Should().NotBeEmpty("Should generate at least one query");
             queries.Should().Contain(q => q.Contains("Instrumental"), "Should preserve the 'Instrumental' term");
-            
+
             // Should try both with and without artist for instrumental albums
             queries.Should().Contain(q => q.Contains("070 Shake") && q.Contains("Instrumental"), "Should have query with artist");
             queries.Should().Contain(q => !q.Contains("070 Shake") && q.Contains("Instrumental"), "Should have album-only query");

@@ -33,11 +33,11 @@ namespace Qobuzarr.Tests.Quality
         {
             var metrics = new QualityMetrics();
             var testAssembly = Assembly.GetExecutingAssembly();
-            
+
             // Find all test classes
             var testClasses = testAssembly.GetTypes()
-                .Where(t => t.GetMethods().Any(m => 
-                    m.GetCustomAttributes<FactAttribute>().Any() || 
+                .Where(t => t.GetMethods().Any(m =>
+                    m.GetCustomAttributes<FactAttribute>().Any() ||
                     m.GetCustomAttributes<TheoryAttribute>().Any()))
                 .ToList();
 
@@ -47,10 +47,10 @@ namespace Qobuzarr.Tests.Quality
             foreach (var testClass in testClasses)
             {
                 var testMethods = testClass.GetMethods()
-                    .Where(m => m.GetCustomAttributes<FactAttribute>().Any() || 
+                    .Where(m => m.GetCustomAttributes<FactAttribute>().Any() ||
                                m.GetCustomAttributes<TheoryAttribute>().Any())
                     .Count();
-                
+
                 metrics.TotalTestMethods += testMethods;
 
                 // Categorize test classes
@@ -112,16 +112,16 @@ namespace Qobuzarr.Tests.Quality
             var metrics = SimpleQualityAnalyzer.AnalyzeTestSuite();
 
             // Assert - We should have a comprehensive test suite
-            metrics.TotalTestMethods.Should().BeGreaterThan(50, 
+            metrics.TotalTestMethods.Should().BeGreaterThan(50,
                 "should have substantial test coverage");
-            
-            metrics.TotalTestClasses.Should().BeGreaterOrEqualTo(10, 
+
+            metrics.TotalTestClasses.Should().BeGreaterOrEqualTo(10,
                 "should have well-organized test structure");
 
-            metrics.UnitTestClasses.Should().BeGreaterThan(0, 
+            metrics.UnitTestClasses.Should().BeGreaterThan(0,
                 "should have unit test coverage");
 
-            metrics.IntegrationTestClasses.Should().BeGreaterThan(0, 
+            metrics.IntegrationTestClasses.Should().BeGreaterThan(0,
                 "should have integration test coverage");
 
             // Performance tests are optional but welcome
@@ -137,7 +137,7 @@ namespace Qobuzarr.Tests.Quality
             //     "should use custom assertion patterns");
 
             // Quality score should be excellent
-            metrics.QualityScore.Should().BeGreaterOrEqualTo(80, 
+            metrics.QualityScore.Should().BeGreaterOrEqualTo(80,
                 $"should achieve excellent quality (got {metrics.QualityScore}%)");
         }
 
@@ -173,15 +173,15 @@ This represents enterprise-grade test quality with comprehensive coverage patter
 
             // Output the report
             // Note: In a real scenario, this could be saved to a file or CI/CD system
-            
+
             // Validate we've made significant progress
-            metrics.QualityScore.Should().BeGreaterOrEqualTo(80, 
+            metrics.QualityScore.Should().BeGreaterOrEqualTo(80,
                 "should have improved significantly from baseline");
 
             // Validate comprehensive patterns are in place
-            (metrics.IntegrationTestClasses + metrics.PerformanceTestClasses + 
+            (metrics.IntegrationTestClasses + metrics.PerformanceTestClasses +
              metrics.BuilderClasses + metrics.AssertionClasses)
-             .Should().BeGreaterOrEqualTo(1, 
+             .Should().BeGreaterOrEqualTo(1,
                 "should have implemented core quality enhancement patterns");
         }
     }

@@ -1071,7 +1071,7 @@ namespace Qobuzarr.Tests.TestData
         {
             if (!AllEdgeCases.ContainsKey(category))
                 return Enumerable.Empty<object[]>();
-                
+
             var random = new Random(42); // Fixed seed for reproducible tests
             return AllEdgeCases[category]
                 .OrderBy(x => random.Next())
@@ -1084,7 +1084,7 @@ namespace Qobuzarr.Tests.TestData
         public static IEnumerable<object[]> GetStressTestCases()
         {
             return SearchQueryEdgeCases
-                .Where(x => x[1].ToString().Contains("Long") || 
+                .Where(x => x[1].ToString().Contains("Long") ||
                            x[1].ToString().Contains("Unicode") ||
                            x[1].ToString().Contains("Complex"))
                 .Take(20);
@@ -1114,7 +1114,7 @@ namespace Qobuzarr.Tests.TestData
         public static IEnumerable<object[]> GetDangerousChaosMonkeyCases()
         {
             return ChaosMonkeySearchQueries
-                .Where(x => x[1].ToString().Contains("Memory") || 
+                .Where(x => x[1].ToString().Contains("Memory") ||
                            x[1].ToString().Contains("Bomb") ||
                            x[1].ToString().Contains("Overflow") ||
                            x[1].ToString().Contains("Exhaustion") ||
@@ -1128,7 +1128,7 @@ namespace Qobuzarr.Tests.TestData
         public static IEnumerable<object[]> GetSecurityChaosMonkeyCases()
         {
             return ChaosMonkeySearchQueries
-                .Where(x => x[1].ToString().Contains("Injection") || 
+                .Where(x => x[1].ToString().Contains("Injection") ||
                            x[1].ToString().Contains("XSS") ||
                            x[1].ToString().Contains("SQL") ||
                            x[1].ToString().Contains("Attack") ||
@@ -1142,7 +1142,7 @@ namespace Qobuzarr.Tests.TestData
         public static IEnumerable<object[]> GetUnicodeChaosMonkeyCases()
         {
             return ChaosMonkeySearchQueries
-                .Where(x => x[1].ToString().Contains("Unicode") || 
+                .Where(x => x[1].ToString().Contains("Unicode") ||
                            x[1].ToString().Contains("Character") ||
                            x[1].ToString().Contains("Encoding") ||
                            x[1].ToString().Contains("Surrogate"))
@@ -1155,7 +1155,7 @@ namespace Qobuzarr.Tests.TestData
         public static IEnumerable<object[]> GetPerformanceChaosMonkeyCases()
         {
             return ChaosMonkeySearchQueries
-                .Where(x => x[1].ToString().Contains("Regex") || 
+                .Where(x => x[1].ToString().Contains("Regex") ||
                            x[1].ToString().Contains("Backtracking") ||
                            x[1].ToString().Contains("Nested") ||
                            x[1].ToString().Contains("Timing"))
@@ -1190,7 +1190,7 @@ namespace Qobuzarr.Tests.TestData
         {
             var random = new Random(42);
             var allChaos = ChaosMonkeySearchQueries.ToList();
-            
+
             for (int i = 0; i < batchSize; i++)
             {
                 var randomChaos = allChaos[random.Next(allChaos.Count)];
@@ -1527,7 +1527,7 @@ namespace Qobuzarr.Tests.TestData
         public static IEnumerable<object[]> GetUnicodeAttackCases()
         {
             return ExpertLevelChaosQueries
-                .Where(x => x[1].ToString().Contains("Unicode") || 
+                .Where(x => x[1].ToString().Contains("Unicode") ||
                            x[1].ToString().Contains("Surrogate") ||
                            x[1].ToString().Contains("Bidirectional"))
                 .Take(10);
@@ -1539,7 +1539,7 @@ namespace Qobuzarr.Tests.TestData
         public static IEnumerable<object[]> GetFormatExploitationCases()
         {
             return ExpertLevelChaosQueries
-                .Where(x => x[1].ToString().Contains("Format") || 
+                .Where(x => x[1].ToString().Contains("Format") ||
                            x[1].ToString().Contains("Injection") ||
                            x[1].ToString().Contains("Exploit"))
                 .Take(10);
@@ -1551,7 +1551,7 @@ namespace Qobuzarr.Tests.TestData
         public static IEnumerable<object[]> GetFileSystemExploitCases()
         {
             return ExpertLevelChaosFilePaths
-                .Where(x => x[1].ToString().Contains("Exploit") || 
+                .Where(x => x[1].ToString().Contains("Exploit") ||
                            x[1].ToString().Contains("Stream") ||
                            x[1].ToString().Contains("Path"))
                 .Take(10);

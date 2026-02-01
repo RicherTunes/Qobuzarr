@@ -68,7 +68,7 @@ namespace Qobuzarr.Tests.Unit.Security
                     Email = "user@example.com",
                     MD5Password = "password123"
                 };
-                
+
                 // The service should safely extract without executing malicious code
                 credentials.IsValid().Should().BeTrue();
             };
@@ -100,7 +100,7 @@ namespace Qobuzarr.Tests.Unit.Security
                 Email = "user@example.com",
                 MD5Password = "password123"
             };
-            
+
             credentials.IsValid().Should().BeTrue();
         }
 
@@ -219,11 +219,11 @@ namespace Qobuzarr.Tests.Unit.Security
             // Act - Simulate time tampering by checking with past time
             // This tests that expiration is based on UTC and not local time
             var retrievedBeforeTampering = _authService.GetCachedSession();
-            
+
             // Store expired session
             session.ExpiresAt = DateTime.UtcNow.AddHours(-1);
             _authService.StoreSession(session);
-            
+
             var retrievedAfterExpiry = _authService.GetCachedSession();
 
             // Assert
@@ -277,7 +277,7 @@ namespace Qobuzarr.Tests.Unit.Security
             // Act & Assert
             validCredentials.IsTokenAuth().Should().BeTrue();
             validCredentials.IsValid().Should().BeTrue();
-            
+
             // Tampered token should still pass basic validation (format check)
             // But should fail when actually used for authentication
             tamperedCredentials.IsTokenAuth().Should().BeTrue();
@@ -333,7 +333,7 @@ namespace Qobuzarr.Tests.Unit.Security
                         AuthToken = $"token_{i}",
                         ExpiresAt = DateTime.UtcNow.AddMinutes(-1) // Already expired
                     };
-                    
+
                     _authService.StoreSession(failedSession);
                     _authService.ClearSession();
                 }
@@ -378,13 +378,13 @@ namespace Qobuzarr.Tests.Unit.Security
 
                         _authService.StoreSession(session);
                         Thread.Sleep(10); // Small delay to increase chance of race conditions
-                        
+
                         var retrieved = _authService.GetCachedSession();
                         if (retrieved != null)
                         {
                             sessions.Add(retrieved);
                         }
-                        
+
                         _authService.ClearSession();
                     }
                     catch (Exception ex)

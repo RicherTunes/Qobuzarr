@@ -43,13 +43,13 @@ namespace Qobuzarr.Tests.Unit.Indexers
 
             // Assert
             _output.WriteLine($"Simple: {artist} - {album} | Original: {originalQueries.Count} | Optimized: {optimized.Count} | Reduction: {reduction:P0}");
-            
+
             // Simple patterns should use 1 or 2 queries max
-            optimized.Count.Should().BeLessOrEqualTo(2, 
+            optimized.Count.Should().BeLessOrEqualTo(2,
                 $"Simple pattern '{artist} - {album}' should use minimal queries");
-            
+
             // Should achieve at least 33% reduction
-            reduction.Should().BeGreaterOrEqualTo(0.33, 
+            reduction.Should().BeGreaterOrEqualTo(0.33,
                 "Simple patterns should achieve significant reduction");
         }
 
@@ -74,9 +74,9 @@ namespace Qobuzarr.Tests.Unit.Indexers
 
             // Assert
             _output.WriteLine($"Medium: {artist} - {album} | Complexity: {complexity} | Queries: {optimized.Count}");
-            
+
             // Medium patterns should use 1-3 queries based on complexity
-            optimized.Count.Should().BeInRange(1, 3, 
+            optimized.Count.Should().BeInRange(1, 3,
                 $"Medium pattern '{artist} - {album}' should use balanced queries");
         }
 
@@ -102,11 +102,11 @@ namespace Qobuzarr.Tests.Unit.Indexers
 
             // Assert
             _output.WriteLine($"Complex: {artist} - {album} | Complexity: {complexity} | Original: {originalQueries.Count} | Optimized: {optimized.Count}");
-            
+
             // Complex patterns may use more queries to preserve quality
             if (complexity == QueryComplexity.Complex)
             {
-                optimized.Count.Should().BeGreaterOrEqualTo(2, 
+                optimized.Count.Should().BeGreaterOrEqualTo(2,
                     $"Complex pattern '{artist} - {album}' should preserve quality");
             }
         }
@@ -131,10 +131,10 @@ namespace Qobuzarr.Tests.Unit.Indexers
 
             // Assert
             _output.WriteLine($"Edge case: {artist} - {album} | Queries: {optimized.Count}");
-            
+
             optimized.Should().NotBeNull();
             optimized.Should().NotBeEmpty("Should always return at least one query");
-            optimized.Count.Should().BeLessOrEqualTo(originalQueries.Count, 
+            optimized.Count.Should().BeLessOrEqualTo(originalQueries.Count,
                 "Should never increase query count");
         }
 
@@ -148,7 +148,7 @@ namespace Qobuzarr.Tests.Unit.Indexers
             var totalOriginalQueries = 0;
             var totalOptimizedQueries = 0;
             var testCases = new List<(string Artist, string Album, QueryComplexity Expected)>();
-            
+
             testCases.AddRange(MockDataFromRealPatterns.SimplePatterns);
             testCases.AddRange(MockDataFromRealPatterns.MediumPatterns);
             testCases.AddRange(MockDataFromRealPatterns.ComplexPatterns);
@@ -164,7 +164,7 @@ namespace Qobuzarr.Tests.Unit.Indexers
                 };
 
                 var optimized = _strategy.BuildOptimizedQueries(artist, album, originalQueries);
-                
+
                 totalOriginalQueries += originalQueries.Count;
                 totalOptimizedQueries += optimized.Count;
             }
@@ -178,9 +178,9 @@ namespace Qobuzarr.Tests.Unit.Indexers
             _output.WriteLine($"  Optimized queries: {totalOptimizedQueries}");
             _output.WriteLine($"  Overall reduction: {overallReduction:P1}");
 
-            overallReduction.Should().BeGreaterThan(0.40, 
+            overallReduction.Should().BeGreaterThan(0.40,
                 "Should achieve at least 40% reduction on production data");
-            overallReduction.Should().BeLessThan(0.70, 
+            overallReduction.Should().BeLessThan(0.70,
                 "Should not over-optimize (maintain quality)");
         }
 
@@ -217,10 +217,10 @@ namespace Qobuzarr.Tests.Unit.Indexers
             // Assert
             _output.WriteLine($"Processed {totalOperations} optimizations in {elapsed.TotalMilliseconds:F1}ms");
             _output.WriteLine($"Average time per optimization: {avgTimePerOperation:F2} microseconds");
-            
-            elapsed.Should().BeLessThan(System.TimeSpan.FromSeconds(2), 
+
+            elapsed.Should().BeLessThan(System.TimeSpan.FromSeconds(2),
                 "Should handle production scale efficiently");
-            avgTimePerOperation.Should().BeLessThan(2000, 
+            avgTimePerOperation.Should().BeLessThan(2000,
                 "Each optimization should take less than 2ms");
         }
 
@@ -239,7 +239,7 @@ namespace Qobuzarr.Tests.Unit.Indexers
             result2.Should().BeEmpty();
 
             // Test list with null/empty strings
-            var result3 = _strategy.BuildOptimizedQueries("Artist", "Album", 
+            var result3 = _strategy.BuildOptimizedQueries("Artist", "Album",
                 new List<string> { null, "", "  ", "valid query", null });
             result3.Should().NotBeEmpty();
             result3.Should().OnlyContain(q => !string.IsNullOrWhiteSpace(q));

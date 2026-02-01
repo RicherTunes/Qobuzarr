@@ -41,13 +41,13 @@ namespace Lidarr.Plugin.Qobuzarr.Authentication
     {
         private readonly IQobuzAuthenticationService _authService;
         private readonly Logger _logger;
-        
+
         // State management
         private readonly SemaphoreSlim _refreshSemaphore = new SemaphoreSlim(1, 1);
         private volatile bool _isRefreshing = false;
         private DateTime _lastRefreshAttempt = DateTime.MinValue;
         private int _consecutiveFailures = 0;
-        
+
         // Configuration
         private readonly TimeSpan _refreshCooldown = TimeSpan.FromSeconds(Constants.QobuzarrConstants.Defaults.TokenRefreshCooldownSeconds); // Minimum time between refresh attempts
         private readonly TimeSpan _refreshBuffer = TimeSpan.FromMinutes(Constants.QobuzarrConstants.Defaults.TokenRefreshBufferMinutes); // Refresh this many minutes before expiry
@@ -55,7 +55,7 @@ namespace Lidarr.Plugin.Qobuzarr.Authentication
         private readonly TimeSpan _initialRetryDelay = TimeSpan.FromSeconds(Constants.QobuzarrConstants.Defaults.TokenInitialRetryDelaySeconds);
         private readonly double _backoffMultiplier = Constants.QobuzarrConstants.Defaults.TokenBackoffMultiplier;
         private readonly int _circuitBreakerThreshold = Constants.QobuzarrConstants.Defaults.TokenCircuitBreakerThreshold; // Fail-open after this many consecutive failures
-        
+
         // Metrics
         private long _successfulRefreshes = 0;
         private long _failedRefreshes = 0;
@@ -73,8 +73,8 @@ namespace Lidarr.Plugin.Qobuzarr.Authentication
         {
             _authService = authService ?? throw new ArgumentNullException(nameof(authService));
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
-            
-            _logger.Debug("TokenRefresher initialized with {0}min buffer and {1}s cooldown", 
+
+            _logger.Debug("TokenRefresher initialized with {0}min buffer and {1}s cooldown",
                 _refreshBuffer.TotalMinutes, _refreshCooldown.TotalSeconds);
         }
 
@@ -94,12 +94,12 @@ namespace Lidarr.Plugin.Qobuzarr.Authentication
 
             var timeUntilExpiry = session.ExpiresAt - DateTime.UtcNow;
             var shouldRefresh = timeUntilExpiry <= _refreshBuffer;
-            
+
             if (shouldRefresh)
             {
                 _logger.Debug("Session should refresh - expires in {0:F1} minutes", timeUntilExpiry.TotalMinutes);
             }
-            
+
             return shouldRefresh;
         }
 
@@ -112,13 +112,13 @@ namespace Lidarr.Plugin.Qobuzarr.Authentication
         /// <param name="cancellationToken">Token to cancel the operation</param>
         /// <returns>New session if refresh successful, null if failed</returns>
         public async Task<QobuzSession?> RefreshSessionAsync(
-            QobuzSession currentSession, 
-            QobuzCredentials originalCredentials, 
+            QobuzSession currentSession,
+            QobuzCredentials originalCredentials,
             CancellationToken cancellationToken = default)
         {
             if (currentSession == null)
                 throw new ArgumentNullException(nameof(currentSession));
-                
+
             if (originalCredentials == null)
                 throw new ArgumentNullException(nameof(originalCredentials));
 
@@ -157,14 +157,14 @@ namespace Lidarr.Plugin.Qobuzarr.Authentication
         /// <param name="cancellationToken">Token to cancel the operation</param>
         /// <returns>New session if successful</returns>
         public async Task<QobuzSession> ForceRefreshAsync(
-            QobuzCredentials originalCredentials, 
+            QobuzCredentials originalCredentials,
             CancellationToken cancellationToken = default)
         {
             if (originalCredentials == null)
                 throw new ArgumentNullException(nameof(originalCredentials));
 
             _logger.Info("Forcing token refresh (bypassing cooldowns)");
-            
+
             await _refreshSemaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
             try
             {
@@ -175,23 +175,23 @@ namespace Lidarr.Plugin.Qobuzarr.Authentication
                 OnRefreshStarted("Force refresh requested");
 
                 var newSession = await _authService.AuthenticateAsync(originalCredentials).ConfigureAwait(false);
-                
+
                 if (newSession != null && newSession.IsValid())
                 {
                     Interlocked.Increment(ref _successfulRefreshes);
                     _lastSuccessfulRefresh = DateTime.UtcNow;
                     _consecutiveFailures = 0;
-                    
+
                     OnRefreshCompleted(newSession, true);
                     _logger.Info("✅ Force refresh successful");
-                    
+
                     return newSession;
                 }
                 else
                 {
                     Interlocked.Increment(ref _failedRefreshes);
                     _consecutiveFailures++;
-                    
+
                     var exception = new QobuzAuthenticationException("Force refresh returned invalid session");
                     OnRefreshFailed(exception, true);
                     throw exception;
@@ -212,7 +212,7 @@ namespace Lidarr.Plugin.Qobuzarr.Authentication
         {
             var uptime = DateTime.UtcNow - _serviceStartTime;
             var successRate = _totalRefreshAttempts > 0 ? (double)_successfulRefreshes / _totalRefreshAttempts : 0.0;
-            
+
             return new TokenRefreshStats
             {
                 ServiceUptime = uptime,
@@ -310,8 +310,8 @@ namespace Lidarr.Plugin.Qobuzarr.Authentication
         #region Private Implementation
 
         private async Task<QobuzSession?> PerformRefreshWithRetry(
-            QobuzSession currentSession, 
-            QobuzCredentials originalCredentials, 
+            QobuzSession currentSession,
+            QobuzCredentials originalCredentials,
             CancellationToken cancellationToken)
         {
             await _refreshSemaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
@@ -332,18 +332,18 @@ namespace Lidarr.Plugin.Qobuzarr.Authentication
                     try
                     {
                         _logger.Debug("Token refresh attempt {0}/{1}", attempt, _maxRetryAttempts);
-                        
+
                         newSession = await _authService.AuthenticateAsync(originalCredentials).ConfigureAwait(false);
-                        
+
                         if (newSession != null && newSession.IsValid())
                         {
                             Interlocked.Increment(ref _successfulRefreshes);
                             _lastSuccessfulRefresh = DateTime.UtcNow;
                             _consecutiveFailures = 0;
-                            
+
                             _logger.Info("✅ Token refresh successful on attempt {0}", attempt);
                             OnRefreshCompleted(newSession, false);
-                            
+
                             return newSession;
                         }
                         else
@@ -355,12 +355,12 @@ namespace Lidarr.Plugin.Qobuzarr.Authentication
                     {
                         lastException = ex;
                         _logger.Warn("Token refresh attempt {0} failed: {1}", attempt, ex.Message);
-                        
+
                         if (cancellationToken.IsCancellationRequested)
                         {
                             break;
                         }
-                        
+
                         // Exponential backoff
                         await Task.Delay(delay, cancellationToken).ConfigureAwait(false);
                         delay = TimeSpan.FromMilliseconds(delay.TotalMilliseconds * _backoffMultiplier);
@@ -370,12 +370,12 @@ namespace Lidarr.Plugin.Qobuzarr.Authentication
                 // All attempts failed
                 Interlocked.Increment(ref _failedRefreshes);
                 _consecutiveFailures++;
-                
+
                 var finalException = lastException ?? new QobuzAuthenticationException("Token refresh failed - unknown error");
                 OnRefreshFailed(finalException, false);
-                
+
                 _logger.Error("❌ Token refresh failed after {0} attempts", _maxRetryAttempts);
-                
+
                 return null;
             }
             finally
@@ -389,7 +389,7 @@ namespace Lidarr.Plugin.Qobuzarr.Authentication
         {
             const int maxWaitSeconds = 60;
             var waitStart = DateTime.UtcNow;
-            
+
             while (_isRefreshing && !cancellationToken.IsCancellationRequested)
             {
                 if (DateTime.UtcNow - waitStart > TimeSpan.FromSeconds(maxWaitSeconds))
@@ -397,7 +397,7 @@ namespace Lidarr.Plugin.Qobuzarr.Authentication
                     _logger.Warn("Timeout waiting for refresh completion");
                     break;
                 }
-                
+
                 await Task.Delay(500, cancellationToken).ConfigureAwait(false);
             }
         }

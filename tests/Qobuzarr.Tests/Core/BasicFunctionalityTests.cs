@@ -25,7 +25,7 @@ namespace Qobuzarr.Tests.Core
                 MD5Password = "password123",
                 AppId = "test_app_id"
             };
-            
+
             emailCreds.IsValid().Should().BeTrue();
             emailCreds.IsEmailAuth().Should().BeTrue();
             emailCreds.IsTokenAuth().Should().BeFalse();
@@ -41,7 +41,7 @@ namespace Qobuzarr.Tests.Core
                 AuthToken = "sample_token_123",
                 AppId = "test_app_id"
             };
-            
+
             tokenCreds.IsValid().Should().BeTrue();
             tokenCreds.IsEmailAuth().Should().BeFalse();
             tokenCreds.IsTokenAuth().Should().BeTrue();
@@ -127,7 +127,7 @@ namespace Qobuzarr.Tests.Core
 
             mp3Size.Should().BeGreaterThan(0);
             flacSize.Should().BeGreaterThan(mp3Size); // FLAC should be larger than MP3
-            
+
             // Reasonable size ranges for a 4578 seconds album (13 tracks)
             mp3Size.Should().BeLessThan(500_000_000); // < 500MB for MP3
             flacSize.Should().BeGreaterThan(30_000_000); // > 30MB for FLAC (more realistic)
@@ -145,7 +145,7 @@ namespace Qobuzarr.Tests.Core
             };
 
             var safeTitle = album.GetSafeFolderName();
-            
+
             safeTitle.Should().NotContain(":");
             safeTitle.Should().NotContain("?");
             safeTitle.Should().NotContain("<");
@@ -168,7 +168,7 @@ namespace Qobuzarr.Tests.Core
             };
 
             var stringRepresentation = credentials.ToString();
-            
+
             stringRepresentation.Should().NotContain("secretpassword");
             stringRepresentation.Should().NotContain("secrettoken");
             // ToString() returns default class name, which is safe but doesn't expose email
@@ -208,7 +208,7 @@ namespace Qobuzarr.Tests.Core
             // but should be invalid for our business logic
             var credentials = new QobuzCredentials { Email = "@domain.com", MD5Password = "test", AppId = "test" };
             var isValid = credentials.IsValid() && credentials.IsEmailAuth();
-            
+
             // This email should be invalid as it lacks a username part
             isValid.Should().BeFalse();
         }

@@ -34,10 +34,10 @@ namespace QobuzCLI.Services
         public async Task<QobuzConfig> LoadConfigAsync()
         {
             var config = await _baseConfigService.LoadConfigAsync();
-            
+
             // Load sensitive fields from secure storage
             await LoadSecureFieldsAsync(config);
-            
+
             return config;
         }
 
@@ -48,13 +48,13 @@ namespace QobuzCLI.Services
         {
             // Save sensitive fields to secure storage
             await SaveSecureFieldsAsync(config);
-            
+
             // Create a copy without sensitive fields for regular config storage
             var publicConfig = CreatePublicConfig(config);
-            
+
             // Save the public config through the base service
             await _baseConfigService.SaveConfigAsync(publicConfig);
-            
+
             _logger.LogInformation("Configuration saved with secure credential storage");
         }
 
@@ -86,7 +86,7 @@ namespace QobuzCLI.Services
         {
             var hasPassword = await _credentialStorage.HasCredentialAsync(PASSWORD_KEY);
             var hasToken = await _credentialStorage.HasCredentialAsync(AUTH_TOKEN_KEY);
-            
+
             return hasPassword || hasToken;
         }
 
@@ -96,9 +96,9 @@ namespace QobuzCLI.Services
         public async Task MigrateToSecureStorageAsync()
         {
             var config = await _baseConfigService.LoadConfigAsync();
-            
+
             var migrated = false;
-            
+
             // Migrate password if present
             if (!string.IsNullOrEmpty(config.Password))
             {
@@ -107,7 +107,7 @@ namespace QobuzCLI.Services
                 migrated = true;
                 _logger.LogInformation("Migrated password to secure storage");
             }
-            
+
             // Migrate auth token if present
             if (!string.IsNullOrEmpty(config.AuthToken))
             {
@@ -116,7 +116,7 @@ namespace QobuzCLI.Services
                 migrated = true;
                 _logger.LogInformation("Migrated auth token to secure storage");
             }
-            
+
             // Migrate app secret if present
             if (!string.IsNullOrEmpty(config.AppSecret))
             {
@@ -125,7 +125,7 @@ namespace QobuzCLI.Services
                 migrated = true;
                 _logger.LogInformation("Migrated app secret to secure storage");
             }
-            
+
             if (migrated)
             {
                 await _baseConfigService.SaveConfigAsync(config);
@@ -142,13 +142,13 @@ namespace QobuzCLI.Services
                 {
                     config.Password = await _credentialStorage.RetrieveCredentialAsync(PASSWORD_KEY);
                 }
-                
+
                 // Load auth token from secure storage if not already present
                 if (string.IsNullOrEmpty(config.AuthToken))
                 {
                     config.AuthToken = await _credentialStorage.RetrieveCredentialAsync(AUTH_TOKEN_KEY);
                 }
-                
+
                 // Load app secret from secure storage if not already present
                 if (string.IsNullOrEmpty(config.AppSecret))
                 {
@@ -171,13 +171,13 @@ namespace QobuzCLI.Services
                 {
                     await _credentialStorage.StoreCredentialAsync(PASSWORD_KEY, config.Password);
                 }
-                
+
                 // Store auth token securely if present
                 if (!string.IsNullOrEmpty(config.AuthToken))
                 {
                     await _credentialStorage.StoreCredentialAsync(AUTH_TOKEN_KEY, config.AuthToken);
                 }
-                
+
                 // Store app secret securely if present
                 if (!string.IsNullOrEmpty(config.AppSecret))
                 {
@@ -233,7 +233,7 @@ namespace QobuzCLI.Services
                 ValidateDownloads = originalConfig.ValidateDownloads,
                 PartialSizeTolerancePercent = originalConfig.PartialSizeTolerancePercent,
                 PreferredFormats = originalConfig.PreferredFormats,
-                
+
                 // Exclude sensitive fields - they will be stored securely
                 Password = null,
                 AuthToken = null,

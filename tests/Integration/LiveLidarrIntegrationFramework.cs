@@ -43,28 +43,28 @@ namespace Qobuzarr.IntegrationTests
                 throw new InvalidOperationException("Live integration tests are disabled (set ENABLE_LIVE_INTEGRATION_TESTS=true to enable)");
             }
             _httpClient = new HttpClient();
-            
+
             // Load configuration from environment and .env file
             DotNetEnv.Env.TraversePath().Load();
-            
+
             var configuration = new ConfigurationBuilder()
                 .AddEnvironmentVariables()
                 .Build();
-            
+
             _lidarrUrl = configuration["LIDARR_URL"] ?? throw new InvalidOperationException("LIDARR_URL not configured");
             _lidarrApiKey = configuration["LIDARR_API_KEY"] ?? throw new InvalidOperationException("LIDARR_API_KEY not configured");
-            
+
             _dockerContainerName = configuration["DOCKER_CONTAINER_NAME"];
             _unraidHost = configuration["UNRAID_HOST"];
             _unraidApiKey = configuration["UNRAID_API_KEY"];
-            
+
             _isDockerEnvironment = !string.IsNullOrWhiteSpace(_dockerContainerName);
             _isUnraidEnvironment = !string.IsNullOrWhiteSpace(_unraidHost) && !string.IsNullOrWhiteSpace(_unraidApiKey);
-            
+
             _httpClient.DefaultRequestHeaders.Add("X-Api-Key", _lidarrApiKey);
             // Keep tight timeouts in test framework to avoid long hangs
             _httpClient.Timeout = TimeSpan.FromSeconds(5);
-            
+
             _output.WriteLine($"🎵 Live Lidarr Integration Framework");
             _output.WriteLine($"  Lidarr URL: {_lidarrUrl}");
             _output.WriteLine($"  Docker: {(_isDockerEnvironment ? $"✅ {_dockerContainerName}" : "❌ Not configured")}");
@@ -77,40 +77,40 @@ namespace Qobuzarr.IntegrationTests
         public async Task<ValidationResult> ValidateBasicConnectivityAsync()
         {
             var result = new ValidationResult("Basic Connectivity");
-            
+
             try
             {
                 // Test Lidarr API connectivity
                 _output.WriteLine("🔍 Testing Lidarr API connectivity...");
                 var statusResponse = await _httpClient.GetAsync($"{_lidarrUrl}/api/v1/system/status");
-                
+
                 if (!statusResponse.IsSuccessStatusCode)
                 {
                     result.AddError($"Lidarr API not accessible: {statusResponse.StatusCode}");
                     return result;
                 }
-                
+
                 var statusContent = await statusResponse.Content.ReadAsStringAsync();
                 var statusData = JsonConvert.DeserializeObject<dynamic>(statusContent);
                 result.AddInfo($"Lidarr Version: {statusData?.version}");
                 result.AddInfo($"Build Time: {statusData?.buildTime}");
-                
+
                 // Check if Qobuzarr plugin is loaded
                 var indexerResponse = await _httpClient.GetAsync($"{_lidarrUrl}/api/v1/indexer");
                 if (indexerResponse.IsSuccessStatusCode)
                 {
                     var indexerContent = await indexerResponse.Content.ReadAsStringAsync();
                     var indexers = JsonConvert.DeserializeObject<JArray>(indexerContent);
-                    
+
                     var qobuzIndexer = indexers?.FirstOrDefault(i => i["implementation"]?.ToString() == "QobuzIndexer");
                     if (qobuzIndexer != null)
                     {
                         var indexerId = JsonExtractor.RequireInt(
-                            qobuzIndexer["id"], 
-                            "indexer.id", 
-                            "/api/v1/indexer", 
+                            qobuzIndexer["id"],
+                            "indexer.id",
+                            "/api/v1/indexer",
                             indexerContent);
-                        
+
                         result.AddSuccess($"Qobuzarr indexer found (ID: {indexerId})");
                         result.Data["QobuzIndexerId"] = indexerId;
                         result.Data["QobuzIndexerEnabled"] = JsonExtractor.TryGetBool(qobuzIndexer["enable"]);
@@ -120,23 +120,23 @@ namespace Qobuzarr.IntegrationTests
                         result.AddError("Qobuzarr indexer not found in Lidarr");
                     }
                 }
-                
+
                 // Check download client
                 var downloadClientResponse = await _httpClient.GetAsync($"{_lidarrUrl}/api/v1/downloadclient");
                 if (downloadClientResponse.IsSuccessStatusCode)
                 {
                     var downloadContent = await downloadClientResponse.Content.ReadAsStringAsync();
                     var downloadClients = JsonConvert.DeserializeObject<JArray>(downloadContent);
-                    
+
                     var qobuzDownloadClient = downloadClients?.FirstOrDefault(d => d["implementation"]?.ToString() == "QobuzDownloadClient");
                     if (qobuzDownloadClient != null)
                     {
                         var clientId = JsonExtractor.RequireInt(
-                            qobuzDownloadClient["id"], 
-                            "downloadclient.id", 
-                            "/api/v1/downloadclient", 
+                            qobuzDownloadClient["id"],
+                            "downloadclient.id",
+                            "/api/v1/downloadclient",
                             downloadContent);
-                        
+
                         result.AddSuccess($"Qobuzarr download client found (ID: {clientId})");
                         result.Data["QobuzDownloadClientId"] = clientId;
                         result.Data["QobuzDownloadClientEnabled"] = JsonExtractor.TryGetBool(qobuzDownloadClient["enable"]);
@@ -146,14 +146,14 @@ namespace Qobuzarr.IntegrationTests
                         result.AddWarning("Qobuzarr download client not configured");
                     }
                 }
-                
+
                 result.IsSuccess = true;
             }
             catch (Exception ex)
             {
                 result.AddError($"Connectivity test failed: {ex.Message}");
             }
-            
+
             return result;
         }
 
@@ -163,20 +163,20 @@ namespace Qobuzarr.IntegrationTests
         public async Task<ValidationResult> DeployPluginAsync(string? pluginPath = null)
         {
             var result = new ValidationResult("Plugin Deployment");
-            
+
             try
             {
                 // Default to the standard build output
                 pluginPath ??= "bin/Lidarr.Plugin.Qobuzarr.dll";
-                
+
                 if (!File.Exists(pluginPath))
                 {
                     result.AddError($"Plugin file not found: {pluginPath}");
                     return result;
                 }
-                
+
                 _output.WriteLine($"🚀 Deploying plugin from: {pluginPath}");
-                
+
                 if (_isDockerEnvironment)
                 {
                     result = await DeployToDockerAsync(pluginPath);
@@ -195,7 +195,7 @@ namespace Qobuzarr.IntegrationTests
             {
                 result.AddError($"Deployment failed: {ex.Message}");
             }
-            
+
             return result;
         }
 
@@ -205,11 +205,11 @@ namespace Qobuzarr.IntegrationTests
         public async Task<ValidationResult> RestartLidarrAsync()
         {
             var result = new ValidationResult("Lidarr Restart");
-            
+
             try
             {
                 _output.WriteLine("🔄 Restarting Lidarr...");
-                
+
                 if (_isDockerEnvironment)
                 {
                     result = await RestartDockerContainerAsync();
@@ -224,7 +224,7 @@ namespace Qobuzarr.IntegrationTests
                     var restartPayload = JsonConvert.SerializeObject(new { name = "Restart" });
                     var content = new StringContent(restartPayload, Encoding.UTF8, "application/json");
                     var response = await _httpClient.PostAsync($"{_lidarrUrl}/api/v1/command", content);
-                    
+
                     if (response.IsSuccessStatusCode)
                     {
                         result.AddSuccess("Restart command sent via API");
@@ -241,7 +241,7 @@ namespace Qobuzarr.IntegrationTests
             {
                 result.AddError($"Restart failed: {ex.Message}");
             }
-            
+
             return result;
         }
 
@@ -252,13 +252,13 @@ namespace Qobuzarr.IntegrationTests
         {
             var result = new ValidationResult("Log Monitoring");
             var logs = new List<string>();
-            
+
             try
             {
                 _output.WriteLine($"📋 Monitoring logs for {duration.TotalMinutes:F1} minutes (filter: '{filter}')...");
-                
+
                 var endTime = DateTime.UtcNow.Add(duration);
-                
+
                 while (DateTime.UtcNow < endTime)
                 {
                     if (_isDockerEnvironment)
@@ -272,17 +272,17 @@ namespace Qobuzarr.IntegrationTests
                         var apiLogs = await GetLidarrLogsViaApiAsync(filter);
                         logs.AddRange(apiLogs);
                     }
-                    
+
                     await Task.Delay(TimeSpan.FromSeconds(5));
                 }
-                
+
                 result.Data["LogEntries"] = logs;
                 result.AddInfo($"Collected {logs.Count} log entries");
-                
+
                 // Analyze logs for issues
                 var errors = logs.Where(log => log.Contains("Error") || log.Contains("Exception")).ToList();
                 var warnings = logs.Where(log => log.Contains("Warn")).ToList();
-                
+
                 if (errors.Any())
                 {
                     result.AddError($"Found {errors.Count} errors in logs");
@@ -291,19 +291,19 @@ namespace Qobuzarr.IntegrationTests
                         result.AddError($"  {error}");
                     }
                 }
-                
+
                 if (warnings.Any())
                 {
                     result.AddWarning($"Found {warnings.Count} warnings in logs");
                 }
-                
+
                 result.IsSuccess = !errors.Any();
             }
             catch (Exception ex)
             {
                 result.AddError($"Log monitoring failed: {ex.Message}");
             }
-            
+
             return result;
         }
 
@@ -313,11 +313,11 @@ namespace Qobuzarr.IntegrationTests
         public async Task<ValidationResult> RunEndToEndTestAsync()
         {
             var result = new ValidationResult("End-to-End Test");
-            
+
             try
             {
                 _output.WriteLine("🎯 Starting comprehensive end-to-end test...");
-                
+
                 // Step 1: Validate connectivity
                 var connectivityResult = await ValidateBasicConnectivityAsync();
                 if (!connectivityResult.IsSuccess)
@@ -326,22 +326,22 @@ namespace Qobuzarr.IntegrationTests
                     result.Merge(connectivityResult);
                     return result;
                 }
-                
+
                 // Step 2: Test search functionality
                 var searchResult = await TestSearchFunctionalityAsync();
                 result.Merge(searchResult);
-                
+
                 // Step 3: Test download functionality (if downloads found)
                 if (searchResult.IsSuccess && searchResult.Data.ContainsKey("FoundReleases"))
                 {
                     var downloadResult = await TestDownloadFunctionalityAsync();
                     result.Merge(downloadResult);
                 }
-                
+
                 // Step 4: Monitor for errors during operations
                 var monitorResult = await MonitorLogsAsync(TimeSpan.FromMinutes(2), "Qobuz");
                 result.Merge(monitorResult);
-                
+
                 result.IsSuccess = connectivityResult.IsSuccess && searchResult.IsSuccess;
                 result.AddInfo($"End-to-end test completed. Success: {result.IsSuccess}");
             }
@@ -349,7 +349,7 @@ namespace Qobuzarr.IntegrationTests
             {
                 result.AddError($"End-to-end test failed: {ex.Message}");
             }
-            
+
             return result;
         }
 
@@ -359,11 +359,11 @@ namespace Qobuzarr.IntegrationTests
         public async Task<ValidationResult> TestSearchFunctionalityAsync()
         {
             var result = new ValidationResult("Search Functionality");
-            
+
             try
             {
                 _output.WriteLine("🔍 Testing search functionality...");
-                
+
                 // Get a wanted album to search for
                 var wantedResponse = await _httpClient.GetAsync($"{_lidarrUrl}/api/v1/wanted/missing?pageSize=3");
                 if (!wantedResponse.IsSuccessStatusCode)
@@ -371,52 +371,52 @@ namespace Qobuzarr.IntegrationTests
                     result.AddError("Cannot access wanted albums");
                     return result;
                 }
-                
+
                 var wantedContent = await wantedResponse.Content.ReadAsStringAsync();
                 var wantedData = JsonConvert.DeserializeObject<JObject>(wantedContent);
                 var albums = wantedData?["records"] as JArray;
-                
+
                 if (albums == null || albums.Count == 0)
                 {
                     result.AddWarning("No wanted albums found for testing");
                     return result;
                 }
-                
+
                 var testAlbum = albums[0];
                 var albumId = JsonExtractor.RequireInt(
-                    testAlbum["id"], 
-                    "records[0].id", 
-                    "/api/v1/wanted/missing", 
+                    testAlbum["id"],
+                    "records[0].id",
+                    "/api/v1/wanted/missing",
                     wantedContent);
                 var albumTitle = JsonExtractor.TryGetString(testAlbum["title"]);
                 var artistName = JsonExtractor.TryGetString(testAlbum["artist"]?["artistName"]);
-                
+
                 _output.WriteLine($"🎯 Testing search for: {artistName} - {albumTitle}");
-                
+
                 // Trigger album search
-                var searchPayload = JsonConvert.SerializeObject(new 
-                { 
+                var searchPayload = JsonConvert.SerializeObject(new
+                {
                     name = "AlbumSearch",
-                    albumIds = new[] { albumId } 
+                    albumIds = new[] { albumId }
                 });
                 var searchContent = new StringContent(searchPayload, Encoding.UTF8, "application/json");
-                
+
                 var searchResponse = await _httpClient.PostAsync($"{_lidarrUrl}/api/v1/command", searchContent);
-                
+
                 if (searchResponse.IsSuccessStatusCode)
                 {
                     var searchResult = await searchResponse.Content.ReadAsStringAsync();
                     var searchResultData = JsonConvert.DeserializeObject<JObject>(searchResult);
                     var commandId = JsonExtractor.RequireInt(
-                        searchResultData?["id"], 
-                        "id", 
-                        "/api/v1/command", 
+                        searchResultData?["id"],
+                        "id",
+                        "/api/v1/command",
                         searchResult);
-                    
+
                     // Monitor search progress
                     var progressResult = await MonitorCommandProgressAsync(commandId);
                     result.Merge(progressResult);
-                    
+
                     // Check if any releases were found
                     var releases = await GetReleasesForAlbumAsync(albumId);
                     if (releases.Any())
@@ -428,7 +428,7 @@ namespace Qobuzarr.IntegrationTests
                     {
                         result.AddWarning("Search completed but no releases found");
                     }
-                    
+
                     result.IsSuccess = true;
                 }
                 else
@@ -440,7 +440,7 @@ namespace Qobuzarr.IntegrationTests
             {
                 result.AddError($"Search test failed: {ex.Message}");
             }
-            
+
             return result;
         }
 
@@ -450,14 +450,14 @@ namespace Qobuzarr.IntegrationTests
         public async Task<ValidationResult> TestDownloadFunctionalityAsync()
         {
             var result = new ValidationResult("Download Functionality");
-            
+
             try
             {
                 _output.WriteLine("📥 Testing download functionality...");
-                
+
                 // Get current queue size
                 var queueBefore = await GetDownloadQueueAsync();
-                
+
                 // Get the first available release
                 var releasesResponse = await _httpClient.GetAsync($"{_lidarrUrl}/api/v1/release?albumId=1&pageSize=1");
                 if (!releasesResponse.IsSuccessStatusCode)
@@ -465,50 +465,50 @@ namespace Qobuzarr.IntegrationTests
                     result.AddWarning("No releases available for download testing");
                     return result;
                 }
-                
+
                 var releasesContent = await releasesResponse.Content.ReadAsStringAsync();
                 var releases = JsonConvert.DeserializeObject<JArray>(releasesContent);
-                
+
                 if (releases == null || releases.Count == 0)
                 {
                     result.AddWarning("No releases found for download testing");
                     return result;
                 }
-                
+
                 var testRelease = releases[0];
                 var releaseTitle = JsonExtractor.TryGetString(testRelease["title"]);
-                
+
                 _output.WriteLine($"🎯 Testing download for: {releaseTitle}");
-                
+
                 // Trigger download
                 var releaseAlbumId = JsonExtractor.RequireInt(
-                    testRelease["albumId"], 
-                    "[0].albumId", 
-                    "/api/v1/release", 
+                    testRelease["albumId"],
+                    "[0].albumId",
+                    "/api/v1/release",
                     releasesContent);
-                var downloadPayload = JsonConvert.SerializeObject(new 
-                { 
+                var downloadPayload = JsonConvert.SerializeObject(new
+                {
                     name = "DownloadSearch",
                     indexerId = result.Data.GetValueOrDefault("QobuzIndexerId", 1),
                     albumIds = new[] { releaseAlbumId }
                 });
                 var downloadContent = new StringContent(downloadPayload, Encoding.UTF8, "application/json");
-                
+
                 var downloadResponse = await _httpClient.PostAsync($"{_lidarrUrl}/api/v1/command", downloadContent);
-                
+
                 if (downloadResponse.IsSuccessStatusCode)
                 {
                     result.AddSuccess("Download command sent successfully");
-                    
+
                     // Monitor queue changes
                     await Task.Delay(TimeSpan.FromSeconds(10));
                     var queueAfter = await GetDownloadQueueAsync();
-                    
+
                     if (queueAfter.Count > queueBefore.Count)
                     {
                         result.AddSuccess($"Download queued successfully ({queueAfter.Count - queueBefore.Count} new items)");
                     }
-                    
+
                     result.IsSuccess = true;
                 }
                 else
@@ -520,7 +520,7 @@ namespace Qobuzarr.IntegrationTests
             {
                 result.AddError($"Download test failed: {ex.Message}");
             }
-            
+
             return result;
         }
 
@@ -530,11 +530,11 @@ namespace Qobuzarr.IntegrationTests
         private async Task<List<string>> GetDockerLogsAsync(string? filter = null)
         {
             var logs = new List<string>();
-            
+
             try
             {
                 if (!_isDockerEnvironment) return logs;
-                
+
                 var startInfo = new ProcessStartInfo
                 {
                     FileName = "docker",
@@ -544,17 +544,17 @@ namespace Qobuzarr.IntegrationTests
                     RedirectStandardError = true,
                     CreateNoWindow = true
                 };
-                
+
                 using var process = Process.Start(startInfo);
                 if (process != null)
                 {
                     var output = await process.StandardOutput.ReadToEndAsync();
                     var error = await process.StandardError.ReadToEndAsync();
-                    
+
                     await process.WaitForExitAsync();
-                    
+
                     var allLines = output.Split('\n').Concat(error.Split('\n'));
-                    
+
                     foreach (var line in allLines)
                     {
                         if (!string.IsNullOrWhiteSpace(line))
@@ -571,7 +571,7 @@ namespace Qobuzarr.IntegrationTests
             {
                 _output.WriteLine($"⚠️ Failed to get Docker logs: {ex.Message}");
             }
-            
+
             return logs;
         }
 
@@ -581,11 +581,11 @@ namespace Qobuzarr.IntegrationTests
         private async Task<ValidationResult> RestartDockerContainerAsync()
         {
             var result = new ValidationResult("Docker Container Restart");
-            
+
             try
             {
                 _output.WriteLine($"🔄 Restarting Docker container: {_dockerContainerName}");
-                
+
                 var restartInfo = new ProcessStartInfo
                 {
                     FileName = "docker",
@@ -595,12 +595,12 @@ namespace Qobuzarr.IntegrationTests
                     RedirectStandardError = true,
                     CreateNoWindow = true
                 };
-                
+
                 using var process = Process.Start(restartInfo);
                 if (process != null)
                 {
                     await process.WaitForExitAsync();
-                    
+
                     if (process.ExitCode == 0)
                     {
                         result.AddSuccess("Docker container restarted successfully");
@@ -618,7 +618,7 @@ namespace Qobuzarr.IntegrationTests
             {
                 result.AddError($"Docker restart failed: {ex.Message}");
             }
-            
+
             return result;
         }
 
@@ -628,7 +628,7 @@ namespace Qobuzarr.IntegrationTests
         private async Task<ValidationResult> DeployToDockerAsync(string pluginPath)
         {
             var result = new ValidationResult("Docker Deployment");
-            
+
             try
             {
                 // Copy plugin files to container
@@ -638,7 +638,7 @@ namespace Qobuzarr.IntegrationTests
                     $"docker cp \"plugin.json\" {_dockerContainerName}:/app/Plugins/Qobuzarr/",
                     $"docker cp \"bin/*.pdb\" {_dockerContainerName}:/app/Plugins/Qobuzarr/ 2>nul || echo 'No PDB files'"
                 };
-                
+
                 foreach (var command in copyCommands)
                 {
                     var parts = command.Split(' ', 3);
@@ -651,12 +651,12 @@ namespace Qobuzarr.IntegrationTests
                         RedirectStandardError = true,
                         CreateNoWindow = true
                     };
-                    
+
                     using var process = Process.Start(startInfo);
                     if (process != null)
                     {
                         await process.WaitForExitAsync();
-                        
+
                         if (process.ExitCode == 0)
                         {
                             result.AddSuccess($"Executed: {command}");
@@ -668,7 +668,7 @@ namespace Qobuzarr.IntegrationTests
                         }
                     }
                 }
-                
+
                 result.IsSuccess = true;
                 result.AddSuccess("Plugin deployed to Docker container");
             }
@@ -676,7 +676,7 @@ namespace Qobuzarr.IntegrationTests
             {
                 result.AddError($"Docker deployment failed: {ex.Message}");
             }
-            
+
             return result;
         }
 
@@ -686,24 +686,24 @@ namespace Qobuzarr.IntegrationTests
         private async Task<ValidationResult> DeployToUnraidAsync(string pluginPath)
         {
             var result = new ValidationResult("Unraid Deployment");
-            
+
             try
             {
                 _output.WriteLine($"🚀 Deploying to Unraid system: {_unraidHost}");
-                
+
                 // This would require Unraid API implementation
                 // For now, provide guidance on manual deployment
                 result.AddInfo("Unraid deployment requires manual file copy or SSH automation");
                 result.AddInfo($"Copy {pluginPath} to Unraid Lidarr plugins directory");
                 result.AddWarning("Automated Unraid deployment not yet implemented");
-                
+
                 result.IsSuccess = false; // Mark as incomplete for now
             }
             catch (Exception ex)
             {
                 result.AddError($"Unraid deployment failed: {ex.Message}");
             }
-            
+
             return result;
         }
 
@@ -713,10 +713,10 @@ namespace Qobuzarr.IntegrationTests
         private async Task WaitForLidarrOnlineAsync()
         {
             _output.WriteLine("⏳ Waiting for Lidarr to come back online...");
-            
+
             var maxWait = TimeSpan.FromMinutes(5);
             var startTime = DateTime.UtcNow;
-            
+
             while (DateTime.UtcNow - startTime < maxWait)
             {
                 try
@@ -732,11 +732,11 @@ namespace Qobuzarr.IntegrationTests
                 {
                     // Expected while Lidarr is restarting
                 }
-                
+
                 await Task.Delay(TimeSpan.FromSeconds(10));
                 _output.WriteLine("  ⏳ Still waiting...");
             }
-            
+
             throw new TimeoutException("Lidarr did not come back online within timeout period");
         }
 
@@ -746,10 +746,10 @@ namespace Qobuzarr.IntegrationTests
         private async Task<ValidationResult> MonitorCommandProgressAsync(int commandId)
         {
             var result = new ValidationResult($"Command {commandId} Progress");
-            
+
             var maxWait = TimeSpan.FromMinutes(3);
             var startTime = DateTime.UtcNow;
-            
+
             while (DateTime.UtcNow - startTime < maxWait)
             {
                 try
@@ -759,13 +759,13 @@ namespace Qobuzarr.IntegrationTests
                     {
                         var commandContent = await commandResponse.Content.ReadAsStringAsync();
                         var commandData = JsonConvert.DeserializeObject<dynamic>(commandContent);
-                        
+
                         var status = commandData?.status?.ToString();
                         var message = commandData?.message?.ToString();
                         var progress = commandData?.progress?.ToString();
-                        
+
                         _output.WriteLine($"  📊 Status: {status} | Progress: {progress}% | {message}");
-                        
+
                         if (status == "completed")
                         {
                             result.AddSuccess("Command completed successfully");
@@ -784,10 +784,10 @@ namespace Qobuzarr.IntegrationTests
                 {
                     result.AddWarning($"Error monitoring command: {ex.Message}");
                 }
-                
+
                 await Task.Delay(TimeSpan.FromSeconds(5));
             }
-            
+
             result.AddWarning("Command monitoring timed out");
             return result;
         }
@@ -811,7 +811,7 @@ namespace Qobuzarr.IntegrationTests
             {
                 _output.WriteLine($"⚠️ Failed to get download queue: {ex.Message}");
             }
-            
+
             return new JArray();
         }
 
@@ -834,7 +834,7 @@ namespace Qobuzarr.IntegrationTests
             {
                 _output.WriteLine($"⚠️ Failed to get releases: {ex.Message}");
             }
-            
+
             return new List<dynamic>();
         }
 
@@ -844,7 +844,7 @@ namespace Qobuzarr.IntegrationTests
         private async Task<List<string>> GetLidarrLogsViaApiAsync(string? filter = null)
         {
             var logs = new List<string>();
-            
+
             try
             {
                 var logsResponse = await _httpClient.GetAsync($"{_lidarrUrl}/api/v1/log?pageSize=50");
@@ -853,7 +853,7 @@ namespace Qobuzarr.IntegrationTests
                     var logsContent = await logsResponse.Content.ReadAsStringAsync();
                     var logsData = JsonConvert.DeserializeObject<dynamic>(logsContent);
                     var records = logsData?.records as JArray;
-                    
+
                     if (records != null)
                     {
                         foreach (var record in records)
@@ -861,7 +861,7 @@ namespace Qobuzarr.IntegrationTests
                             var message = record["message"]?.ToString();
                             if (!string.IsNullOrWhiteSpace(message))
                             {
-                                if (string.IsNullOrWhiteSpace(filter) || 
+                                if (string.IsNullOrWhiteSpace(filter) ||
                                     message.Contains(filter, StringComparison.OrdinalIgnoreCase))
                                 {
                                     var time = record["time"]?.ToString();
@@ -877,7 +877,7 @@ namespace Qobuzarr.IntegrationTests
             {
                 _output.WriteLine($"⚠️ Failed to get API logs: {ex.Message}");
             }
-            
+
             return logs;
         }
 
@@ -887,11 +887,11 @@ namespace Qobuzarr.IntegrationTests
         private async Task<ValidationResult> RestartUnraidContainerAsync()
         {
             var result = new ValidationResult("Unraid Container Restart");
-            
+
             // This would require Unraid API implementation
             result.AddWarning("Unraid restart automation not yet implemented");
             result.AddInfo("Manual restart required via Unraid web interface");
-            
+
             return result;
         }
 
@@ -928,12 +928,12 @@ namespace Qobuzarr.IntegrationTests
             Successes.AddRange(other.Successes);
             Warnings.AddRange(other.Warnings);
             Errors.AddRange(other.Errors);
-            
+
             foreach (var kvp in other.Data)
             {
                 Data[kvp.Key] = kvp.Value;
             }
-            
+
             if (!other.IsSuccess)
             {
                 IsSuccess = false;
@@ -945,28 +945,28 @@ namespace Qobuzarr.IntegrationTests
             var sb = new StringBuilder();
             sb.AppendLine($"=== {TestName} ===");
             sb.AppendLine($"Result: {(IsSuccess ? "✅ SUCCESS" : "❌ FAILED")}");
-            
+
             if (Successes.Any())
             {
                 sb.AppendLine("✅ Successes:");
                 foreach (var success in Successes)
                     sb.AppendLine($"  {success}");
             }
-            
+
             if (Warnings.Any())
             {
                 sb.AppendLine("⚠️ Warnings:");
                 foreach (var warning in Warnings)
                     sb.AppendLine($"  {warning}");
             }
-            
+
             if (Errors.Any())
             {
                 sb.AppendLine("❌ Errors:");
                 foreach (var error in Errors)
                     sb.AppendLine($"  {error}");
             }
-            
+
             return sb.ToString();
         }
     }

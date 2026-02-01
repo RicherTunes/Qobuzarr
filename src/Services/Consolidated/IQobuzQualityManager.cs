@@ -22,7 +22,7 @@ namespace Lidarr.Plugin.Qobuzarr.Services.Consolidated
         /// <param name="cancellationToken">Cancellation token for the operation.</param>
         /// <returns>Quality detection result with available formats.</returns>
         Task<QualityDetectionResult> DetectAvailableQualitiesAsync(
-            string trackId, 
+            string trackId,
             CancellationToken cancellationToken = default);
 
         /// <summary>
@@ -34,7 +34,7 @@ namespace Lidarr.Plugin.Qobuzarr.Services.Consolidated
         /// <param name="cancellationToken">Cancellation token for the operation.</param>
         /// <returns>Album quality detection result with optimization information.</returns>
         Task<Models.AlbumQualityResult> DetectAlbumQualityAsync(
-            QobuzAlbum album, 
+            QobuzAlbum album,
             int preferredQuality,
             CancellationToken cancellationToken = default);
 
@@ -68,7 +68,7 @@ namespace Lidarr.Plugin.Qobuzarr.Services.Consolidated
         /// <param name="cancellationToken">Cancellation token for the operation.</param>
         /// <returns>Quality selection result with stream information.</returns>
         Task<QualitySelectionResult> SelectBestQualityAsync(
-            string trackId, 
+            string trackId,
             QobuzQuality preferred,
             CancellationToken cancellationToken = default);
 
@@ -98,7 +98,7 @@ namespace Lidarr.Plugin.Qobuzarr.Services.Consolidated
         /// <param name="cancellationToken">Cancellation token for the operation.</param>
         /// <returns>Stream information including URL and expiration.</returns>
         Task<StreamInfo> GetStreamInfoAsync(
-            string trackId, 
+            string trackId,
             QobuzQuality quality,
             CancellationToken cancellationToken = default);
 
@@ -111,7 +111,7 @@ namespace Lidarr.Plugin.Qobuzarr.Services.Consolidated
         /// <param name="cancellationToken">Cancellation token for the operation.</param>
         /// <returns>Batch stream result with success/failure counts.</returns>
         Task<BatchStreamResult> GetBatchStreamInfoAsync(
-            List<string> trackIds, 
+            List<string> trackIds,
             QobuzQuality quality,
             CancellationToken cancellationToken = default);
 

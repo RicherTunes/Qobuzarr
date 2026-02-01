@@ -15,11 +15,11 @@ namespace Lidarr.Plugin.Qobuzarr.Services.Matching
     public class SplitTrackMatchingStrategy : ITrackMatchingStrategy
     {
         private readonly Logger _logger;
-        
+
         // Split track detection patterns
-        private static readonly string[] SplitIndicators = 
+        private static readonly string[] SplitIndicators =
         {
-            "part", "pt", "movement", "mvt", "section", "sec", 
+            "part", "pt", "movement", "mvt", "section", "sec",
             "act", "chapter", "intro", "outro", "prelude", "interlude"
         };
 
@@ -33,8 +33,8 @@ namespace Lidarr.Plugin.Qobuzarr.Services.Matching
         public bool CanHandle(List<LidarrTrack> lidarrTracks, List<QobuzTrack> qobuzTracks)
         {
             // Can handle when Qobuz has more tracks than Lidarr (potential split scenario)
-            return lidarrTracks?.Any() == true && 
-                   qobuzTracks?.Any() == true && 
+            return lidarrTracks?.Any() == true &&
+                   qobuzTracks?.Any() == true &&
                    qobuzTracks.Count > lidarrTracks.Count;
         }
 
@@ -49,7 +49,7 @@ namespace Lidarr.Plugin.Qobuzarr.Services.Matching
                 };
             }
 
-            _logger.Debug("Split track matching: {0} Lidarr tracks vs {1} Qobuz tracks", 
+            _logger.Debug("Split track matching: {0} Lidarr tracks vs {1} Qobuz tracks",
                          lidarrTracks.Count, qobuzTracks.Count);
 
             var result = new TrackMatchingResult
@@ -86,16 +86,16 @@ namespace Lidarr.Plugin.Qobuzarr.Services.Matching
             foreach (var lidarrTrack in lidarrTracks.ToList())
             {
                 var splitGroup = DetectSplitTracks(lidarrTrack, qobuzTracks.Where(q => !matchedQobuz.Contains(q)).ToList());
-                
+
                 if (splitGroup != null && splitGroup.Confidence >= 0.75)
                 {
                     result.SplitTrackGroups.Add(splitGroup);
                     matchedLidarr.Add(lidarrTrack);
-                    
+
                     foreach (var qobuzTrack in splitGroup.QobuzTracks)
                         matchedQobuz.Add(qobuzTrack);
 
-                    _logger.Info("Split track detected: '{0}' → {1} parts ({2:P1} confidence)", 
+                    _logger.Info("Split track detected: '{0}' → {1} parts ({2:P1} confidence)",
                                 lidarrTrack.Title, splitGroup.QobuzTracks.Count, splitGroup.Confidence);
                 }
             }
@@ -103,7 +103,7 @@ namespace Lidarr.Plugin.Qobuzarr.Services.Matching
             // Remove matched tracks
             foreach (var matched in matchedLidarr)
                 lidarrTracks.Remove(matched);
-            
+
             foreach (var matched in matchedQobuz)
                 qobuzTracks.Remove(matched);
         }
@@ -112,7 +112,7 @@ namespace Lidarr.Plugin.Qobuzarr.Services.Matching
         {
             // Find consecutive tracks with similar titles to the Lidarr track
             var candidates = qobuzTracks
-                .Where(q => TrackTitlesSimilar(lidarrTrack.Title, q.Title) || 
+                .Where(q => TrackTitlesSimilar(lidarrTrack.Title, q.Title) ||
                            ContainsSplitIndicator(q.Title, lidarrTrack.Title))
                 .OrderBy(q => q.TrackNumber)
                 .ToList();
@@ -122,13 +122,13 @@ namespace Lidarr.Plugin.Qobuzarr.Services.Matching
 
             // Check if these tracks are consecutive
             var consecutiveGroups = FindConsecutiveTrackGroups(candidates);
-            
+
             foreach (var group in consecutiveGroups)
             {
                 if (group.Count >= 2)
                 {
                     var confidence = CalculateSplitTrackConfidence(lidarrTrack, group);
-                    
+
                     if (confidence >= 0.75)
                     {
                         return new SplitTrackGroup
@@ -163,8 +163,8 @@ namespace Lidarr.Plugin.Qobuzarr.Services.Matching
             var normalizedQobuz = qobuzTitle.ToLowerInvariant();
             var normalizedLidarr = lidarrTitle.ToLowerInvariant();
 
-            return SplitIndicators.Any(indicator => 
-                normalizedQobuz.Contains(indicator) && 
+            return SplitIndicators.Any(indicator =>
+                normalizedQobuz.Contains(indicator) &&
                 normalizedQobuz.Contains(normalizedLidarr.Split(' ')[0])); // Contains first word of original title
         }
 
@@ -243,8 +243,8 @@ namespace Lidarr.Plugin.Qobuzarr.Services.Matching
 
         private void CalculateMatchingStatistics(TrackMatchingResult result, int totalLidarrTracks)
         {
-            var matchedLidarrTracks = result.StandardMatches.Count + 
-                                     result.SplitTrackGroups.Count + 
+            var matchedLidarrTracks = result.StandardMatches.Count +
+                                     result.SplitTrackGroups.Count +
                                      result.MergedTrackGroups.Sum(g => g.LidarrTracks.Count);
 
             result.OverallMatchRate = totalLidarrTracks > 0 ? (double)matchedLidarrTracks / totalLidarrTracks : 0;
