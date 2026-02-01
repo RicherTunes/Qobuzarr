@@ -35,25 +35,25 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers.Core
             try
             {
                 var session = _authService.GetCachedSession();
-                
+
                 if (session == null || !session.IsValid())
                 {
                     _logger.Info("🔄 No valid session found, authenticating with Qobuz");
-                    
+
                     var credentials = CreateCredentialsFromSettings();
                     session = await _authService.AuthenticateAsync(credentials).ConfigureAwait(false);
-                    
+
                     if (session == null || !session.IsValid())
                     {
                         throw new InvalidOperationException("Authentication failed: Invalid session returned");
                     }
-                    
-                    _logger.Info("✅ Successfully authenticated with Qobuz - Session expires: {0}", 
+
+                    _logger.Info("✅ Successfully authenticated with Qobuz - Session expires: {0}",
                         session.ExpiresAt.ToString("yyyy-MM-dd HH:mm:ss"));
                 }
                 else
                 {
-                    _logger.Debug("✅ Using cached valid session (expires: {0})", 
+                    _logger.Debug("✅ Using cached valid session (expires: {0})",
                         session.ExpiresAt.ToString("yyyy-MM-dd HH:mm:ss"));
                 }
             }
@@ -77,7 +77,7 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers.Core
             {
                 var credentials = CreateCredentialsFromSettings();
                 var session = await _authService.AuthenticateAsync(credentials).ConfigureAwait(false);
-                
+
                 if (session == null)
                 {
                     return (false, "Authentication returned null session");

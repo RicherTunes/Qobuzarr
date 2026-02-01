@@ -89,7 +89,7 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Clients
             _batchProcessor = batchProcessor ?? throw new ArgumentNullException(nameof(batchProcessor));
             _trackDownloadService = trackDownloadService ?? throw new ArgumentNullException(nameof(trackDownloadService));
             // Track downloader functionality consolidated into this class
-            
+
             _activeDownloads = new ConcurrentDictionary<string, QobuzDownloadItem>();
         }
 
@@ -121,7 +121,7 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Clients
             {
                 // Update concurrency settings
                 UpdateConcurrencySettings();
-                
+
                 var albumTitle = remoteAlbum.Albums?.FirstOrDefault()?.Title ?? "Unknown Album";
                 _logger.Info("📥 Adding to download queue: {0} - {1}", remoteAlbum.Artist, albumTitle);
 
@@ -218,13 +218,13 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Clients
             {
                 // Always try to remove from internal tracking (for tests and edge cases)
                 _activeDownloads.TryRemove(downloadId, out var activeItem);
-                
+
                 // Clear _lastQueuedItem if it matches
                 if (_lastQueuedItem?.DownloadId == downloadId)
                 {
                     _lastQueuedItem = null;
                 }
-                
+
                 if (_queueService.TryGetDownload(downloadId, out var downloadItem))
                 {
                     // Cancel if still downloading
@@ -301,10 +301,10 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Clients
             try
             {
                 _logger.Info("Testing Qobuz download client connection...");
-                
+
                 // Get effective settings (supports test subclasses)
                 var settings = GetEffectiveSettings();
-                
+
                 // Note: Authentication is handled by the indexer - we don't test it here
                 // This matches TrevTV's approach where the download client trusts the indexer's auth
 
@@ -327,7 +327,7 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Clients
                         return;
                     }
                 }
-                
+
                 _logger.Info("Qobuz download client test successful");
             }
             catch (Exception ex)
@@ -422,14 +422,14 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Clients
             }
 
             _apiClient.SetSession(session);
-            
+
             // Simple check if subscription supports preferred quality
             var settings = GetEffectiveSettings();
-            if (settings != null && session.Subscription != null && 
+            if (settings != null && session.Subscription != null &&
                 !session.Subscription.SupportsQuality(settings.PreferredQuality))
             {
                 var maxQuality = session.Subscription.GetMaxFormatId();
-                _logger.Warn("Preferred quality exceeds subscription: will use {0} instead", 
+                _logger.Warn("Preferred quality exceeds subscription: will use {0} instead",
                     QualityFormatter.GetQualityName(maxQuality));
             }
         }
@@ -463,20 +463,20 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Clients
 
             var completedTracks = 0;
             var totalTracks = tracks.Count;
-            
+
             // Update concurrency settings
             UpdateConcurrencySettings();
-            
+
             // Enhanced track download start message
             var albumInfo = album != null ? $"{album.GetArtistName()} - {album.GetFullTitle()}" : $"{downloadItem.Artist} - {downloadItem.Title}";
             var albumYear = album?.ReleaseDate.Year > 1900 ? $" ({album.ReleaseDate.Year})" : "";
-            _logger.Info("🎵 Starting album download: {0}{1} • {2} tracks • {3} concurrent", 
+            _logger.Info("🎵 Starting album download: {0}{1} • {2} tracks • {3} concurrent",
                 albumInfo, albumYear, totalTracks, _concurrencyManager.CurrentLimit);
-            
+
             var successfulTracks = 0;
             var skippedTracks = 0;
             var failedTracks = 0;
-            
+
             var downloadTasks = tracks.Select(async track =>
             {
                 // Use concurrency manager for slot control
@@ -484,9 +484,9 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Clients
                 try
                 {
                     downloadItem.CancellationTokenSource.Token.ThrowIfCancellationRequested();
-                    
+
                     await DownloadSingleTrackAsync(downloadItem, album, track).ConfigureAwait(false);
-                    
+
                     var completed = Interlocked.Increment(ref completedTracks);
                     Interlocked.Increment(ref successfulTracks);
                     var progress = (double)completed / totalTracks * 100;
@@ -499,8 +499,8 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Clients
                 {
                     // Handle track unavailability gracefully - don't fail the entire album
                     var completed = Interlocked.Increment(ref completedTracks);
-                    
-                    if (ex.Reason == TrackUnavailableReason.PreviewOnly || 
+
+                    if (ex.Reason == TrackUnavailableReason.PreviewOnly ||
                         ex.Reason == TrackUnavailableReason.NoQualityAvailable)
                     {
                         Interlocked.Increment(ref skippedTracks);
@@ -510,19 +510,19 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Clients
                     {
                         Interlocked.Increment(ref failedTracks);
                         var errorMessage = ErrorMessageFormatter.FormatTrackError(
-                            track.GetFullTitle(), 
-                            ex.Reason, 
+                            track.GetFullTitle(),
+                            ex.Reason,
                             ex.Message);
                         _logger.Error(errorMessage);
                     }
-                    
+
                     var progress = (double)completed / totalTracks * 100;
                     downloadItem.UpdateProgress(progress);
-                    
-                    return new TrackDownloadResult 
-                    { 
-                        Success = false, 
-                        TrackId = track.Id, 
+
+                    return new TrackDownloadResult
+                    {
+                        Success = false,
+                        TrackId = track.Id,
                         Reason = ex.Reason,
                         Message = ex.GetUserFriendlyMessage()
                     };
@@ -531,24 +531,24 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Clients
                 {
                     var completed = Interlocked.Increment(ref completedTracks);
                     Interlocked.Increment(ref failedTracks);
-                    
+
                     _logger.Error(ex, "Failed to download track: {0}", track.GetFullTitle());
-                    
+
                     var progress = (double)completed / totalTracks * 100;
                     downloadItem.UpdateProgress(progress);
-                    
-                    return new TrackDownloadResult 
-                    { 
-                        Success = false, 
-                        TrackId = track.Id, 
-                        Message = ex.Message 
+
+                    return new TrackDownloadResult
+                    {
+                        Success = false,
+                        TrackId = track.Id,
+                        Message = ex.Message
                     };
                 }
                 // Concurrency slot is automatically released by 'using' statement
             });
 
             var results = await Task.WhenAll(downloadTasks).ConfigureAwait(false);
-            
+
             // Record in download summary
             var bytesDownloaded = downloadItem.TotalSize; // Already a long, not nullable
             _downloadSummary.RecordAlbumResult(
@@ -559,21 +559,21 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Clients
                 failedTracks,
                 totalTracks,
                 bytesDownloaded);
-            
+
             // Single Line Rich Summary format: ✅ Artist - Album Title (Year) → 12/14 tracks (85%) → 8×📀FLAC-96 + 4×💿FLAC-CD → 847.2MB → 2 preview-only skipped
             LogAlbumDownloadSummary(downloadItem.Artist, downloadItem.Title, album, successfulTracks, skippedTracks, failedTracks, totalTracks, bytesDownloaded);
-            
+
             // Log the download summary if we've processed multiple albums
             if (_downloadSummary != null && _queueService.ActiveDownloadCount == 0)
             {
                 var summaryReport = _downloadSummary.GenerateReport();
                 _logger.Info(summaryReport);
             }
-            
+
             // Use download policy to determine success
             var policy = Settings.GetDownloadPolicy();
             var isSuccessful = policy.IsAlbumDownloadSuccessful(totalTracks, successfulTracks, skippedTracks);
-            
+
             if (isSuccessful)
             {
                 if (skippedTracks > 0 || failedTracks > 0)
@@ -581,7 +581,7 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Clients
                     var issues = new List<string>();
                     if (skippedTracks > 0) issues.Add($"{skippedTracks} tracks skipped (preview/sample only)");
                     if (failedTracks > 0) issues.Add($"{failedTracks} tracks failed");
-                    
+
                     downloadItem.Message = $"Partial download completed with issues: {string.Join(", ", issues)}";
                 }
                 else
@@ -600,7 +600,7 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Clients
                     skippedTracks,
                     failedTracks,
                     results);
-                
+
                 downloadItem.SetFailed(exception.Message);
                 throw exception;
             }
@@ -610,27 +610,27 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Clients
         {
             // Use the injected factory - no more manual instantiation!
             // Use integrated download functionality instead of factory
-            
+
             var trackProgress = new Progress<double>(progress =>
             {
                 // Update progress for this specific track
                 // This is a simplified progress calculation - could be enhanced
                 var currentTrackIndex = album.GetTracks().IndexOf(track);
                 var totalTracks = album.GetTracks().Count;
-                
+
                 if (totalTracks > 0)
                 {
                     var baseProgress = (double)currentTrackIndex / totalTracks * 100;
                     var trackContribution = progress / totalTracks;
                     var totalProgress = baseProgress + trackContribution;
-                    
+
                     downloadItem.UpdateProgress(Math.Min(100, totalProgress));
                 }
             });
 
             // REAL download implementation - get stream URL and download actual audio
             string outputPath = null;
-            
+
             try
             {
                 // 1. Get streaming info from Qobuz API (need format before building path)
@@ -640,32 +640,32 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Clients
                 {
                     throw new InvalidOperationException($"Could not get streaming URL for track: {track.Title}");
                 }
-                
+
                 // Build output path with sanitized filename and correct extension based on actual format
                 var actualFormatId = streamingInfo?.FormatId ?? Settings.PreferredQuality;
                 var filename = TrackFileNameBuilder.Build(track.TrackNumber, track.Title, actualFormatId, track.DiscNumber, album.MediaCount);
                 outputPath = Path.Combine(downloadItem.OutputPath, filename);
-                
+
                 _logger.Info("🎵 Downloading track: {0} to {1}", track.Title, outputPath);
                 _logger.Debug("🔗 Got streaming URL for track {0}", track.Id);
-                
+
                 // 2. Create output directory
                 Directory.CreateDirectory(Path.GetDirectoryName(outputPath));
-                
+
                 // 3. Download actual audio file (stream to disk to avoid large memory usage)
                 _logger.Debug("📥 Starting HTTP download for track {0}", track.Title);
                 var bytesWritten = await DownloadToFileAsync(streamUrl, outputPath, downloadItem.CancellationTokenSource.Token);
                 _logger.Debug("💾 Audio file written: {0} bytes", bytesWritten);
-                
+
                 // 5. Apply metadata tags using TagLibSharp
                 await ApplyMetadataTagsAsync(outputPath, track, album);
-                
+
                 _logger.Info("✅ Downloaded: {0} ({1:F1} MB)", track.Title, bytesWritten / 1024.0 / 1024.0);
             }
             catch (Exception ex)
             {
                 _logger.Error(ex, "❌ Download failed for track: {0}", track.Title);
-                
+
                 // Clean up partial file
                 if (File.Exists(outputPath))
                 {
@@ -673,7 +673,7 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Clients
                 }
                 throw;
             }
-            
+
             // Validate the actual audio file was created
             if (!File.Exists(outputPath) || new FileInfo(outputPath).Length < 1024)
             {
@@ -781,11 +781,11 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Clients
                 try
                 {
                     using var file = TagLib.File.Create(filePath);
-                    
+
                     file.Tag.Title = track.Title;
                     file.Tag.Track = (uint)track.TrackNumber;
                     file.Tag.Disc = (uint)track.DiscNumber;
-                    
+
                     if (album != null)
                     {
                         file.Tag.Album = album.Title;
@@ -804,12 +804,12 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Clients
                             file.Tag.Comment = $"Label: {album.Label.Name}";
                         }
                     }
-                    
+
                     if (track.Performer != null)
                     {
                         file.Tag.Performers = new[] { track.Performer.Name };
                     }
-                    
+
                     if (track.Composer != null)
                     {
                         file.Tag.Composers = new[] { track.Composer.Name };
@@ -868,7 +868,7 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Clients
             return albumId;
         }
 
-        private void LogAlbumDownloadSummary(string artistName, string albumTitle, QobuzAlbum album, 
+        private void LogAlbumDownloadSummary(string artistName, string albumTitle, QobuzAlbum album,
             int successful, int skipped, int failed, int total, long bytesDownloaded)
         {
             try
@@ -876,18 +876,18 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Clients
                 // Format: ✅ Artist - Album Title (Year) → 12/14 tracks (85%) → 8×📀FLAC-96 + 4×💿FLAC-CD → 847.2MB → 2 preview-only skipped
                 var albumYear = album?.ReleaseDate.Year > 1900 ? album.ReleaseDate.Year.ToString() : "";
                 var albumInfo = !string.IsNullOrEmpty(albumYear) ? $"{artistName} - {albumTitle} ({albumYear})" : $"{artistName} - {albumTitle}";
-                
+
                 var completionRate = total > 0 ? (int)Math.Round((double)successful / total * 100) : 0;
                 var tracksInfo = $"{successful}/{total} tracks ({completionRate}%)";
-                
+
                 var sizeInfo = FormatBytes(bytesDownloaded);
-                
+
                 var summaryParts = new List<string>
                 {
                     $"✅ {albumInfo}",
                     tracksInfo
                 };
-                
+
                 // Add quality information if we have album data
                 if (album?.GetTracks()?.Any() == true)
                 {
@@ -897,9 +897,9 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Clients
                         summaryParts.Add(qualityBreakdown);
                     }
                 }
-                
+
                 summaryParts.Add(sizeInfo);
-                
+
                 // Add issues summary if any
                 if (skipped > 0 || failed > 0)
                 {
@@ -908,13 +908,13 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Clients
                     if (failed > 0) issues.Add($"{failed} failed");
                     summaryParts.Add(string.Join(", ", issues));
                 }
-                
+
                 _logger.Info(string.Join(" → ", summaryParts));
             }
             catch (Exception ex)
             {
                 // Fallback to simple summary if enhanced formatting fails
-                _logger.Info("✅ Album download completed: {0} successful, {1} skipped, {2} failed out of {3} total tracks", 
+                _logger.Info("✅ Album download completed: {0} successful, {1} skipped, {2} failed out of {3} total tracks",
                     successful, skipped, failed, total);
                 _logger.Debug(ex, "Error formatting enhanced album summary");
             }
@@ -928,7 +928,7 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Clients
             // This is a simplified quality breakdown - in reality we'd need to track what quality each track was downloaded in
             // For now, provide a reasonable estimate based on the tracks available
             var qualityEstimates = new Dictionary<string, int>();
-            
+
             // Analyze track qualities (this is estimated since we don't track actual download quality here)
             foreach (var track in tracks.Take(successfulCount))
             {
@@ -939,12 +939,12 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Clients
                 else
                     qualityEstimates[estimatedQuality] = 1;
             }
-            
+
             var qualityParts = qualityEstimates
                 .Where(kv => kv.Value > 0)
                 .Select(kv => $"{kv.Value}×{GetQualityIcon(kv.Key)}")
                 .ToList();
-                
+
             return qualityParts.Any() ? string.Join(" + ", qualityParts) : "";
         }
 
@@ -976,17 +976,17 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Clients
         private string FormatBytes(long bytes)
         {
             if (bytes == 0) return "0 B";
-            
+
             string[] sizes = { "B", "KB", "MB", "GB", "TB" };
             int order = 0;
             double size = bytes;
-            
+
             while (size >= 1024 && order < sizes.Length - 1)
             {
                 size /= 1024;
                 order++;
             }
-            
+
             return $"{size:F1}{sizes[order]}";
         }
 

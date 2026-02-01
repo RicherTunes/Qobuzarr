@@ -19,7 +19,7 @@ public class QueueService : IQueueService
     private readonly object _queuesLock = new();
     private readonly Timer _cleanupTimer;
     private bool _isDisposed;
-    
+
     // Memory leak prevention constants
     private const int MAX_COMPLETED_ITEMS_PER_QUEUE = 500;
     private const int CLEANUP_KEEP_DAYS = 7;
@@ -36,11 +36,11 @@ public class QueueService : IQueueService
         _queuesFilePath = Path.Combine(queueDir, "download-queues.json");
         _queues = new ConcurrentDictionary<string, DownloadQueue>();
         _queueProcessors = new ConcurrentDictionary<string, CancellationTokenSource>();
-        
+
         // Auto-cleanup every 4 hours to prevent memory leaks in queue items
-        _cleanupTimer = new Timer(_ => 
+        _cleanupTimer = new Timer(_ =>
         {
-            Task.Run(async () => 
+            Task.Run(async () =>
             {
                 try
                 {
@@ -62,36 +62,36 @@ public class QueueService : IQueueService
             {
                 var json = await File.ReadAllTextAsync(_queuesFilePath).ConfigureAwait(false);
                 var loadedQueues = JsonConvert.DeserializeObject<List<DownloadQueue>>(json);
-                
+
                 if (loadedQueues != null)
                 {
                     foreach (var queue in loadedQueues)
                     {
                         _queues[queue.Id] = queue;
-                        
+
                         // Reset any downloading items to queued on startup
                         foreach (var item in queue.Items.Where(i => i.Status == QueueStatus.Downloading))
                         {
                             item.Status = QueueStatus.Queued;
                         }
-                        
+
                         // Clean up stale queue items (older than 7 days)
                         var staleItems = queue.Items
                             .Where(i => i.Status == QueueStatus.Completed || i.Status == QueueStatus.Failed)
                             .Where(i => DateTime.UtcNow - i.AddedAt > TimeSpan.FromDays(7))
                             .ToList();
-                            
+
                         if (staleItems.Any())
                         {
                             foreach (var staleItem in staleItems)
                             {
                                 queue.Items.Remove(staleItem);
                             }
-                            _logger.LogInformation("Cleaned up {Count} stale items from queue {QueueName}", 
+                            _logger.LogInformation("Cleaned up {Count} stale items from queue {QueueName}",
                                 staleItems.Count, queue.Name);
                         }
                     }
-                    
+
                     _logger.LogInformation("Loaded {QueueCount} download queues", _queues.Count);
                 }
             }
@@ -120,7 +120,7 @@ public class QueueService : IQueueService
 
         _queues[queue.Id] = queue;
         await SaveQueuesAsync().ConfigureAwait(false);
-        
+
         _logger.LogInformation("Created queue '{Name}' with max concurrent: {MaxConcurrent}", name, maxConcurrent);
         return queue;
     }
@@ -150,7 +150,7 @@ public class QueueService : IQueueService
 
         await SaveQueuesAsync().ConfigureAwait(false);
         _logger.LogInformation("Added item {ItemId} to queue {QueueId}", item.Id, queueId);
-        
+
         return item.Id;
     }
 
@@ -162,7 +162,7 @@ public class QueueService : IQueueService
         }
 
         var itemIds = new List<string>();
-        
+
         lock (_queuesLock)
         {
             foreach (var item in items)
@@ -175,7 +175,7 @@ public class QueueService : IQueueService
 
         await SaveQueuesAsync().ConfigureAwait(false);
         _logger.LogDebug("Added {Count} items to queue {QueueId}", items.Count, queueId);
-        
+
         return itemIds;
     }
 
@@ -224,12 +224,12 @@ public class QueueService : IQueueService
                 var completedItems = queue.Items
                     .Where(i => i.Status == QueueStatus.Completed || i.Status == QueueStatus.Failed || i.Status == QueueStatus.Cancelled)
                     .ToList();
-                
+
                 foreach (var item in completedItems)
                 {
                     queue.Items.Remove(item);
                 }
-                
+
                 removedCount = completedItems.Count;
             }
         }
@@ -324,7 +324,7 @@ public class QueueService : IQueueService
         _queueProcessors[queueId] = cts;
 
         // Start processing in background with proper error handling
-        Task.Run(async () => 
+        Task.Run(async () =>
         {
             try
             {
@@ -339,7 +339,7 @@ public class QueueService : IQueueService
                 _logger.LogError(ex, "Unhandled error in queue processor for {QueueId}", queueId);
             }
         }, cts.Token);
-        
+
         _logger.LogInformation("Started processing queue {QueueId}", queueId);
         return Task.CompletedTask;
     }
@@ -388,13 +388,13 @@ public class QueueService : IQueueService
                 .Select(d => d.DownloadSpeed!.Value)
                 .DefaultIfEmpty(0)
                 .Average();
-            
+
             stats.AverageDownloadSpeed = avgSpeed;
-            
+
             // Rough estimate: assume 50MB per track average
             var pendingTracks = stats.PendingItems * 10; // assume 10 tracks per item average
             var pendingBytes = pendingTracks * 50_000_000L; // 50MB per track
-            
+
             if (avgSpeed > 0)
             {
                 stats.EstimatedTimeRemaining = TimeSpan.FromSeconds(pendingBytes / avgSpeed);
@@ -434,7 +434,7 @@ public class QueueService : IQueueService
             if (item != null)
             {
                 item.Status = status;
-                
+
                 // If item is now completed/failed/cancelled, enforce size limits to prevent memory leaks
                 if (status == QueueStatus.Completed || status == QueueStatus.Failed || status == QueueStatus.Cancelled)
                 {
@@ -486,7 +486,7 @@ public class QueueService : IQueueService
 
         var json = JsonConvert.SerializeObject(queue, Formatting.Indented);
         await File.WriteAllTextAsync(filePath, json).ConfigureAwait(false);
-        
+
         _logger.LogInformation("Exported queue {QueueId} to {FilePath}", queueId, filePath);
     }
 
@@ -499,7 +499,7 @@ public class QueueService : IQueueService
 
         var json = await File.ReadAllTextAsync(filePath).ConfigureAwait(false);
         var importedQueue = JsonConvert.DeserializeObject<DownloadQueue>(json);
-        
+
         if (importedQueue == null)
         {
             throw new InvalidOperationException("Failed to deserialize queue file");
@@ -508,10 +508,10 @@ public class QueueService : IQueueService
         // Generate new ID to avoid conflicts
         importedQueue.Id = Guid.NewGuid().ToString("N");
         importedQueue.Name = $"{importedQueue.Name} (Imported)";
-        
+
         _queues[importedQueue.Id] = importedQueue;
         await SaveQueuesAsync().ConfigureAwait(false);
-        
+
         _logger.LogInformation("Imported queue from {FilePath} as {QueueId}", filePath, importedQueue.Id);
         return importedQueue;
     }
@@ -576,9 +576,9 @@ public class QueueService : IQueueService
         try
         {
             await UpdateQueueItemStatusAsync(queueId, item.Id, QueueStatus.Downloading).ConfigureAwait(false);
-            
+
             _logger.LogDebug("🎵 Starting download: {Query}", item.SearchQuery);
-            
+
             // Extract metadata
             var title = item.Metadata?.GetValueOrDefault("title") ?? item.SearchQuery;
             var artist = item.Metadata?.GetValueOrDefault("artist") ?? "Unknown";
@@ -588,7 +588,7 @@ public class QueueService : IQueueService
             var trackCountStr = item.Metadata?.GetValueOrDefault("trackCount") ?? "1";
             int.TryParse(trackCountStr, out var trackCount);
             trackCount = Math.Max(1, trackCount);
-            
+
             // Create download item for state tracking
             var downloadItem = new DownloadItem
             {
@@ -602,7 +602,7 @@ public class QueueService : IQueueService
             };
 
             var downloadId = await _stateService.StartDownloadAsync(downloadItem).ConfigureAwait(false);
-            
+
             try
             {
                 // Initialize plugin if needed
@@ -611,10 +611,10 @@ public class QueueService : IQueueService
                 {
                     await _pluginHost.InitializeAsync(config).ConfigureAwait(false);
                 }
-                
+
                 // Perform the actual download
                 var downloadResult = await DownloadItemAsync(downloadId, title, artist, qobuzId, quality, outputDir, trackCount, item.SearchType, cancellationToken).ConfigureAwait(false);
-                
+
                 if (downloadResult.IsSuccessful)
                 {
                     await _stateService.CompleteDownloadAsync(downloadId, outputDir, downloadResult.TrackDownloads?.Count ?? 0).ConfigureAwait(false);
@@ -676,7 +676,7 @@ public class QueueService : IQueueService
                 queue.Items.Remove(item);
             }
 
-            _logger.LogInformation("Enforced queue size limit in '{QueueName}': removed {Count} old completed items, keeping {Remaining}", 
+            _logger.LogInformation("Enforced queue size limit in '{QueueName}': removed {Count} old completed items, keeping {Remaining}",
                 queue.Name, itemsToRemove.Count, completedItems.Count - itemsToRemove.Count);
         }
     }
@@ -722,7 +722,7 @@ public class QueueService : IQueueService
 
         if (totalRemoved > 0)
         {
-            _logger.LogInformation("Periodic queue cleanup: removed {Count} old completed items ({Days} days+) across all queues", 
+            _logger.LogInformation("Periodic queue cleanup: removed {Count} old completed items ({Days} days+) across all queues",
                 totalRemoved, CLEANUP_KEEP_DAYS);
             await SaveQueuesAsync().ConfigureAwait(false);
         }
@@ -752,17 +752,17 @@ public class QueueService : IQueueService
         {
             _logger.LogError(ex, "Failed to save queues during disposal");
         }
-        
+
         _isDisposed = true;
     }
-    
+
     private async Task<CliDownloadResult> DownloadItemAsync(
-        string downloadId, 
-        string title, 
-        string artist, 
-        string qobuzId, 
-        string quality, 
-        string outputDir, 
+        string downloadId,
+        string title,
+        string artist,
+        string qobuzId,
+        string quality,
+        string outputDir,
         int trackCount,
         SearchType searchType,
         CancellationToken cancellationToken)
@@ -771,17 +771,17 @@ public class QueueService : IQueueService
         {
             // Use real Qobuz service for download
             _logger.LogDebug("📥 Downloading album: {Artist} - {Title}", artist, title);
-            
+
             // Create output directory structure
             var artistDir = Path.Combine(outputDir, Lidarr.Plugin.Common.Utilities.FileSystemUtilities.SanitizeFileName(artist));
             var albumDir = Path.Combine(artistDir, Lidarr.Plugin.Common.Utilities.FileSystemUtilities.SanitizeFileName(title));
-            
+
             Directory.CreateDirectory(albumDir);
-            
+
             // Call the real download service - check if it's an artist
             CliDownloadResult downloadResult;
             var itemType = searchType.ToString().ToLower();
-            
+
             if (itemType == "artist")
             {
                 _logger.LogDebug("Downloading artist discography");
@@ -791,14 +791,14 @@ public class QueueService : IQueueService
             {
                 downloadResult = await _pluginHost.DownloadAlbumAsync(qobuzId, albumDir, null).ConfigureAwait(false);
             }
-            
+
             if (downloadResult.IsSuccessful)
             {
                 // Update progress to 100% on success
-                await _stateService.UpdateDownloadProgressAsync(downloadId, 100, 
+                await _stateService.UpdateDownloadProgressAsync(downloadId, 100,
                     $"Download completed - {downloadResult.Message}").ConfigureAwait(false);
             }
-            
+
             return downloadResult;
         }
         catch (Exception ex)
@@ -817,5 +817,5 @@ public class QueueService : IQueueService
             };
         }
     }
-    
+
 }

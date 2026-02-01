@@ -32,7 +32,7 @@ namespace Lidarr.Plugin.Qobuzarr
             public const string Name = "Qobuzarr";
             public const string Description = "High-quality music indexer and download client for Qobuz streaming service";
             public const string Author = "RicherTunes";
-            
+
             /// <summary>
             /// Gets the plugin version from the assembly metadata (single source of truth in csproj)
             /// </summary>

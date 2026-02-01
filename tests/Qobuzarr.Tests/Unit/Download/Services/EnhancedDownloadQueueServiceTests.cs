@@ -158,11 +158,11 @@ namespace Qobuzarr.Tests.Unit.Download.Services
             }
 
             var updateTasks = new List<Task>();
-            var statuses = new[] 
-            { 
-                DownloadItemStatus.Downloading, 
-                DownloadItemStatus.Completed, 
-                DownloadItemStatus.Failed 
+            var statuses = new[]
+            {
+                DownloadItemStatus.Downloading,
+                DownloadItemStatus.Completed,
+                DownloadItemStatus.Failed
             };
 
             // Act - Update statuses concurrently
@@ -180,7 +180,7 @@ namespace Qobuzarr.Tests.Unit.Download.Services
 
             // Assert - All items should still be present with updated statuses
             _sut.ActiveDownloadCount.Should().Be(itemCount);
-            
+
             foreach (var id in itemIds)
             {
                 _sut.TryGetDownload(id, out var item).Should().BeTrue();
@@ -232,7 +232,7 @@ namespace Qobuzarr.Tests.Unit.Download.Services
 
             // Assert
             snapshots.Should().HaveCount(10);
-            snapshots.Should().AllSatisfy(snapshot => 
+            snapshots.Should().AllSatisfy(snapshot =>
             {
                 snapshot.Should().NotBeNull();
                 snapshot.Count().Should().BeGreaterOrEqualTo(initialItems);
@@ -289,7 +289,7 @@ namespace Qobuzarr.Tests.Unit.Download.Services
 
             // Assert
             var averageTimePerOperation = stopwatch.ElapsedMilliseconds / (double)operationCount;
-            averageTimePerOperation.Should().BeLessThan(5.0, 
+            averageTimePerOperation.Should().BeLessThan(5.0,
                 "Each operation should average less than 5ms under stress");
 
             // Verify final state consistency
@@ -365,7 +365,7 @@ namespace Qobuzarr.Tests.Unit.Download.Services
                 var id = $"cleanup-test-{i}";
                 itemIds.Add(id);
                 var item = CreateTestDownloadItem(id, $"Album {i}", status: DownloadItemStatus.Completed);
-                
+
                 // Set different ages
                 if (i < itemCount / 2)
                 {
@@ -375,7 +375,7 @@ namespace Qobuzarr.Tests.Unit.Download.Services
                 {
                     item.StartedAt = DateTime.UtcNow.AddMinutes(-10); // Recent
                 }
-                
+
                 _sut.AddDownload(item);
             }
 
@@ -407,7 +407,7 @@ namespace Qobuzarr.Tests.Unit.Download.Services
             // Assert
             var totalCleaned = cleanupResults.Sum();
             totalCleaned.Should().BeGreaterOrEqualTo(itemCount / 2); // At least half should be cleaned
-            
+
             // Should have recent items plus new items
             _sut.ActiveDownloadCount.Should().BeGreaterOrEqualTo(itemCount / 2 + 10);
         }
@@ -441,7 +441,7 @@ namespace Qobuzarr.Tests.Unit.Download.Services
             // Start status update operations
             foreach (var id in itemIds.Take(itemCount / 2))
             {
-                updateTasks.Add(Task.Run(() => 
+                updateTasks.Add(Task.Run(() =>
                     _sut.UpdateDownloadStatus(id, DownloadItemStatus.Downloading)));
             }
 
@@ -480,7 +480,7 @@ namespace Qobuzarr.Tests.Unit.Download.Services
                 for (int i = 0; i < kvp.Value; i++)
                 {
                     var size = (i + 1) * 100; // Vary sizes
-                    var item = CreateTestDownloadItem($"stats-{itemId++}", $"Album {itemId}", 
+                    var item = CreateTestDownloadItem($"stats-{itemId++}", $"Album {itemId}",
                         status: kvp.Key, totalSize: size);
                     _sut.AddDownload(item);
                     expectedTotalSize += size;
@@ -535,7 +535,7 @@ namespace Qobuzarr.Tests.Unit.Download.Services
             await Task.WhenAll(modificationTasks);
 
             statsResults.Should().HaveCount(20);
-            statsResults.Should().AllSatisfy(stats => 
+            statsResults.Should().AllSatisfy(stats =>
             {
                 stats.Should().NotBeNull();
                 stats.TotalDownloads.Should().BeGreaterOrEqualTo(itemCount);
@@ -554,7 +554,7 @@ namespace Qobuzarr.Tests.Unit.Download.Services
             // Arrange
             const int iterations = 10000;
             var items = new List<QobuzDownloadItem>();
-            
+
             for (int i = 0; i < iterations; i++)
             {
                 items.Add(CreateTestDownloadItem($"perf-add-{i}", $"Album {i}"));
@@ -573,8 +573,8 @@ namespace Qobuzarr.Tests.Unit.Download.Services
             // Assert
             var averageTimePerAdd = stopwatch.ElapsedTicks / (double)iterations;
             var averageTimePerAddMs = (averageTimePerAdd * 1000.0) / System.Diagnostics.Stopwatch.Frequency;
-            
-            averageTimePerAddMs.Should().BeLessThan(0.1, 
+
+            averageTimePerAddMs.Should().BeLessThan(0.1,
                 "Each AddDownload operation should average less than 0.1ms");
 
             _sut.ActiveDownloadCount.Should().Be(iterations);
@@ -614,8 +614,8 @@ namespace Qobuzarr.Tests.Unit.Download.Services
             // Assert
             var averageTimePerLookup = stopwatch.ElapsedTicks / (double)lookupCount;
             var averageTimePerLookupMs = (averageTimePerLookup * 1000.0) / System.Diagnostics.Stopwatch.Frequency;
-            
-            averageTimePerLookupMs.Should().BeLessThan(0.01, 
+
+            averageTimePerLookupMs.Should().BeLessThan(0.01,
                 "Each TryGetDownload operation should average less than 0.01ms");
         }
 
@@ -624,8 +624,8 @@ namespace Qobuzarr.Tests.Unit.Download.Services
         #region Helper Methods
 
         private QobuzDownloadItem CreateTestDownloadItem(
-            string downloadId, 
-            string title, 
+            string downloadId,
+            string title,
             string outputPath = @"C:\Test\Output",
             DownloadItemStatus status = DownloadItemStatus.Queued,
             long totalSize = 1000)

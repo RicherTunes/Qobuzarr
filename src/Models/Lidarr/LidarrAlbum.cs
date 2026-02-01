@@ -205,7 +205,7 @@ namespace Lidarr.Plugin.Qobuzarr.Models.Lidarr
             var artist = GetArtistName();
             var title = GetFullTitle();
             var year = ReleaseDate?.Year.ToString() ?? "";
-            
+
             var folderName = year.IsNotNullOrWhiteSpace() ? $"{artist} - {title} ({year})" : $"{artist} - {title}";
 
             // Replace illegal filesystem characters

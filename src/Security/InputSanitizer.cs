@@ -21,64 +21,64 @@ namespace Lidarr.Plugin.Qobuzarr.Security
         // Generated regex patterns for validation (SYSLIB1045)
         [GeneratedRegex(@"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$")]
         private static partial Regex EmailRegex();
-        
+
         [GeneratedRegex(@"^[a-zA-Z0-9]+$")]
         private static partial Regex AlphanumericRegex();
-        
+
         [GeneratedRegex(@"^[a-zA-Z0-9\s\-_\.\,\'()\[\]&!]+$")]
         private static partial Regex SafeQueryRegex();
-        
+
         [GeneratedRegex(@"^[A-Z]{2}$")]
         private static partial Regex CountryCodeRegex();
-        
+
         [GeneratedRegex(@"^[a-zA-Z0-9_-]{1,50}$")]
         private static partial Regex AppIdRegex();
-        
+
         [GeneratedRegex(@"^[a-zA-Z0-9_\-\.]+$")]
         private static partial Regex AuthTokenRegex();
-        
+
         [GeneratedRegex(@"^[a-zA-Z0-9_-]+$")]
         private static partial Regex UserIdRegex();
-        
+
         [GeneratedRegex(@"[\x00-\x1F\x7F]")]
         private static partial Regex ControlCharsRegex();
-        
+
         [GeneratedRegex(@"<script[^>]*>.*?</script>", RegexOptions.IgnoreCase | RegexOptions.Singleline)]
         private static partial Regex ScriptTagRegex();
-        
+
         [GeneratedRegex(@"<[^>]*>", RegexOptions.IgnoreCase)]
         private static partial Regex HtmlTagRegex();
-        
+
         [GeneratedRegex(@"javascript:\s*", RegexOptions.IgnoreCase)]
         private static partial Regex JavascriptProtocolRegex();
-        
+
         [GeneratedRegex(@"\bon(?:click|error|mouseover)\b", RegexOptions.IgnoreCase)]
         private static partial Regex DomEventHandlerRegex();
-        
+
         [GeneratedRegex(@"\.+")]
         private static partial Regex MultipleDotsRegex();
-        
+
         [GeneratedRegex(@"%2e%2e%2f", RegexOptions.IgnoreCase)]
         private static partial Regex EncodedTraversalSlashRegex();
-        
+
         [GeneratedRegex(@"%2e%2e%5c", RegexOptions.IgnoreCase)]
         private static partial Regex EncodedTraversalBackslashRegex();
-        
+
         [GeneratedRegex(@"\b(drop|delete|union|select|exec|xp_cmdshell)\b", RegexOptions.IgnoreCase)]
         private static partial Regex SqlKeywordsRegex();
-        
+
         [GeneratedRegex(@"\s+")]
         private static partial Regex MultipleSpacesRegex();
-        
+
         [GeneratedRegex(@"[/\\]+")]
         private static partial Regex MultipleSlashesRegex();
-        
+
         [GeneratedRegex(@"[\x00-\x1F\x7F\u200B\u200C\u200D\uFEFF]")]
         private static partial Regex ControlAndZeroWidthRegex();
-        
+
         [GeneratedRegex(@"[\r\n\t]+")]
         private static partial Regex WhitespaceCharsRegex();
-        
+
         // Windows reserved file names (case-insensitive)
         private static readonly HashSet<string> WindowsReservedNames = new(StringComparer.OrdinalIgnoreCase)
         {
@@ -86,13 +86,13 @@ namespace Lidarr.Plugin.Qobuzarr.Security
             "COM1", "COM2", "COM3", "COM4", "COM5", "COM6", "COM7", "COM8", "COM9",
             "LPT1", "LPT2", "LPT3", "LPT4", "LPT5", "LPT6", "LPT7", "LPT8", "LPT9"
         };
-        
+
         // Common multi-part extensions to preserve during truncation
         private static readonly HashSet<string> MultiPartExtensions = new(StringComparer.OrdinalIgnoreCase)
         {
             ".tar.gz", ".tar.bz2", ".tar.xz", ".tar.zst"
         };
-        
+
         // Maximum lengths for various input types (centralized)
         private const int MaxEmailLength = LimitConstants.Limits.MaxEmailLength;
         private const int MaxPasswordLength = LimitConstants.Limits.MaxPasswordLength;
@@ -110,7 +110,7 @@ namespace Lidarr.Plugin.Qobuzarr.Security
                 throw new ArgumentException("Email cannot be empty");
 
             email = email.Trim().ToLowerInvariant();
-            
+
             if (email.Length > MaxEmailLength)
                 throw new ArgumentException($"Email exceeds maximum length of {MaxEmailLength} characters");
 
@@ -118,7 +118,7 @@ namespace Lidarr.Plugin.Qobuzarr.Security
                 throw new ArgumentException("Invalid email format");
 
             // Additional protection against special characters that could be used in injection
-            if (email.Contains("'") || email.Contains("\"") || email.Contains(";") || 
+            if (email.Contains("'") || email.Contains("\"") || email.Contains(";") ||
                 email.Contains("--") || email.Contains("/*") || email.Contains("*/"))
             {
                 throw new ArgumentException("Email contains invalid characters");
@@ -224,17 +224,17 @@ namespace Lidarr.Plugin.Qobuzarr.Security
             // Check for path traversal attempts before sanitizing
             if (path.Contains("..") || path.Contains("~"))
                 throw new ArgumentException("Path contains potential traversal patterns");
-            
+
             // Remove any path traversal attempts that might have been missed
             path = path.Replace("..", "");
             path = path.Replace("~", "");
-            
+
             // Remove multiple slashes
             path = MultipleSlashesRegex().Replace(path, System.IO.Path.DirectorySeparatorChar.ToString());
-            
+
             // Remove any null bytes
             path = path.Replace("\0", "");
-            
+
             if (path.Length > MaxPathLength)
                 throw new ArgumentException($"Path exceeds maximum length of {MaxPathLength} characters");
 
@@ -275,7 +275,7 @@ namespace Lidarr.Plugin.Qobuzarr.Security
                 throw new ArgumentException("App ID cannot be empty");
 
             appId = appId.Trim();
-            
+
             if (!AppIdRegex().IsMatch(appId))
                 throw new ArgumentException("App ID contains invalid characters");
 
@@ -291,7 +291,7 @@ namespace Lidarr.Plugin.Qobuzarr.Security
                 throw new ArgumentException("App Secret cannot be empty");
 
             appSecret = appSecret.Trim();
-            
+
             // App secrets are typically hex strings or base64
             if (appSecret.Length > 100)
                 throw new ArgumentException("App Secret exceeds maximum length");
@@ -312,7 +312,7 @@ namespace Lidarr.Plugin.Qobuzarr.Security
                 throw new ArgumentException("Auth token cannot be empty");
 
             token = token.Trim();
-            
+
             if (token.Length > MaxTokenLength)
                 throw new ArgumentException($"Auth token exceeds maximum length of {MaxTokenLength} characters");
 
@@ -332,7 +332,7 @@ namespace Lidarr.Plugin.Qobuzarr.Security
                 throw new ArgumentException("User ID cannot be empty");
 
             userId = userId.Trim();
-            
+
             // User IDs are typically numeric or alphanumeric
             if (!UserIdRegex().IsMatch(userId))
                 throw new ArgumentException("User ID contains invalid characters");
@@ -352,7 +352,7 @@ namespace Lidarr.Plugin.Qobuzarr.Security
                 return "US"; // Default to US
 
             countryCode = countryCode.Trim().ToUpperInvariant();
-            
+
             if (!CountryCodeRegex().IsMatch(countryCode))
                 throw new ArgumentException("Invalid country code format. Must be 2-letter ISO code.");
 
@@ -406,8 +406,8 @@ namespace Lidarr.Plugin.Qobuzarr.Security
             var lowerInput = input.ToLowerInvariant();
 
             // Check for SQL injection patterns
-            var sqlPatterns = new[] { 
-                "select ", "insert ", "update ", "delete ", "drop ", 
+            var sqlPatterns = new[] {
+                "select ", "insert ", "update ", "delete ", "drop ",
                 "create ", "alter ", "exec ", "execute ", "union ",
                 "' or ", "\" or ", "1=1", "1 = 1", "'; --", "\"; --"
             };
@@ -442,7 +442,7 @@ namespace Lidarr.Plugin.Qobuzarr.Security
 
             // Delegate to the shared library's sanitizer for consistent cross-platform rules
             var sanitized = LPCFileNameSanitizer.SanitizeFileName(fileName);
-            
+
             if (string.IsNullOrWhiteSpace(sanitized))
                 return "unknown_file";
 
@@ -453,10 +453,10 @@ namespace Lidarr.Plugin.Qobuzarr.Security
 
             // Handle Windows reserved names (CON, PRN, AUX, NUL, COM1-9, LPT1-9)
             var extension = GetFullExtension(sanitized);
-            var nameWithoutExt = extension.Length > 0 
+            var nameWithoutExt = extension.Length > 0
                 ? sanitized.Substring(0, sanitized.Length - extension.Length)
                 : sanitized;
-            
+
             // Prefix Windows reserved device names on all platforms for portability.
             // This ensures files created on Linux/macOS remain valid when moved to Windows.
             if (WindowsReservedNames.Contains(nameWithoutExt))
@@ -464,7 +464,7 @@ namespace Lidarr.Plugin.Qobuzarr.Security
                 sanitized = "_" + sanitized;
                 nameWithoutExt = "_" + nameWithoutExt;
             }
-            
+
             // Enforce 255-char limit with extension preservation
             const int MaxFileNameLength = 255;
             if (sanitized.Length > MaxFileNameLength)
@@ -480,10 +480,10 @@ namespace Lidarr.Plugin.Qobuzarr.Security
                     sanitized = sanitized.Substring(0, MaxFileNameLength);
                 }
             }
-            
+
             return sanitized;
         }
-        
+
         /// <summary>
         /// Gets the full extension including multi-part extensions like .tar.gz
         /// </summary>
@@ -491,7 +491,7 @@ namespace Lidarr.Plugin.Qobuzarr.Security
         {
             if (string.IsNullOrEmpty(fileName))
                 return string.Empty;
-            
+
             // Check for known multi-part extensions first
             foreach (var multiExt in MultiPartExtensions)
             {
@@ -500,7 +500,7 @@ namespace Lidarr.Plugin.Qobuzarr.Security
                     return fileName.Substring(fileName.Length - multiExt.Length);
                 }
             }
-            
+
             // Fall back to standard extension
             return Path.GetExtension(fileName);
         }
@@ -574,28 +574,28 @@ namespace Lidarr.Plugin.Qobuzarr.Security
                 return "Unknown Artist";
 
             var sanitized = artistName.Trim();
-            
+
             // Check for dangerous content first
             if (IsPotentiallyDangerous(sanitized))
                 return "Unknown Artist";
-            
+
             // Remove HTML tags
             sanitized = HtmlTagRegex().Replace(sanitized, "");
-            
+
             // Remove dangerous characters
             sanitized = sanitized.Replace("'", "'").Replace("\"", "'");
             sanitized = ControlCharsRegex().Replace(sanitized, "");
-            
+
             // Unicode normalization
             sanitized = NormalizeSafe(sanitized);
-            
+
             // Collapse multiple spaces
             sanitized = MultipleSpacesRegex().Replace(sanitized, " ").Trim();
-            
+
             // Length limit
             if (sanitized.Length > 100)
                 sanitized = sanitized.Substring(0, 100).Trim();
-                
+
             return string.IsNullOrWhiteSpace(sanitized) ? "Unknown Artist" : sanitized;
         }
 
@@ -616,30 +616,30 @@ namespace Lidarr.Plugin.Qobuzarr.Security
 
             // Remove path traversal attempts
             sanitized = sanitized.Replace("../", "___").Replace("..\\", "___");
-            
+
             // Remove HTML tags and dangerous content
             sanitized = HtmlTagRegex().Replace(sanitized, "");
-            
+
             // Replace dangerous file system characters
             var dangerous = new char[] { '<', '>', ':', '"', '|', '?', '*', '/', '\\' };
             foreach (var c in dangerous)
             {
                 sanitized = sanitized.Replace(c, '_');
             }
-            
+
             // Remove control characters
             sanitized = ControlCharsRegex().Replace(sanitized, "");
-            
+
             // Unicode normalization
             sanitized = NormalizeSafe(sanitized);
-            
+
             // Collapse spaces and trim
             sanitized = MultipleSpacesRegex().Replace(sanitized, " ").Trim();
-            
+
             // Length limit
             if (sanitized.Length > 100)
                 sanitized = sanitized.Substring(0, 100).Trim();
-                
+
             return string.IsNullOrWhiteSpace(sanitized) ? "Unknown Album" : sanitized;
         }
 
@@ -653,33 +653,33 @@ namespace Lidarr.Plugin.Qobuzarr.Security
                 return "";
 
             var sanitized = version.Trim();
-            
+
             // Check for dangerous content first
             if (IsPotentiallyDangerous(sanitized))
                 return "Version"; // Safe default for dangerous input
-            
+
             // Remove script tags
             sanitized = ScriptTagRegex().Replace(sanitized, "");
-            
+
             // Remove other HTML tags
             sanitized = HtmlTagRegex().Replace(sanitized, "");
-            
+
             // Replace dangerous file system characters
             sanitized = sanitized.Replace(":", "-").Replace("/", "_").Replace("\\", "_")
                                 .Replace("*", "_").Replace("?", "_").Replace("\"", "'")
                                 .Replace("<", "(").Replace(">", ")").Replace("|", "_");
-            
+
             // Remove control characters and zero-width characters
             sanitized = ControlAndZeroWidthRegex().Replace(sanitized, "");
-            
+
             // Normalize whitespace
             sanitized = WhitespaceCharsRegex().Replace(sanitized, " ");
             sanitized = MultipleSpacesRegex().Replace(sanitized, " ").Trim();
-            
+
             // Length limit
             if (sanitized.Length > 100)
                 sanitized = sanitized.Substring(0, 100).Trim();
-                
+
             return sanitized;
         }
 
@@ -724,10 +724,10 @@ namespace Lidarr.Plugin.Qobuzarr.Security
             // Check for dangerous protocols
             var dangerousProtocols = new[] { "javascript:", "data:", "file:", "ftp:" };
             var lowerUrl = url.ToLowerInvariant();
-            
+
             if (dangerousProtocols.Any(proto => lowerUrl.StartsWith(proto)))
                 return false;
-                
+
             // Must be HTTP or HTTPS
             return lowerUrl.StartsWith("http://") || lowerUrl.StartsWith("https://");
         }
@@ -780,7 +780,7 @@ namespace Lidarr.Plugin.Qobuzarr.Security
                 ")(", ")(&", ")(|", "*)(", "admin)", "(cn=", "(uid="
             };
 
-            return sqlPatterns.Any(pattern => lowerInput.Contains(pattern)) || 
+            return sqlPatterns.Any(pattern => lowerInput.Contains(pattern)) ||
                    formatPatterns.Any(pattern => lowerInput.Contains(pattern)) ||
                    scriptPatterns.Any(pattern => lowerInput.Contains(pattern)) ||
                    cmdPatterns.Any(pattern => lowerInput.Contains(pattern)) ||

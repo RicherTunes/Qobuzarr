@@ -37,7 +37,7 @@ public class TestPerformanceCommand
         testCommand.AddOption(concurrencyOption);
         testCommand.AddOption(typeOption);
 
-        testCommand.SetHandler(async (int count, bool concurrent, int concurrency, string type) => 
+        testCommand.SetHandler(async (int count, bool concurrent, int concurrency, string type) =>
             await HandleTestPerformanceAsync(count, concurrent, concurrency, type), countOption, concurrentOption, concurrencyOption, typeOption);
 
         return testCommand;
@@ -75,7 +75,7 @@ public class TestPerformanceCommand
             {
                 // Concurrent execution
                 await AnsiConsole.Progress()
-                    .Columns(new ProgressColumn[] 
+                    .Columns(new ProgressColumn[]
                     {
                         new TaskDescriptionColumn(),
                         new ProgressBarColumn(),
@@ -86,7 +86,7 @@ public class TestPerformanceCommand
                     .StartAsync(async ctx =>
                     {
                         var searchTask = ctx.AddTask("Concurrent searches", maxValue: count);
-                        
+
                         using var semaphore = new SemaphoreSlim(concurrency); // Configurable concurrent limit
                         var tasks = queries.Select(async (query, index) =>
                         {
@@ -119,7 +119,7 @@ public class TestPerformanceCommand
             {
                 // Sequential execution
                 await AnsiConsole.Progress()
-                    .Columns(new ProgressColumn[] 
+                    .Columns(new ProgressColumn[]
                     {
                         new TaskDescriptionColumn(),
                         new ProgressBarColumn(),
@@ -130,7 +130,7 @@ public class TestPerformanceCommand
                     .StartAsync(async ctx =>
                     {
                         var searchTask = ctx.AddTask("Sequential searches", maxValue: count);
-                        
+
                         foreach (var query in queries)
                         {
                             searchTask.Description = $"Searching: {query}";
@@ -188,7 +188,7 @@ public class TestPerformanceCommand
             // Log performance metrics from the service
             AnsiConsole.WriteLine();
             AnsiConsole.MarkupLine("[yellow]📈 Service Performance Statistics:[/]");
-            
+
             _pluginHost.LogPerformanceMetrics();
         }
         catch (Exception ex)
@@ -200,16 +200,16 @@ public class TestPerformanceCommand
 
     private List<string> GenerateTestQueries(int count)
     {
-        var artists = new[] 
-        { 
+        var artists = new[]
+        {
             "Pink Floyd", "Led Zeppelin", "The Beatles", "Queen", "David Bowie",
             "Miles Davis", "John Coltrane", "Bill Evans", "Kraftwerk", "Daft Punk",
             "Radiohead", "Nirvana", "Pearl Jam", "The Rolling Stones", "Bob Dylan",
             "Jimi Hendrix", "The Who", "Black Sabbath", "Metallica", "AC/DC"
         };
-        
-        var albums = new[] 
-        { 
+
+        var albums = new[]
+        {
             "Dark Side", "Physical Graffiti", "Abbey Road", "Night at the Opera",
             "Ziggy Stardust", "Kind of Blue", "Giant Steps", "Waltz for Debby",
             "Computer World", "Discovery", "OK Computer", "Nevermind", "Ten",

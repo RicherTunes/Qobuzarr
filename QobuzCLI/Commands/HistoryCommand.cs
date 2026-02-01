@@ -21,7 +21,7 @@ public class HistoryCommand
     public Command CreateCommand()
     {
         var historyCommand = new Command("history", "View and manage download history");
-        
+
         // Main history command with options
         var limitOption = new Option<int>("--limit", () => 20, "Number of entries to show");
         var statusOption = new Option<string?>("--status", "Filter by status (completed, failed, cancelled)");
@@ -39,21 +39,21 @@ public class HistoryCommand
         historyCommand.AddOption(keepDaysOption);
         historyCommand.AddOption(statsOption);
 
-        historyCommand.SetHandler(async (int limit, string? status, string? search, string? export, 
+        historyCommand.SetHandler(async (int limit, string? status, string? search, string? export,
             bool cleanup, int keepDays, bool stats) =>
             await HandleHistoryAsync(limit, status, search, export, cleanup, keepDays, stats),
             limitOption, statusOption, searchOption, exportOption, cleanupOption, keepDaysOption, statsOption);
 
         // Subcommands
         historyCommand.AddCommand(CreateStatsCommand());
-        historyCommand.AddCommand(CreateExportCommand());  
+        historyCommand.AddCommand(CreateExportCommand());
         historyCommand.AddCommand(CreateCleanupCommand());
         historyCommand.AddCommand(CreateSearchCommand());
 
         return historyCommand;
     }
 
-    private async Task HandleHistoryAsync(int limit, string? status, string? search, string? export, 
+    private async Task HandleHistoryAsync(int limit, string? status, string? search, string? export,
         bool cleanup, int keepDays, bool stats)
     {
         if (cleanup)
@@ -84,7 +84,7 @@ public class HistoryCommand
         try
         {
             var history = _stateService.GetDownloadHistory(limit * 2); // Get more for filtering
-            
+
             // Apply filters
             if (!string.IsNullOrEmpty(statusFilter))
             {
@@ -95,7 +95,7 @@ public class HistoryCommand
             if (!string.IsNullOrEmpty(searchQuery))
             {
                 var query = searchQuery.ToLowerInvariant();
-                history = history.Where(h => 
+                history = history.Where(h =>
                     h.Title.ToLowerInvariant().Contains(query) ||
                     h.Artist.ToLowerInvariant().Contains(query)).ToList();
             }
@@ -114,7 +114,7 @@ public class HistoryCommand
                 .Title($"[bold cyan]Download History[/] [grey]({history.Count} entries)[/]")
                 .AddColumn(new TableColumn("[bold]Started[/]").Centered())
                 .AddColumn(new TableColumn("[bold]Album[/]").NoWrap())
-                .AddColumn(new TableColumn("[bold]Artist[/]").NoWrap()) 
+                .AddColumn(new TableColumn("[bold]Artist[/]").NoWrap())
                 .AddColumn(new TableColumn("[bold]Status[/]").Centered())
                 .AddColumn(new TableColumn("[bold]Tracks[/]").Centered())
                 .AddColumn(new TableColumn("[bold]Duration[/]").Centered())
@@ -125,10 +125,10 @@ public class HistoryCommand
             foreach (var item in history)
             {
                 var statusMarkup = GetStatusMarkup(item.FinalStatus);
-                var duration = item.CompletedAt.HasValue 
+                var duration = item.CompletedAt.HasValue
                     ? (item.CompletedAt.Value - item.DownloadedAt).ToString(@"mm\:ss")
                     : "-";
-                
+
                 table.AddRow(
                     item.DownloadedAt.ToString("MMM d HH:mm"),
                     $"[cyan]{item.Title.EscapeMarkup()}[/]",
@@ -208,11 +208,11 @@ public class HistoryCommand
                 .Take(5)
                 .ToList();
 
-            var recentActivityText = string.Join("\n", recentHistory.Select(h => 
+            var recentActivityText = string.Join("\n", recentHistory.Select(h =>
                 $"[grey]{h.DownloadedAt:MMM d HH:mm}[/] {GetStatusMarkup(h.FinalStatus)} {h.Artist.EscapeMarkup()} - {h.Title.EscapeMarkup()}"));
-            var qualityText = string.Join("\n", qualityBreakdown.Select(q => 
+            var qualityText = string.Join("\n", qualityBreakdown.Select(q =>
                 $"[cyan]{q.Key}[/]: [white]{q.Count():N0}[/] downloads"));
-            
+
             var recentActivity = new Panel($"[bold]Recent Activity (Last 10)[/]\n\n" +
                 $"{recentActivityText}\n\n" +
                 $"[bold]Quality Preferences[/]\n\n" +
@@ -232,7 +232,7 @@ public class HistoryCommand
                 if (failedItems.Any())
                 {
                     AnsiConsole.Write(new Rule("[red]Recent Failures[/]") { Justification = Justify.Left });
-                    
+
                     foreach (var failure in failedItems)
                     {
                         AnsiConsole.MarkupLine($"[red]❌[/] [grey]{failure.DownloadedAt:MMM d HH:mm}[/] {failure.Artist.EscapeMarkup()} - {failure.Title.EscapeMarkup()}");
@@ -259,7 +259,7 @@ public class HistoryCommand
         var limitOption = new Option<int>("--limit", () => 100, "Number of entries to export");
 
         cmd.AddOption(fileOption);
-        cmd.AddOption(formatOption); 
+        cmd.AddOption(formatOption);
         cmd.AddOption(limitOption);
 
         cmd.SetHandler(async (string file, string format, int limit) =>
@@ -280,7 +280,7 @@ public class HistoryCommand
 
             // Get and filter history
             var history = _stateService.GetDownloadHistory(limit * 2);
-            
+
             if (!string.IsNullOrEmpty(statusFilter))
             {
                 var targetStatus = Enum.Parse<DownloadStatus>(statusFilter, true);
@@ -290,7 +290,7 @@ public class HistoryCommand
             if (!string.IsNullOrEmpty(searchQuery))
             {
                 var query = searchQuery.ToLowerInvariant();
-                history = history.Where(h => 
+                history = history.Where(h =>
                     h.Title.ToLowerInvariant().Contains(query) ||
                     h.Artist.ToLowerInvariant().Contains(query)).ToList();
             }
@@ -303,15 +303,15 @@ public class HistoryCommand
                 case "json":
                     await ExportJsonAsync(filePath, history);
                     break;
-                    
+
                 case "csv":
                     await ExportCsvAsync(filePath, history);
                     break;
-                    
+
                 case "html":
                     await ExportHtmlAsync(filePath, history);
                     break;
-                    
+
                 default:
                     throw new ArgumentException($"Unsupported export format: {format}");
             }
@@ -334,7 +334,7 @@ public class HistoryCommand
         cmd.AddOption(keepDaysOption);
         cmd.AddOption(confirmOption);
 
-        cmd.SetHandler(async (int keepDays, bool confirm) => 
+        cmd.SetHandler(async (int keepDays, bool confirm) =>
             await HandleCleanupAsync(keepDays, confirm), keepDaysOption, confirmOption);
 
         return cmd;
@@ -383,7 +383,7 @@ public class HistoryCommand
         cmd.AddOption(queryOption);
         cmd.AddOption(limitOption);
 
-        cmd.SetHandler(async (string query, int limit) => 
+        cmd.SetHandler(async (string query, int limit) =>
             await ShowHistoryAsync(limit, null, query), queryOption, limitOption);
 
         return cmd;
@@ -392,18 +392,19 @@ public class HistoryCommand
     // Helper methods for export formats
     private async Task ExportJsonAsync(string filePath, List<DownloadHistoryItem> history)
     {
-        var options = new JsonSerializerOptions 
-        { 
+        var options = new JsonSerializerOptions
+        {
             WriteIndented = true,
             PropertyNamingPolicy = JsonNamingPolicy.CamelCase
         };
-        
-        var json = JsonSerializer.Serialize(new { 
+
+        var json = JsonSerializer.Serialize(new
+        {
             ExportedAt = DateTime.UtcNow,
             Count = history.Count,
             History = history
         }, options);
-        
+
         await File.WriteAllTextAsync(filePath, json);
     }
 
@@ -411,26 +412,26 @@ public class HistoryCommand
     {
         var csv = new System.Text.StringBuilder();
         csv.AppendLine("DownloadedAt,CompletedAt,Artist,Title,Status,TracksDownloaded,Quality,ErrorMessage");
-        
+
         foreach (var item in history)
         {
             csv.AppendLine($"{item.DownloadedAt:yyyy-MM-dd HH:mm:ss}," +
                           $"{item.CompletedAt?.ToString("yyyy-MM-dd HH:mm:ss")}," +
-                          $"\"{item.Artist.Replace("\"", "\"\"")}\","  +
-                          $"\"{item.Title.Replace("\"", "\"\"")}\","   +
+                          $"\"{item.Artist.Replace("\"", "\"\"")}\"," +
+                          $"\"{item.Title.Replace("\"", "\"\"")}\"," +
                           $"{item.FinalStatus}," +
                           $"{item.TracksDownloaded}," +
                           $"{item.Quality}," +
                           $"\"{item.ErrorMessage?.Replace("\"", "\"\"")}\"");
         }
-        
+
         await File.WriteAllTextAsync(filePath, csv.ToString());
     }
 
     private async Task ExportHtmlAsync(string filePath, List<DownloadHistoryItem> history)
     {
         var stats = _stateService.GetStatistics();
-        
+
         var html = "<!DOCTYPE html>\n<html>\n<head>\n    <title>Qobuz Download History</title>\n    <style>\n" +
                    "        body { font-family: Arial, sans-serif; margin: 20px; }\n" +
                    "        .stats { background: #f5f5f5; padding: 15px; border-radius: 5px; margin-bottom: 20px; }\n" +
@@ -455,10 +456,10 @@ public class HistoryCommand
 
         foreach (var item in history)
         {
-            var duration = item.CompletedAt.HasValue 
+            var duration = item.CompletedAt.HasValue
                 ? (item.CompletedAt.Value - item.DownloadedAt).ToString(@"mm\:ss")
                 : "-";
-            
+
             html += "        <tr>\n" +
                     $"            <td>{item.DownloadedAt:yyyy-MM-dd HH:mm:ss}</td>\n" +
                     $"            <td>{System.Web.HttpUtility.HtmlEncode(item.Artist)}</td>\n" +
@@ -493,7 +494,7 @@ public class HistoryCommand
         return bytes switch
         {
             >= 1_073_741_824 => $"{bytes / 1_073_741_824.0:F1} GB",
-            >= 1_048_576 => $"{bytes / 1_048_576.0:F1} MB", 
+            >= 1_048_576 => $"{bytes / 1_048_576.0:F1} MB",
             >= 1_024 => $"{bytes / 1_024.0:F0} KB",
             _ => $"{bytes} B"
         };

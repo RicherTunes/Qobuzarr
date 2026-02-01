@@ -36,7 +36,7 @@ namespace Lidarr.Plugin.Qobuzarr.Security
         {
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
             _auditLog = new List<ModelLoadAuditEntry>();
-            
+
             // Initialize trusted assembly whitelist with SHA-256 hashes
             _trustedAssemblyHashes = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
             {
@@ -136,7 +136,7 @@ namespace Lidarr.Plugin.Qobuzarr.Security
 
                     // Step 6: Load assembly in restricted AppDomain (sandbox)
                     var loadedEngine = LoadInSandbox(sanitizedPath, auditEntry);
-                    
+
                     if (loadedEngine != null)
                     {
                         auditEntry.Result = LoadResult.Success;
@@ -158,7 +158,7 @@ namespace Lidarr.Plugin.Qobuzarr.Security
                 {
                     // Always record audit entry
                     _auditLog.Add(auditEntry);
-                    
+
                     // Trim audit log if too large (keep last 1000 entries)
                     if (_auditLog.Count > 1000)
                     {
@@ -247,7 +247,7 @@ namespace Lidarr.Plugin.Qobuzarr.Security
             try
             {
                 // Remove any path traversal attempts
-                if (path.Contains("..") || path.Contains("~") || 
+                if (path.Contains("..") || path.Contains("~") ||
                     path.IndexOfAny(Path.GetInvalidPathChars()) >= 0)
                 {
                     return null;
@@ -255,7 +255,7 @@ namespace Lidarr.Plugin.Qobuzarr.Security
 
                 // Get absolute path and ensure it's within allowed directories
                 var fullPath = Path.GetFullPath(path);
-                
+
                 // Define allowed directories (plugin directory and subdirectories)
                 var currentDirectory = AppDomain.CurrentDomain.BaseDirectory;
                 var allowedPaths = new[]
@@ -269,7 +269,7 @@ namespace Lidarr.Plugin.Qobuzarr.Security
                 };
 
                 // Check if the resolved path is within allowed directories
-                var isAllowed = allowedPaths.Any(allowed => 
+                var isAllowed = allowedPaths.Any(allowed =>
                     fullPath.StartsWith(allowed, StringComparison.OrdinalIgnoreCase));
 
                 return isAllowed ? fullPath : null;
@@ -312,7 +312,7 @@ namespace Lidarr.Plugin.Qobuzarr.Security
 
         private bool ValidateAssemblyName(string assemblyName)
         {
-            return _allowedAssemblyNames.Any(allowed => 
+            return _allowedAssemblyNames.Any(allowed =>
                 assemblyName.Equals(allowed, StringComparison.OrdinalIgnoreCase) ||
                 assemblyName.StartsWith(allowed, StringComparison.OrdinalIgnoreCase));
         }
@@ -332,14 +332,14 @@ namespace Lidarr.Plugin.Qobuzarr.Security
             if (_trustedAssemblyHashes.TryGetValue(fileName, out var trustedHash))
             {
                 var isValid = string.Equals(trustedHash, computedHash, StringComparison.OrdinalIgnoreCase);
-                
+
                 if (!isValid)
                 {
                     auditEntry.Result = LoadResult.HashMismatch;
-                    LogSecurityEvent($"Hash mismatch for {fileName}. Expected: {trustedHash}, Got: {computedHash}", 
+                    LogSecurityEvent($"Hash mismatch for {fileName}. Expected: {trustedHash}, Got: {computedHash}",
                         SecurityEventType.HashMismatch);
                 }
-                
+
                 return isValid;
             }
 
@@ -355,7 +355,7 @@ namespace Lidarr.Plugin.Qobuzarr.Security
             {
                 // Load assembly metadata without executing code
                 var assemblyName = AssemblyName.GetAssemblyName(assemblyPath);
-                
+
                 // Check for strong name signature
                 var publicKey = assemblyName.GetPublicKey();
                 if (publicKey == null || publicKey.Length == 0)
@@ -366,7 +366,7 @@ namespace Lidarr.Plugin.Qobuzarr.Security
 
                 // Additional signature validation could be added here
                 // For example, checking against a specific public key token
-                
+
                 return true;
             }
             catch (Exception ex)
@@ -386,37 +386,37 @@ namespace Lidarr.Plugin.Qobuzarr.Security
 
                 // Load assembly with restrictions
                 var assembly = Assembly.LoadFrom(assemblyPath);
-                
+
                 // Find IPatternLearningEngine implementation
                 var engineType = assembly.GetTypes()
-                    .FirstOrDefault(t => typeof(IPatternLearningEngine).IsAssignableFrom(t) && 
+                    .FirstOrDefault(t => typeof(IPatternLearningEngine).IsAssignableFrom(t) &&
                                        !t.IsInterface && !t.IsAbstract);
 
                 if (engineType == null)
                 {
                     auditEntry.Result = LoadResult.NoValidType;
-                    LogSecurityEvent($"No IPatternLearningEngine implementation found in: {assemblyPath}", 
+                    LogSecurityEvent($"No IPatternLearningEngine implementation found in: {assemblyPath}",
                         SecurityEventType.InvalidAssembly);
                     return null;
                 }
 
                 // Validate type name against whitelist
-                if (!_allowedAssemblyNames.Any(allowed => 
+                if (!_allowedAssemblyNames.Any(allowed =>
                     engineType.Name.Contains(allowed, StringComparison.OrdinalIgnoreCase)))
                 {
                     auditEntry.Result = LoadResult.TypeNotAllowed;
-                    LogSecurityEvent($"Type name not in whitelist: {engineType.FullName}", 
+                    LogSecurityEvent($"Type name not in whitelist: {engineType.FullName}",
                         SecurityEventType.UnauthorizedType);
                     return null;
                 }
 
                 // Create instance with timeout protection
                 var instance = Activator.CreateInstance(engineType, _logger) as IPatternLearningEngine;
-                
+
                 if (instance == null)
                 {
                     auditEntry.Result = LoadResult.InstantiationFailed;
-                    LogSecurityEvent($"Failed to instantiate type: {engineType.FullName}", 
+                    LogSecurityEvent($"Failed to instantiate type: {engineType.FullName}",
                         SecurityEventType.InstantiationError);
                     return null;
                 }
@@ -425,7 +425,7 @@ namespace Lidarr.Plugin.Qobuzarr.Security
                 if (!ValidateModelInstance(instance))
                 {
                     auditEntry.Result = LoadResult.ValidationFailed;
-                    LogSecurityEvent($"Model instance validation failed: {engineType.FullName}", 
+                    LogSecurityEvent($"Model instance validation failed: {engineType.FullName}",
                         SecurityEventType.BehaviorValidationFailed);
                     return null;
                 }
@@ -481,33 +481,33 @@ namespace Lidarr.Plugin.Qobuzarr.Security
 
             // Example: Check against environment variable or secure configuration
             var expectedToken = Environment.GetEnvironmentVariable("QOBUZARR_ADMIN_TOKEN");
-            return !string.IsNullOrWhiteSpace(expectedToken) && 
+            return !string.IsNullOrWhiteSpace(expectedToken) &&
                    string.Equals(token, expectedToken, StringComparison.Ordinal);
         }
 
         private void LogSecurityEvent(string message, SecurityEventType eventType)
         {
             var logMessage = $"[SECURITY:{eventType}] {message}";
-            
+
             switch (eventType)
             {
                 case SecurityEventType.ModelLoaded:
                 case SecurityEventType.TrustUpdate:
                     _logger.Info(logMessage);
                     break;
-                    
+
                 case SecurityEventType.FileNotFound:
                 case SecurityEventType.NoTrustedHash:
                     _logger.Debug(logMessage);
                     break;
-                    
+
                 case SecurityEventType.PathTraversal:
                 case SecurityEventType.UnauthorizedAccess:
                 case SecurityEventType.HashMismatch:
                 case SecurityEventType.InvalidSignature:
                     _logger.Warn(logMessage);
                     break;
-                    
+
                 default:
                     _logger.Warn(logMessage);
                     break;

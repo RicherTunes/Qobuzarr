@@ -73,7 +73,7 @@ namespace Qobuzarr.Tests.Unit.Download.Services
 
             // Act
             var slot3Task = sut.AcquireSlotAsync();
-            
+
             // Should be waiting
             await Task.Delay(50);
             sut.ActiveCount.Should().Be(2);
@@ -99,7 +99,7 @@ namespace Qobuzarr.Tests.Unit.Download.Services
             // Arrange
             using var sut = new ConcurrencyManager(MockLogger.Object, 1);
             var slot1 = await sut.AcquireSlotAsync();
-            
+
             using var cts = new CancellationTokenSource();
             cts.CancelAfter(100); // Cancel after 100ms
 
@@ -211,7 +211,7 @@ namespace Qobuzarr.Tests.Unit.Download.Services
 
             // Assert - the limit is updated but active slots remain tracked
             sut.CurrentLimit.Should().Be(1);
-            
+
             // Active slots should still be 2 since we have 2 acquired slots
             sut.ActiveCount.Should().Be(2);
 
@@ -222,7 +222,7 @@ namespace Qobuzarr.Tests.Unit.Download.Services
             // Cleanup - after disposal, active count should reduce
             slot1.Dispose();
             slot2.Dispose();
-            
+
             // After cleanup, active count should be 0
             sut.ActiveCount.Should().Be(0);
         }

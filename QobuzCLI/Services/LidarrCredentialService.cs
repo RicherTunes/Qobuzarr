@@ -112,7 +112,7 @@ namespace QobuzCLI.Services
             try
             {
                 await _credentialStorage.RemoveCredentialAsync(LidarrConfig.CredentialKeys.LIDARR_API_KEY);
-                
+
                 // Update config state
                 config.ApiKey = string.Empty;
                 config.HasSecureApiKey = false;
@@ -170,7 +170,7 @@ namespace QobuzCLI.Services
             try
             {
                 var apiKey = await GetApiKeyAsync(config);
-                return !string.IsNullOrWhiteSpace(apiKey) && 
+                return !string.IsNullOrWhiteSpace(apiKey) &&
                        Lidarr.Plugin.Qobuzarr.Utilities.LidarrInputValidator.IsApiKeyFormatValid(apiKey);
             }
             catch (Exception ex)

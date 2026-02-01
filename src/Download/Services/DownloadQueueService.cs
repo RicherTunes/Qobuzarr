@@ -102,7 +102,7 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Services
             var cleanedUp = 0;
 
             var itemsToRemove = _activeDownloads.Values
-                .Where(item => item.Status == DownloadItemStatus.Completed && 
+                .Where(item => item.Status == DownloadItemStatus.Completed &&
                               item.StartedAt < cutoffTime)
                 .ToList();
 
@@ -146,7 +146,7 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Services
                 item.Message = message;
             }
 
-            _logger.Debug("Updated download status: {0} - {1} -> {2}", 
+            _logger.Debug("Updated download status: {0} - {1} -> {2}",
                 downloadId, previousStatus, status);
 
             // Log significant status changes
@@ -165,7 +165,7 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Services
             lock (_statsLock)
             {
                 var downloads = _activeDownloads.Values.ToList();
-                
+
                 return new DownloadQueueStatistics
                 {
                     TotalDownloads = downloads.Count,

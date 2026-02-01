@@ -41,7 +41,7 @@ namespace Lidarr.Plugin.Qobuzarr.API.Signing
                     appSecret);
 
                 parameters["request_sig"] = signature;
-                
+
                 _logger.Debug("Added signature for track/getFileUrl: track_id={0}, format_id={1}, app_id={2}",
                     parameters.GetValueOrDefault("track_id"),
                     parameters.GetValueOrDefault("format_id"),
@@ -51,7 +51,7 @@ namespace Lidarr.Plugin.Qobuzarr.API.Signing
             {
                 var signature = GenerateGenericSignature(endpoint, parameters, appId, appSecret);
                 parameters["request_sig"] = signature;
-                
+
                 _logger.Debug("Added generic signature for {0}", endpoint);
             }
         }
@@ -70,7 +70,7 @@ namespace Lidarr.Plugin.Qobuzarr.API.Signing
             // Exact concatenation order from QobuzApiSharp:
             // "trackgetFileUrlformat_id" + format_id + "intentstreamtrack_id" + track_id + timestamp + app_secret
             var signatureString = $"trackgetFileUrlformat_id{formatId}intentstreamtrack_id{trackId}{timestamp}{appSecret}";
-            
+
             return HashingUtility.ComputeMD5Hash(signatureString);
         }
 
@@ -90,7 +90,7 @@ namespace Lidarr.Plugin.Qobuzarr.API.Signing
                 .ToList();
 
             var signatureString = $"{objectName}{method}{string.Join("", signatureParams)}{appId}";
-            
+
             return HashingUtility.ComputeMD5Hash(signatureString);
         }
     }

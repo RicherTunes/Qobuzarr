@@ -66,7 +66,7 @@ namespace Lidarr.Plugin.Qobuzarr.Services
         public int GetBestAvailableFormatId(QobuzTrack track, int maxFormatId = 27)
         {
             var cacheKey = $"format_{track.Id}_{maxFormatId}";
-            
+
             if (_cache.TryGetValue<int>(cacheKey, out var cachedFormat))
             {
                 return cachedFormat;
@@ -95,7 +95,7 @@ namespace Lidarr.Plugin.Qobuzarr.Services
         public async Task<QualityDetectionResult> DetectQualityAsync(QobuzTrack track, QobuzAlbum album = null)
         {
             var cacheKey = $"quality_detection_{track.Id}";
-            
+
             if (_cache.TryGetValue<QualityDetectionResult>(cacheKey, out var cachedResult))
             {
                 _logger.Debug("Using cached quality detection for track {0}", track.Id);
@@ -112,7 +112,7 @@ namespace Lidarr.Plugin.Qobuzarr.Services
             try
             {
                 var availableFormats = GetAvailableFormats(track);
-                
+
                 // Create QualityFormat objects for each available format
                 foreach (var formatId in availableFormats)
                 {
@@ -127,8 +127,8 @@ namespace Lidarr.Plugin.Qobuzarr.Services
                         .OrderByDescending(q => q.Priority)
                         .First();
                 }
-                
-                _logger.Debug("Detected {0} quality formats for track {1}", 
+
+                _logger.Debug("Detected {0} quality formats for track {1}",
                     result.AvailableQualities.Count, track.Id);
 
                 _cache.Set(cacheKey, result, _cacheExpiration);
@@ -137,7 +137,7 @@ namespace Lidarr.Plugin.Qobuzarr.Services
             catch (Exception ex)
             {
                 _logger.Error(ex, "Error detecting quality for track {0}", track.Id);
-                
+
                 // Return safe default on error - CD quality
                 var defaultFormat = CreateQualityFormat(6);
                 result.AvailableQualities.Add(defaultFormat);
@@ -206,7 +206,7 @@ namespace Lidarr.Plugin.Qobuzarr.Services
             if (track.Streamable)
             {
                 formats.Add(6); // CD Quality
-                
+
                 // Check for hi-res availability based on technical specs
                 if (track.MaximumBitDepth.HasValue && track.MaximumSampleRate.HasValue)
                 {
@@ -228,50 +228,50 @@ namespace Lidarr.Plugin.Qobuzarr.Services
         {
             return formatId switch
             {
-                5 => new QualityFormat 
-                { 
-                    Id = 5, 
-                    Name = "MP3_320", 
-                    DisplayName = "MP3 320", 
-                    BitRate = 320, 
-                    IsLossless = false, 
-                    Priority = 1 
+                5 => new QualityFormat
+                {
+                    Id = 5,
+                    Name = "MP3_320",
+                    DisplayName = "MP3 320",
+                    BitRate = 320,
+                    IsLossless = false,
+                    Priority = 1
                 },
-                6 => new QualityFormat 
-                { 
-                    Id = 6, 
-                    Name = "FLAC_CD", 
-                    DisplayName = "FLAC CD", 
-                    BitRate = 1411, 
-                    IsLossless = true, 
-                    Priority = 2 
+                6 => new QualityFormat
+                {
+                    Id = 6,
+                    Name = "FLAC_CD",
+                    DisplayName = "FLAC CD",
+                    BitRate = 1411,
+                    IsLossless = true,
+                    Priority = 2
                 },
-                7 => new QualityFormat 
-                { 
-                    Id = 7, 
-                    Name = "FLAC_HiRes", 
-                    DisplayName = "FLAC Hi-Res", 
-                    BitRate = 2822, 
-                    IsLossless = true, 
-                    Priority = 3 
+                7 => new QualityFormat
+                {
+                    Id = 7,
+                    Name = "FLAC_HiRes",
+                    DisplayName = "FLAC Hi-Res",
+                    BitRate = 2822,
+                    IsLossless = true,
+                    Priority = 3
                 },
-                27 => new QualityFormat 
-                { 
-                    Id = 27, 
-                    Name = "FLAC_Studio", 
-                    DisplayName = "FLAC Studio Master", 
-                    BitRate = 9216, 
-                    IsLossless = true, 
-                    Priority = 4 
+                27 => new QualityFormat
+                {
+                    Id = 27,
+                    Name = "FLAC_Studio",
+                    DisplayName = "FLAC Studio Master",
+                    BitRate = 9216,
+                    IsLossless = true,
+                    Priority = 4
                 },
-                _ => new QualityFormat 
-                { 
-                    Id = 6, 
-                    Name = "FLAC_CD", 
-                    DisplayName = "FLAC CD", 
-                    BitRate = 1411, 
-                    IsLossless = true, 
-                    Priority = 2 
+                _ => new QualityFormat
+                {
+                    Id = 6,
+                    Name = "FLAC_CD",
+                    DisplayName = "FLAC CD",
+                    BitRate = 1411,
+                    IsLossless = true,
+                    Priority = 2
                 }
             };
         }
@@ -284,7 +284,7 @@ namespace Lidarr.Plugin.Qobuzarr.Services
                 return 7;  // Hi-Res
             if (bitDepth == 16 && sampleRate == 44100)
                 return 6;  // CD Quality
-            
+
             return 6; // Default to CD
         }
 
@@ -292,13 +292,13 @@ namespace Lidarr.Plugin.Qobuzarr.Services
         public QobuzQuality MapLidarrQuality(object qualityProfile)
         {
             // Simplified mapping - return default quality object
-            return new QobuzQuality 
-            { 
-                Id = 6, 
-                Name = "FLAC_CD", 
-                DisplayName = "FLAC CD", 
-                BitRate = 1411, 
-                IsLossless = true, 
+            return new QobuzQuality
+            {
+                Id = 6,
+                Name = "FLAC_CD",
+                DisplayName = "FLAC CD",
+                BitRate = 1411,
+                IsLossless = true,
                 Priority = 2,
                 Format = "FLAC"
             };
@@ -327,7 +327,7 @@ namespace Lidarr.Plugin.Qobuzarr.Services
         bool IsQualityAvailable(QobuzTrack track, int requestedFormatId);
         QualityStatistics GetStatistics();
         void ClearCache();
-        
+
         // Legacy compatibility methods for LidarrAlbumRetriever  
         QobuzQuality MapLidarrQuality(object qualityProfile);
         List<QobuzQuality> GetQualityFallbackChain(QobuzQuality mappedQuality);

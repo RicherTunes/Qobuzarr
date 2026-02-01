@@ -30,10 +30,10 @@ namespace Lidarr.Plugin.Qobuzarr.Core
 
                 // Get all music files in the directory
                 var musicFiles = Directory.GetFiles(albumDir, "*.*", SearchOption.TopDirectoryOnly)
-                    .Where(f => 
+                    .Where(f =>
                     {
                         var ext = Path.GetExtension(f).ToLowerInvariant();
-                        return ext == ".flac" || ext == ".mp3" || ext == ".m4a" || ext == ".aac" || 
+                        return ext == ".flac" || ext == ".mp3" || ext == ".m4a" || ext == ".aac" ||
                                ext == ".wav" || ext == ".alac" || ext == ".opus" || ext == ".ogg";
                     })
                     .ToList();
@@ -58,7 +58,7 @@ namespace Lidarr.Plugin.Qobuzarr.Core
                     var ext = Path.GetExtension(file).ToLowerInvariant();
                     var fileInfo = new FileInfo(file);
                     var estimatedScore = EstimateQualityFromFile(ext, fileInfo.Length);
-                    
+
                     if (estimatedScore > highestExistingScore)
                     {
                         highestExistingScore = estimatedScore;
@@ -66,7 +66,7 @@ namespace Lidarr.Plugin.Qobuzarr.Core
                     }
                 }
 
-                _logger.Debug("Highest existing quality score: {0}, Requested score: {1}", 
+                _logger.Debug("Highest existing quality score: {0}, Requested score: {1}",
                     highestExistingScore, requestedScore);
 
                 // Determine if existing quality is adequate
@@ -110,7 +110,7 @@ namespace Lidarr.Plugin.Qobuzarr.Core
         {
             // Very rough estimation based on typical file sizes
             var sizeMB = fileSize / (1024.0 * 1024.0);
-            
+
             return extension switch
             {
                 ".flac" => sizeMB > 40 ? 2000 : 1600, // Assume Hi-Res if > 40MB per track

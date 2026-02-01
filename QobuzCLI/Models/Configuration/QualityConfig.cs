@@ -9,10 +9,10 @@ namespace QobuzCLI.Models.Configuration
     {
         [JsonProperty("quality")]
         public string Quality { get; set; } = "flac-max"; // mp3-320, flac-cd, flac-hires, flac-max
-        
+
         [JsonProperty("autoQualityFallback")]
         public bool AutoQualityFallback { get; set; } = true;
-        
+
         [JsonProperty("qualityFallbackOrder")]
         public List<string>? QualityFallbackOrder { get; set; } = DefaultQualityFallbackOrder;
 
@@ -22,13 +22,13 @@ namespace QobuzCLI.Models.Configuration
         /// <summary>
         /// Gets the default quality fallback order
         /// </summary>
-        public static List<string> DefaultQualityFallbackOrder => 
+        public static List<string> DefaultQualityFallbackOrder =>
             new() { "flac-max", "flac-hires", "flac-cd", "mp3-320" };
 
         /// <summary>
         /// Gets the default preferred formats
         /// </summary>
-        public static List<string> DefaultPreferredFormats => 
+        public static List<string> DefaultPreferredFormats =>
             new() { "FLAC", "ALAC", "WAV", "MP3" };
 
         /// <summary>

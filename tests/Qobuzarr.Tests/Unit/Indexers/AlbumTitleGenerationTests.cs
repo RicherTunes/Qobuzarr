@@ -19,7 +19,7 @@ namespace Qobuzarr.Tests.Unit.Indexers
     public class AlbumTitleGenerationTests
     {
         private readonly ITitleGenerator _titleGenerator;
-        
+
         public AlbumTitleGenerationTests()
         {
             _titleGenerator = new TitleGenerator(LogManager.GetCurrentClassLogger());
@@ -65,7 +65,7 @@ namespace Qobuzarr.Tests.Unit.Indexers
             if (!string.IsNullOrWhiteSpace(version))
             {
                 title.Should().Be($"Test Artist - Live Album (2023) [{version}] [FLAC] [WEB]");
-                
+
                 // Verify bracket structure
                 title.Should().Contain($"[{version}]");
                 title.Should().Contain("[FLAC]");
@@ -98,16 +98,16 @@ namespace Qobuzarr.Tests.Unit.Indexers
 
             // Assert - Canonical format: [Edition] [FORMAT] [WEB]
             title.Should().Be($"Test Artist - Test Album (2020) [{version}] [FLAC] [WEB]");
-            
+
             // Verify proper bracket separation
             var editionBracketIndex = title.IndexOf($"[{version}]");
             var formatBracketIndex = title.IndexOf("[FLAC]");
             var webBracketIndex = title.IndexOf("[WEB]");
-            
+
             editionBracketIndex.Should().BeGreaterThan(0);
             formatBracketIndex.Should().BeGreaterThan(editionBracketIndex);
             webBracketIndex.Should().BeGreaterThan(formatBracketIndex);
-            
+
             // There should be a space between edition and format brackets
             var charAfterEditionBracket = title.Substring(editionBracketIndex + version.Length + 2, 1);
             charAfterEditionBracket.Should().Be(" ", "there should be a space between [Edition] and [FORMAT] brackets");
@@ -255,7 +255,7 @@ namespace Qobuzarr.Tests.Unit.Indexers
             title.Should().Contain("Live");
             title.Should().Contain("Acoustic Set");
             title.Should().EndWith("[FLAC] [WEB]");
-            
+
             // Verify the structure is still parseable
             title.Should().MatchRegex(@"^.+ - .+ \(\d{4}\) \[.+\] \[FLAC\] \[WEB\]$");
         }
@@ -283,7 +283,7 @@ namespace Qobuzarr.Tests.Unit.Indexers
 
             // Assert
             title.Should().Be($"Test Artist - Test Album (1990) [{version}] [FLAC] [WEB]");
-            
+
             // Specific validations based on complex scenarios
             switch (scenario)
             {
@@ -292,13 +292,13 @@ namespace Qobuzarr.Tests.Unit.Indexers
                     title.Should().Contain("Remastered");
                     title.Should().Contain("Edition");
                     break;
-                    
+
                 case "AnniversaryLiveCombination":
                     title.Should().Contain("Anniversary");
                     title.Should().Contain("Live");
                     title.Should().Contain("Wembley");
                     break;
-                    
+
                 case "RemasterYearDifferentFromAlbumYear":
                     title.Should().Contain("(1990)"); // Original album year
                     title.Should().Contain("2020"); // Remaster year in version
@@ -362,7 +362,7 @@ namespace Qobuzarr.Tests.Unit.Indexers
             var artistName = album.GetArtistName();
             var albumTitle = album.Title;
             var year = album.ReleaseDate.Year;
-            
+
             // Determine format based on bit depth - matching TitleGenerator canonical formats
             string format;
             if (album.MaximumBitDepth < 16)
@@ -377,10 +377,10 @@ namespace Qobuzarr.Tests.Unit.Indexers
             {
                 format = "MP3 320kbps";
             }
-            
+
             // Build title: "Artist - Album (Year)"
             var titleBuilder = $"{artistName} - {albumTitle} ({year})";
-            
+
             // Add edition bracket if version exists: "[Edition]"
             if (!string.IsNullOrWhiteSpace(album.Version))
             {
@@ -388,7 +388,7 @@ namespace Qobuzarr.Tests.Unit.Indexers
                 var sanitizedVersion = album.Version.Replace("[", "(").Replace("]", ")");
                 titleBuilder += $" [{sanitizedVersion}]";
             }
-            
+
             // Add format and source brackets separately: "[FORMAT] [WEB]"
             titleBuilder += $" [{format}] [WEB]";
 

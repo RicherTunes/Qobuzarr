@@ -28,7 +28,7 @@ namespace Qobuzarr.Tests.Unit.Security
         }
 
         [Fact]
-        public void Constructor_ShouldInitializeWithTrustedHashes()       
+        public void Constructor_ShouldInitializeWithTrustedHashes()
         {
             // Arrange & Act
             var loader = new SecureMLModelLoader(LogManager.CreateNullLogger());
@@ -38,7 +38,7 @@ namespace Qobuzarr.Tests.Unit.Security
         }
 
         [Fact]
-        public void LoadSecureModel_WithEmptyPath_ShouldReturnNull()      
+        public void LoadSecureModel_WithEmptyPath_ShouldReturnNull()
         {
             // Act
             var result = _loader.LoadSecureModel("");
@@ -48,7 +48,7 @@ namespace Qobuzarr.Tests.Unit.Security
         }
 
         [Fact]
-        public void LoadSecureModel_WithPathTraversal_ShouldReturnNull()  
+        public void LoadSecureModel_WithPathTraversal_ShouldReturnNull()
         {
             // Arrange
             var maliciousPath = "../../etc/passwd";
@@ -78,7 +78,7 @@ namespace Qobuzarr.Tests.Unit.Security
         {
             // Arrange
             var oversizedPath = Path.Combine(_testDirectory, "Oversized.dll");
-            
+
             // Create a file larger than 10MB limit
             var largeData = new byte[11 * 1024 * 1024]; // 11MB
             File.WriteAllBytes(oversizedPath, largeData);
@@ -159,7 +159,7 @@ namespace Qobuzarr.Tests.Unit.Security
             // Act & Assert
             Assert.Throws<ArgumentException>(() =>
                 _loader.UpdateTrustedHash(assemblyName, invalidHash, "test_token"));
-            
+
             // Cleanup
             Environment.SetEnvironmentVariable("QOBUZARR_ADMIN_TOKEN", null);
         }
@@ -221,7 +221,7 @@ namespace Qobuzarr.Tests.Unit.Security
 
             // Act
             loader.Dispose();
-            
+
             // Assert - After disposal, getting audit log should still work but may be empty
             var auditLog = loader.GetAuditLog();
             auditLog.Should().NotBeNull();
@@ -232,7 +232,7 @@ namespace Qobuzarr.Tests.Unit.Security
         {
             // Arrange
             var validPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "PersonalizedMLQueryOptimizer.dll");
-            
+
             // Create a dummy file
             if (!File.Exists(validPath))
             {
@@ -244,7 +244,7 @@ namespace Qobuzarr.Tests.Unit.Security
 
             // Assert
             result.Should().BeNull();
-            
+
             // Cleanup
             if (File.Exists(validPath))
             {
@@ -261,10 +261,10 @@ namespace Qobuzarr.Tests.Unit.Security
         {
             // This is an indirect test through LoadSecureModel
             // The assembly name validation is internal to the loader
-            
+
             // Arrange
             var testPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, $"{assemblyName}.dll");
-            
+
             // Create a dummy file with reasonable size
             if (!File.Exists(testPath))
             {
@@ -277,7 +277,7 @@ namespace Qobuzarr.Tests.Unit.Security
             // Assert
             // It will fail at a later stage (no valid assembly), but should pass name validation
             result.Should().BeNull();
-            
+
             // Cleanup
             if (File.Exists(testPath))
             {
@@ -297,14 +297,14 @@ namespace Qobuzarr.Tests.Unit.Security
             // Act - Load twice to see if hash is consistent
             _loader.LoadSecureModel(testPath);
             _loader.LoadSecureModel(testPath);
-            
+
             var auditLog = _loader.GetAuditLog();
 
             // Assert
             auditLog.Should().HaveCountGreaterOrEqualTo(2);
             var hash1 = auditLog[auditLog.Count - 2].FileHash;
             var hash2 = auditLog[auditLog.Count - 1].FileHash;
-            
+
             hash1.Should().Be(hash2);
             hash1.Should().HaveLength(64); // SHA-256 produces 64 hex characters
         }
@@ -312,7 +312,7 @@ namespace Qobuzarr.Tests.Unit.Security
         public void Dispose()
         {
             _loader?.Dispose();
-            
+
             // Clean up test directory
             if (Directory.Exists(_testDirectory))
             {

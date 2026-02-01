@@ -14,7 +14,7 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
         void RecordResult(string artistName, string albumTitle, QueryComplexity usedComplexity, bool wasSuccessful);
         PatternStatistics GetStatistics();
         List<string> GetOptimizedQueryStrategies(string artistName, string albumTitle);
-        
+
         // Async methods for compatibility
         Task TrainAsync(IEnumerable<QueryPattern> patterns);
         Task<PredictionResult> PredictOptimalStrategyAsync(string artist, string album);
@@ -25,7 +25,7 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
     /// <summary>
     /// Shared types for query optimization engines
     /// </summary>
-    
+
     /// <summary>
     /// Query complexity levels based on statistical analysis
     /// </summary>

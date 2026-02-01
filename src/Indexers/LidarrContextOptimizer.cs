@@ -46,9 +46,9 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
         {
             _artistService = artistService ?? throw new ArgumentNullException(nameof(artistService));
             _albumService = albumService ?? throw new ArgumentNullException(nameof(albumService));
-            
+
             CacheConfiguration.ValidateCacheSize(maxCacheSize, nameof(maxCacheSize));
-                
+
             _logger = logger ?? LogManager.GetCurrentClassLogger();
             _contextCache = new ConcurrentDictionary<string, ContextCache>();
             _maxCacheSize = maxCacheSize;
@@ -117,7 +117,7 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
                     {
                         context.ContextSource = "Artist+Album";
                         context.AlbumMetadata = albumContext;
-                        
+
                         var albumQueries = BuildAlbumContextQueries(artistContext, albumContext);
                         context.OptimizedQueries.AddRange(albumQueries);
                     }
@@ -169,15 +169,15 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
             {
                 // Find artist by name
                 var artists = _artistService.GetAllArtists();
-                var artist = artists.FirstOrDefault(a => 
+                var artist = artists.FirstOrDefault(a =>
                     a.Name.Equals(artistName, StringComparison.OrdinalIgnoreCase) ||
-                    a.Metadata.Value.Aliases.Any(alias => 
+                    a.Metadata.Value.Aliases.Any(alias =>
                         alias.Equals(artistName, StringComparison.OrdinalIgnoreCase)));
 
                 if (artist == null)
                 {
                     // Try fuzzy match
-                    artist = artists.FirstOrDefault(a => 
+                    artist = artists.FirstOrDefault(a =>
                         Lidarr.Plugin.Qobuzarr.Utilities.StringSimilarity.LevenshteinDistance(a.Name.ToLower(), artistName.ToLower()) <= 2);
                 }
 
@@ -279,7 +279,7 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
             queries.Add($"{artist.Name} {albumTitle}");
 
             // Add query with sort name if different
-            if (!string.IsNullOrEmpty(artist.SortName) && 
+            if (!string.IsNullOrEmpty(artist.SortName) &&
                 !artist.SortName.Equals(artist.Name, StringComparison.OrdinalIgnoreCase))
             {
                 queries.Add($"{artist.SortName} {albumTitle}");
@@ -360,7 +360,7 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
             context.OptimizedQueries = cached.OptimizedQueries;
             context.ArtistMetadata = cached.ArtistMetadata;
             context.AlbumMetadata = cached.AlbumMetadata;
-            
+
             _logger?.Debug("Using cached context for query optimization");
         }
 
@@ -400,7 +400,7 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
                 AlbumMetadata = context.AlbumMetadata,
                 CreatedAt = DateTime.UtcNow
             };
-            
+
             _contextCache.AddOrUpdate(key, newCache, (k, v) => newCache);
         }
 

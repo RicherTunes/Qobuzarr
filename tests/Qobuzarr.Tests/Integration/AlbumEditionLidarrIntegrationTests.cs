@@ -47,13 +47,13 @@ namespace Qobuzarr.Tests.Integration
             {
                 parsedInfo.Should().NotBeNull();
                 parsedInfo.AlbumTitle.Should().Contain("Kind of Blue");
-                
+
                 // ReleaseVersion should contain the version info
                 if (version.Contains("Live"))
                 {
                     parsedInfo.ReleaseVersion.Should().ContainAny("Live", version);
                 }
-                
+
                 parsedInfo.Quality.Should().NotBeNull();
                 parsedInfo.Quality.Quality.Name.Should().Be("FLAC");
             }
@@ -80,7 +80,7 @@ namespace Qobuzarr.Tests.Integration
             // Assert
             parsedInfo.Should().NotBeNull();
             parsedInfo.AlbumTitle.Should().Contain("Abbey Road");
-            
+
             // Edition info should be in ReleaseVersion
             switch (scenario)
             {
@@ -88,12 +88,12 @@ namespace Qobuzarr.Tests.Integration
                 case "DeluxeShort":
                     parsedInfo.ReleaseVersion.Should().ContainAny("Deluxe", version);
                     break;
-                    
+
                 case "Remastered":
                 case "RemasterWithYear":
                     parsedInfo.ReleaseVersion.Should().ContainAny("Remaster", version);
                     break;
-                    
+
                 case "AnniversaryEdition":
                     parsedInfo.ReleaseVersion.Should().ContainAny("Anniversary", version);
                     break;
@@ -110,7 +110,7 @@ namespace Qobuzarr.Tests.Integration
             // Arrange
             var artistName = "Pink Floyd";
             var albumTitle = "The Wall";
-            
+
             var studioAlbum = QobuzAlbumBuilder.New()
                 .WithTitle(albumTitle)
                 .WithArtist(artistName)
@@ -170,11 +170,11 @@ namespace Qobuzarr.Tests.Integration
             parsedInfo.Should().NotBeNull();
             parsedInfo.Quality.Should().NotBeNull();
             parsedInfo.Quality.Quality.Name.Should().Be("FLAC");
-            
+
             // Edition shouldn't interfere with quality parsing
             releaseInfo.Title.Should().Contain("[Deluxe Edition]");
             releaseInfo.Title.Should().Contain("[FLAC WEB]");
-            
+
             // Quality should be parsed correctly despite edition brackets
             parsedInfo.Quality.Quality.Id.Should().BeGreaterThan(0);
         }
@@ -196,7 +196,7 @@ namespace Qobuzarr.Tests.Integration
             // Assert
             guids.Should().HaveCount(3);
             guids.Should().OnlyHaveUniqueItems(); // All GUIDs must be unique
-            
+
             foreach (var guid in guids)
             {
                 guid.Should().NotBeNullOrWhiteSpace();
@@ -219,7 +219,7 @@ namespace Qobuzarr.Tests.Integration
             studioGuid.Should().NotBe(liveGuid);
             studioGuid.Should().StartWith("qobuz-");
             liveGuid.Should().StartWith("qobuz-");
-            
+
             // GUIDs should incorporate album ID (which should be different)
             studioGuid.Should().Contain(studioAlbum.Id);
             liveGuid.Should().Contain(liveAlbum.Id);
@@ -248,7 +248,7 @@ namespace Qobuzarr.Tests.Integration
             parsedInfo.Should().NotBeNull();
             parsedInfo.AlbumTitle.Should().Contain("Café del Mar");
             releaseInfo.Title.Should().Contain("Édition Spéciale");
-            
+
             // Unicode characters should be preserved
             releaseInfo.Title.Should().Contain("É");
             releaseInfo.Title.Should().Contain("ç");
@@ -274,7 +274,7 @@ namespace Qobuzarr.Tests.Integration
             parsedInfo.Should().NotBeNull();
             parsedInfo.AlbumTitle.Should().Contain("The Joshua Tree");
             parsedInfo.ReleaseVersion.Should().Contain("30th Anniversary Deluxe Remastered Edition");
-            
+
             // Complex version should be handled as one unit
             releaseInfo.Title.Should().Contain("[30th Anniversary Deluxe Remastered Edition]");
         }
@@ -292,15 +292,15 @@ namespace Qobuzarr.Tests.Integration
             var albumTitle = album.Title;
             var year = album.ReleaseDate.Year;
             var quality = album.MaximumBitDepth >= 24 ? "FLAC" : "MP3";
-            
+
             // Build title following Redacted pattern: "Artist - Album (Year) [Edition] [Quality WEB]"
             var titleBuilder = $"{artistName} - {albumTitle} ({year})";
-            
+
             if (!string.IsNullOrWhiteSpace(album.Version))
             {
                 titleBuilder += $" [{album.Version}]";
             }
-            
+
             titleBuilder += $" [{quality} WEB]";
 
             return new ReleaseInfo
@@ -322,7 +322,7 @@ namespace Qobuzarr.Tests.Integration
         {
             // This is a simplified simulation of Lidarr's parsing logic
             // In real implementation, this would use Lidarr's actual parser
-            
+
             var parts = title.Split(" - ");
             if (parts.Length < 2) return null;
 

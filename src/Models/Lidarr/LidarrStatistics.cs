@@ -110,7 +110,7 @@ namespace Lidarr.Plugin.Qobuzarr.Models.Lidarr
         {
             if (!string.IsNullOrEmpty(PackageVersion))
                 return $"{Version} ({PackageVersion})";
-            
+
             return Version;
         }
 

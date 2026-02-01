@@ -15,7 +15,7 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
     public class QobuzIndexerSettings : IIndexerSettings
     {
         private static readonly QobuzIndexerSettingsValidator Validator = new QobuzIndexerSettingsValidator();
-        
+
         // Compose with shared BaseStreamingSettings for reuse of defaults/masking in code paths
         internal BaseStreamingSettings ToSharedSettings()
         {
@@ -139,7 +139,7 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
 
         [FieldDefinition(29, Label = "Maximum Response Time (ms)", Type = FieldType.Number, Section = "Concurrency", Advanced = true, HelpText = "[Adaptive Mode] Unacceptable API response time. System reduces concurrency when slower than this. Range: 1000-10000ms, Default: 5000ms")]
         public int AdaptiveMaxLatency { get; set; } = 5000;
-        
+
         public int? EarlyReleaseLimit { get; set; }
 
         // === ADVANCED SETTINGS ===
@@ -163,8 +163,8 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
         /// </summary>
         public bool IsEmailAuth()
         {
-            return AuthMethod == (int)AuthenticationMethod.Email && 
-                   Email.IsNotNullOrWhiteSpace() && 
+            return AuthMethod == (int)AuthenticationMethod.Email &&
+                   Email.IsNotNullOrWhiteSpace() &&
                    Password.IsNotNullOrWhiteSpace();
         }
 
@@ -173,8 +173,8 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
         /// </summary>
         public bool IsTokenAuth()
         {
-            return AuthMethod == (int)AuthenticationMethod.Token && 
-                   UserId.IsNotNullOrWhiteSpace() && 
+            return AuthMethod == (int)AuthenticationMethod.Token &&
+                   UserId.IsNotNullOrWhiteSpace() &&
                    AuthToken.IsNotNullOrWhiteSpace();
         }
 
@@ -212,7 +212,7 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
                     // Invalid App ID, fall through to try environment variable
                 }
             }
-                
+
             // Try environment variable as fallback
             var envAppId = System.Environment.GetEnvironmentVariable(QobuzConstants.Authentication.AppIdEnvironmentVariable);
             if (!string.IsNullOrWhiteSpace(envAppId))
@@ -226,7 +226,7 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
                     // Invalid environment App ID
                 }
             }
-                
+
             // No valid credentials available
             return string.Empty;
         }
@@ -240,12 +240,12 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
             // Use user-provided App Secret if available
             if (!string.IsNullOrWhiteSpace(AppSecret))
                 return AppSecret;
-                
+
             // Try environment variable as fallback
             var envAppSecret = System.Environment.GetEnvironmentVariable(QobuzConstants.Authentication.AppSecretEnvironmentVariable);
             if (!string.IsNullOrWhiteSpace(envAppSecret))
                 return envAppSecret;
-                
+
             // No valid credentials available
             return string.Empty;
         }
@@ -266,7 +266,7 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
             {
                 // Invalid country code, use default
             }
-                
+
             return "US"; // Default fallback
         }
 
@@ -292,7 +292,7 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
         }
 
     }
-    
+
     // Adapter to reuse shared behaviors without changing Lidarr UI contracts
     internal class QobuzSharedSettings : BaseStreamingSettings
     {
@@ -316,7 +316,7 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
     {
         [Description("Email & Password")]
         Email = 0,
-        
+
         [Description("User ID & Token")]
         Token = 1
     }
@@ -325,10 +325,10 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
     {
         [Description("🤖 Adaptive (Recommended) - Automatically optimizes based on API performance")]
         Adaptive = 0,
-        
+
         [Description("🔧 Fixed - Uses constant concurrency level")]
         Fixed = 1,
-        
+
         [Description("👨‍💻 Manual (Advanced) - For custom implementations")]
         Manual = 2
     }
@@ -337,13 +337,13 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
     {
         [Description("❓ Unknown - Detect automatically")]
         Unknown = 0,
-        
+
         [Description("🆓 Free - 30-second samples only")]
         Free = 1,
-        
+
         [Description("💿 Studio Sublime - CD Quality (16-bit/44.1kHz)")]
         Sublime = 2,
-        
+
         [Description("🏆 Studio Premier - Hi-Res (up to 24-bit/192kHz)")]
         Premier = 3
     }

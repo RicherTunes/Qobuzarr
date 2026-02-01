@@ -25,7 +25,7 @@ namespace Lidarr.Plugin.Qobuzarr.Download
         /// <summary>
         /// Records the result of an album download
         /// </summary>
-        public void RecordAlbumResult(string artist, string album, int successfulTracks, 
+        public void RecordAlbumResult(string artist, string album, int successfulTracks,
             int skippedTracks, int failedTracks, int totalTracks, long bytesDownloaded)
         {
             _albumResults.Add(new AlbumDownloadResult
@@ -72,7 +72,7 @@ namespace Lidarr.Plugin.Qobuzarr.Download
 
             sb.AppendLine();
             sb.AppendLine($"✅ Completed: {completedAlbums} album{(completedAlbums != 1 ? "s" : "")} ({FormatBytes(_albumResults.Where(a => a.FailedTracks == 0).Sum(a => a.BytesDownloaded))})");
-            
+
             if (partialAlbums > 0)
             {
                 var partialResults = _albumResults.Where(a => a.FailedTracks > 0 && a.SuccessfulTracks > 0).ToList();
@@ -80,7 +80,7 @@ namespace Lidarr.Plugin.Qobuzarr.Download
                 var totalPartialTotal = partialResults.Sum(a => a.TotalTracks);
                 sb.AppendLine($"⚠️  Partial: {partialAlbums} album{(partialAlbums != 1 ? "s" : "")} ({totalPartialTracks}/{totalPartialTotal} tracks)");
             }
-            
+
             if (failedAlbums > 0)
             {
                 sb.AppendLine($"❌ Failed: {failedAlbums} album{(failedAlbums != 1 ? "s" : "")}");
@@ -105,7 +105,7 @@ namespace Lidarr.Plugin.Qobuzarr.Download
             sb.AppendLine("Performance:");
             sb.AppendLine($"⏱️  Total time: {FormatDuration(elapsed)}");
             sb.AppendLine($"💾 Total size: {FormatBytes(_totalBytesDownloaded)}");
-            
+
             if (_downloadSpeeds.Any())
             {
                 var avgSpeed = _downloadSpeeds.Average();
@@ -131,7 +131,7 @@ namespace Lidarr.Plugin.Qobuzarr.Download
             {
                 sb.AppendLine();
                 sb.AppendLine("Issues encountered:");
-                
+
                 foreach (var album in _albumResults.Where(a => a.FailedTracks > 0).Take(5))
                 {
                     sb.AppendLine($"  • {album.Artist} - {album.Album}");
@@ -158,7 +158,7 @@ namespace Lidarr.Plugin.Qobuzarr.Download
             var elapsed = DateTime.UtcNow - _startTime;
             var completedAlbums = _albumResults.Count(a => a.FailedTracks == 0);
             var totalAlbums = _albumResults.Count;
-            
+
             return $"Downloaded {completedAlbums}/{totalAlbums} albums in {FormatDuration(elapsed)} ({FormatBytes(_totalBytesDownloaded)})";
         }
 
@@ -187,13 +187,13 @@ namespace Lidarr.Plugin.Qobuzarr.Download
             {
                 return _downloadSpeeds.Average();
             }
-            
+
             var elapsed = DateTime.UtcNow - _startTime;
             if (_totalBytesDownloaded > 0 && elapsed.TotalSeconds > 0)
             {
                 return _totalBytesDownloaded / elapsed.TotalSeconds;
             }
-            
+
             return 0;
         }
 

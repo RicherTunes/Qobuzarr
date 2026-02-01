@@ -170,7 +170,7 @@ namespace Lidarr.Plugin.Qobuzarr.Models
         public string GetFullTitle()
         {
             var title = string.IsNullOrWhiteSpace(Title) ? "Unknown Album" : Title;
-            
+
             // Sanitize version to prevent injection attacks
             var sanitizedVersion = MetadataSanitizer.SanitizeVersion(Version);
 
@@ -232,14 +232,14 @@ namespace Lidarr.Plugin.Qobuzarr.Models
         public List<string> GetAllArtistNames()
         {
             var artistNames = new List<string>();
-            
+
             if (Artist?.Name.IsNotNullOrWhiteSpace() == true)
             {
                 artistNames.Add(Artist.Name);
             }
 
             artistNames.AddRange(Artists.Where(a => a.Name.IsNotNullOrWhiteSpace()).Select(a => a.Name));
-            
+
             return artistNames.Distinct().ToList();
         }
 
@@ -251,7 +251,7 @@ namespace Lidarr.Plugin.Qobuzarr.Models
             var artist = GetArtistName();
             var title = GetFullTitle();
             var year = ReleaseDate.Year > 1900 ? ReleaseDate.Year.ToString() : "";
-            
+
             var folderName = year.IsNotNullOrWhiteSpace() ? $"{artist} - {title} ({year})" : $"{artist} - {title}";
 
             // Replace illegal filesystem characters

@@ -26,8 +26,8 @@ namespace Lidarr.Plugin.Qobuzarr.Services.Matching
         public bool CanHandle(List<LidarrTrack> lidarrTracks, List<QobuzTrack> qobuzTracks)
         {
             // Can handle when Lidarr has more tracks than Qobuz (potential merge scenario)
-            return lidarrTracks?.Any() == true && 
-                   qobuzTracks?.Any() == true && 
+            return lidarrTracks?.Any() == true &&
+                   qobuzTracks?.Any() == true &&
                    lidarrTracks.Count > qobuzTracks.Count;
         }
 
@@ -42,7 +42,7 @@ namespace Lidarr.Plugin.Qobuzarr.Services.Matching
                 };
             }
 
-            _logger.Debug("Merged track matching: {0} Lidarr tracks vs {1} Qobuz tracks", 
+            _logger.Debug("Merged track matching: {0} Lidarr tracks vs {1} Qobuz tracks",
                          lidarrTracks.Count, qobuzTracks.Count);
 
             var result = new TrackMatchingResult
@@ -79,16 +79,16 @@ namespace Lidarr.Plugin.Qobuzarr.Services.Matching
             foreach (var qobuzTrack in qobuzTracks.ToList())
             {
                 var mergedGroup = DetectMergedTracks(lidarrTracks.Where(l => !matchedLidarr.Contains(l)).ToList(), qobuzTrack);
-                
+
                 if (mergedGroup != null && mergedGroup.Confidence >= 0.75)
                 {
                     result.MergedTrackGroups.Add(mergedGroup);
                     matchedQobuz.Add(qobuzTrack);
-                    
+
                     foreach (var lidarrTrack in mergedGroup.LidarrTracks)
                         matchedLidarr.Add(lidarrTrack);
 
-                    _logger.Info("Merged track detected: {0} tracks → '{1}' ({2:P1} confidence)", 
+                    _logger.Info("Merged track detected: {0} tracks → '{1}' ({2:P1} confidence)",
                                 mergedGroup.LidarrTracks.Count, qobuzTrack.Title, mergedGroup.Confidence);
                 }
             }
@@ -96,7 +96,7 @@ namespace Lidarr.Plugin.Qobuzarr.Services.Matching
             // Remove matched tracks
             foreach (var matched in matchedLidarr)
                 lidarrTracks.Remove(matched);
-            
+
             foreach (var matched in matchedQobuz)
                 qobuzTracks.Remove(matched);
         }
@@ -114,13 +114,13 @@ namespace Lidarr.Plugin.Qobuzarr.Services.Matching
                 return null;
 
             var consecutiveGroups = FindConsecutiveLidarrGroups(candidates);
-            
+
             foreach (var group in consecutiveGroups)
             {
                 if (group.Count >= 2)
                 {
                     var confidence = CalculateMergedTrackConfidence(group, qobuzTrack);
-                    
+
                     if (confidence >= 0.75)
                     {
                         return new MergedTrackGroup
@@ -221,8 +221,8 @@ namespace Lidarr.Plugin.Qobuzarr.Services.Matching
 
         private void CalculateMatchingStatistics(TrackMatchingResult result, int totalLidarrTracks)
         {
-            var matchedLidarrTracks = result.StandardMatches.Count + 
-                                     result.SplitTrackGroups.Count + 
+            var matchedLidarrTracks = result.StandardMatches.Count +
+                                     result.SplitTrackGroups.Count +
                                      result.MergedTrackGroups.Sum(g => g.LidarrTracks.Count);
 
             result.OverallMatchRate = totalLidarrTracks > 0 ? (double)matchedLidarrTracks / totalLidarrTracks : 0;

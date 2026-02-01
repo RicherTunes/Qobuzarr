@@ -53,11 +53,11 @@ namespace Lidarr.Plugin.Qobuzarr.Services.Metadata
                 {
                     // Only get streaming URL from Qobuz - use Lidarr for everything else
                     var streamingUrl = await GetStreamingUrlAsync(int.Parse(qobuzTrack.Id));
-                    
+
                     var trackDownload = CreateTrackDownloadFromLidarr(streamingUrl, lidarrTrack, lidarrAlbum, qobuzTrack);
                     downloads.Add(trackDownload);
-                    
-                    _logger.Debug("Optimized track {0}: '{1}' (no metadata API call needed)", 
+
+                    _logger.Debug("Optimized track {0}: '{1}' (no metadata API call needed)",
                                  lidarrTrack.TrackNumber, lidarrTrack.Title);
                 }
                 else
@@ -70,8 +70,8 @@ namespace Lidarr.Plugin.Qobuzarr.Services.Metadata
 
             _logger.Info("Lidarr optimization complete: Used MusicBrainz metadata, saved {0} API calls", apiCallsSaved);
 
-            return new MetadataDownloadResult 
-            { 
+            return new MetadataDownloadResult
+            {
                 TrackDownloads = downloads,
                 MetadataStrategy = "Lidarr",
                 ApiCallsSaved = apiCallsSaved,
@@ -82,7 +82,7 @@ namespace Lidarr.Plugin.Qobuzarr.Services.Metadata
         private QobuzTrack FindBestQobuzTrackMatch(LidarrTrack lidarrTrack, List<QobuzTrack> qobuzTracks)
         {
             // First try exact track number match
-            var exactNumberMatch = qobuzTracks.FirstOrDefault(qt => 
+            var exactNumberMatch = qobuzTracks.FirstOrDefault(qt =>
                 qt.TrackNumber == lidarrTrack.TrackNumber &&
                 qt.DiscNumber == lidarrTrack.DiscNumber);
 
@@ -141,16 +141,16 @@ namespace Lidarr.Plugin.Qobuzarr.Services.Metadata
         }
 
         private TrackDownload CreateTrackDownloadFromLidarr(
-            string streamingUrl, 
-            LidarrTrack lidarrTrack, 
-            LidarrAlbum lidarrAlbum, 
+            string streamingUrl,
+            LidarrTrack lidarrTrack,
+            LidarrAlbum lidarrAlbum,
             QobuzTrack qobuzTrack)
         {
             return new TrackDownload
             {
                 StreamingUrl = streamingUrl,
                 QobuzTrackId = int.Parse(qobuzTrack.Id),
-                
+
                 // Rich Lidarr metadata (no additional API calls needed)
                 Title = lidarrTrack.Title,
                 Artist = lidarrTrack.ArtistName,
@@ -160,27 +160,27 @@ namespace Lidarr.Plugin.Qobuzarr.Services.Metadata
                 DiscNumber = lidarrTrack.DiscNumber,
                 Duration = lidarrTrack.Duration,
                 ReleaseDate = lidarrAlbum.ReleaseDate,
-                
+
                 // Genre information from Lidarr
                 Genre = string.Join(", ", lidarrAlbum.Genres ?? new List<string>()),
-                
+
                 // MusicBrainz identifiers for maximum metadata richness
                 MusicBrainzTrackId = lidarrTrack.ForeignTrackId,
                 MusicBrainzAlbumId = lidarrAlbum.ForeignAlbumId,
                 MusicBrainzArtistId = lidarrAlbum.ArtistForeignId,
                 MusicBrainzReleaseGroupId = lidarrAlbum.ForeignReleaseId,
-                
+
                 // Additional Lidarr metadata
                 AlbumType = lidarrAlbum.AlbumType,
                 Label = lidarrAlbum.Label,
                 Country = lidarrAlbum.Country,
-                
+
                 // Quality from Qobuz (still needed for streaming)
                 Quality = qobuzTrack.Quality,
                 BitRate = qobuzTrack.BitRate,
                 SampleRate = (int?)qobuzTrack.SampleRate,
                 BitDepth = qobuzTrack.BitDepth,
-                
+
                 MetadataSource = "Lidarr+Qobuz"
             };
         }

@@ -41,10 +41,10 @@ namespace Lidarr.Plugin.Qobuzarr.Models
         {
             if (!string.IsNullOrWhiteSpace(DisplayName))
                 return DisplayName;
-            
+
             if (!string.IsNullOrWhiteSpace(FirstName) || !string.IsNullOrWhiteSpace(LastName))
                 return $"{FirstName} {LastName}".Trim();
-            
+
             return Login ?? $"User {Id}";
         }
     }

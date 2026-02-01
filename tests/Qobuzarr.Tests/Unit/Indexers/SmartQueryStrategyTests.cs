@@ -200,8 +200,8 @@ namespace Qobuzarr.Tests.Unit.Indexers
             // Arrange - Test with larger query list
             var artist = "Simple Artist";
             var album = "Simple Album";
-            var originalQueries = new List<string> 
-            { 
+            var originalQueries = new List<string>
+            {
                 "query1", "query2", "query3", "query4", "query5", "query6", "query7"
             };
 
@@ -251,7 +251,7 @@ namespace Qobuzarr.Tests.Unit.Indexers
             var testCases = new[]
             {
                 ("Artist1", "Album1"),
-                ("Artist2 & Band", "Album2"), 
+                ("Artist2 & Band", "Album2"),
                 ("Various Artists", "Compilation")
             };
 
@@ -290,7 +290,7 @@ namespace Qobuzarr.Tests.Unit.Indexers
             foreach (var (artist, album) in testCases)
             {
                 var queries = new List<string> { "q1", "q2", "q3" };
-                
+
                 var result1 = _strategy.BuildOptimizedQueries(artist, album, queries);
                 var result2 = _strategy.BuildOptimizedQueries(artist, album, queries);
                 var result3 = _strategy.BuildOptimizedQueries(artist, album, queries);

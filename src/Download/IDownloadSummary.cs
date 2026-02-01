@@ -10,7 +10,7 @@ namespace Lidarr.Plugin.Qobuzarr.Download
         /// <summary>
         /// Records the result of an album download
         /// </summary>
-        void RecordAlbumResult(string artist, string album, int successfulTracks, 
+        void RecordAlbumResult(string artist, string album, int successfulTracks,
             int skippedTracks, int failedTracks, int totalTracks, long bytesDownloaded);
 
         /// <summary>

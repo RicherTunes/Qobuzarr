@@ -103,8 +103,8 @@ public class SearchServiceTests
         // Assert
         var hiResResult = scoredResults.First(r => r.Quality.Contains("Hi-Res"));
         var mp3Result = scoredResults.First(r => r.Quality.Contains("MP3"));
-        
-        hiResResult.Score.Should().BeGreaterThan(mp3Result.Score, 
+
+        hiResResult.Score.Should().BeGreaterThan(mp3Result.Score,
             "Hi-Res quality should score higher than MP3");
     }
 }
@@ -157,7 +157,7 @@ public class SearchScoringTests
         // Assert
         var beatlesResult = scored.First(r => r.Artist == "The Beatles");
         var unknownResult = scored.First(r => r.Artist == "Unknown Artist");
-        
+
         beatlesResult.Score.Should().BeGreaterThan(unknownResult.Score,
             "Well-known artists should receive score boost");
     }
@@ -170,9 +170,9 @@ public class SearchScoringTests
     public void GetArtistPopularityBoost_ShouldReturnExpectedBoosts(string artistName, int expectedBoost)
     {
         // Use reflection to test private method
-        var method = typeof(SearchService).GetMethod("GetArtistPopularityBoost", 
+        var method = typeof(SearchService).GetMethod("GetArtistPopularityBoost",
             System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
-        
+
         // Act
         var boost = (int)method!.Invoke(_searchService, new object[] { artistName })!;
 

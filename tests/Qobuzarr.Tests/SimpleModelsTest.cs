@@ -40,10 +40,10 @@ namespace Qobuzarr.Tests
         {
             // This is a basic test to verify JSON deserialization works
             // without depending on complex Lidarr types
-            
+
             var json = SampleAlbumJson;
             var result = JsonConvert.DeserializeObject(json);
-            
+
             result.Should().NotBeNull();
         }
 
@@ -70,9 +70,9 @@ namespace Qobuzarr.Tests
             // Test basic file size calculation logic
             var durationSeconds = 274; // ~4.5 minutes
             var bitrateKbps = 320; // MP3 320kbps
-            
+
             var estimatedBytes = (long)(durationSeconds * bitrateKbps * 1000 / 8);
-            
+
             estimatedBytes.Should().BeGreaterThan(0);
             estimatedBytes.Should().BeLessThan(50_000_000); // Should be reasonable size
         }
@@ -86,7 +86,7 @@ namespace Qobuzarr.Tests
             // Basic email validation regex
             var emailRegex = new System.Text.RegularExpressions.Regex(@"^[^@\s]+@[^@\s]+\.[^@\s]+$");
             var isValid = !string.IsNullOrWhiteSpace(email) && emailRegex.IsMatch(email);
-            
+
             isValid.Should().Be(expectedValid);
         }
 
@@ -97,7 +97,7 @@ namespace Qobuzarr.Tests
             var now = DateTime.UtcNow;
             var expiresAt = now.AddHours(1);
             var expiredAt = now.AddHours(-1);
-            
+
             (expiresAt > now).Should().BeTrue(); // Not expired
             (expiredAt > now).Should().BeFalse(); // Expired
         }

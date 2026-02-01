@@ -9,28 +9,28 @@ namespace QobuzCLI.Models.Configuration
     {
         [JsonProperty("outputDirectory")]
         public string OutputDirectory { get; set; } = "./Downloads";
-        
+
         [JsonProperty("maxConcurrentDownloads")]
         public int MaxConcurrentDownloads { get; set; } = 8; // Increased from 4 for better throughput
-        
+
         [JsonProperty("maxConcurrentApiRequests")]
         public int MaxConcurrentApiRequests { get; set; } = 16; // Increased from 8 for higher API throughput
-        
+
         [JsonProperty("maxConcurrentSearches")]
         public int MaxConcurrentSearches { get; set; } = 6; // Increased from 4 for batch operations
-        
+
         [JsonProperty("maxConcurrentArtistAlbums")]
         public int MaxConcurrentArtistAlbums { get; set; } = 2;
-        
+
         [JsonProperty("createArtistFolders")]
         public bool CreateArtistFolders { get; set; } = true;
-        
+
         [JsonProperty("createAlbumFolders")]
         public bool CreateAlbumFolders { get; set; } = true;
-        
+
         [JsonProperty("fileNamingPattern")]
         public string FileNamingPattern { get; set; } = "{track:00} - {title}";
-        
+
         [JsonProperty("albumFolderPattern")]
         public string AlbumFolderPattern { get; set; } = "{artist} - {album} ({year})";
 
@@ -54,7 +54,7 @@ namespace QobuzCLI.Models.Configuration
         {
             try
             {
-                return !string.IsNullOrEmpty(OutputDirectory) && 
+                return !string.IsNullOrEmpty(OutputDirectory) &&
                        (Directory.Exists(OutputDirectory) || Directory.CreateDirectory(OutputDirectory) != null);
             }
             catch

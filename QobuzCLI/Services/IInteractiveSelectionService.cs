@@ -18,9 +18,9 @@ public interface IInteractiveSelectionService
     /// <param name="downloadAll">If true, select all results without prompting</param>
     /// <returns>List of selected search results</returns>
     Task<List<SearchResult>> SelectDownloadTargetsAsync(
-        List<SearchResult> results, 
-        string query, 
-        bool forceSelect, 
+        List<SearchResult> results,
+        string query,
+        bool forceSelect,
         bool downloadAll);
 
     /// <summary>
@@ -32,7 +32,7 @@ public interface IInteractiveSelectionService
     /// <param name="exactMatches">List of exact matches for highlighting</param>
     /// <returns>List of selected search results</returns>
     Task<List<SearchResult>> ShowSelectionUIAsync(
-        List<SearchResult> results, 
+        List<SearchResult> results,
         string query,
         List<SearchResult> exactMatches);
 

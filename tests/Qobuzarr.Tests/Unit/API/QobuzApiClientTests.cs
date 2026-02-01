@@ -25,7 +25,7 @@ namespace Qobuzarr.Tests.Unit.API
         public QobuzApiClientTests()
         {
             _apiClient = new QobuzApiClient(MockHttpClient.Object, MockCacheManager, MockLogger.Object);
-            
+
             _testSession = new QobuzSession
             {
                 UserId = "12345678",
@@ -63,9 +63,9 @@ namespace Qobuzarr.Tests.Unit.API
         public void Constructor_WithNullHttpClient_ShouldThrowArgumentNullException()
         {
             // Act & Assert
-            var exception = Assert.Throws<ArgumentNullException>(() => 
+            var exception = Assert.Throws<ArgumentNullException>(() =>
                 new QobuzApiClient(null, MockCacheManager, MockLogger.Object));
-            
+
             exception.ParamName.Should().Be("httpClient");
         }
 
@@ -73,9 +73,9 @@ namespace Qobuzarr.Tests.Unit.API
         public void Constructor_WithNullLogger_ShouldThrowArgumentNullException()
         {
             // Act & Assert
-            var exception = Assert.Throws<ArgumentNullException>(() => 
+            var exception = Assert.Throws<ArgumentNullException>(() =>
                 new QobuzApiClient(MockHttpClient.Object, MockCacheManager, null));
-            
+
             exception.ParamName.Should().Be("logger");
         }
 
@@ -83,7 +83,7 @@ namespace Qobuzarr.Tests.Unit.API
         public void HasValidSession_WithNoSession_ShouldReturnFalse()
         {
             // Arrange - No session set
-            
+
             // Act & Assert
             _apiClient.HasValidSession().Should().BeFalse("no session has been set");
         }
@@ -194,7 +194,7 @@ namespace Qobuzarr.Tests.Unit.API
             // Act & Assert
             // Since ExecuteAsync throws HttpException, RetryUtilities will catch it,
             // attempt retries, and eventually re-throw when all retries are exhausted
-            await Assert.ThrowsAsync<HttpException>(() => 
+            await Assert.ThrowsAsync<HttpException>(() =>
                 _apiClient.GetAsync<dynamic>(endpoint, parameters));
 
             // Should have retried multiple times (MaxRetries = 3 total attempts)
@@ -254,7 +254,7 @@ namespace Qobuzarr.Tests.Unit.API
             // Assert
             Assert.NotNull(result1);
             Assert.NotNull(result2);
-            
+
             // Should only make one HTTP request due to caching
             MockHttpClient.Verify(x => x.ExecuteAsync(It.IsAny<HttpRequest>()), Times.Once);
         }
@@ -342,9 +342,9 @@ namespace Qobuzarr.Tests.Unit.API
             _apiClient.SetSession(_testSession);
 
             // Act & Assert
-            var exception = await Assert.ThrowsAsync<HttpException>(() => 
+            var exception = await Assert.ThrowsAsync<HttpException>(() =>
                 _apiClient.GetAsync<dynamic>(endpoint, parameters));
-            
+
             exception.Response.StatusCode.Should().Be(statusCode);
         }
 
@@ -363,7 +363,7 @@ namespace Qobuzarr.Tests.Unit.API
             _apiClient.SetSession(_testSession);
 
             // Act & Assert
-            await Assert.ThrowsAsync<JsonReaderException>(() => 
+            await Assert.ThrowsAsync<JsonReaderException>(() =>
                 _apiClient.GetAsync<dynamic>(endpoint, parameters));
         }
 
@@ -397,7 +397,7 @@ namespace Qobuzarr.Tests.Unit.API
             url.Should().NotContain("app_id", "unauthenticated request should not include app_id");
         }
 
-        [Fact] 
+        [Fact]
         public void ClearSession_WhenNoSessionSet_ShouldNotThrow()
         {
             // Act & Assert

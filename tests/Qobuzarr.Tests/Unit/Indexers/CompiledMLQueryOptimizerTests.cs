@@ -81,7 +81,7 @@ namespace Qobuzarr.Tests.Unit.Indexers
             simpleConfidence.Should().BeInRange(0.0, 1.0);
             mediumConfidence.Should().BeInRange(0.0, 1.0);
             complexConfidence.Should().BeInRange(0.0, 1.0);
-            
+
             // Sum should be approximately 1 (allowing for rounding)
             var sum = simpleConfidence + mediumConfidence + complexConfidence;
             sum.Should().BeApproximately(1.0, 0.1);
@@ -97,7 +97,7 @@ namespace Qobuzarr.Tests.Unit.Indexers
             // Assert
             simpleStrategies.Should().NotBeEmpty();
             simpleStrategies.Should().Contain("exact");
-            
+
             complexStrategies.Should().NotBeEmpty();
             complexStrategies.Should().Contain(s => s == "partial" || s == "keywords");
         }
@@ -134,18 +134,18 @@ namespace Qobuzarr.Tests.Unit.Indexers
         {
             // Act & Assert - async methods should work without ML.NET
             await _optimizer.TrainAsync(null);
-            
+
             var prediction = await _optimizer.PredictOptimalStrategyAsync("Artist", "Album");
             prediction.Should().NotBeNull();
             prediction.PredictedComplexity.Should().BeOneOf(QueryComplexity.Simple, QueryComplexity.Medium, QueryComplexity.Complex);
-            
+
             var metrics = await _optimizer.EvaluateModelAsync();
             metrics.Should().NotBeNull();
             metrics.Accuracy.Should().BeApproximately(0.873, 0.001);
-            
-            var result = new QueryResult 
-            { 
-                Artist = "Test", 
+
+            var result = new QueryResult
+            {
+                Artist = "Test",
                 Album = "Test",
                 SuccessfulComplexity = QueryComplexity.Simple,
                 WasSuccessful = true
@@ -171,7 +171,7 @@ namespace Qobuzarr.Tests.Unit.Indexers
             // Assert - should be very fast without ML.NET overhead
             var avgMs = stopwatch.ElapsedMilliseconds / (double)iterations;
             avgMs.Should().BeLessThan(1.0); // Should be less than 1ms per prediction
-            
+
             var perSecond = 1000.0 / avgMs;
             perSecond.Should().BeGreaterThan(1000); // Should handle >1000 predictions/second
         }

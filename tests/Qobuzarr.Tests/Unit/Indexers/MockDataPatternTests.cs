@@ -27,14 +27,14 @@ namespace Qobuzarr.Tests.Unit.Indexers
         {
             // Test a sample of simple patterns
             var simplePatterns = MockDataFromRealPatterns.SimplePatterns.Take(10);
-            
+
             foreach (var pattern in simplePatterns)
             {
                 var result = _classifier.ClassifyComplexity(pattern.Artist, pattern.Album);
                 _output.WriteLine($"Simple: '{pattern.Artist}' - '{pattern.Album}' -> {result}");
-                
+
                 // Simple patterns should not be Complex
-                result.Should().NotBe(QueryComplexity.Complex, 
+                result.Should().NotBe(QueryComplexity.Complex,
                     $"Simple pattern '{pattern.Artist} - {pattern.Album}' should not be Complex");
             }
         }
@@ -44,12 +44,12 @@ namespace Qobuzarr.Tests.Unit.Indexers
         {
             // Test a sample of medium patterns
             var mediumPatterns = MockDataFromRealPatterns.MediumPatterns.Take(10);
-            
+
             foreach (var pattern in mediumPatterns)
             {
                 var result = _classifier.ClassifyComplexity(pattern.Artist, pattern.Album);
                 _output.WriteLine($"Medium: '{pattern.Artist}' - '{pattern.Album}' -> {result}");
-                
+
                 // Medium patterns should be Medium or Complex
                 result.Should().BeOneOf(QueryComplexity.Medium, QueryComplexity.Complex);
             }
@@ -60,12 +60,12 @@ namespace Qobuzarr.Tests.Unit.Indexers
         {
             // Test a sample of complex patterns
             var complexPatterns = MockDataFromRealPatterns.ComplexPatterns.Take(10);
-            
+
             foreach (var pattern in complexPatterns)
             {
                 var result = _classifier.ClassifyComplexity(pattern.Artist, pattern.Album);
                 _output.WriteLine($"Complex: '{pattern.Artist}' - '{pattern.Album}' -> {result}");
-                
+
                 // Most complex patterns should be Complex
                 result.Should().Be(QueryComplexity.Complex,
                     $"Complex pattern '{pattern.Artist} - {pattern.Album}' should be Complex");
@@ -77,19 +77,19 @@ namespace Qobuzarr.Tests.Unit.Indexers
         {
             // Test edge cases - use complex patterns as they contain edge cases
             var edgeCases = MockDataFromRealPatterns.ComplexPatterns
-                .Where(p => p.Artist.Contains("!!!") || p.Artist.Contains("?") || 
+                .Where(p => p.Artist.Contains("!!!") || p.Artist.Contains("?") ||
                            p.Album.Contains("!!!") || p.Album.Contains("?"))
                 .Take(10);
-            
+
             foreach (var pattern in edgeCases)
             {
                 var result = _classifier.ClassifyComplexity(pattern.Artist, pattern.Album);
                 _output.WriteLine($"Edge case: '{pattern.Artist}' - '{pattern.Album}' -> {result}");
-                
+
                 // Edge cases should at least return a valid complexity
                 result.Should().BeOneOf(
-                    QueryComplexity.Simple, 
-                    QueryComplexity.Medium, 
+                    QueryComplexity.Simple,
+                    QueryComplexity.Medium,
                     QueryComplexity.Complex);
             }
         }
@@ -143,7 +143,7 @@ namespace Qobuzarr.Tests.Unit.Indexers
         {
             var result = _classifier.ClassifyComplexity(artist, album);
             _output.WriteLine($"'{artist}' - '{album}' -> {result}");
-            
+
             // Should be at most the expected complexity
             ((int)result).Should().BeLessOrEqualTo((int)maxExpected);
         }

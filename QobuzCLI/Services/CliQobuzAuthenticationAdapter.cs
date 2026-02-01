@@ -23,7 +23,7 @@ namespace QobuzCLI.Services
         {
             // Will be initialized later via SetDependencies
         }
-        
+
         public void SetDependencies(IQobuzHttpClient httpClient, IQobuzLogger logger)
         {
             _httpClient = httpClient;
@@ -36,7 +36,7 @@ namespace QobuzCLI.Services
             {
                 throw new InvalidOperationException("Dependencies not initialized. Call SetDependencies first.");
             }
-            
+
             // For CLI, we'll create a simple session based on the provided credentials
             // The actual authentication will be handled by the API client when making requests
             var session = new QobuzSession
@@ -48,7 +48,7 @@ namespace QobuzCLI.Services
                 ExpiresAt = DateTime.UtcNow.AddHours(24),
                 CreatedAt = DateTime.UtcNow
             };
-            
+
             _cachedSession = session;
             return Task.FromResult(session);
         }
@@ -64,11 +64,11 @@ namespace QobuzCLI.Services
             // The core auth service doesn't have session validation, so we implement a basic check
             if (session == null || string.IsNullOrEmpty(session.AuthToken))
                 return Task.FromResult(false);
-                
+
             // Check if session has expired (Qobuz sessions are typically valid for 24 hours)
             if (session.ExpiresAt < DateTime.UtcNow)
                 return Task.FromResult(false);
-                
+
             // For now, assume session is valid if it has required fields and hasn't expired
             // In a more robust implementation, we could make a test API call
             return Task.FromResult(true);
