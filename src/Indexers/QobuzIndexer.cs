@@ -1,5 +1,7 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
+using System.Threading.Tasks;
 using System.Linq;
 using System.Threading.Tasks;
 using FluentValidation.Results;
@@ -17,6 +19,7 @@ using Lidarr.Plugin.Qobuzarr.API;
 using Lidarr.Plugin.Qobuzarr.Security;
 using Lidarr.Plugin.Qobuzarr.Indexers.Core;
 using Lidarr.Plugin.Common.Base;
+using Lidarr.Plugin.Common.Abstractions.Llm;
 using Lidarr.Plugin.Qobuzarr.Download;
 using NzbDrone.Core.Download;
 using Lidarr.Plugin.Common.Services;
@@ -114,6 +117,113 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
             Definition?.Settings as QobuzIndexerSettings ?? new QobuzIndexerSettings();
 
         #region Lidarr Integration Points
+
+        /// <summary>
+        /// DIAG-02: Standardized test connection method returning ProviderHealthResult with extended fields.
+        /// This method provides standardized test results with provider, authMethod, model, and errorCode fields.
+        /// Can be called via RequestAction("testconnection").
+        /// </summary>
+        public Task<ProviderHealthResult> TestConnectionAsync()
+        {
+            // DIAG-02: Return extended ProviderHealthResult with diagnostic fields
+            // This method provides standardized test results with provider, authMethod, model, and errorCode fields
+            return TestConnectionAsyncCore();
+        }
+
+        /// <summary>
+        /// Core implementation of TestConnectionAsync that creates a ProviderHealthResult
+        /// with DIAG-02 fields (provider, authMethod, model, errorCode) for standardized diagnostics.
+        /// </summary>
+        private async Task<ProviderHealthResult> TestConnectionAsyncCore()
+        {
+            var stopwatch = System.Diagnostics.Stopwatch.StartNew();
+            var errors = new System.Collections.Generic.List<string>();
+
+            try
+            {
+                // Test authentication via delegated manager
+                var (authSuccess, authError) = await _authManager.Value.TestAuthenticationAsync().ConfigureAwait(false);
+
+                if (!authSuccess)
+                {
+                    errors.Add($"Authentication failed: {authError}");
+                }
+
+                // Test API connectivity with rate limiting
+                await _rateLimitManager.ApplyRateLimitAsync().ConfigureAwait(false);
+                _rateLimitManager.RecordRequest();
+
+                // Use recent requests generator to validate request pipeline
+                var testGenerator = GetRequestGenerator();
+                var testRequests = testGenerator.GetRecentRequests();
+
+                if (testRequests == null || !testRequests.GetAllTiers().Any())
+                {
+                    errors.Add("No search requests generated");
+                }
+
+                stopwatch.Stop();
+
+                if (errors.Any())
+                {
+                    // DIAG-02: Return unhealthy result with error code
+                    var firstError = errors[0];
+                    return ProviderHealthResult.Unhealthy(
+                        firstError,
+                        stopwatch.Elapsed,
+                        "qobuz",
+                        "oauth",
+                        "quality_detect",
+                        MapErrorToErrorCode(firstError)
+                    );
+                }
+
+                // DIAG-02: Return healthy result with all DIAG-02 fields populated
+                return ProviderHealthResult.Healthy(
+                    stopwatch.Elapsed,
+                    "qobuz",
+                    "oauth",
+                    "quality_detect"
+                );
+            }
+            catch (Exception ex)
+            {
+                stopwatch.Stop();
+                // DIAG-02: Return unhealthy result with exception error code
+                return ProviderHealthResult.Unhealthy(
+                    $"Test failed: {ex.Message}",
+                    stopwatch.Elapsed,
+                    "qobuz",
+                    "oauth",
+                    "quality_detect",
+                    MapErrorToErrorCode(ex.Message)
+                );
+            }
+        }
+
+        /// <summary>
+        /// Maps error messages to diagnostic error codes (DIAG-02 pattern).
+        /// </summary>
+        private string MapErrorToErrorCode(string errorMessage)
+        {
+            if (string.IsNullOrWhiteSpace(errorMessage))
+                return "UNKNOWN_ERROR";
+
+            errorMessage = errorMessage.ToLowerInvariant();
+
+            if (errorMessage.Contains("authentication"))
+                return "AUTH_FAILED";
+            if (errorMessage.Contains("token"))
+                return "TOKEN_EXPIRED";
+            if (errorMessage.Contains("rate limit") || errorMessage.Contains("429"))
+                return "RATE_LIMIT_EXCEEDED";
+            if (errorMessage.Contains("network") || errorMessage.Contains("connection"))
+                return "NETWORK_ERROR";
+            if (errorMessage.Contains("api"))
+                return "API_ERROR";
+
+            return "UNKNOWN_ERROR";
+        }
 
         public override IIndexerRequestGenerator GetRequestGenerator()
         {
