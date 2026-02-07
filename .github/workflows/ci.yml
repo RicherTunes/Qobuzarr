@@ -168,18 +168,10 @@ jobs:
         sed 's/{VERSION}/0.0.0/g' plugin.json.template | python3 -m json.tool > /dev/null
         echo "[OK] plugin.json.template is valid JSON (placeholder {VERSION} will be replaced during build)"
     - name: Sync-over-async guard
+      shell: pwsh
       run: |
-        echo "Checking for .GetAwaiter().GetResult() in product code..."
-        # Whitelist Category A files (Lidarr host forces sync entry points)
-        MATCHES=$(grep -rn "\.GetAwaiter()\.GetResult()" src/ --include="*.cs" \
-          | grep -v "QobuzDownloadClient.cs" \
-          || true)
-        if [ -n "$MATCHES" ]; then
-          echo "Found sync-over-async usages outside whitelisted Category A files:"
-          echo "$MATCHES"
-          exit 1
-        fi
-        echo "[OK] No unexpected sync-over-async patterns"
+        $mode = if ('${{ github.event_name }}' -eq 'pull_request') { 'pr' } else { 'ci' }
+        ./scripts/lint-sync-over-async.ps1 -Mode $mode
 
     - name: Security checks
       run: |
