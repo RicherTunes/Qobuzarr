@@ -13,10 +13,6 @@ permissions:
 env:
   DOTNET_SKIP_FIRST_TIME_EXPERIENCE: true
   DOTNET_CLI_TELEMETRY_OPTOUT: true
-  # Single source of truth for CI test filtering
-  # Excludes: LiveIntegration (needs live Lidarr), Integration (needs assemblies),
-  #           Performance (benchmarks), Quarantined (known issues)
-  CI_TEST_FILTER: "Category!=LiveIntegration&Category!=Integration&Category!=Performance&Category!=Quarantined"
 
 jobs:
   test:
@@ -54,12 +50,23 @@ jobs:
           SHA=$(git -C ext/Lidarr.Plugin.Common rev-parse --short HEAD 2>/dev/null || echo "<unknown>")
           echo "✓ Common submodule initialized at $SHA"
           if [ -f ext-common-sha.txt ]; then
-            EXPECTED=$(cat ext-common-sha.txt | tr -d '
- ' | cut -c1-7)
+            EXPECTED=$(cat ext-common-sha.txt | tr -d '[:space:]' | cut -c1-7)
             if [ -n "$EXPECTED" ] && [ "$SHA" != "<unknown>" ] && [ "${SHA:0:7}" != "$EXPECTED" ]; then
               echo "::warning::Submodule SHA ($SHA) differs from pinned ($EXPECTED)"
             fi
           fi
+
+      - name: Install PowerShell (pwsh)
+        shell: bash
+        run: |
+          set -euo pipefail
+          . /etc/os-release
+          CODENAME=${VERSION_CODENAME:-"jammy"}
+          curl -fsSL "https://packages.microsoft.com/config/ubuntu/$CODENAME/packages-microsoft-prod.deb" -o packages-microsoft-prod.deb \
+            || curl -fsSL "https://packages.microsoft.com/config/ubuntu/22.04/packages-microsoft-prod.deb" -o packages-microsoft-prod.deb
+          sudo dpkg -i packages-microsoft-prod.deb
+          sudo apt-get update
+          sudo apt-get install -y powershell
 
       - name: Setup .NET
         uses: actions/setup-dotnet@v5
@@ -104,32 +111,26 @@ jobs:
               -p:RunAnalyzersDuringBuild=false -p:EnableNETAnalyzers=false
           fi
 
-      - name: Run tests with coverage
+      - name: Run tests with coverage (unified runner)
+        shell: pwsh
         run: |
-          mkdir -p test-results/coverage
-          if [ -f "tests/Minimal.Tests/Minimal.Tests.csproj" ]; then
-            dotnet test tests/Minimal.Tests/Minimal.Tests.csproj \
-              --no-build \
-              --configuration Release \
-              --settings tests/Default.runsettings \
-              --collect "XPlat Code Coverage" \
-              --filter "${{ env.CI_TEST_FILTER }}" \
-              --logger "trx;LogFileName=coverage-tests.trx" \
-              --results-directory ./test-results/coverage \
-              --blame-hang-timeout 60s
-          elif [ -f "tests/run-tests.ps1" ]; then
-            pwsh -File ./tests/run-tests.ps1 -Configuration Release
-          else
-            dotnet test \
-              --no-build \
-              --configuration Release \
-              --settings tests/Default.runsettings \
-              --collect "XPlat Code Coverage" \
-              --filter "${{ env.CI_TEST_FILTER }}" \
-              --logger "trx;LogFileName=coverage-tests.trx" \
-              --results-directory ./test-results/coverage \
-              --blame-hang-timeout 60s
-          fi
+          $runner = Join-Path $PWD 'ext/Lidarr.Plugin.Common/scripts/test.ps1'
+          if (-not (Test-Path $runner)) {
+            Write-Error "Unified test runner not found at: $runner"
+            exit 1
+          }
+          # Unified runner defaults exclude: Integration, Packaging,
+          # LibraryLinking, Benchmark, Slow, Quarantined.
+          # AdditionalFilter adds Qobuzarr-specific exclusions.
+          & $runner `
+            -TestProject 'tests/Minimal.Tests/Minimal.Tests.csproj' `
+            -Configuration Release `
+            -Coverage `
+            -CI `
+            -NoBuild `
+            -OutputDir 'test-results/coverage' `
+            -AdditionalFilter 'Category!=LiveIntegration&Category!=Performance' `
+            -Properties @('UsePluginsBranch=true', 'PluginPackagingDisable=true')
 
       - name: Install ReportGenerator
         run: dotnet tool install -g dotnet-reportgenerator-globaltool
@@ -159,3 +160,67 @@ jobs:
             tests/TestResults/
             coverage-report/
           retention-days: 14
+
+  e2e-gate:
+    name: E2E Gate (Hermetic)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          submodules: false
+
+      - name: Configure git auth for private submodules
+        env:
+          CI_PAT: ${{ secrets.CI_PAT }}
+        run: |
+          if [ -n "$CI_PAT" ]; then
+            git config --global url.https://x-access-token:${CI_PAT}@github.com/.insteadOf https://github.com/
+            git submodule sync --recursive
+            git submodule update --init --recursive
+          else
+            git submodule update --init --recursive || echo "Submodule init failed - continuing without submodules"
+          fi
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Setup Lidarr assemblies (plugins branch Docker)
+        run: |
+          set -euo pipefail
+          mkdir -p ext/Lidarr/_output/net8.0
+          IMAGE="ghcr.io/hotio/lidarr:pr-plugins"
+          docker pull "$IMAGE" || { echo "Docker pull failed"; exit 1; }
+          cid=$(docker create "$IMAGE")
+          docker cp "$cid:/app" ext/Lidarr/_extracted || docker cp "$cid:/opt/lidarr" ext/Lidarr/_extracted
+          docker rm "$cid" >/dev/null
+          find ext/Lidarr/_extracted -type f -name "*.dll" -exec cp {} ext/Lidarr/_output/net8.0 \;
+          echo "Extracted $(ls ext/Lidarr/_output/net8.0/*.dll 2>/dev/null | wc -l) assemblies"
+
+      - name: Restore and build
+        run: |
+          dotnet restore Qobuzarr.csproj
+          dotnet build Qobuzarr.csproj --configuration Release --no-restore \
+            -p:UsePluginsBranch=true -p:PluginPackagingDisable=true \
+            -p:RunAnalyzersDuringBuild=false -p:EnableNETAnalyzers=false
+
+      - name: Build and run E2E hermetic gate tests
+        run: |
+          TEST_PROJ="tests/Qobuzarr.Tests/Qobuzarr.Tests.csproj"
+          if [ ! -f "$TEST_PROJ" ]; then
+            TEST_PROJ=$(find tests -name "*.Tests.csproj" -type f | head -1)
+          fi
+          if [ -n "$TEST_PROJ" ] && [ -f "$TEST_PROJ" ]; then
+            dotnet test "$TEST_PROJ" \
+              --configuration Release \
+              --verbosity normal \
+              --filter "Area=E2E/Hermetic" \
+              -p:UsePluginsBranch=true -p:PluginPackagingDisable=true \
+              -p:RunAnalyzersDuringBuild=false -p:EnableNETAnalyzers=false
+          else
+            echo "::warning::No test project found for E2E gate"
+          fi
