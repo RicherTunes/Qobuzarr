@@ -13,10 +13,6 @@ permissions:
 env:
   DOTNET_SKIP_FIRST_TIME_EXPERIENCE: true
   DOTNET_CLI_TELEMETRY_OPTOUT: true
-  # Single source of truth for CI test filtering
-  # Excludes: LiveIntegration (needs live Lidarr), Integration (needs assemblies),
-  #           Performance (benchmarks), Quarantined (known issues)
-  CI_TEST_FILTER: "Category!=LiveIntegration&Category!=Integration&Category!=Performance&Category!=Quarantined"
 
 jobs:
   test:
@@ -59,6 +55,18 @@ jobs:
               echo "::warning::Submodule SHA ($SHA) differs from pinned ($EXPECTED)"
             fi
           fi
+
+      - name: Install PowerShell (pwsh)
+        shell: bash
+        run: |
+          set -euo pipefail
+          . /etc/os-release
+          CODENAME=${VERSION_CODENAME:-"jammy"}
+          curl -fsSL "https://packages.microsoft.com/config/ubuntu/$CODENAME/packages-microsoft-prod.deb" -o packages-microsoft-prod.deb \
+            || curl -fsSL "https://packages.microsoft.com/config/ubuntu/22.04/packages-microsoft-prod.deb" -o packages-microsoft-prod.deb
+          sudo dpkg -i packages-microsoft-prod.deb
+          sudo apt-get update
+          sudo apt-get install -y powershell
 
       - name: Setup .NET
         uses: actions/setup-dotnet@v5
@@ -103,32 +111,26 @@ jobs:
               -p:RunAnalyzersDuringBuild=false -p:EnableNETAnalyzers=false
           fi
 
-      - name: Run tests with coverage
+      - name: Run tests with coverage (unified runner)
+        shell: pwsh
         run: |
-          mkdir -p test-results/coverage
-          if [ -f "tests/Minimal.Tests/Minimal.Tests.csproj" ]; then
-            dotnet test tests/Minimal.Tests/Minimal.Tests.csproj \
-              --no-build \
-              --configuration Release \
-              --settings tests/Default.runsettings \
-              --collect "XPlat Code Coverage" \
-              --filter "${{ env.CI_TEST_FILTER }}" \
-              --logger "trx;LogFileName=coverage-tests.trx" \
-              --results-directory ./test-results/coverage \
-              --blame-hang-timeout 60s
-          elif [ -f "tests/run-tests.ps1" ]; then
-            pwsh -File ./tests/run-tests.ps1 -Configuration Release
-          else
-            dotnet test \
-              --no-build \
-              --configuration Release \
-              --settings tests/Default.runsettings \
-              --collect "XPlat Code Coverage" \
-              --filter "${{ env.CI_TEST_FILTER }}" \
-              --logger "trx;LogFileName=coverage-tests.trx" \
-              --results-directory ./test-results/coverage \
-              --blame-hang-timeout 60s
-          fi
+          $runner = Join-Path $PWD 'ext/Lidarr.Plugin.Common/scripts/test.ps1'
+          if (-not (Test-Path $runner)) {
+            Write-Error "Unified test runner not found at: $runner"
+            exit 1
+          }
+          # Unified runner defaults exclude: Integration, Packaging,
+          # LibraryLinking, Benchmark, Slow, Quarantined.
+          # AdditionalFilter adds Qobuzarr-specific exclusions.
+          & $runner `
+            -TestProject 'tests/Minimal.Tests/Minimal.Tests.csproj' `
+            -Configuration Release `
+            -Coverage `
+            -CI `
+            -NoBuild `
+            -OutputDir 'test-results/coverage' `
+            -AdditionalFilter 'Category!=LiveIntegration&Category!=Performance' `
+            -Properties @('UsePluginsBranch=true', 'PluginPackagingDisable=true')
 
       - name: Install ReportGenerator
         run: dotnet tool install -g dotnet-reportgenerator-globaltool
