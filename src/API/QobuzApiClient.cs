@@ -193,7 +193,8 @@ namespace Lidarr.Plugin.Qobuzarr.API
                 }
                 else
                 {
-                    _sessionManager.InvalidateSessionAsync().GetAwaiter().GetResult();
+                    // NullSessionManager.InvalidateSessionAsync() is a synchronous no-op (Task.CompletedTask).
+                    // Avoid sync-over-async; just clear the fallback session directly.
                     _fallbackSession = null;
                 }
                 _logger.Debug("Session cleared from API client");
