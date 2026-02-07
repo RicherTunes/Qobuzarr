@@ -159,3 +159,68 @@ jobs:
             tests/TestResults/
             coverage-report/
           retention-days: 14
+
+  e2e-gate:
+    name: E2E Gate (Hermetic)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          submodules: false
+
+      - name: Configure git auth for private submodules
+        env:
+          CI_PAT: ${{ secrets.CI_PAT }}
+        run: |
+          if [ -n "$CI_PAT" ]; then
+            git config --global url.https://x-access-token:${CI_PAT}@github.com/.insteadOf https://github.com/
+            git submodule sync --recursive
+            git submodule update --init --recursive
+          else
+            git submodule update --init --recursive || echo "Submodule init failed - continuing without submodules"
+          fi
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Setup Lidarr assemblies (plugins branch Docker)
+        run: |
+          set -euo pipefail
+          mkdir -p ext/Lidarr/_output/net8.0
+          IMAGE="ghcr.io/hotio/lidarr:pr-plugins"
+          docker pull "$IMAGE" || { echo "Docker pull failed"; exit 1; }
+          cid=$(docker create "$IMAGE")
+          docker cp "$cid:/app" ext/Lidarr/_extracted || docker cp "$cid:/opt/lidarr" ext/Lidarr/_extracted
+          docker rm "$cid" >/dev/null
+          find ext/Lidarr/_extracted -type f -name "*.dll" -exec cp {} ext/Lidarr/_output/net8.0 \;
+          echo "Extracted $(ls ext/Lidarr/_output/net8.0/*.dll 2>/dev/null | wc -l) assemblies"
+
+      - name: Restore and build
+        run: |
+          dotnet restore Qobuzarr.csproj
+          dotnet build Qobuzarr.csproj --configuration Release --no-restore \
+            -p:UsePluginsBranch=true -p:PluginPackagingDisable=true \
+            -p:RunAnalyzersDuringBuild=false -p:EnableNETAnalyzers=false
+
+      - name: Build and run E2E hermetic gate tests
+        run: |
+          TEST_PROJ="tests/Qobuzarr.Tests/Qobuzarr.Tests.csproj"
+          if [ ! -f "$TEST_PROJ" ]; then
+            TEST_PROJ=$(find tests -name "*.Tests.csproj" -type f | head -1)
+          fi
+          if [ -n "$TEST_PROJ" ] && [ -f "$TEST_PROJ" ]; then
+            dotnet test "$TEST_PROJ" \
+              --configuration Release \
+              --no-restore \
+              --verbosity normal \
+              --filter "Area=E2E/Hermetic" \
+              -p:UsePluginsBranch=true -p:PluginPackagingDisable=true \
+              -p:RunAnalyzersDuringBuild=false -p:EnableNETAnalyzers=false
+          else
+            echo "::warning::No test project found for E2E gate"
+          fi
