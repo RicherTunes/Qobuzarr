@@ -167,10 +167,24 @@ jobs:
         # Validate JSON structure (after substituting placeholder for version)
         sed 's/{VERSION}/0.0.0/g' plugin.json.template | python3 -m json.tool > /dev/null
         echo "[OK] plugin.json.template is valid JSON (placeholder {VERSION} will be replaced during build)"
+    - name: Sync-over-async guard
+      run: |
+        echo "Checking for .GetAwaiter().GetResult() in product code..."
+        # Whitelist Category A files (Lidarr host forces sync entry points)
+        MATCHES=$(grep -rn "\.GetAwaiter()\.GetResult()" src/ --include="*.cs" \
+          | grep -v "QobuzDownloadClient.cs" \
+          || true)
+        if [ -n "$MATCHES" ]; then
+          echo "Found sync-over-async usages outside whitelisted Category A files:"
+          echo "$MATCHES"
+          exit 1
+        fi
+        echo "[OK] No unexpected sync-over-async patterns"
+
     - name: Security checks
       run: |
-        echo "🔒 Running security checks..."
-        
+        echo "Running security checks..."
+
         # Check for hardcoded credentials
         if grep -r "password\s*=\s*\"" src/ --include="*.cs" | grep -v "// " | grep -v "password\": null"; then
           echo "[WARN] Warning: Possible hardcoded passwords found"
