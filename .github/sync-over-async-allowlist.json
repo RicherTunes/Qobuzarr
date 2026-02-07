@@ -1,0 +1,22 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$comment": "Allowlist of intentional sync-over-async (.GetAwaiter().GetResult()) call-sites in Qobuzarr. Category A = host requires synchronous entry-point; Category B = avoidable (not listed); Category C = test/helper utility.",
+  "entries": [
+    {
+      "file": "src/Download/Clients/QobuzDownloadClient.cs",
+      "line": 999,
+      "pattern": "DisposeAsync().ConfigureAwait(false).GetAwaiter().GetResult()",
+      "method": "QobuzDownloadClient.Dispose()",
+      "category": "A",
+      "reason": "IDisposable.Dispose() is inherently synchronous. The class implements IDisposable to satisfy the Lidarr host DownloadClientBase lifecycle; async cleanup is delegated to DisposeAsync() but the sync entry-point cannot be avoided."
+    },
+    {
+      "file": "src/API/QobuzApiClient.cs",
+      "line": 196,
+      "pattern": "_sessionManager.InvalidateSessionAsync().GetAwaiter().GetResult()",
+      "method": "QobuzApiClient.ClearSession()",
+      "category": "A",
+      "reason": "IQobuzApiClient declares 'void ClearSession()' -- a synchronous interface contract. The primary path uses a synchronous concrete.ClearSession(); this async fallback is only reached when the session manager is not the concrete SessionManager type. Cannot be made async without breaking the interface contract."
+    }
+  ]
+}
