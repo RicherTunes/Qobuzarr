@@ -992,8 +992,12 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Clients
 
 
         /// <summary>
-        /// Properly dispose of resources including the concurrency semaphore
+        /// Properly dispose of resources including the concurrency semaphore.
         /// </summary>
+        /// <remarks>
+        /// SYNC-OVER-ASYNC: IDisposable.Dispose() is forced by Lidarr host (Category A).
+        /// DisposeAsync completes synchronously when no downloads are in-flight.
+        /// </remarks>
         public void Dispose()
         {
             DisposeAsync().ConfigureAwait(false).GetAwaiter().GetResult();
