@@ -2,7 +2,7 @@ name: Nightly Live Integration Tests
 
 on:
   schedule:
-    - cron: '0 3 * * *'
+    - cron: '10 3 * * *'  # 03:10 UTC daily -- staggered across ecosystem (Brainarr+10m)
   workflow_dispatch:
 
 permissions:
@@ -10,7 +10,7 @@ permissions:
   issues: write
 
 concurrency:
-  group: nightly-live-${{ github.ref }}
+  group: nightly-live-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: false
 
 jobs:
