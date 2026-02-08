@@ -23,18 +23,42 @@ jobs:
       - name: Validate Qobuz credentials
         id: check
         env:
-          HAS_QOBUZ: ${{ secrets.QOBUZ_APP_ID != '' }}
-          HAS_AUTH: ${{ secrets.QOBUZ_EMAIL != '' || secrets.QOBUZ_USER_ID != '' }}
+          # Secret values for placeholder detection; GitHub auto-masks in logs
+          QOBUZ_APP_ID_VAL: ${{ secrets.QOBUZ_APP_ID }}
+          QOBUZ_EMAIL_VAL: ${{ secrets.QOBUZ_EMAIL }}
+          QOBUZ_USER_ID_VAL: ${{ secrets.QOBUZ_USER_ID }}
         run: |
-          if [[ "$HAS_QOBUZ" == "true" && "$HAS_AUTH" == "true" ]]; then
+          is_valid() {
+            local val="$1"
+            [[ -z "$val" ]] && return 1
+            local lower="${val,,}"
+            case "$lower" in
+              changeme*|todo*|example*|placeholder*|xxx*|test123*|your_*|your-*|insert*|replace*) return 1 ;;
+            esac
+            [[ ${#val} -lt 4 ]] && return 1
+            return 0
+          }
+
+          has_app_id="false"; has_auth="false"
+          if is_valid "$QOBUZ_APP_ID_VAL"; then
+            has_app_id="true"
+          elif [[ -n "$QOBUZ_APP_ID_VAL" ]]; then
+            echo "::warning::QOBUZ_APP_ID looks like a placeholder; not counting"
+          fi
+
+          if is_valid "$QOBUZ_EMAIL_VAL" || is_valid "$QOBUZ_USER_ID_VAL"; then
+            has_auth="true"
+          fi
+
+          if [[ "$has_app_id" == "true" && "$has_auth" == "true" ]]; then
             echo "has-secrets=true" >> "$GITHUB_OUTPUT"
-            echo "::notice::Qobuz credentials configured (APP_ID + auth); live tests will run"
-          elif [[ "$HAS_QOBUZ" == "true" ]]; then
+            echo "::notice::Qobuz credentials validated (APP_ID + auth); live tests will run"
+          elif [[ "$has_app_id" == "true" ]]; then
             echo "has-secrets=true" >> "$GITHUB_OUTPUT"
-            echo "::warning::QOBUZ_APP_ID set but no auth credentials (EMAIL/PASSWORD or USER_ID/USER_AUTH_TOKEN); some tests may skip"
+            echo "::warning::QOBUZ_APP_ID set but no auth credentials (EMAIL or USER_ID); some tests may skip"
           else
             echo "has-secrets=false" >> "$GITHUB_OUTPUT"
-            echo "::notice::No Qobuz credentials configured; skipping live tests. Set QOBUZ_APP_ID + auth credentials."
+            echo "::notice::No valid Qobuz credentials found; skipping live tests. Set QOBUZ_APP_ID + auth credentials."
           fi
 
   live-tests:
@@ -158,26 +182,41 @@ jobs:
         uses: actions/github-script@v7
         with:
           script: |
+            // Get default branch for scoping
+            const { data: repo } = await github.rest.repos.get({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+            });
+            const defaultBranch = repo.default_branch;
+
             const { data: runs } = await github.rest.actions.listWorkflowRuns({
               owner: context.repo.owner, repo: context.repo.repo,
-              workflow_id: 'nightly-live.yml', status: 'completed', per_page: 4,
+              workflow_id: 'nightly-live.yml', status: 'completed',
+              branch: defaultBranch, per_page: 4,
             });
             const previous = runs.workflow_runs.slice(1, 4);
             const consecutiveFailures = previous.filter(r => r.conclusion === 'failure').length;
-            console.log(`Previous runs: ${previous.map(r => r.conclusion).join(', ')}`);
+            console.log(`Branch: ${defaultBranch}`);
+            console.log(`Previous ${previous.length} runs: ${previous.map(r => `${r.event}:${r.conclusion}`).join(', ')}`);
 
             if (consecutiveFailures >= 2) {
               const title = 'Nightly live tests: 3+ consecutive failures';
+              const currentRunUrl = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
               const body = [
                 '## Nightly Live Integration Test Failures',
-                '', `Failed **${consecutiveFailures + 1} consecutive times**.`,
-                '', '### Recent runs',
+                '',
+                `Failed **${consecutiveFailures + 1} consecutive times** on \`${defaultBranch}\`.`,
+                '',
+                '### Recent runs',
                 ...previous.map(r => `- ${r.created_at}: **${r.conclusion}** ([run](${r.html_url}))`),
-                '', '### Action needed',
+                `- ${new Date().toISOString().split('T')[0]}: **failure** ([current](${currentRunUrl}))`,
+                '',
+                '### Action needed',
                 '- Check if Qobuz credentials are still valid',
                 '- Check if Qobuz API has changed',
                 '- Check if test filter or build is misconfigured',
-                '', '> Auto-created by nightly-live workflow.',
+                '',
+                `> Auto-created by nightly-live workflow. Scoped to \`${defaultBranch}\` branch.`,
               ].join('\n');
 
               const { data: issues } = await github.rest.issues.listForRepo({
@@ -187,15 +226,20 @@ jobs:
               const existing = issues.find(i => i.title === title);
 
               if (existing) {
+                const recentConclusions = previous.map(r => r.conclusion).join(' → ');
                 await github.rest.issues.createComment({
                   owner: context.repo.owner, repo: context.repo.repo,
                   issue_number: existing.number,
-                  body: `Still failing as of ${new Date().toISOString().split('T')[0]}. Consecutive: ${consecutiveFailures + 1}.`,
+                  body: `Still failing as of ${new Date().toISOString().split('T')[0]}.\n\n**Current run**: [#${context.runNumber}](${currentRunUrl})\n**Last 3**: ${recentConclusions}\n**Total consecutive**: ${consecutiveFailures + 1}`,
                 });
+                console.log(`Updated existing issue #${existing.number}`);
               } else {
                 await github.rest.issues.create({
                   owner: context.repo.owner, repo: context.repo.repo,
                   title, body, labels: ['ci', 'nightly-live'],
                 });
+                console.log('Created new tracking issue');
               }
+            } else {
+              console.log('Not enough consecutive failures yet — no issue needed');
             }
