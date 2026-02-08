@@ -1,0 +1,256 @@
+name: Nightly Live Integration Tests
+
+on:
+  schedule:
+    - cron: '10 3 * * *'  # 03:10 UTC daily -- staggered across ecosystem (Brainarr+10m)
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: nightly-live-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  gate:
+    name: Validate Secrets
+    runs-on: ubuntu-latest
+    outputs:
+      has-secrets: ${{ steps.check.outputs.has-secrets }}
+    steps:
+      - name: Validate Qobuz credentials
+        id: check
+        env:
+          # Secret values for placeholder detection; GitHub auto-masks in logs
+          QOBUZ_APP_ID_VAL: ${{ secrets.QOBUZ_APP_ID }}
+          QOBUZ_EMAIL_VAL: ${{ secrets.QOBUZ_EMAIL }}
+          QOBUZ_USER_ID_VAL: ${{ secrets.QOBUZ_USER_ID }}
+        run: |
+          is_valid() {
+            local val="$1"
+            [[ -z "$val" ]] && return 1
+            local lower="${val,,}"
+            case "$lower" in
+              changeme*|todo*|example*|placeholder*|xxx*|test123*|your_*|your-*|insert*|replace*) return 1 ;;
+            esac
+            [[ ${#val} -lt 4 ]] && return 1
+            return 0
+          }
+
+          has_app_id="false"; has_auth="false"
+          if is_valid "$QOBUZ_APP_ID_VAL"; then
+            has_app_id="true"
+          elif [[ -n "$QOBUZ_APP_ID_VAL" ]]; then
+            echo "::warning::QOBUZ_APP_ID looks like a placeholder; not counting"
+          fi
+
+          if is_valid "$QOBUZ_EMAIL_VAL" || is_valid "$QOBUZ_USER_ID_VAL"; then
+            has_auth="true"
+          fi
+
+          if [[ "$has_app_id" == "true" && "$has_auth" == "true" ]]; then
+            echo "has-secrets=true" >> "$GITHUB_OUTPUT"
+            echo "::notice::Qobuz credentials validated (APP_ID + auth); live tests will run"
+          elif [[ "$has_app_id" == "true" ]]; then
+            echo "has-secrets=true" >> "$GITHUB_OUTPUT"
+            echo "::warning::QOBUZ_APP_ID set but no auth credentials (EMAIL or USER_ID); some tests may skip"
+          else
+            echo "has-secrets=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::No valid Qobuz credentials found; skipping live tests. Set QOBUZ_APP_ID + auth credentials."
+          fi
+
+  live-tests:
+    name: Run Live Integration Tests
+    runs-on: ubuntu-latest
+    needs: gate
+    if: needs.gate.outputs.has-secrets == 'true'
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          fetch-depth: 0
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Extract Lidarr assemblies from Docker
+        run: |
+          set -euo pipefail
+          IMAGE="ghcr.io/hotio/lidarr:pr-plugins"
+          echo "Pulling $IMAGE..."
+          n=0
+          until [ "$n" -ge 3 ]; do
+            docker pull "$IMAGE" && break
+            n=$((n+1)); echo "Pull failed ($n). Retrying in 10s..." && sleep 10
+          done
+          cid=$(docker create "$IMAGE")
+          mkdir -p ext/Lidarr/_output/net8.0
+          docker cp "$cid:/app/bin/." ext/Lidarr/_output/net8.0/ || docker cp "$cid:/opt/lidarr/." ext/Lidarr/_output/net8.0/
+          docker rm "$cid" >/dev/null
+          cp -r ext/Lidarr/_output/net8.0 ext/Lidarr/_output/net6.0 2>/dev/null || true
+          ls -la ext/Lidarr/_output/net8.0/ | head -10
+
+      - name: Restore dependencies
+        run: dotnet restore Qobuzarr.sln
+
+      - name: Build solution
+        run: |
+          dotnet build Qobuzarr.sln \
+            --configuration Release \
+            --no-restore \
+            -p:UsePluginsBranch=true \
+            -p:PluginPackagingDisable=true \
+            -p:RunAnalyzersDuringBuild=false \
+            -p:EnableNETAnalyzers=false \
+            -p:TreatWarningsAsErrors=false
+
+      - name: Run Live Integration Tests
+        id: run-tests
+        env:
+          ENABLE_LIVE_INTEGRATION_TESTS: 'true'
+          QOBUZ_APP_ID: ${{ secrets.QOBUZ_APP_ID }}
+          QOBUZ_EMAIL: ${{ secrets.QOBUZ_EMAIL }}
+          QOBUZ_PASSWORD: ${{ secrets.QOBUZ_PASSWORD }}
+          QOBUZ_USER_ID: ${{ secrets.QOBUZ_USER_ID }}
+          QOBUZ_USER_AUTH_TOKEN: ${{ secrets.QOBUZ_USER_AUTH_TOKEN }}
+          LIDARR_URL: ${{ secrets.LIDARR_URL }}
+          LIDARR_API_KEY: ${{ secrets.LIDARR_API_KEY }}
+        run: |
+          set +e
+          mkdir -p TestResults
+          dotnet test Qobuzarr.sln \
+            --configuration Release \
+            --no-build \
+            --filter "Category=LiveIntegration" \
+            --logger "trx;LogFileName=live-test-results.trx" \
+            --results-directory ./TestResults \
+            --verbosity normal \
+            2>&1 | tee TestResults/live-service.log
+          exit_code=${PIPESTATUS[0]}
+          set -e
+
+          # Parse test counts
+          total=0; passed=0; failed=0
+          if grep -qP 'Total tests:\s*\d+' TestResults/live-service.log 2>/dev/null; then
+            total=$(grep -oP 'Total tests:\s*\K\d+' TestResults/live-service.log | tail -1)
+            passed=$(grep -oP 'Passed:\s*\K\d+' TestResults/live-service.log | tail -1 || echo 0)
+            failed=$(grep -oP 'Failed:\s*\K\d+' TestResults/live-service.log | tail -1 || echo 0)
+          fi
+
+          zero_tests="false"
+          if grep -qi "No test is available" TestResults/live-service.log || [[ "$total" -eq 0 ]]; then
+            zero_tests="true"
+          fi
+
+          inconclusive=0
+          if grep -c '\[INCONCLUSIVE:RATE_LIMITED\]' TestResults/live-service.log >/dev/null 2>&1; then
+            inconclusive=$(grep -c '\[INCONCLUSIVE:RATE_LIMITED\]' TestResults/live-service.log)
+          fi
+
+          echo "test-exit-code=$exit_code" >> "$GITHUB_OUTPUT"
+          echo "test-total=$total" >> "$GITHUB_OUTPUT"
+          echo "test-failed=$failed" >> "$GITHUB_OUTPUT"
+          echo "test-inconclusive=$inconclusive" >> "$GITHUB_OUTPUT"
+          echo "zero-tests=$zero_tests" >> "$GITHUB_OUTPUT"
+          echo "::notice::Test results: total=$total passed=$passed failed=$failed inconclusive=$inconclusive exit=$exit_code"
+
+      - name: Guard — fail if secrets present but 0 tests ran
+        if: steps.run-tests.outputs.zero-tests == 'true'
+        run: |
+          echo "::error::Secrets configured but 0 LiveIntegration tests executed. Check filter, ENABLE_LIVE_INTEGRATION_TESTS, or test discovery."
+          exit 1
+
+      - name: Warn if tests were inconclusive (rate-limited)
+        if: steps.run-tests.outputs.test-inconclusive != '0' && steps.run-tests.outputs.test-inconclusive != ''
+        run: |
+          echo "::warning::${{ steps.run-tests.outputs.test-inconclusive }} test(s) were rate-limited and classified as inconclusive. If this persists nightly, check credential quotas or rate limits."
+
+      - name: Upload test results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: nightly-live-test-results
+          path: ./TestResults/
+          retention-days: 14
+
+  notify-failures:
+    name: Track Consecutive Failures
+    needs: live-tests
+    if: always() && needs.live-tests.result == 'failure'
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+      actions: read
+    steps:
+      - name: Check for 3 consecutive failures
+        uses: actions/github-script@v7
+        with:
+          script: |
+            // Get default branch for scoping
+            const { data: repo } = await github.rest.repos.get({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+            });
+            const defaultBranch = repo.default_branch;
+
+            const { data: runs } = await github.rest.actions.listWorkflowRuns({
+              owner: context.repo.owner, repo: context.repo.repo,
+              workflow_id: 'nightly-live.yml', status: 'completed',
+              branch: defaultBranch, per_page: 4,
+            });
+            const previous = runs.workflow_runs.slice(1, 4);
+            const consecutiveFailures = previous.filter(r => r.conclusion === 'failure').length;
+            console.log(`Branch: ${defaultBranch}`);
+            console.log(`Previous ${previous.length} runs: ${previous.map(r => `${r.event}:${r.conclusion}`).join(', ')}`);
+
+            if (consecutiveFailures >= 2) {
+              const title = 'Nightly live tests: 3+ consecutive failures';
+              const currentRunUrl = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
+              const body = [
+                '## Nightly Live Integration Test Failures',
+                '',
+                `Failed **${consecutiveFailures + 1} consecutive times** on \`${defaultBranch}\`.`,
+                '',
+                '### Recent runs',
+                ...previous.map(r => `- ${r.created_at}: **${r.conclusion}** ([run](${r.html_url}))`),
+                `- ${new Date().toISOString().split('T')[0]}: **failure** ([current](${currentRunUrl}))`,
+                '',
+                '### Action needed',
+                '- Check if Qobuz credentials are still valid',
+                '- Check if Qobuz API has changed',
+                '- Check if test filter or build is misconfigured',
+                '',
+                `> Auto-created by nightly-live workflow. Scoped to \`${defaultBranch}\` branch.`,
+              ].join('\n');
+
+              const { data: issues } = await github.rest.issues.listForRepo({
+                owner: context.repo.owner, repo: context.repo.repo,
+                state: 'open', labels: 'ci,nightly-live',
+              });
+              const existing = issues.find(i => i.title === title);
+
+              if (existing) {
+                const recentConclusions = previous.map(r => r.conclusion).join(' → ');
+                await github.rest.issues.createComment({
+                  owner: context.repo.owner, repo: context.repo.repo,
+                  issue_number: existing.number,
+                  body: `Still failing as of ${new Date().toISOString().split('T')[0]}.\n\n**Current run**: [#${context.runNumber}](${currentRunUrl})\n**Last 3**: ${recentConclusions}\n**Total consecutive**: ${consecutiveFailures + 1}`,
+                });
+                console.log(`Updated existing issue #${existing.number}`);
+              } else {
+                await github.rest.issues.create({
+                  owner: context.repo.owner, repo: context.repo.repo,
+                  title, body, labels: ['ci', 'nightly-live'],
+                });
+                console.log('Created new tracking issue');
+              }
+            } else {
+              console.log('Not enough consecutive failures yet — no issue needed');
+            }
