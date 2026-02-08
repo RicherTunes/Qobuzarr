@@ -116,6 +116,12 @@ lidarr-download/
 *.bak
 nul
 build_output.txt
+
+# Packaging artifacts
+package/
+_tmp_pluginpack_test*/
+plugin-dist/
+wiki-content/
 build_errors.log
 *.pid
 *.lock
