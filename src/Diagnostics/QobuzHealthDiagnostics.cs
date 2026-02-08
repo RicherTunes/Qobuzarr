@@ -19,6 +19,33 @@ internal static class QobuzHealthDiagnostics
     private const string AuthMethodName = "app-secret";
 
     /// <summary>
+    /// Well-known error codes emitted by Qobuz diagnostics.
+    /// </summary>
+    public static class ErrorCodes
+    {
+        public const string AuthFailed = "AUTH_FAILED";
+        public const string ConnectionFailed = "CONNECTION_FAILED";
+    }
+
+    /// <summary>
+    /// Well-known diagnostic types emitted by Qobuz diagnostics.
+    /// </summary>
+    public static class DiagnosticTypes
+    {
+        public const string AuthValidate = "auth_validate";
+        public const string Connectivity = "connectivity";
+    }
+
+    /// <summary>
+    /// Well-known capabilities reported by Qobuz diagnostics.
+    /// </summary>
+    public static class Capabilities
+    {
+        public const string LosslessDownload = "lossless_download";
+        public const string Search = "search";
+    }
+
+    /// <summary>
     /// Performs an authentication health check against the Qobuz API.
     /// </summary>
     /// <param name="testAuth">A delegate that tests authentication and returns success/error tuple.</param>
@@ -39,16 +66,16 @@ internal static class QobuzHealthDiagnostics
                     responseTime: sw.Elapsed,
                     provider: ProviderName,
                     authMethod: AuthMethodName,
-                    diagnosticType: "auth_validate",
-                    capability: "lossless_download")
+                    diagnosticType: DiagnosticTypes.AuthValidate,
+                    capability: Capabilities.LosslessDownload)
                 : DiagnosticHealthResult.Unhealthy(
                     error ?? "Authentication failed",
                     responseTime: sw.Elapsed,
                     provider: ProviderName,
                     authMethod: AuthMethodName,
-                    diagnosticType: "auth_validate",
-                    capability: "lossless_download",
-                    errorCode: "AUTH_FAILED");
+                    diagnosticType: DiagnosticTypes.AuthValidate,
+                    capability: Capabilities.LosslessDownload,
+                    errorCode: ErrorCodes.AuthFailed);
         }
         catch (OperationCanceledException)
         {
@@ -62,8 +89,8 @@ internal static class QobuzHealthDiagnostics
                 responseTime: sw.Elapsed,
                 provider: ProviderName,
                 authMethod: AuthMethodName,
-                diagnosticType: "auth_validate",
-                errorCode: "CONNECTION_FAILED");
+                diagnosticType: DiagnosticTypes.AuthValidate,
+                errorCode: ErrorCodes.ConnectionFailed);
         }
     }
 
@@ -82,15 +109,15 @@ internal static class QobuzHealthDiagnostics
                 responseTime: elapsed,
                 provider: ProviderName,
                 authMethod: AuthMethodName,
-                diagnosticType: "connectivity",
-                capability: "search")
+                diagnosticType: DiagnosticTypes.Connectivity,
+                capability: Capabilities.Search)
             : DiagnosticHealthResult.Unhealthy(
                 "No search requests generated",
                 responseTime: elapsed,
                 provider: ProviderName,
-                diagnosticType: "connectivity",
-                capability: "search",
-                errorCode: "CONNECTION_FAILED");
+                diagnosticType: DiagnosticTypes.Connectivity,
+                capability: Capabilities.Search,
+                errorCode: ErrorCodes.ConnectionFailed);
     }
 
     /// <summary>
@@ -106,13 +133,13 @@ internal static class QobuzHealthDiagnostics
         return pathValid
             ? DiagnosticHealthResult.Healthy(
                 provider: ProviderName,
-                diagnosticType: "connectivity",
-                capability: "lossless_download")
+                diagnosticType: DiagnosticTypes.Connectivity,
+                capability: Capabilities.LosslessDownload)
             : DiagnosticHealthResult.Unhealthy(
                 errorMessage ?? "Download path not accessible",
                 provider: ProviderName,
-                diagnosticType: "connectivity",
-                capability: "lossless_download",
-                errorCode: "CONNECTION_FAILED");
+                diagnosticType: DiagnosticTypes.Connectivity,
+                capability: Capabilities.LosslessDownload,
+                errorCode: ErrorCodes.ConnectionFailed);
     }
 }
