@@ -1,0 +1,100 @@
+name: Nightly Live Integration Tests
+
+on:
+  schedule:
+    - cron: '0 3 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  gate:
+    name: Check Secrets
+    runs-on: ubuntu-latest
+    outputs:
+      has-secrets: ${{ steps.check.outputs.has-secrets }}
+    steps:
+      - name: Check if QOBUZ_APP_ID secret exists
+        id: check
+        env:
+          HAS_QOBUZ: ${{ secrets.QOBUZ_APP_ID != '' }}
+        run: |
+          if [ "$HAS_QOBUZ" = "true" ]; then
+            echo "has-secrets=true" >> "$GITHUB_OUTPUT"
+            echo "::notice::Qobuz credentials configured; live tests will run"
+          else
+            echo "has-secrets=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::No Qobuz credentials configured; skipping live tests"
+          fi
+
+  live-tests:
+    name: Run Live Integration Tests
+    runs-on: ubuntu-latest
+    needs: gate
+    if: needs.gate.outputs.has-secrets == 'true'
+    timeout-minutes: 20
+    continue-on-error: true
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          fetch-depth: 0
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Extract Lidarr assemblies from Docker
+        run: |
+          CONTAINER_ID=$(docker create ghcr.io/hotio/lidarr:pr-plugins)
+          docker cp $CONTAINER_ID:/app/bin ./lidarr-assemblies
+          docker rm $CONTAINER_ID
+          echo "LIDARR_ASSEMBLIES_PATH=$(pwd)/lidarr-assemblies" >> $GITHUB_ENV
+
+      - name: Restore dependencies
+        run: dotnet restore Qobuzarr.sln
+
+      - name: Build solution
+        run: |
+          dotnet build Qobuzarr.sln \
+            --configuration Release \
+            --no-restore \
+            -p:UsePluginsBranch=true \
+            -p:PluginPackagingDisable=true \
+            -p:RunAnalyzersDuringBuild=false \
+            -p:EnableNETAnalyzers=false \
+            -p:TreatWarningsAsErrors=false
+
+      - name: Run Live Integration Tests
+        env:
+          ENABLE_LIVE_INTEGRATION_TESTS: true
+          QOBUZ_APP_ID: ${{ secrets.QOBUZ_APP_ID }}
+          QOBUZ_EMAIL: ${{ secrets.QOBUZ_EMAIL }}
+          QOBUZ_PASSWORD: ${{ secrets.QOBUZ_PASSWORD }}
+          QOBUZ_USER_ID: ${{ secrets.QOBUZ_USER_ID }}
+          QOBUZ_USER_AUTH_TOKEN: ${{ secrets.QOBUZ_USER_AUTH_TOKEN }}
+          LIDARR_URL: ${{ secrets.LIDARR_URL }}
+          LIDARR_API_KEY: ${{ secrets.LIDARR_API_KEY }}
+        run: |
+          dotnet test Qobuzarr.sln \
+            --configuration Release \
+            --no-build \
+            --filter "Category=LiveIntegration" \
+            --logger "trx;LogFileName=live-test-results.trx" \
+            --verbosity normal
+
+      - name: Upload test results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: live-test-results
+          path: '**/live-test-results.trx'
+          retention-days: 30
