@@ -149,17 +149,28 @@ jobs:
             zero_tests="true"
           fi
 
+          inconclusive=0
+          if grep -c '\[INCONCLUSIVE:RATE_LIMITED\]' TestResults/live-service.log >/dev/null 2>&1; then
+            inconclusive=$(grep -c '\[INCONCLUSIVE:RATE_LIMITED\]' TestResults/live-service.log)
+          fi
+
           echo "test-exit-code=$exit_code" >> "$GITHUB_OUTPUT"
           echo "test-total=$total" >> "$GITHUB_OUTPUT"
           echo "test-failed=$failed" >> "$GITHUB_OUTPUT"
+          echo "test-inconclusive=$inconclusive" >> "$GITHUB_OUTPUT"
           echo "zero-tests=$zero_tests" >> "$GITHUB_OUTPUT"
-          echo "::notice::Test results: total=$total passed=$passed failed=$failed exit=$exit_code"
+          echo "::notice::Test results: total=$total passed=$passed failed=$failed inconclusive=$inconclusive exit=$exit_code"
 
       - name: Guard — fail if secrets present but 0 tests ran
         if: steps.run-tests.outputs.zero-tests == 'true'
         run: |
           echo "::error::Secrets configured but 0 LiveIntegration tests executed. Check filter, ENABLE_LIVE_INTEGRATION_TESTS, or test discovery."
           exit 1
+
+      - name: Warn if tests were inconclusive (rate-limited)
+        if: steps.run-tests.outputs.test-inconclusive != '0' && steps.run-tests.outputs.test-inconclusive != ''
+        run: |
+          echo "::warning::${{ steps.run-tests.outputs.test-inconclusive }} test(s) were rate-limited and classified as inconclusive. If this persists nightly, check credential quotas or rate limits."
 
       - name: Upload test results
         uses: actions/upload-artifact@v4
