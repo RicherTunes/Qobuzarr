@@ -1,4 +1,5 @@
 using System.Reflection;
+using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 
 // General Information about an assembly is controlled through the following
@@ -26,3 +27,6 @@ using System.Runtime.InteropServices;
 [assembly: AssemblyMetadata("PluginAuthor", "RicherTunes")]
 [assembly: AssemblyMetadata("PluginUrl", "https://github.com/richertunes/qobuzarr")]
 [assembly: AssemblyMetadata("MinimumLidarrVersion", "2.0.0.0")]
+
+// Allow test project to access internal types
+[assembly: InternalsVisibleTo("Qobuzarr.Tests")]
