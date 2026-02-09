@@ -687,6 +687,75 @@ namespace Qobuzarr.Tests.Integration
 
         #endregion
 
+        #region Log-Capture Redaction: Secrets Must Not Leak Into Structured Log Output
+
+        [Fact]
+        [Trait("Path", "Redaction")]
+        public async Task LogRedaction_AuthFailure_NoSecretsInLogs()
+        {
+            // Arrange: use a real NLog logger with MemoryTarget to capture log output
+            TestLogger.ClearLoggedMessages();
+            var logger = TestLogger.Create("QobuzApiClient");
+            var apiClient = new QobuzApiClient(MockHttpClient.Object, MockCacheManager, logger);
+
+            var authErrorResponse = HttpTestHelpers.CreateErrorResponse(
+                HttpStatusCode.Unauthorized, AuthFailureResponseJson);
+
+            MockHttpClient.Setup(x => x.ExecuteAsync(It.IsAny<HttpRequest>()))
+                .ThrowsAsync(new HttpException(authErrorResponse));
+
+            apiClient.SetSession(_validSession);
+
+            // Act: trigger auth failure
+            await Assert.ThrowsAsync<HttpException>(
+                () => apiClient.GetAsync<QobuzSearchResponse>("/album/search",
+                    new Dictionary<string, string> { { "query", "test" } }));
+
+            // Assert: actual secrets (auth token, app secret) must not appear in logs.
+            // Note: app_id is a public client identifier (like OAuth client_id), not a secret.
+            var logMessages = TestLogger.GetLoggedMessages();
+            foreach (var msg in logMessages)
+            {
+                Assert.DoesNotContain("valid_auth_token_e2e", msg);
+                Assert.DoesNotContain("test_app_secret", msg);
+            }
+        }
+
+        [Fact]
+        [Trait("Path", "Redaction")]
+        public async Task LogRedaction_RateLimit429_NoSecretsInLogs()
+        {
+            // Arrange: use a real NLog logger with MemoryTarget to capture log output
+            TestLogger.ClearLoggedMessages();
+            var logger = TestLogger.Create("QobuzApiClient");
+            var apiClient = new QobuzApiClient(MockHttpClient.Object, MockCacheManager, logger);
+
+            var rateLimitResponse = HttpTestHelpers.CreateErrorResponse(
+                (HttpStatusCode)429,
+                @"{""status"":""error"",""code"":429,""message"":""Too many requests""}");
+
+            MockHttpClient.Setup(x => x.ExecuteAsync(It.IsAny<HttpRequest>()))
+                .ThrowsAsync(new HttpException(rateLimitResponse));
+
+            apiClient.SetSession(_validSession);
+
+            // Act: trigger rate limit
+            await Assert.ThrowsAsync<HttpException>(
+                () => apiClient.GetAsync<QobuzSearchResponse>("/album/search",
+                    new Dictionary<string, string> { { "query", "test" } }));
+
+            // Assert: actual secrets (auth token, app secret) must not appear in logs.
+            // Note: app_id is a public client identifier (like OAuth client_id), not a secret.
+            var logMessages = TestLogger.GetLoggedMessages();
+            foreach (var msg in logMessages)
+            {
+                Assert.DoesNotContain("valid_auth_token_e2e", msg);
+                Assert.DoesNotContain("test_app_secret", msg);
+            }
+        }
+
+        #endregion
+
         public override void Dispose()
         {
             base.Dispose();
