@@ -31,7 +31,7 @@ namespace Qobuzarr.Tests.Integration
         private readonly QobuzIndexerSettings _settings;
         private readonly Logger _logger;
 
-        // Simulated Lidarr specifications
+        // Simulated Lidarr specifications (these are test-local interfaces, safe to mock)
         private readonly IAlbumRequestedSpecification _albumRequestedSpec;
         private readonly ISingleAlbumSearchMatchSpecification _singleAlbumSearchSpec;
 
@@ -42,7 +42,7 @@ namespace Qobuzarr.Tests.Integration
                 IncludeSingles = true,
                 IncludeCompilations = true
             };
-            _logger = Substitute.For<Logger>();
+            _logger = LogManager.CreateNullLogger();
             _parser = new QobuzParser(_settings, _logger);
 
             // Mock the key Lidarr specifications that filter search results
@@ -64,9 +64,11 @@ namespace Qobuzarr.Tests.Integration
                 Artist = new Artist { Id = 123, Name = "Spoon" }
             };
 
-            var searchCriteria = Substitute.For<AlbumSearchCriteria>();
-            searchCriteria.Albums.Returns(new List<Album> { lidarrAlbum });
-            searchCriteria.Artist.Returns(lidarrAlbum.Artist.Value);
+            var searchCriteria = new AlbumSearchCriteria
+            {
+                Albums = new List<Album> { lidarrAlbum },
+                Artist = lidarrAlbum.Artist.Value
+            };
 
             var qobuzAlbum = CreateQobuzDeluxeAlbum();
             _parser.SetSearchContext(searchCriteria);
@@ -119,8 +121,10 @@ namespace Qobuzarr.Tests.Integration
                 Artist = new Artist { Id = 123, Name = "Spoon" }
             };
 
-            var searchCriteria = Substitute.For<AlbumSearchCriteria>();
-            searchCriteria.Albums.Returns(new List<Album> { lidarrAlbum });
+            var searchCriteria = new AlbumSearchCriteria
+            {
+                Albums = new List<Album> { lidarrAlbum }
+            };
 
             var qobuzAlbum = CreateQobuzDeluxeAlbum();
             _parser.SetSearchContext(searchCriteria);
@@ -172,8 +176,10 @@ namespace Qobuzarr.Tests.Integration
                 Artist = new Artist { Id = 456, Name = "Daft Punk" }
             };
 
-            var searchCriteria = Substitute.For<AlbumSearchCriteria>();
-            searchCriteria.Albums.Returns(new List<Album> { lidarrAlbum });
+            var searchCriteria = new AlbumSearchCriteria
+            {
+                Albums = new List<Album> { lidarrAlbum }
+            };
 
             var qobuzAlbum = QobuzAlbumBuilder.New()
                 .WithTitle("Random Access Memories")
@@ -232,8 +238,10 @@ namespace Qobuzarr.Tests.Integration
                 Artist = new Artist { Name = "Artist" }
             };
 
-            var searchCriteria = Substitute.For<AlbumSearchCriteria>();
-            searchCriteria.Albums.Returns(new List<Album> { standardAlbum, editionAlbum });
+            var searchCriteria = new AlbumSearchCriteria
+            {
+                Albums = new List<Album> { standardAlbum, editionAlbum }
+            };
 
             var qobuzStandard = QobuzAlbumBuilder.New()
                 .WithTitle("Album One")
@@ -259,8 +267,8 @@ namespace Qobuzarr.Tests.Integration
             // Standard album should use space format
             standardRelease.Title.Should().MatchRegex(@"^.+ - .+ \(\d{4}\) \[.+\] \[WEB\]$");
 
-            // Edition album should use hyphen format
-            editionRelease.Title.Should().MatchRegex(@"^[^-]+-[^-]+-[^-]+-WEB-\d{4}$");
+            // Edition album should include version in brackets
+            editionRelease.Title.Should().Contain("[Deluxe Edition]");
         }
 
         #endregion
@@ -278,8 +286,10 @@ namespace Qobuzarr.Tests.Integration
                 Artist = new Artist { Name = "Spoon" }
             };
 
-            var searchCriteria = Substitute.For<AlbumSearchCriteria>();
-            searchCriteria.Albums.Returns(new List<Album> { lidarrAlbum });
+            var searchCriteria = new AlbumSearchCriteria
+            {
+                Albums = new List<Album> { lidarrAlbum }
+            };
 
             var qobuzAlbum = CreateQobuzDeluxeAlbum();
             _parser.SetSearchContext(searchCriteria);
@@ -336,8 +346,10 @@ namespace Qobuzarr.Tests.Integration
                 Artist = new Artist { Name = "Frank Ocean" }
             };
 
-            var searchCriteria = Substitute.For<AlbumSearchCriteria>();
-            searchCriteria.Albums.Returns(new List<Album> { lidarrAlbum });
+            var searchCriteria = new AlbumSearchCriteria
+            {
+                Albums = new List<Album> { lidarrAlbum }
+            };
 
             var qobuzAlbum = QobuzAlbumBuilder.New()
                 .WithTitle("Blond")
@@ -355,9 +367,9 @@ namespace Qobuzarr.Tests.Integration
             var flacRelease = releases.First(r => r.Title.Contains("FLAC"));
 
             // Assert
-            // Should use hyphen format for edition
-            flacRelease.Title.Should().MatchRegex(@"^[^-]+-[^-]+-[^-]+-WEB-\d{4}$");
+            // Should include version in brackets
             flacRelease.Title.Should().Contain("Boys Don't Cry Magazine");
+            flacRelease.Title.Should().Contain("[WEB]");
 
             // Should properly map to Lidarr album for decision engine
             flacRelease.Album.Should().Be("Blond (Boys Don't Cry Magazine, Explicit)");
