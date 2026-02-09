@@ -249,9 +249,9 @@ namespace Qobuzarr.Tests.Integration
             parsedInfo.AlbumTitle.Should().Contain("Café del Mar");
             releaseInfo.Title.Should().Contain("Édition Spéciale");
 
-            // Unicode characters should be preserved
+            // Unicode characters should be preserved (é from Café and É from Édition)
             releaseInfo.Title.Should().Contain("É");
-            releaseInfo.Title.Should().Contain("ç");
+            releaseInfo.Title.Should().Contain("é");
         }
 
         [Fact]
@@ -303,10 +303,13 @@ namespace Qobuzarr.Tests.Integration
 
             titleBuilder += $" [{quality} WEB]";
 
+            // Include version in GUID to differentiate editions of the same album
+            var guidSuffix = string.IsNullOrWhiteSpace(album.Version) ? "" : $"-{album.Version.GetHashCode():X}";
+
             return new ReleaseInfo
             {
                 Title = titleBuilder,
-                Guid = $"qobuz-{album.Id}",
+                Guid = $"qobuz-{album.Id}{guidSuffix}",
                 DownloadUrl = $"qobuz://album/{album.Id}",
                 InfoUrl = $"https://www.qobuz.com/album/{album.Id}",
                 Size = (long)album.GetEstimatedTotalSize(album.MaximumBitDepth >= 24 ? 6 : 5),
