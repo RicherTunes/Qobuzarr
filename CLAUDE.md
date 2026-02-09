@@ -791,6 +791,24 @@ references which depend on "ext/Lidarr-source/_output" vs "ext/Lidarr/_output"
 
 **THE GOLDEN RULE**: **One assembly source, standard enums, no hacks**.
 
+## Flaky Tests Policy
+
+**Flaky tests are priority tech debt that must be paid immediately.** A test that passes sometimes and fails sometimes erodes trust in the entire test suite. When a flaky test is discovered:
+
+1. **Fix it before starting new feature work** — flaky tests block reliable CI
+2. **Document the root cause** in a commit message so the pattern is not repeated
+3. **Never skip or disable** a flaky test without a tracking issue
+
+### Known Flaky Tests (Qobuzarr)
+
+| Test | Root Cause | Fix |
+|------|-----------|-----|
+| 6x `LidarrDecisionEngineTests.*` | NSubstitute mocking non-virtual members — tests never updated after production code changes | Refactor to use interfaces or make methods virtual |
+| `AlbumEditionLidarrIntegrationTests.ParsedAlbumInfo_WithUnicodeVersions_*` | Unicode/diacritical character stripping logic bug (genuine) | Fix production Unicode normalization logic |
+| `AlbumEditionLidarrIntegrationTests.AlbumRepository_FindByTitle_WithDifferentEditions_*` | GUID collision for different album editions (genuine) | Fix GUID generation to incorporate edition info |
+| `PluginPackagingTests.PluginFluentValidationReference_ShouldMatch_HostVersion` | FluentValidation version 9 vs 11 mismatch — test never updated for host version change | Update expected version in test |
+| `MLOptimizationRegressionTests.ConcurrentPredictions_MaintainPerformance` | Latency threshold 20ms too tight for CI — got 81.4ms on shared runners | Relax threshold or use relative comparison |
+
 # 🎯 **DEFINITIVE PLUGINS BRANCH COMPATIBILITY SOLUTION** 🎯
 
 ## **FINAL SOLUTION DISCOVERED** (2025-08-24)
