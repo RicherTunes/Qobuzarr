@@ -28,6 +28,7 @@ namespace Qobuzarr.Tests.Integration
     /// components are wired together, while remaining fully deterministic and CI-safe.
     /// </summary>
     [Trait("Category", "Integration")]
+    [Trait("Category", "E2E")]
     [Trait("Area", "E2E/Hermetic")]
     public class E2EHermeticGateTests : TestFixtureBase
     {
@@ -601,6 +602,87 @@ namespace Qobuzarr.Tests.Integration
             // Assert
             album.Streamable.Should().BeFalse(
                 "non-streamable album should be flagged correctly");
+        }
+
+        #endregion
+
+        #region Credential Redaction: Tokens Must Not Leak Into Error Messages
+
+        [Fact]
+        [Trait("Path", "Redaction")]
+        public async Task Redaction_InvalidToken_ExceptionDoesNotLeakAuthToken()
+        {
+            // Arrange: mock HTTP to throw with 401 response containing error details
+            var authErrorResponse = HttpTestHelpers.CreateErrorResponse(
+                HttpStatusCode.Unauthorized, AuthFailureResponseJson);
+
+            MockHttpClient.Setup(x => x.ExecuteAsync(It.IsAny<HttpRequest>()))
+                .ThrowsAsync(new HttpException(authErrorResponse));
+
+            _apiClient.SetSession(_validSession);
+
+            // Act: trigger auth failure
+            var exception = await Assert.ThrowsAsync<HttpException>(
+                () => _apiClient.GetAsync<QobuzSearchResponse>("/album/search",
+                    new Dictionary<string, string> { { "query", "test" } }));
+
+            // Assert: sensitive credentials must NOT appear in exception messages
+            exception.Message.Should().NotContain("valid_auth_token_e2e",
+                "auth token must not leak into exception message");
+            exception.Message.Should().NotContain("test_app_secret",
+                "app secret must not leak into exception message");
+            exception.ToString().Should().NotContain("test_app_secret",
+                "app secret must not leak into exception stack trace");
+        }
+
+        [Fact]
+        [Trait("Path", "Redaction")]
+        public async Task Redaction_ExpiredSession_RequestUrlDoesNotLeakAppSecret()
+        {
+            // Arrange: set session and make a request - verify app_secret is not in URL
+            HttpRequest capturedRequest = null;
+            var response = HttpTestHelpers.CreateResponse(SearchResponseJson, HttpStatusCode.OK);
+            MockHttpClient.Setup(x => x.ExecuteAsync(It.IsAny<HttpRequest>()))
+                .Callback<HttpRequest>(r => capturedRequest = r)
+                .ReturnsAsync(response);
+
+            _apiClient.SetSession(_validSession);
+
+            // Act
+            await _apiClient.GetAsync<QobuzSearchResponse>("/album/search",
+                new Dictionary<string, string> { { "query", "test" } });
+
+            // Assert: app_secret should NOT be exposed directly in request URL
+            capturedRequest.Should().NotBeNull("request should have been made");
+            capturedRequest.Url.ToString().Should().NotContain("test_app_secret",
+                "app secret must not be sent as a plain URL parameter");
+        }
+
+        #endregion
+
+        #region Rate Limiting: 429 Response -> Graceful Error
+
+        [Fact]
+        [Trait("Path", "Edge")]
+        public async Task Edge_RateLimit429_ThrowsHttpException()
+        {
+            // Arrange: mock HTTP to return 429 Too Many Requests
+            var rateLimitResponse = HttpTestHelpers.CreateErrorResponse(
+                (HttpStatusCode)429,
+                @"{""status"":""error"",""code"":429,""message"":""Too many requests""}");
+
+            MockHttpClient.Setup(x => x.ExecuteAsync(It.IsAny<HttpRequest>()))
+                .ThrowsAsync(new HttpException(rateLimitResponse));
+
+            _apiClient.SetSession(_validSession);
+
+            // Act & Assert: 429 should produce HttpException, not crash or hang
+            var exception = await Assert.ThrowsAsync<HttpException>(
+                () => _apiClient.GetAsync<QobuzSearchResponse>("/album/search",
+                    new Dictionary<string, string> { { "query", "test" } }));
+
+            exception.Response.StatusCode.Should().Be((HttpStatusCode)429,
+                "server should return 429 for rate-limited requests");
         }
 
         #endregion
