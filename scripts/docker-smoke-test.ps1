@@ -24,7 +24,7 @@
     Skip the build step (use existing binaries).
 
 .PARAMETER LidarrTag
-    Docker image tag for Lidarr. Default: pr-plugins-2.14.2.4786
+    Docker image tag for Lidarr. Default: pr-plugins-3.1.2.4913
 
 .PARAMETER ContainerName
     Name for the Docker container. Default: qobuzarr-smoke-test
@@ -63,7 +63,7 @@
 param(
     [switch]$SkipBuild,
     # Ecosystem baseline: keep aligned with other plugins unless explicitly overridden
-    [string]$LidarrTag = "pr-plugins-2.14.2.4786",
+    [string]$LidarrTag = "pr-plugins-3.1.2.4913",
     [string]$ContainerName = "qobuzarr-smoke-test",
     [int]$Port = 8687,
     [int]$TimeoutSeconds = 120,

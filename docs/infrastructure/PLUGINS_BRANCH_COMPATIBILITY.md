@@ -74,16 +74,16 @@ Use the provided scripts to extract assemblies from the hotio plugins branch con
 ./download-plugins-branch-assemblies.sh --force
 ```
 
-**Container source:** `ghcr.io/hotio/lidarr:pr-plugins-2.13.3.4692`
+**Container source:** `ghcr.io/hotio/lidarr:pr-plugins-3.1.2.4913`
 
 ### Method 2: Manual Docker Extraction
 
 ```bash
 # Pull the plugins branch container
-docker pull ghcr.io/hotio/lidarr:pr-plugins-2.13.3.4692
+docker pull ghcr.io/hotio/lidarr:pr-plugins-3.1.2.4913
 
 # Extract assemblies manually
-docker create --name temp-lidarr ghcr.io/hotio/lidarr:pr-plugins-2.13.3.4692
+docker create --name temp-lidarr ghcr.io/hotio/lidarr:pr-plugins-3.1.2.4913
 docker cp temp-lidarr:/app ./lidarr-plugins-temp
 docker rm temp-lidarr
 
@@ -123,7 +123,7 @@ dotnet build Qobuzarr.csproj --configuration Release -p:RunAnalyzersDuringBuild=
 Deploy the compiled plugin to a Lidarr plugins branch instance:
 
 1. **Target Runtime:** Lidarr plugins branch 2.13.3.4692
-2. **Container:** `ghcr.io/hotio/lidarr:pr-plugins-2.13.3.4692`
+2. **Container:** `ghcr.io/hotio/lidarr:pr-plugins-3.1.2.4913`
 3. **Validation:** Plugin should load without Protocol method implementation errors
 
 ## Important Notes
@@ -132,7 +132,7 @@ Deploy the compiled plugin to a Lidarr plugins branch instance:
 
 **WARNING:** Plugins compiled for plugins branch (string Protocol) will NOT work with regular release branch (enum Protocol).
 
-- **Plugins Branch Plugin:** `Protocol => "Qobuzarr"` ✅ Works with pr-plugins-2.13.3.4692
+- **Plugins Branch Plugin:** `Protocol => "Qobuzarr"` ✅ Works with pr-plugins-3.1.2.4913
 - **Release Branch Plugin:** `Protocol => DownloadProtocol.Unknown` ✅ Works with regular 2.13.2.4685
 
 ### Branch-Specific Deployment
