@@ -19,7 +19,7 @@
 [CmdletBinding()]
 param(
     # Ecosystem baseline: keep aligned with other plugins unless explicitly overridden
-    [string]$LidarrTag = "pr-plugins-2.14.2.4786",
+    [string]$LidarrTag = "pr-plugins-3.1.2.4913",
     [string]$Configuration = "Release",
 
     [switch]$ExtractHostAssemblies,
