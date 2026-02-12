@@ -168,8 +168,8 @@ Create our own `NuGet.config` that limits sources to essentials:
 ### Option 2: Docker Assembly Extraction (From CLAUDE.md)
 Extract assemblies from the Docker image instead of building from source:
 ```bash
-docker pull ghcr.io/hotio/lidarr:pr-plugins-2.13.3.4692
-docker create --name temp ghcr.io/hotio/lidarr:pr-plugins-2.13.3.4692
+docker pull ghcr.io/hotio/lidarr:pr-plugins-3.1.2.4913
+docker create --name temp ghcr.io/hotio/lidarr:pr-plugins-3.1.2.4913
 docker cp temp:/app/bin/. ext/Lidarr-plugins/_output/
 docker rm temp
 ```

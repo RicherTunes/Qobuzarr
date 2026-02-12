@@ -35,7 +35,7 @@ on: [push, pull_request]
 env:
   DOTNET_VERSION: 8.0.404
   PLUGIN_VERSION: 1.0.${{ github.run_number }}
-  LIDARR_DOCKER_VERSION: pr-plugins-2.13.3.4692
+  LIDARR_DOCKER_VERSION: pr-plugins-3.1.2.4913
 
 jobs:
   build:

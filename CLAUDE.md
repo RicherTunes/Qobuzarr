@@ -347,7 +347,7 @@ Based on analysis of TrevTV's and TypNull's successful plugins, we now have a **
 
 **Workflow**: `.github/workflows/build-docker.yml`
 
-**Key Innovation**: Extract plugins branch assemblies from `ghcr.io/hotio/lidarr:pr-plugins-2.13.3.4692` Docker image instead of building from source.
+**Key Innovation**: Extract plugins branch assemblies from `ghcr.io/hotio/lidarr:pr-plugins-3.1.2.4913` Docker image instead of building from source.
 
 **Why This Works**:
 - ✅ **No private NuGet feeds** - Uses pre-built assemblies from Docker
@@ -903,8 +903,8 @@ git clone --depth 1 --branch plugins https://github.com/Lidarr/Lidarr.git ext/Li
 **Option 2 - Docker Assembly Extraction**:
 ```bash
 # Extract from plugins branch Docker container
-docker pull ghcr.io/hotio/lidarr:pr-plugins-2.13.3.4692
-docker create --name temp ghcr.io/hotio/lidarr:pr-plugins-2.13.3.4692
+docker pull ghcr.io/hotio/lidarr:pr-plugins-3.1.2.4913
+docker create --name temp ghcr.io/hotio/lidarr:pr-plugins-3.1.2.4913
 docker cp temp:/app/bin/. ext/Lidarr-plugins/_output/
 docker rm temp
 ```
@@ -917,7 +917,7 @@ docker rm temp
 
 ### **Testing with User's Environment**
 
-**User's Runtime**: `ghcr.io/hotio/lidarr:pr-plugins-2.13.3.4692`
+**User's Runtime**: `ghcr.io/hotio/lidarr:pr-plugins-3.1.2.4913`
 **Plugin Pattern**: ✅ Matches TrevTV/TypNull working plugins exactly  
 **Expected Result**: Plugin should load successfully once built against plugins branch assemblies
 
