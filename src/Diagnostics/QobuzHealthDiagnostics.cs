@@ -7,6 +7,7 @@ using System.Diagnostics;
 using System.Threading;
 using System.Threading.Tasks;
 using Lidarr.Plugin.Common.Abstractions.Diagnostics;
+using Codes = Lidarr.Plugin.Common.Abstractions.Diagnostics.DiagnosticErrorCodes;
 
 namespace Lidarr.Plugin.Qobuzarr.Diagnostics;
 
@@ -19,12 +20,13 @@ internal static class QobuzHealthDiagnostics
     private const string AuthMethodName = "app-secret";
 
     /// <summary>
-    /// Well-known error codes emitted by Qobuz diagnostics.
+    /// Delegates to <see cref="Codes"/> for ecosystem-wide parity.
+    /// Local alias kept to minimize downstream churn.
     /// </summary>
     public static class ErrorCodes
     {
-        public const string AuthFailed = "AUTH_FAILED";
-        public const string ConnectionFailed = "CONNECTION_FAILED";
+        public const string AuthFailed = Codes.AuthFailed;
+        public const string ConnectionFailed = Codes.ConnectionFailed;
     }
 
     /// <summary>
