@@ -5,8 +5,20 @@ on:
     - cron: '40 4 * * *'  # 04:40 UTC daily — staggered across ecosystem (Brainarr+10m)
   push:
     branches: [main]
+    paths:
+      - '**/*.cs'
+      - '**/*.csproj'
+      - 'plugin.json'
+      - 'packaging/**'
+      - 'ext/Lidarr.Plugin.Common/**'
   pull_request:
     branches: [main]
+    paths:
+      - '**/*.cs'
+      - '**/*.csproj'
+      - 'plugin.json'
+      - 'packaging/**'
+      - 'ext/Lidarr.Plugin.Common/**'
   workflow_dispatch:
 
 concurrency:
@@ -15,11 +27,11 @@ concurrency:
 
 jobs:
   packaging-gates:
-    uses: RicherTunes/Lidarr.Plugin.Common/.github/workflows/packaging-gates.yml@1fe2da1cfb6397361a665449f39db72887a72334
+    uses: RicherTunes/Lidarr.Plugin.Common/.github/workflows/packaging-gates.yml@7f0371a5c370b11a5be405c228f26d6d1844bdc8
     with:
       common-path: ext/Lidarr.Plugin.Common
       plugin-csproj: Qobuzarr.csproj
       manifest-path: plugin.json
       host-assemblies-path: ext/Lidarr/_output/net8.0
       lidarr-docker-version: pr-plugins-3.1.2.4913
-      parity-lint: false
+      parity-lint: true
