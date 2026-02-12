@@ -173,6 +173,22 @@ jobs:
         $mode = if ('${{ github.event_name }}' -eq 'pull_request') { 'pr' } else { 'ci' }
         ./scripts/lint-sync-over-async.ps1 -Mode $mode
 
+
+    - name: Regression lint - no stale pr-plugins-2 references
+      shell: bash
+      run: |
+        echo "Checking for stray pr-plugins-2. references..."
+        HITS=$(grep -r "pr-plugins-2\." --include="*.yml" --include="*.yaml" --include="*.ps1" --include="*.sh" --include="*.cs" --include="*.csproj" --include="*.md" . \
+          | grep -v "CLAUDE\.md" \
+          | grep -v "^\./ext/" \
+          || true)
+        if [ -n "$HITS" ]; then
+          echo "::error::Found stray pr-plugins-2. references (net6 image tags). These must use pr-plugins-3.x:"
+          echo "$HITS"
+          exit 1
+        fi
+        echo "[OK] No stale pr-plugins-2. references found"
+
     - name: Security checks
       run: |
         echo "Running security checks..."

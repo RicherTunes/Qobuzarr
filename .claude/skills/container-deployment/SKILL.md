@@ -26,7 +26,7 @@ Design and implement complete containerization and deployment infrastructure for
 
 ### Phase 1: Basic Images (HIGH)
 ```dockerfile
-FROM ghcr.io/hotio/lidarr:pr-plugins-2.14.2.4786
+FROM ghcr.io/hotio/lidarr:pr-plugins-3.1.2.4913
 COPY artifacts/plugin/ /config/plugins/RicherTunes/Qobuzarr/
 HEALTHCHECK CMD curl -f http://localhost:8686/ping || exit 1
 ```
