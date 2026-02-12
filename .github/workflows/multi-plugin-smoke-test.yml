@@ -51,7 +51,7 @@ jobs:
     name: 🔥 Plugin Co-existence
     uses: RicherTunes/Lidarr.Plugin.Common/.github/workflows/multi-plugin-smoke-test.yml@main
     with:
-      test_plugins: 'qobuzarr,tidalarr,brainarr'
+      test_plugins: 'qobuzarr,tidalarr,brainarr,applemusicarr'
       caller_plugin: 'qobuzarr'
       lidarr_tag: 'pr-plugins-3.1.2.4913'
     secrets: inherit
