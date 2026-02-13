@@ -46,10 +46,11 @@ jobs:
           git checkout $NEW_SHA
           cd ../..
 
-          # Use canonical repin script
+          # Use canonical repin script. Note: --update-pins omitted because
+          # GITHUB_TOKEN cannot push .github/workflows/ changes.
           COMMON_PATH="ext/Lidarr.Plugin.Common"
           bash "$COMMON_PATH/scripts/repin-common-submodule.sh" \
-            --sha-from-submodule --stage --update-pins --path "$COMMON_PATH"
+            --sha-from-submodule --stage --path "$COMMON_PATH"
 
           # Verify immediately
           bash "$COMMON_PATH/scripts/repin-common-submodule.sh" --verify-only --path "$COMMON_PATH"
