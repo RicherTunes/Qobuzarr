@@ -48,8 +48,10 @@ jobs:
 
           # Use canonical repin script
           COMMON_PATH="ext/Lidarr.Plugin.Common"
+          # Note: --update-pins omitted because GITHUB_TOKEN cannot push
+          # .github/workflows/ changes. Stale pins are advisory (--verify-only warns).
           bash "$COMMON_PATH/scripts/repin-common-submodule.sh" \
-            --sha-from-submodule --stage --update-pins --path "$COMMON_PATH"
+            --sha-from-submodule --stage --path "$COMMON_PATH"
 
           # Verify immediately
           bash "$COMMON_PATH/scripts/repin-common-submodule.sh" --verify-only --path "$COMMON_PATH"
