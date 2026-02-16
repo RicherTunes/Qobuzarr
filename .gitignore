@@ -43,7 +43,7 @@ package.json
 package-lock.json
 scripts/deploy-local.ps1
 scripts/deploy-local.sh
-scripts/extract-lidarr-assemblies.sh
+
 scratch/
 temp-screenshots/
 temp-new-screenshots/
