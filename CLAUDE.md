@@ -805,6 +805,22 @@ references which depend on "ext/Lidarr-source/_output" vs "ext/Lidarr/_output"
 
 **THE GOLDEN RULE**: **One assembly source, standard enums, no hacks**.
 
+## Local Verification (Billing-Blocked CI)
+
+When GitHub Actions billing is blocked, run the merge-critical verification pipeline locally:
+
+```bash
+pwsh scripts/verify-local.ps1                    # Full pipeline (extract + build + package + closure + E2E)
+pwsh scripts/verify-local.ps1 -SkipExtract       # Fast rerun (reuse cached host assemblies)
+pwsh scripts/verify-local.ps1 -SkipTests         # Build + packaging closure only
+pwsh scripts/verify-local.ps1 -NoRestore         # Skip dotnet restore (fast iteration)
+pwsh scripts/verify-local.ps1 -IncludeSmoke      # + Docker smoke test (mounts plugin in Lidarr)
+```
+
+**Prerequisites**: PowerShell 7+ (`pwsh`), .NET 8 SDK, Docker (for extract/smoke stages).
+
+The script delegates to `ext/Lidarr.Plugin.Common/scripts/local-ci.ps1`, which orchestrates the same gates as CI: host assembly extraction with .NET 8 + FV 9.5.4 guardrails, plugin packaging via `New-PluginPackage`, and packaging closure validation via `generate-expected-contents.ps1 -Check`.
+
 ## Flaky Tests Policy
 
 **Flaky tests are priority tech debt that must be paid immediately.** A test that passes sometimes and fails sometimes erodes trust in the entire test suite. When a flaky test is discovered:
