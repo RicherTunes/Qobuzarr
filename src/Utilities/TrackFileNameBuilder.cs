@@ -1,4 +1,3 @@
-using System.IO;
 using Lidarr.Plugin.Common.Utilities;
 
 namespace Lidarr.Plugin.Qobuzarr.Utilities
@@ -13,17 +12,13 @@ namespace Lidarr.Plugin.Qobuzarr.Utilities
         /// </summary>
         public static string Build(int trackNumber, string trackTitle, int formatId, int discNumber = 1, int totalDiscs = 1)
         {
-            if (discNumber <= 0) discNumber = 1;
-            if (totalDiscs <= 1) totalDiscs = 1;
-
-            var sanitizedTitle = FileNameSanitizer.SanitizeFileName(trackTitle);
-            var extension = GetExtensionForFormat(formatId);
-
-            var prefix = totalDiscs > 1
-                ? $"D{discNumber:00}T{trackNumber:00}"
-                : $"{trackNumber:00}";
-
-            return $"{prefix} - {sanitizedTitle}{extension}";
+            var extension = GetExtensionForFormat(formatId).TrimStart('.');
+            return FileSystemUtilities.CreateTrackFileName(
+                title: trackTitle,
+                trackNumber: trackNumber,
+                extension: extension,
+                discNumber: discNumber,
+                totalDiscs: totalDiscs);
         }
 
         /// <summary>

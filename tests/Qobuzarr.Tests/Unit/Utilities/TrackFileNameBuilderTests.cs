@@ -1,5 +1,6 @@
 using System.IO;
 using FluentAssertions;
+using Lidarr.Plugin.Common.Utilities;
 using Lidarr.Plugin.Qobuzarr.Utilities;
 using Xunit;
 
@@ -34,6 +35,20 @@ namespace Qobuzarr.Tests.Unit.Utilities
         {
             var result = TrackFileNameBuilder.Build(trackNumber: 1, trackTitle: "Song", formatId: 6, discNumber: discNumber, totalDiscs: totalDiscs);
             result.Should().StartWith(expectedPrefix);
+        }
+
+        [Theory]
+        [InlineData(1, 1, 1, 6, "Song")]
+        [InlineData(1, 1, 2, 6, "Song")]
+        [InlineData(3, 2, 2, 5, "A:B/C*D?E\"F<G>H|I")]
+        [InlineData(0, 0, 0, 27, "Cafe\u0301")]
+        public void Build_ShouldMatchCommonTrackFileNameContract(int trackNumber, int discNumber, int totalDiscs, int formatId, string title)
+        {
+            var extension = TrackFileNameBuilder.GetExtensionForFormat(formatId).TrimStart('.');
+            var expected = FileSystemUtilities.CreateTrackFileName(title, trackNumber, extension, discNumber, totalDiscs);
+            var actual = TrackFileNameBuilder.Build(trackNumber, title, formatId, discNumber, totalDiscs);
+
+            actual.Should().Be(expected);
         }
 
         [Fact]
