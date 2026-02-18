@@ -109,9 +109,22 @@ namespace Qobuzarr.Tests.LibraryLinking
 
         #region Assembly Reference Tests
 
-        [Fact]
+        /// <summary>
+        /// Detects whether the build ran without ILRepack (PluginPackagingDisable=true).
+        /// When ILRepack is skipped, Common stays as a separate DLL alongside the plugin.
+        /// </summary>
+        private static bool IsPackagingDisabled()
+        {
+            var pluginDir = Path.GetDirectoryName(PluginAssemblyPath)!;
+            return File.Exists(Path.Combine(pluginDir, "Lidarr.Plugin.Common.dll"));
+        }
+
+        [SkippableFact]
         public void Plugin_Should_Not_Have_External_Reference_To_Common_Assembly()
         {
+            Skip.If(IsPackagingDisabled(),
+                "ILRepack not run (PluginPackagingDisable=true) — Common remains as separate assembly");
+
             // Arrange & Act
             var referencedAssemblies = PluginAssembly.GetReferencedAssemblies();
             var commonReference = referencedAssemblies
@@ -136,9 +149,12 @@ namespace Qobuzarr.Tests.LibraryLinking
                 "Polly should be merged into the plugin assembly, not referenced externally");
         }
 
-        [Fact]
+        [SkippableFact]
         public void Plugin_Assembly_Should_Be_Self_Contained()
         {
+            Skip.If(IsPackagingDisabled(),
+                "ILRepack not run (PluginPackagingDisable=true) — merged assemblies remain as separate files");
+
             // Arrange
             var pluginDir = Path.GetDirectoryName(PluginAssemblyPath)!;
 
