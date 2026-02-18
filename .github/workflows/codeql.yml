@@ -15,6 +15,7 @@ jobs:
   analyze:
     name: Analyze Code
     runs-on: ubuntu-latest
+    timeout-minutes: 45
     continue-on-error: true  # Non-blocking - requires GitHub Advanced Security (Code Scanning)
     permissions:
       security-events: write
@@ -47,41 +48,25 @@ jobs:
             exit 1
           fi
           SHA=$(git -C ext/Lidarr.Plugin.Common rev-parse --short HEAD 2>/dev/null || echo "<unknown>")
-          echo "✓ Common submodule initialized at $SHA"
-          if [ -f ext-common-sha.txt ]; then
-            EXPECTED=$(cat ext-common-sha.txt | tr -d '[:space:]' | cut -c1-7)
-            if [ -n "$EXPECTED" ] && [ "$SHA" != "<unknown>" ] && [ "${SHA:0:7}" != "$EXPECTED" ]; then
-              echo "::warning::Submodule SHA ($SHA) differs from pinned ($EXPECTED)"
-            fi
-          fi
+          echo "Common submodule initialized at $SHA"
 
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: |
-            6.0.x
-            8.0.x
+          dotnet-version: '8.0.x'
 
-      - name: Extract Lidarr Plugins Branch Assemblies
-        run: |
-          # Extract assemblies from plugins branch Docker image (same as main CI)
-          mkdir -p ext/Lidarr/_output/net8.0
-          IMAGE="ghcr.io/hotio/lidarr:pr-plugins"
-          echo "Pulling $IMAGE..."
-          docker pull "$IMAGE"
-          cid=$(docker create "$IMAGE")
-          echo "Extracting assemblies from container..."
-          docker cp "$cid:/app" ext/Lidarr/_extracted || docker cp "$cid:/opt/lidarr" ext/Lidarr/_extracted
-          docker rm "$cid" >/dev/null
-          find ext/Lidarr/_extracted -type f -name "*.dll" -exec cp {} ext/Lidarr/_output/net8.0 \;
-          
-          # Verify plugins branch API is present
-          if ! strings ext/Lidarr/_output/net8.0/Lidarr.Core.dll | grep -q "IDownloadProtocol"; then
-            echo "[ERROR] Assemblies do not expose IDownloadProtocol (plugins branch API)."
-            exit 1
-          fi
-          echo "[OK] Plugins branch assemblies extracted successfully"
+      - name: Extract Lidarr assemblies (shared script)
         shell: bash
+        run: bash scripts/extract-lidarr-assemblies.sh --mode minimal
+
+      - name: Remove host FluentValidation to prevent version conflict
+        shell: bash
+        run: |
+          # Common compiles against FluentValidation 11.x (NuGet/CPM) but the host
+          # ships FluentValidation 9.5.4. Keeping the host DLL in the assembly probe
+          # path causes CS1705 during build. Removing it lets NuGet resolution win.
+          rm -f ext/Lidarr/_output/net8.0/FluentValidation.dll
+          echo "Removed host FluentValidation.dll to prevent CS1705 version conflict"
 
       - name: Initialize CodeQL
         uses: github/codeql-action/init@v3
@@ -93,12 +78,12 @@ jobs:
               - ext/**
               - tests/**
 
+      - name: Restore
+        run: dotnet restore Qobuzarr.csproj
+
       - name: Build
         run: |
-          # Build main plugin with plugins branch assemblies
-          # PluginPackagingDisable=true skips ILRepack during CodeQL (assemblies not available in library path)
-          dotnet build Qobuzarr.csproj --configuration Release \
-            -p:UsePluginsBranch=true \
+          dotnet build Qobuzarr.csproj --configuration Release --no-restore \
             -p:PluginPackagingDisable=true \
             -p:RunAnalyzersDuringBuild=false \
             -p:EnableNETAnalyzers=false \
