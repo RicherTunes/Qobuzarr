@@ -71,14 +71,39 @@ public class ArchitectureComplianceTests
     [Fact]
     public void CLI_ShouldNotReimplementPluginFunctionality()
     {
-        // High-level architectural test
+        // High-level architectural test.
+        // GetTypes() and even Type.Namespace can throw when transitive host
+        // assemblies (Lidarr.Core, Lidarr.Common) are absent in test
+        // environments that don't extract Docker assemblies. Guard every
+        // reflection call to keep the test useful in all environments.
         var cliAssembly = typeof(DownloadCommand).Assembly;
-        var cliTypes = cliAssembly.GetTypes().Where(t => t.Namespace?.StartsWith("QobuzCLI") == true);
 
-        foreach (var type in cliTypes)
+        Type[] allTypes;
+        try
         {
-            var methods = type.GetMethods(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
-            var suspiciousPatterns = new[] { "DownloadTrack", "ApplyMetadata", "TagFile", "ConvertAudio" };
+            allTypes = cliAssembly.GetTypes();
+        }
+        catch (ReflectionTypeLoadException ex)
+        {
+            allTypes = ex.Types.Where(t => t != null).ToArray()!;
+        }
+
+        var suspiciousPatterns = new[] { "DownloadTrack", "ApplyMetadata", "TagFile", "ConvertAudio" };
+
+        foreach (var type in allTypes)
+        {
+            // Accessing .Namespace on types with unresolvable base classes
+            // throws FileNotFoundException for the missing host assembly.
+            string? ns;
+            try { ns = type.Namespace; }
+            catch { continue; }
+
+            if (ns?.StartsWith("QobuzCLI") != true)
+                continue;
+
+            MethodInfo[] methods;
+            try { methods = type.GetMethods(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance); }
+            catch { continue; }
 
             var reimplementedMethods = methods
                 .Where(m => suspiciousPatterns.Any(pattern => m.Name.Contains(pattern)))
