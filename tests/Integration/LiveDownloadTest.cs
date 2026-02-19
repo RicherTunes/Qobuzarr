@@ -15,30 +15,43 @@ namespace Qobuzarr.IntegrationTests
     public class LiveDownloadTest
     {
         private readonly ITestOutputHelper _output;
-        private readonly string _lidarrUrl;
-        private readonly string _lidarrApiKey;
+        private readonly string? _lidarrUrl;
+        private readonly string? _lidarrApiKey;
+        private readonly string? _skipReason;
 
         public LiveDownloadTest(ITestOutputHelper output)
         {
             _output = output;
 
-            // Load environment variables
-            DotNetEnv.Env.TraversePath().Load();
+            try
+            {
+                DotNetEnv.Env.TraversePath().Load();
+            }
+            catch { /* .env file optional */ }
 
             var configuration = new ConfigurationBuilder()
                 .AddEnvironmentVariables()
                 .Build();
 
-            _lidarrUrl = configuration["LIDARR_URL"] ?? throw new InvalidOperationException("LIDARR_URL not configured");
-            _lidarrApiKey = configuration["LIDARR_API_KEY"] ?? throw new InvalidOperationException("LIDARR_API_KEY not configured");
+            _lidarrUrl = configuration["LIDARR_URL"];
+            _lidarrApiKey = configuration["LIDARR_API_KEY"];
 
-            _output.WriteLine($"🎵 Live Download Test - Lidarr: {_lidarrUrl}");
+            if (string.IsNullOrWhiteSpace(_lidarrUrl) || string.IsNullOrWhiteSpace(_lidarrApiKey))
+            {
+                _skipReason = "Lidarr not configured (set LIDARR_URL and LIDARR_API_KEY)";
+                return;
+            }
+
+            _output.WriteLine($"Live Download Test - Lidarr: {_lidarrUrl}");
         }
 
-        [Fact]
+        private void SkipIfNotConfigured() => Skip.If(_skipReason != null, _skipReason);
+
+        [SkippableFact]
         [Trait("Category", "Integration")]
         public async Task Should_Explore_Available_Commands()
         {
+            SkipIfNotConfigured();
             using var httpClient = new HttpClient();
             httpClient.DefaultRequestHeaders.Add("X-Api-Key", _lidarrApiKey);
 
@@ -62,10 +75,11 @@ namespace Qobuzarr.IntegrationTests
             }
         }
 
-        [Fact]
+        [SkippableFact]
         [Trait("Category", "Integration")]
         public async Task Should_Trigger_Album_Search_And_Monitor_Results()
         {
+            SkipIfNotConfigured();
             using var httpClient = new HttpClient();
             httpClient.DefaultRequestHeaders.Add("X-Api-Key", _lidarrApiKey);
 
@@ -256,10 +270,11 @@ namespace Qobuzarr.IntegrationTests
             }
         }
 
-        [Fact]
+        [SkippableFact]
         [Trait("Category", "Integration")]
         public async Task Should_Test_Qobuzarr_Indexer_Directly()
         {
+            SkipIfNotConfigured();
             using var httpClient = new HttpClient();
             httpClient.DefaultRequestHeaders.Add("X-Api-Key", _lidarrApiKey);
 
