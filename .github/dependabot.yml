@@ -30,6 +30,10 @@ updates:
         versions: [">=6.0.0"]
       - dependency-name: "FluentValidation"
         versions: [">=12.0.0"]
+      # FluentAssertions 7.x+ changed to commercial license.
+      # Pin at 6.12.2 (last MIT release). See TECH_DEBT.md.
+      - dependency-name: "FluentAssertions"
+        versions: [">=7.0.0"]
       - dependency-name: "Microsoft.Extensions.DependencyInjection"
         versions: [">=9.0.0"]
       - dependency-name: "Microsoft.Extensions.DependencyInjection.Abstractions"

@@ -68,6 +68,9 @@
     <PackageVersion Include="xunit.runner.visualstudio" Version="2.8.2" />
     <PackageVersion Include="coverlet.collector" Version="6.0.2" />
     <!-- Assertions and Mocking (standardized on Moq, but keep NSubstitute for compatibility) -->
+    <!-- FluentAssertions MUST stay at 6.12.2 — last MIT-licensed release.
+         FA 7.x+ requires a commercial license. Dependabot ignores >=7.0.0.
+         Migration to xUnit Assert.* is not justified (111 files, ~2,900 call sites). -->
     <PackageVersion Include="FluentAssertions" Version="6.12.2" />
     <PackageVersion Include="Moq" Version="4.20.72" />
     <PackageVersion Include="NSubstitute" Version="5.3.0" />
