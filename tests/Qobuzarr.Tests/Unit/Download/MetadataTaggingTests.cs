@@ -234,16 +234,15 @@ public class MetadataTaggingTests : IDisposable
     {
         var path = Path.Combine(_tempDir, $"test_{Guid.NewGuid():N}.flac");
 
-        // Minimal valid FLAC file structure
-        var flacBytes = new byte[]
+        // Build minimal valid FLAC file structure using Encoding for magic bytes
+        var flacSignature = System.Text.Encoding.ASCII.GetBytes("fLaC");
+
+        // STREAMINFO metadata block header (last block, type 0, length 34)
+        var streamInfoHeader = new byte[] { 0x80, 0x00, 0x00, 0x22 };
+
+        // STREAMINFO block (34 bytes)
+        var streamInfo = new byte[]
         {
-            // FLAC signature
-            0x66, 0x4C, 0x61, 0x43, // "fLaC"
-
-            // STREAMINFO metadata block header (last block, type 0, length 34)
-            0x80, 0x00, 0x00, 0x22,
-
-            // STREAMINFO block (34 bytes)
             0x00, 0x10, // min block size = 16
             0x00, 0x10, // max block size = 16
             0x00, 0x00, 0x01, // min frame size
@@ -253,8 +252,11 @@ public class MetadataTaggingTests : IDisposable
             // MD5 signature (16 bytes, zeros for silence)
             0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
             0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        };
 
-            // Minimal FLAC frame header + data
+        // Minimal FLAC frame header + data
+        var frame = new byte[]
+        {
             0xFF, 0xF8, // sync code
             0x09, 0x18, // blocking strategy, block size, sample rate
             0x00,       // channel assignment, sample size
@@ -265,6 +267,14 @@ public class MetadataTaggingTests : IDisposable
             // Frame footer CRC-16
             0x00, 0x00
         };
+
+        // Combine all parts
+        var flacBytes = new byte[flacSignature.Length + streamInfoHeader.Length + streamInfo.Length + frame.Length];
+        int offset = 0;
+        flacSignature.CopyTo(flacBytes, offset); offset += flacSignature.Length;
+        streamInfoHeader.CopyTo(flacBytes, offset); offset += streamInfoHeader.Length;
+        streamInfo.CopyTo(flacBytes, offset); offset += streamInfo.Length;
+        frame.CopyTo(flacBytes, offset);
 
         System.IO.File.WriteAllBytes(path, flacBytes);
         return path;
