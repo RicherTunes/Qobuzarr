@@ -50,7 +50,7 @@
     <PackageVersion Include="Newtonsoft.Json.Schema" Version="3.0.15" />
     <PackageVersion Include="DotNetEnv" Version="3.1.1" />
     <!-- Microsoft Extensions (mix of versions based on compatibility requirements) -->
-    <PackageVersion Include="Microsoft.Extensions.DependencyInjection" Version="8.0.1" />
+    <PackageVersion Include="Microsoft.Extensions.DependencyInjection" Version="9.0.0" />
     <PackageVersion Include="Microsoft.Extensions.Configuration" Version="8.0.0" />
     <PackageVersion Include="Microsoft.Extensions.Configuration.Json" Version="8.0.0" />
     <PackageVersion Include="Microsoft.Extensions.Configuration.EnvironmentVariables" Version="8.0.0" />
@@ -68,18 +68,21 @@
     <PackageVersion Include="xunit.runner.visualstudio" Version="2.8.2" />
     <PackageVersion Include="coverlet.collector" Version="6.0.2" />
     <!-- Assertions and Mocking (standardized on Moq, but keep NSubstitute for compatibility) -->
+    <!-- FluentAssertions MUST stay at 6.12.2 — last MIT-licensed release.
+         FA 7.x+ requires a commercial license. Dependabot ignores >=7.0.0.
+         Migration to xUnit Assert.* is not justified (111 files, ~2,900 call sites). -->
     <PackageVersion Include="FluentAssertions" Version="6.12.2" />
     <PackageVersion Include="Moq" Version="4.20.72" />
-    <PackageVersion Include="NSubstitute" Version="5.1.0" />
+    <PackageVersion Include="NSubstitute" Version="5.3.0" />
     <!-- Missing Test Dependencies for Lidarr assemblies compatibility -->
-    <PackageVersion Include="System.IO.Abstractions" Version="17.2.3" />
-    <PackageVersion Include="System.IO.Abstractions.TestingHelpers" Version="17.2.3" />
+    <PackageVersion Include="System.IO.Abstractions" Version="21.1.3" />
+    <PackageVersion Include="System.IO.Abstractions.TestingHelpers" Version="21.1.3" />
     <PackageVersion Include="Equ" Version="2.3.0" />
-    <PackageVersion Include="FsCheck" Version="2.16.5" />
-    <PackageVersion Include="FsCheck.Xunit" Version="2.16.5" />
+    <PackageVersion Include="FsCheck" Version="2.16.6" />
+    <PackageVersion Include="FsCheck.Xunit" Version="2.16.6" />
     <!-- Integration Test Dependencies -->
     <PackageVersion Include="Docker.DotNet" Version="3.125.15" />
     <!-- Advanced Quality Testing (Sprint 6) -->
-    <PackageVersion Include="BenchmarkDotNet" Version="0.13.12" />
+    <PackageVersion Include="BenchmarkDotNet" Version="0.14.0" />
   </ItemGroup>
 </Project>

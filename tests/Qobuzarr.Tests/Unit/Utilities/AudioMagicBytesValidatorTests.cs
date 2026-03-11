@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using System.Text;
 using FluentAssertions;
 using Lidarr.Plugin.Qobuzarr.Utilities;
 using Xunit;
@@ -8,24 +9,40 @@ namespace Qobuzarr.Tests.Unit.Utilities
 {
     public class AudioMagicBytesValidatorTests
     {
+        private static readonly byte[] FlacMagic = Encoding.ASCII.GetBytes("fLaC");
+        private static readonly byte[] OggMagic = Encoding.ASCII.GetBytes("OggS");
+        private static readonly byte[] RiffMagic = Encoding.ASCII.GetBytes("RIFF");
+        private static readonly byte[] Id3Magic = Encoding.ASCII.GetBytes("ID3");
+
         [Theory]
-        [InlineData(new byte[] { 0x66, 0x4C, 0x61, 0x43 })] // fLaC
-        [InlineData(new byte[] { 0x4F, 0x67, 0x67, 0x53 })] // OggS
-        [InlineData(new byte[] { 0x52, 0x49, 0x46, 0x46 })] // RIFF
-        [InlineData(new byte[] { 0x49, 0x44, 0x33, 0x04 })] // ID3
-        [InlineData(new byte[] { 0xFF, 0xFB, 0x90, 0x64 })] // MPEG frame sync
+        [MemberData(nameof(ValidAudioHeaders))]
         public void IsValidAudioMagicBytes_WithKnownHeaders_ShouldReturnTrue(byte[] bytes)
         {
             AudioMagicBytesValidator.IsValidAudioMagicBytes(bytes).Should().BeTrue();
         }
 
+        public static TheoryData<byte[]> ValidAudioHeaders => new()
+        {
+            FlacMagic,
+            OggMagic,
+            RiffMagic,
+            Id3Magic,
+            // MPEG frame sync cannot be represented as ASCII; use hex
+            new byte[] { 0xFF, 0xFB, 0x90, 0x64 }
+        };
+
         [Theory]
-        [InlineData(new byte[] { 0x3C, 0x21, 0x44, 0x4F })] // <!DO (HTML)
-        [InlineData(new byte[] { 0x7B, 0x22, 0x65, 0x72 })] // {"er (JSON)
+        [MemberData(nameof(InvalidHeaders))]
         public void IsValidAudioMagicBytes_WithNonAudioHeaders_ShouldReturnFalse(byte[] bytes)
         {
             AudioMagicBytesValidator.IsValidAudioMagicBytes(bytes).Should().BeFalse();
         }
+
+        public static TheoryData<byte[]> InvalidHeaders => new()
+        {
+            Encoding.ASCII.GetBytes("<!DO"), // HTML start
+            Encoding.ASCII.GetBytes("{\"er") // JSON start
+        };
 
         [Fact]
         public void ValidateAudioMagicBytes_WithValidFile_ShouldNotThrow()
@@ -33,7 +50,9 @@ namespace Qobuzarr.Tests.Unit.Utilities
             var path = Path.Combine(Path.GetTempPath(), $"qobuzarr-magic-{Guid.NewGuid():N}.bin");
             try
             {
-                File.WriteAllBytes(path, new byte[] { 0x66, 0x4C, 0x61, 0x43, 0x00, 0x01, 0x02 });
+                var fileData = new byte[7];
+                FlacMagic.CopyTo(fileData, 0);
+                File.WriteAllBytes(path, fileData);
                 Action act = () => AudioMagicBytesValidator.ValidateAudioMagicBytes(path);
                 act.Should().NotThrow();
             }
@@ -49,7 +68,8 @@ namespace Qobuzarr.Tests.Unit.Utilities
             var path = Path.Combine(Path.GetTempPath(), $"qobuzarr-magic-{Guid.NewGuid():N}.bin");
             try
             {
-                File.WriteAllBytes(path, new byte[] { 0x66, 0x4C, 0x61 }); // < 4 bytes
+                // Write only 3 bytes (< 4 required for magic validation)
+                File.WriteAllBytes(path, FlacMagic.AsSpan(0, 3).ToArray());
                 Action act = () => AudioMagicBytesValidator.ValidateAudioMagicBytes(path);
                 act.Should().Throw<InvalidOperationException>()
                     .WithMessage("File too small for magic validation*");

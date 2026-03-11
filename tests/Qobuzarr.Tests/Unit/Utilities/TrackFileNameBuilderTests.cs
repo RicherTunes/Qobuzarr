@@ -4,6 +4,10 @@ using Lidarr.Plugin.Common.Utilities;
 using Lidarr.Plugin.Qobuzarr.Utilities;
 using Xunit;
 
+// PARITY-EXEMPT: Path.GetInvalidFileNameChars() usage in Build_ShouldSanitizeTitleForFileSystem
+// is intentional - we're verifying the output against the platform's definition of invalid chars.
+// This test validates that TrackFileNameBuilder produces the same sanitization as FileNameSanitizer.
+
 namespace Qobuzarr.Tests.Unit.Utilities
 {
     public class TrackFileNameBuilderTests
