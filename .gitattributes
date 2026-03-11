@@ -20,5 +20,7 @@
 *.ico binary
 *.dll binary
 *.exe binary
+*.zip binary
+*.nupkg binary
 *.so binary
 *.dylib binary
