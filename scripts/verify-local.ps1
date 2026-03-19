@@ -37,7 +37,7 @@ try {
         HostAssembliesPath   = 'ext/Lidarr/_output/net8.0'
         CommonPath           = 'ext/Lidarr.Plugin.Common'
         LidarrDockerVersion  = 'pr-plugins-3.1.2.4913'
-        BuildFlags           = @('-p:LidarrAssembliesPath={HOST_PATH}', '-p:PluginPackagingDisable=true')
+        BuildFlags           = @('-p:LidarrAssembliesPath={HOST_PATH}')
         TestProjects         = @('tests/Qobuzarr.Tests/Qobuzarr.Tests.csproj')
         ExpectedContentsFile = 'packaging/expected-contents.txt'
         WarningBudget        = 1000
