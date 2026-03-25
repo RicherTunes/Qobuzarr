@@ -43,6 +43,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\Qobuzarr.csproj" />
+    <ProjectReference Include="..\..\ext\Lidarr.Plugin.Common\testkit\Lidarr.Plugin.Common.TestKit.csproj" />
   </ItemGroup>
 
   <!-- xUnit runner settings for long-running test reporting -->
