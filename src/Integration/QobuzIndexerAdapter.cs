@@ -84,6 +84,12 @@ public sealed class QobuzIndexerAdapter : IIndexer
 
             _logger.LogDebug("Qobuz album search for '{Query}' returned {Count} results", query, result.Count);
 
+            if (response?.Albums?.HasMoreResults == true)
+            {
+                _logger.LogWarning("Search for '{Query}' returned {Count} of {Total} results — pagination not yet implemented",
+                    query, result.Count, response.Albums.Total);
+            }
+
             await _statusReporter.ReportStatusAsync(IndexerStatus.Idle, null, cancellationToken).ConfigureAwait(false);
             return result;
         }
@@ -181,6 +187,21 @@ public sealed class QobuzIndexerAdapter : IIndexer
             Upc = qAlbum.UPC ?? string.Empty,
         };
 
+        // Album type heuristic
+        if (qAlbum.TracksCount > 0)
+        {
+            album.Type = qAlbum.TracksCount <= 3 ? StreamingAlbumType.Single
+                       : qAlbum.TracksCount <= 6 ? StreamingAlbumType.EP
+                       : StreamingAlbumType.Album;
+        }
+
+        // Detect compilations by artist name
+        var artistName = qAlbum.Artist?.Name;
+        if (artistName is not null && artistName.Contains("Various", StringComparison.OrdinalIgnoreCase))
+        {
+            album.Type = StreamingAlbumType.Compilation;
+        }
+
         // Genres
         var genre = qAlbum.GetGenre();
         if (!string.IsNullOrEmpty(genre) && genre != "Unknown")
@@ -224,7 +245,7 @@ public sealed class QobuzIndexerAdapter : IIndexer
                 Format = "FLAC",
                 BitDepth = qAlbum.MaximumBitDepth,
                 SampleRate = qAlbum.MaximumSampleRate.HasValue
-                    ? (int)qAlbum.MaximumSampleRate.Value // Qobuz reports Hz (e.g., 96000, 192000)
+                    ? (int)Math.Round(qAlbum.MaximumSampleRate.Value) // Qobuz reports Hz (e.g., 96000, 192000)
                     : null,
             };
             quality.Name = quality.IsHighResolution ? "Hi-Res" : "Lossless";
