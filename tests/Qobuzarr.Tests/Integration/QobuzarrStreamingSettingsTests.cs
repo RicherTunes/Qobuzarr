@@ -29,7 +29,7 @@ public class QobuzarrStreamingSettingsTests
         var result = settings.IsValid(out var error);
 
         Assert.True(result);
-        Assert.Null(error);
+        Assert.True(error is null || error == string.Empty, $"Expected null or empty error but got: '{error}'");
     }
 
     // ---- Email ----

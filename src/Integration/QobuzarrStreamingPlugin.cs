@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
 using Lidarr.Plugin.Abstractions.Contracts;
@@ -7,6 +8,7 @@ using Lidarr.Plugin.Common.Extensions;
 using Lidarr.Plugin.Common.Hosting;
 using Lidarr.Plugin.Common.Services.Registration;
 using Lidarr.Plugin.Qobuzarr.API;
+using Lidarr.Plugin.Qobuzarr.Integration.Bridge;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 
@@ -26,10 +28,10 @@ public sealed class QobuzarrStreamingPlugin : StreamingPlugin<QobuzarrStreamingM
         // AddBridgeDefaults uses TryAdd, so custom registrations added before this call take precedence.
         services.AddBridgeDefaults();
 
-        // IQobuzApiClient is NOT registered here — it requires the full Lidarr host DI
-        // (NLog Logger, IHttpClient, ICacheManager). The bridge DI container cannot provide these.
-        // CreateIndexerAsync returns null when the API client is unavailable.
-        // Once host bridge integration is complete, the API client will be injectable.
+        // Register the bridge-compatible API client backed by System.Net.Http.HttpClient.
+        // This replaces the full QobuzApiClient which requires NLog, IHttpClient, ICacheManager from the host.
+        services.AddSingleton<HttpClient>(_ => new HttpClient { Timeout = TimeSpan.FromSeconds(30) });
+        services.AddSingleton<IQobuzApiClient, BridgeQobuzApiClient>();
     }
 
     /// <inheritdoc />
@@ -38,13 +40,11 @@ public sealed class QobuzarrStreamingPlugin : StreamingPlugin<QobuzarrStreamingM
         IServiceProvider services,
         CancellationToken cancellationToken)
     {
-        // IQobuzApiClient requires the full Lidarr host DI container (NLog, IHttpClient, ICacheManager).
-        // In the bridge/sandbox context it is not available. Return null until host integration is wired.
         var apiClient = services.GetService<IQobuzApiClient>();
         if (apiClient is null)
         {
-            var logger = services.GetRequiredService<ILogger<QobuzarrStreamingPlugin>>();
-            logger.LogInformation("IQobuzApiClient not available in bridge context; indexer creation deferred to host integration.");
+            var pluginLogger = services.GetRequiredService<ILogger<QobuzarrStreamingPlugin>>();
+            pluginLogger.LogWarning("IQobuzApiClient not available; indexer creation skipped.");
             return ValueTask.FromResult<IIndexer?>(null);
         }
 
@@ -115,6 +115,22 @@ public sealed class QobuzarrStreamingPlugin : StreamingPlugin<QobuzarrStreamingM
                 Description = "Maximum results per search query (10-500).",
                 DataType = SettingDataType.Integer,
                 DefaultValue = 100
+            },
+            new()
+            {
+                Key = "AppId",
+                DisplayName = "App ID",
+                Description = "Qobuz API App ID. Optional -- falls back to QOBUZ_APP_ID environment variable or built-in default.",
+                DataType = SettingDataType.String,
+                IsRequired = false
+            },
+            new()
+            {
+                Key = "AppSecret",
+                DisplayName = "App Secret",
+                Description = "Qobuz API App Secret. Optional -- falls back to QOBUZ_APP_SECRET environment variable. Required for streaming URLs.",
+                DataType = SettingDataType.Password,
+                IsRequired = false
             }
         };
     }
@@ -128,6 +144,8 @@ public sealed class QobuzarrStreamingPlugin : StreamingPlugin<QobuzarrStreamingM
         settings.PreferredQuality = 6;
         settings.CountryCode = "US";
         settings.SearchLimit = 100;
+        settings.AppId = string.Empty;
+        settings.AppSecret = string.Empty;
     }
 
     /// <inheritdoc />
