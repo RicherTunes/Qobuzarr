@@ -65,6 +65,12 @@ public sealed class QobuzarrStreamingSettings : BaseStreamingSettings
             return false;
         }
 
+        if (SearchLimit < 10 || SearchLimit > 500)
+        {
+            errorMessage = "Search limit must be between 10 and 500.";
+            return false;
+        }
+
         errorMessage = null!;
         return true;
     }
