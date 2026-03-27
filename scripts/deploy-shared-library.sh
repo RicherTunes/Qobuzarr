@@ -118,7 +118,7 @@ if [[ "$TARGET" == "Local" ]] || [[ "$TARGET" == "Both" ]]; then
     echo "📦 Deploying locally..."
     
     COMMON_PATH="$LIDARR_PATH/Common"
-    SHARED_LIB_PATH="Lidarr.Plugin.Common/bin/Release/net6.0"
+    SHARED_LIB_PATH="Lidarr.Plugin.Common/bin/Release/net8.0"
 
     # Create Common directory
     if [[ ! -d "$COMMON_PATH" ]]; then

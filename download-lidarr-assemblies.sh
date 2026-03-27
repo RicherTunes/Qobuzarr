@@ -8,7 +8,7 @@ set -e
 
 # Default values
 LIDARR_VERSION="2.13.2.4685"
-OUTPUT_PATH="ext/Lidarr/_output/net6.0"
+OUTPUT_PATH="ext/Lidarr/_output/net8.0"
 FORCE=false
 
 # Colors

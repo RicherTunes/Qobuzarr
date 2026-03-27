@@ -77,7 +77,7 @@ $csprojContent = @"
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFramework>net6.0</TargetFramework>
+    <TargetFramework>net8.0</TargetFramework>
     <LangVersion>latest</LangVersion>
     <Nullable>enable</Nullable>
     <AssemblyName>$ProjectName</AssemblyName>
@@ -296,7 +296,7 @@ This plugin uses [Lidarr.Plugin.Common](https://github.com/RicherTunes/Lidarr.Pl
 ## 🚀 Development
 
 ### Prerequisites
-- .NET 6.0 SDK
+- .NET 8.0 SDK
 - Lidarr development environment
 - $ServiceName API credentials
 
