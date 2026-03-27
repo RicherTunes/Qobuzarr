@@ -99,7 +99,7 @@ try {
         Write-Host "📦 Deploying locally..."
         
         $commonPath = Join-Path $LidarrPath "Common"
-        $sharedLibPath = "Lidarr.Plugin.Common\bin\Release\net6.0"
+        $sharedLibPath = "Lidarr.Plugin.Common\bin\Release\net8.0"
 
         # Create Common directory
         if (-not (Test-Path $commonPath)) {
