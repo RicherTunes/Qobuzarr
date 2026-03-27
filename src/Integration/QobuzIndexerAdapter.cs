@@ -141,6 +141,11 @@ public sealed class QobuzIndexerAdapter : IIndexer
     }
 
     /// <inheritdoc />
+    /// <remarks>
+    /// Current implementation is a thin wrapper over <see cref="SearchAlbumsAsync"/> that
+    /// yields each result individually. True server-side pagination (streaming pages on
+    /// demand) is deferred until the Qobuz API pagination slice is implemented.
+    /// </remarks>
     public async IAsyncEnumerable<StreamingAlbum> SearchAlbumsStreamAsync(
         string query,
         [EnumeratorCancellation] CancellationToken cancellationToken = default)
@@ -153,6 +158,10 @@ public sealed class QobuzIndexerAdapter : IIndexer
     }
 
     /// <inheritdoc />
+    /// <remarks>
+    /// Current implementation is a thin wrapper over <see cref="SearchTracksAsync"/> that
+    /// yields each result individually. True server-side pagination is deferred.
+    /// </remarks>
     public async IAsyncEnumerable<StreamingTrack> SearchTracksStreamAsync(
         string query,
         [EnumeratorCancellation] CancellationToken cancellationToken = default)
@@ -204,7 +213,7 @@ public sealed class QobuzIndexerAdapter : IIndexer
 
         // Genres
         var genre = qAlbum.GetGenre();
-        if (!string.IsNullOrEmpty(genre) && genre != "Unknown")
+        if (!string.IsNullOrEmpty(genre))
         {
             album.Genres.Add(genre);
         }
