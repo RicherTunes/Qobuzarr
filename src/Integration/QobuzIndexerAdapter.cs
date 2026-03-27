@@ -224,7 +224,7 @@ public sealed class QobuzIndexerAdapter : IIndexer
                 Format = "FLAC",
                 BitDepth = qAlbum.MaximumBitDepth,
                 SampleRate = qAlbum.MaximumSampleRate.HasValue
-                    ? (int)(qAlbum.MaximumSampleRate.Value * 1000) // Qobuz reports kHz, model uses Hz
+                    ? (int)qAlbum.MaximumSampleRate.Value // Qobuz reports Hz (e.g., 96000, 192000)
                     : null,
             };
             quality.Name = quality.IsHighResolution ? "Hi-Res" : "Lossless";
