@@ -204,7 +204,7 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Services
                 _logger.Error(ex, "Download failed for track: {0}", track.Title);
                 if (File.Exists(outputPath))
                 {
-                    try { File.Delete(outputPath); } catch { }
+                    try { File.Delete(outputPath); } catch (Exception cleanupEx) { _logger.Debug(cleanupEx, "Best-effort file cleanup failed for {0}", outputPath); }
                 }
                 throw;
             }
@@ -223,7 +223,7 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Services
             long existing = 0;
             if (File.Exists(partialPath))
             {
-                try { existing = new FileInfo(partialPath).Length; } catch { existing = 0; }
+                try { existing = new FileInfo(partialPath).Length; } catch (Exception ex) { _logger.Debug(ex, "Could not read partial file size for {0}", partialPath); existing = 0; }
             }
 
             var request = new HttpRequestMessage(HttpMethod.Get, url);
@@ -249,7 +249,7 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Services
             var isPartial = response.StatusCode == System.Net.HttpStatusCode.PartialContent;
             if (!isPartial && File.Exists(partialPath))
             {
-                try { File.Delete(partialPath); } catch { }
+                try { File.Delete(partialPath); } catch (Exception ex) { _logger.Debug(ex, "Best-effort partial file cleanup failed for {0}", partialPath); }
                 existing = 0;
             }
 
