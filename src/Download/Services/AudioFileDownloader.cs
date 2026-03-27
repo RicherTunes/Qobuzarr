@@ -88,7 +88,7 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Services
                     var isPartial = httpResponse.StatusCode == System.Net.HttpStatusCode.PartialContent;
                     if (!isPartial && File.Exists(partialPath))
                     {
-                        try { File.Delete(partialPath); } catch { }
+                        try { File.Delete(partialPath); } catch (Exception ex) { _logger.Debug("Best-effort partial file cleanup failed for {Path}: {Error}", partialPath, ex.Message); }
                         existing = 0;
                     }
 
@@ -129,7 +129,7 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Services
 
                     // Log final size for visibility
                     var finalSize = 0L;
-                    try { finalSize = new FileInfo(outputPath).Length; } catch { }
+                    try { finalSize = new FileInfo(outputPath).Length; } catch (Exception ex) { _logger.Debug("Could not read file size for {Path}: {Error}", outputPath, ex.Message); }
                     _logger.Debug("Successfully downloaded {0} bytes to: {1} (attempt {2})", finalSize, outputPath, attempt);
                     return; // Success - exit retry loop
                 }

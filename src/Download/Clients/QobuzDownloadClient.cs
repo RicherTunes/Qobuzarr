@@ -267,7 +267,7 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Clients
                     effectiveSettings = prop.GetValue(this) as QobuzDownloadSettings;
                 }
             }
-            catch { }
+            catch (Exception ex) { _logger.Debug(ex, "Best-effort reflective Settings lookup failed"); }
 
             if (effectiveSettings == null)
             {
@@ -669,7 +669,7 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Clients
                 // Clean up partial file
                 if (File.Exists(outputPath))
                 {
-                    try { File.Delete(outputPath); } catch { }
+                    try { File.Delete(outputPath); } catch (Exception cleanupEx) { _logger.Debug(cleanupEx, "Best-effort file cleanup failed for {0}", outputPath); }
                 }
                 throw;
             }
@@ -716,7 +716,7 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Clients
             if (!isPartial && File.Exists(partialPath))
             {
                 // Server didn't honor range; start fresh
-                try { File.Delete(partialPath); } catch { }
+                try { File.Delete(partialPath); } catch (Exception ex) { _logger.Debug(ex, "Best-effort partial file cleanup failed for {0}", partialPath); }
                 existing = 0;
             }
 
