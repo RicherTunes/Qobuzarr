@@ -689,7 +689,7 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Clients
             long existing = 0;
             if (File.Exists(partialPath))
             {
-                try { existing = new FileInfo(partialPath).Length; } catch { existing = 0; }
+                try { existing = new FileInfo(partialPath).Length; } catch (IOException ex) { _logger.Debug(ex, "Could not read partial file size"); existing = 0; }
             }
 
             var request = new HttpRequestMessage(HttpMethod.Get, url);

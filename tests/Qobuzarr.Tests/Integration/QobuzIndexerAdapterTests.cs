@@ -405,7 +405,7 @@ public class QobuzIndexerAdapterTests
         var (adapter, _, apiClient) = CreateAdapter();
 
         // Genre = null with GenresList defaulting to empty list (its field initializer).
-        // GetGenre() returns "Unknown" which the adapter filters out.
+        // GetGenre() returns null which the adapter filters out via string.IsNullOrEmpty.
         var album = new QobuzAlbum
         {
             Id = "id-3",
@@ -420,8 +420,7 @@ public class QobuzIndexerAdapterTests
         var result = await adapter.GetAlbumAsync("id-3");
 
         Assert.NotNull(result);
-        // "Unknown" from GetGenre() is filtered out in MapToStreamingAlbum
-        // because it checks genre != "Unknown"
+        // GetGenre() returns null, which is filtered out by string.IsNullOrEmpty
         Assert.Empty(result!.Genres);
     }
 
@@ -430,8 +429,8 @@ public class QobuzIndexerAdapterTests
     {
         // Verifies the fix for the null-safety gap: QobuzAlbum.GetGenre()
         // now uses GenresList?.FirstOrDefault() so a null GenresList
-        // (from API deserializing a missing/null genres_list field) falls
-        // through to the "Unknown" default instead of throwing.
+        // (from API deserializing a missing/null genres_list field) returns
+        // null instead of throwing.
         var (adapter, _, apiClient) = CreateAdapter();
 
         var album = new QobuzAlbum
@@ -449,7 +448,7 @@ public class QobuzIndexerAdapterTests
         var result = await adapter.GetAlbumAsync("id-3b");
 
         Assert.NotNull(result);
-        // "Unknown" from GetGenre() is filtered out in MapToStreamingAlbum
+        // GetGenre() returns null, which is filtered out by string.IsNullOrEmpty
         Assert.Empty(result!.Genres);
     }
 
@@ -594,6 +593,62 @@ public class QobuzIndexerAdapterTests
         var results = await adapter.SearchTracksAsync("anything");
 
         Assert.Empty(results);
+    }
+
+    // ================================================================
+    // SearchAlbumsStreamAsync / SearchTracksStreamAsync
+    // ================================================================
+
+    [Fact]
+    public async Task SearchAlbumsStreamAsync_ReturnsResults()
+    {
+        var (adapter, _, apiClient) = CreateAdapter();
+
+        var testAlbum = QobuzAlbumBuilder.New()
+            .WithId("stream-1")
+            .WithTitle("Streaming Album")
+            .WithArtist("Stream Artist", "artist-sa")
+            .Build();
+
+        apiClient.GetAsyncHandler = (endpoint, _) =>
+        {
+            if (endpoint == "/album/search")
+            {
+                return new QobuzAlbumSearchResponse
+                {
+                    Albums = new QobuzSearchResultContainer<QobuzAlbum>
+                    {
+                        Items = new List<QobuzAlbum> { testAlbum },
+                        Total = 1
+                    }
+                };
+            }
+            return null;
+        };
+
+        var items = new List<Lidarr.Plugin.Abstractions.Models.StreamingAlbum>();
+        await foreach (var album in adapter.SearchAlbumsStreamAsync("Streaming Album"))
+        {
+            items.Add(album);
+        }
+
+        Assert.Single(items);
+        Assert.Equal("stream-1", items[0].Id);
+        Assert.Contains("Streaming Album", items[0].Title);
+    }
+
+    [Fact]
+    public async Task SearchTracksStreamAsync_ReturnsEmpty()
+    {
+        var (adapter, _, _) = CreateAdapter();
+
+        var items = new List<Lidarr.Plugin.Abstractions.Models.StreamingTrack>();
+        await foreach (var track in adapter.SearchTracksStreamAsync("anything"))
+        {
+            items.Add(track);
+        }
+
+        Assert.Empty(items);
     }
 
     // ================================================================
