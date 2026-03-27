@@ -36,34 +36,28 @@ jobs:
       - name: Setup .NET
         uses: actions/setup-dotnet@v5
         with:
-          dotnet-version: |
-            6.0.x
-            8.0.x
+          dotnet-version: '8.0.x'
 
       - name: Extract Lidarr Assemblies from Docker
         run: |
           docker pull ghcr.io/hotio/lidarr:${{ env.LIDARR_DOCKER_VERSION }}
           docker create --name lidarr-extract ghcr.io/hotio/lidarr:${{ env.LIDARR_DOCKER_VERSION }}
-          # Lidarr plugins branch (v2.x) runs .NET 6.0 runtime - extract to net6.0 folder
-          mkdir -p ext/Lidarr/_output/net6.0
-          docker cp lidarr-extract:/app/bin/. ext/Lidarr/_output/net6.0/
+          # Lidarr plugins branch (v3.x) runs .NET 8.0 runtime - extract to net8.0 folder
+          mkdir -p ext/Lidarr/_output/net8.0
+          docker cp lidarr-extract:/app/bin/. ext/Lidarr/_output/net8.0/
           docker rm lidarr-extract
-          ls -la ext/Lidarr/_output/net6.0/ | head -20
+          ls -la ext/Lidarr/_output/net8.0/ | head -20
 
       - name: Build Plugin
         run: |
-          # CRITICAL: Build with net6.0 to match Lidarr plugins branch runtime (.NET 6.0)
-          # The plugins branch (v2.x) still uses .NET 6.0, not .NET 8.0
-          # Building for net8.0 causes ReflectionTypeLoadException when plugin loads
-          # Must restore and build with matching TargetFramework to generate correct assets
+          # Build with net8.0 to match Lidarr plugins branch runtime (.NET 8.0)
+          # The plugins branch (v3.x) uses .NET 8.0
           dotnet restore Qobuzarr.csproj \
-            -p:TargetFramework=net6.0 \
-            -p:LidarrAssembliesPath=ext/Lidarr/_output/net6.0
+            -p:LidarrAssembliesPath=ext/Lidarr/_output/net8.0
           dotnet build Qobuzarr.csproj \
             --configuration Release \
             --no-restore \
-            -p:TargetFramework=net6.0 \
-            -p:LidarrAssembliesPath=ext/Lidarr/_output/net6.0 \
+            -p:LidarrAssembliesPath=ext/Lidarr/_output/net8.0 \
             -p:UsePluginsBranch=true \
             -p:PluginPackagingDisable=false \
             -p:RunAnalyzersDuringBuild=false \
