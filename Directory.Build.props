@@ -6,9 +6,26 @@
 
   <!-- ILRepack Configuration -->
   <PropertyGroup>
-    <!-- Disable ILRepack.Lib.MSBuild.Task's built-in automatic target.
-         We use our own RepackPlugin target from PluginPackaging.targets instead.
-         This MUST be in Directory.Build.props to be evaluated before NuGet targets. -->
+    <!-- ILRepack is DISABLED.
+         The built-in ILRepack.Lib.MSBuild.Task target is suppressed here so it
+         does not run before PluginPackaging.targets (which defines its own
+         RepackPlugin target).  This MUST live in Directory.Build.props so the
+         property is evaluated before NuGet-imported targets.
+
+         WHY DISABLED:
+         - Qobuzarr currently relies on PluginPackaging.targets from
+           Lidarr.Plugin.Common, which handles assembly merging with its own
+           RepackPlugin target.  Enabling the NuGet package's automatic target
+           at the same time causes double-merge failures and obj/ file locks
+           on Windows.
+         - The pipeline is billing-blocked (no green CI), so enabling ILRepack
+           without end-to-end verification would be risky.
+
+         WHEN TO RECONSIDER:
+         - Once CI billing is restored and a full verify-local.ps1 pass is
+           green with ILRepackEnabled=true, flip this flag and remove the
+           override.  Track progress under the "ILRepack" heading in
+           docs/TECH-DEBT-TRACKER.md.  -->
     <ILRepackEnabled>false</ILRepackEnabled>
   </PropertyGroup>
 
