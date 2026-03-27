@@ -426,13 +426,13 @@ public class QobuzIndexerAdapterTests
     }
 
     [Fact]
-    public async Task MapToStreamingAlbum_NullGenresList_ThrowsDueToProductionBug()
+    public async Task MapToStreamingAlbum_NullGenresList_HandledGracefully()
     {
-        // Documents a known null-safety gap: QobuzAlbum.GetGenre() calls
-        // GenresList.FirstOrDefault() without null-checking GenresList.
-        // When API returns a response with a missing genres_list field that
-        // deserializes as null (overwriting the default), GetGenre() throws.
-        var (adapter, reporter, apiClient) = CreateAdapter();
+        // Verifies the fix for the null-safety gap: QobuzAlbum.GetGenre()
+        // now uses GenresList?.FirstOrDefault() so a null GenresList
+        // (from API deserializing a missing/null genres_list field) falls
+        // through to the "Unknown" default instead of throwing.
+        var (adapter, _, apiClient) = CreateAdapter();
 
         var album = new QobuzAlbum
         {
@@ -446,11 +446,11 @@ public class QobuzIndexerAdapterTests
 
         apiClient.GetAsyncHandler = (_, _) => album;
 
-        // The adapter's catch block reports the error and rethrows
-        await Assert.ThrowsAsync<ArgumentNullException>(
-            () => adapter.GetAlbumAsync("id-3b").AsTask());
+        var result = await adapter.GetAlbumAsync("id-3b");
 
-        Assert.Single(reporter.ReportedErrors);
+        Assert.NotNull(result);
+        // "Unknown" from GetGenre() is filtered out in MapToStreamingAlbum
+        Assert.Empty(result!.Genres);
     }
 
     [Fact]
