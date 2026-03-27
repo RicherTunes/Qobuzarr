@@ -94,7 +94,6 @@ jobs:
           mkdir -p ext/Lidarr/_output/net8.0
           docker cp "$cid:/app/bin/." ext/Lidarr/_output/net8.0/ || docker cp "$cid:/opt/lidarr/." ext/Lidarr/_output/net8.0/
           docker rm "$cid" >/dev/null
-          cp -r ext/Lidarr/_output/net8.0 ext/Lidarr/_output/net6.0 2>/dev/null || true
           ls -la ext/Lidarr/_output/net8.0/ | head -10
 
       - name: Restore dependencies
