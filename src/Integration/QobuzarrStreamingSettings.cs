@@ -1,3 +1,4 @@
+using System;
 using Lidarr.Plugin.Common.Base;
 
 namespace Lidarr.Plugin.Qobuzarr.Integration;
@@ -19,6 +20,8 @@ public sealed class QobuzarrStreamingSettings : BaseStreamingSettings
         PreferredQuality = 6; // FLAC-CD
         CountryCode = "US";
         SearchLimit = 100;
+        AppId = string.Empty;
+        AppSecret = string.Empty;
     }
 
     /// <summary>
@@ -31,6 +34,19 @@ public sealed class QobuzarrStreamingSettings : BaseStreamingSettings
     /// 5 = MP3-320, 6 = FLAC-CD, 7 = FLAC-Hi-Res, 27 = FLAC-Max.
     /// </summary>
     public int PreferredQuality { get; set; }
+
+    /// <summary>
+    /// Qobuz API App ID. Optional -- falls back to QOBUZ_APP_ID environment variable
+    /// or the built-in default. Required for authentication in the bridge context because
+    /// dynamic extraction from the Qobuz web player is not available.
+    /// </summary>
+    public string AppId { get; set; }
+
+    /// <summary>
+    /// Qobuz API App Secret. Optional -- falls back to QOBUZ_APP_SECRET environment variable.
+    /// Required for streaming URL endpoints (request signing) but not for search/browse.
+    /// </summary>
+    public string AppSecret { get; set; }
 
     /// <inheritdoc />
     public override bool IsValid(out string errorMessage)
