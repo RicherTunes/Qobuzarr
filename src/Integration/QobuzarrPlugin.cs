@@ -16,6 +16,7 @@ namespace Lidarr.Plugin.Qobuzarr.Integration;
 /// logic are preserved for any internal code that may still reference them,
 /// but <see cref="QobuzarrStreamingPlugin"/> is the single canonical IPlugin.
 /// </summary>
+[Obsolete("Superseded by QobuzarrStreamingPlugin. Will be removed in a future release.")]
 internal sealed class QobuzarrPlugin
 {
     private IPluginContext? _context;
