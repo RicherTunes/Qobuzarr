@@ -22,8 +22,10 @@ Purpose: keep a single, accurate view of what we changed, why, and what’s next
 ## In Progress / Next
 
 - Rename `src/Abstractions/IQobuzHttpClient` to `IPluginHttpClient` to remove naming collision with `src/API/Http/IQobuzHttpClient`.
-- Extract Qobuz‑specific helpers from `src/Utilities/StringSimilarity.cs` into explicit types (`TitleNormalizer`, `TrackSimilarityScorer`) and route generic similarity to the common lib.
-- Gradually remove nullable suppressions by fixing call sites (drop `CS860x/CS862x/CS1998` from `NoWarn`).
+- Extract Qobuz-specific helpers from `src/Utilities/StringSimilarity.cs` into explicit types (`TitleNormalizer`, `TrackSimilarityScorer`) and route generic similarity to the common lib.
+- Gradually remove nullable suppressions by fixing call sites (drop `CS860x/CS862x` from root `Directory.Build.props` `NoWarn`).
+- Consolidate stale root-level docs into `docs/archive/`. Files to move: `TECH-DEBT-ANALYSIS-2025-08-28.md`, `TECH-DEBT-ANALYSIS.md`, `TECH-DEBT-INVENTORY.md`, `TECH-DEBT-RESOLUTION-PLAN.md`, `SAFE-TECH-DEBT-PLAN.md`, `DISABLED-SERVICES-ANALYSIS.md`, `SERVICE-CONSOLIDATION-PLAN.md`, `CONSOLIDATION-STRATEGY.md`, `CLI-FRAMEWORK-DEMO.md`, `DRYIOC-RESOLUTION.md`, `FRAMEWORK-SUCCESS-PROOF.md`, `LIBRARY-MIGRATION-ANALYSIS.md`, `MIGRATION-PRIORITY-PLAN.md`, `QUEUE-TESTS-SUMMARY.md`, `SHARED-COMPONENT-IMPLEMENTATION.md`. These all predate the current tracker and contain superseded analysis.
+- CLAUDE.md contains contradictory protocol guidance (both `DownloadProtocol.Unknown` for release assemblies and `string Protocol => nameof(...)` for plugins branch). The file should be pruned to remove obsolete 2025-08 investigation notes and keep only the current plugins-branch pattern.
 
 ## Notes
 
