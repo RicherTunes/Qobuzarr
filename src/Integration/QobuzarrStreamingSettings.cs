@@ -71,7 +71,7 @@ public sealed class QobuzarrStreamingSettings : BaseStreamingSettings
             return false;
         }
 
-        errorMessage = null!;
+        errorMessage = string.Empty;
         return true;
     }
 }
