@@ -238,7 +238,10 @@ namespace Lidarr.Plugin.Qobuzarr.Models
                 artistNames.Add(Artist.Name);
             }
 
-            artistNames.AddRange(Artists.Where(a => a.Name.IsNotNullOrWhiteSpace()).Select(a => a.Name));
+            if (Artists != null)
+            {
+                artistNames.AddRange(Artists.Where(a => a?.Name.IsNotNullOrWhiteSpace() == true).Select(a => a.Name));
+            }
 
             return artistNames.Distinct().ToList();
         }

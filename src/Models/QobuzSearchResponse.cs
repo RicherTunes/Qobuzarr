@@ -43,12 +43,12 @@ namespace Lidarr.Plugin.Qobuzarr.Models
         /// <summary>
         /// Check if there are more results available
         /// </summary>
-        public bool HasMoreResults => (Offset + Items.Count) < Total;
+        public bool HasMoreResults => (Offset + (Items?.Count ?? 0)) < Total;
 
         /// <summary>
         /// Get the next offset for pagination
         /// </summary>
-        public int GetNextOffset() => Offset + Items.Count;
+        public int GetNextOffset() => Offset + (Items?.Count ?? 0);
     }
 
     public class QobuzAlbumSearchResponse
