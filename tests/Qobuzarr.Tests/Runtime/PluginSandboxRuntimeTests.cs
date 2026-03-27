@@ -198,17 +198,17 @@ public class PluginSandboxRuntimeTests
 
     [SkippableFact]
     [Trait("Category", "Runtime")]
-    public async Task Plugin_CreateIndexerAsync_ReturnsNull_InBridgeContext()
+    public async Task Plugin_CreateIndexerAsync_ReturnsIndexer_InBridgeContext()
     {
         string dllPath = FindPluginDll();
 
         await using PluginSandbox sandbox = await PluginSandbox.CreateAsync(dllPath);
 
-        // In the bridge/sandbox context, IQobuzApiClient is not registered in DI,
-        // so CreateIndexerAsync should return null. This proves we are exercising
-        // the real QobuzarrStreamingPlugin entry point (not just lifecycle).
+        // BridgeQobuzApiClient is registered in DI during ConfigureServices,
+        // so CreateIndexerAsync returns a real QobuzIndexerAdapter instance.
+        // The adapter won't have an authenticated session, but the object is non-null.
         IIndexer? indexer = await sandbox.CreateIndexerAsync();
-        Assert.Null(indexer);
+        Assert.NotNull(indexer);
     }
 
     [SkippableFact]
