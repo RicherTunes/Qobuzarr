@@ -182,6 +182,49 @@ public class PluginSandboxRuntimeTests
         Assert.NotNull(logs);
     }
 
+    [SkippableFact]
+    [Trait("Category", "Runtime")]
+    public async Task Plugin_Is_QobuzarrStreamingPlugin()
+    {
+        string dllPath = FindPluginDll();
+
+        await using PluginSandbox sandbox = await PluginSandbox.CreateAsync(dllPath);
+
+        // The sandbox must load QobuzarrStreamingPlugin (the bridge entry point),
+        // not the old QobuzarrPlugin stub. This guards against nondeterministic
+        // FirstOrDefault picking the wrong IPlugin when multiple concrete types exist.
+        Assert.Equal("QobuzarrStreamingPlugin", sandbox.Plugin.GetType().Name);
+    }
+
+    [SkippableFact]
+    [Trait("Category", "Runtime")]
+    public async Task Plugin_CreateIndexerAsync_ReturnsNull_InBridgeContext()
+    {
+        string dllPath = FindPluginDll();
+
+        await using PluginSandbox sandbox = await PluginSandbox.CreateAsync(dllPath);
+
+        // In the bridge/sandbox context, IQobuzApiClient is not registered in DI,
+        // so CreateIndexerAsync should return null. This proves we are exercising
+        // the real QobuzarrStreamingPlugin entry point (not just lifecycle).
+        IIndexer? indexer = await sandbox.CreateIndexerAsync();
+        Assert.Null(indexer);
+    }
+
+    [SkippableFact]
+    [Trait("Category", "Runtime")]
+    public async Task Plugin_CreateDownloadClientAsync_ReturnsNull()
+    {
+        string dllPath = FindPluginDll();
+
+        await using PluginSandbox sandbox = await PluginSandbox.CreateAsync(dllPath);
+
+        // Download client creation is deferred to a future bridge slice.
+        // Verify it returns null without throwing.
+        IDownloadClient? client = await sandbox.CreateDownloadClientAsync();
+        Assert.Null(client);
+    }
+
     /// <summary>Helpers to find repo root.</summary>
     private static class TestContext
     {
