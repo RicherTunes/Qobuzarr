@@ -151,14 +151,16 @@ namespace Lidarr.Plugin.Qobuzarr.Models
         /// </summary>
         public string GetFullTitle()
         {
+            var title = string.IsNullOrWhiteSpace(Title) ? "Unknown Track" : Title;
+
             // Sanitize version to prevent injection attacks
             var sanitizedVersion = MetadataSanitizer.SanitizeVersion(Version);
 
-            if (!string.IsNullOrWhiteSpace(sanitizedVersion) && !Title.Contains(sanitizedVersion))
+            if (!string.IsNullOrWhiteSpace(sanitizedVersion) && !title.Contains(sanitizedVersion))
             {
-                return $"{Title} ({sanitizedVersion})";
+                return $"{title} ({sanitizedVersion})";
             }
-            return Title;
+            return title;
         }
 
         /// <summary>
