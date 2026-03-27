@@ -277,12 +277,12 @@ namespace Lidarr.Plugin.Qobuzarr.Models
         /// <summary>
         /// Get primary genre
         /// </summary>
-        public string GetGenre()
+        public string? GetGenre()
         {
             if (Genre?.Name.IsNotNullOrWhiteSpace() == true)
                 return Genre.Name;
 
-            return GenresList?.FirstOrDefault() ?? "Unknown";
+            return GenresList?.FirstOrDefault();
         }
 
         /// <summary>
