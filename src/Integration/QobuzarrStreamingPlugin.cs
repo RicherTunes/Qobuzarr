@@ -26,42 +26,31 @@ public sealed class QobuzarrStreamingPlugin : StreamingPlugin<QobuzarrStreamingM
         // AddBridgeDefaults uses TryAdd, so custom registrations added before this call take precedence.
         services.AddBridgeDefaults();
 
-        // Register the QobuzApiClient as a singleton if not already registered by the host.
-        // Consumers are expected to set the session on the client before calling indexer methods.
-        services.AddSingleton<IQobuzApiClient>(sp =>
-        {
-            // When running in the full Lidarr host context, the API client will be
-            // provided through the host's DI container. In the bridge/sandbox context
-            // we create a no-op placeholder that requires explicit session configuration.
-            throw new InvalidOperationException(
-                "IQobuzApiClient must be provided by the host or configured externally. " +
-                "In sandbox mode, register a concrete instance before building the container.");
-        });
+        // IQobuzApiClient is NOT registered here — it requires the full Lidarr host DI
+        // (NLog Logger, IHttpClient, ICacheManager). The bridge DI container cannot provide these.
+        // CreateIndexerAsync returns null when the API client is unavailable.
+        // Once host bridge integration is complete, the API client will be injectable.
     }
 
     /// <inheritdoc />
-    protected override async ValueTask<IIndexer?> CreateIndexerAsync(
+    protected override ValueTask<IIndexer?> CreateIndexerAsync(
         QobuzarrStreamingSettings settings,
         IServiceProvider services,
         CancellationToken cancellationToken)
     {
-        var apiClient = services.GetRequiredService<IQobuzApiClient>();
-        var statusReporter = services.GetRequiredService<IIndexerStatusReporter>();
-        var logger = services.GetRequiredService<ILogger<QobuzIndexerAdapter>>();
-
-        var adapter = new QobuzIndexerAdapter(apiClient, statusReporter, logger, settings);
-
-        var validation = await adapter.InitializeAsync(cancellationToken).ConfigureAwait(false);
-
-        if (!validation.IsValid)
+        // IQobuzApiClient requires the full Lidarr host DI container (NLog, IHttpClient, ICacheManager).
+        // In the bridge/sandbox context it is not available. Return null until host integration is wired.
+        var apiClient = services.GetService<IQobuzApiClient>();
+        if (apiClient is null)
         {
-            var loggerPlugin = services.GetRequiredService<ILogger<QobuzarrStreamingPlugin>>();
-            loggerPlugin.LogWarning(
-                "QobuzIndexerAdapter initialization returned warnings/errors: {Errors}",
-                string.Join("; ", validation.Errors));
+            var logger = services.GetRequiredService<ILogger<QobuzarrStreamingPlugin>>();
+            logger.LogInformation("IQobuzApiClient not available in bridge context; indexer creation deferred to host integration.");
+            return ValueTask.FromResult<IIndexer?>(null);
         }
 
-        return adapter;
+        var statusReporter = services.GetRequiredService<IIndexerStatusReporter>();
+        var adapterLogger = services.GetRequiredService<ILogger<QobuzIndexerAdapter>>();
+        return ValueTask.FromResult<IIndexer?>(new QobuzIndexerAdapter(apiClient, statusReporter, adapterLogger, settings));
     }
 
     /// <inheritdoc />
