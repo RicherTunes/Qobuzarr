@@ -2,6 +2,14 @@
 
 Purpose: keep a single, accurate view of what we changed, why, and what’s next. This replaces scattered, outdated notes that referenced folders no longer present.
 
+## Completed (Mar 26, 2026)
+
+- **Wave 2 null-safety audit** across model classes.
+  - `QobuzAlbum.GetAllArtistNames()`: guarded `Artists` collection against null (JSON deserialization can override default initializer); also added null-check on individual artist elements.
+  - `QobuzTrack.GetFullTitle()`: guarded `Title` against null with fallback to "Unknown Track", preventing `NullReferenceException` in `.Contains()` call.
+  - `QobuzSearchResultContainer<T>.HasMoreResults` / `GetNextOffset()`: guarded `Items` against null with `?.Count ?? 0`.
+  - Wave 1 `QobuzAlbum.GetGenre()` null-ref fix (already in main) confirmed resolved.
+
 ## Completed (Oct 14, 2025)
 
 - Default to Lidarr release branch locally for broader dev compatibility; CI still flips to plugins branch when available.
