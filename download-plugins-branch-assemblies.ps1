@@ -48,7 +48,7 @@ try {
 
     # Extract assemblies
     Write-Host "Extracting assemblies from container..." -ForegroundColor Cyan
-    $extractPath = Join-Path $fullOutputPath "net6.0"
+    $extractPath = Join-Path $fullOutputPath "net8.0"
     New-Item -ItemType Directory -Path $extractPath -Force | Out-Null
     
     # Copy all DLL files from the app/bin directory
