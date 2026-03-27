@@ -5,7 +5,7 @@
 
 param(
     [string]$LidarrVersion = "2.13.2.4685",
-    [string]$OutputPath = "ext\Lidarr\_output\net6.0",
+    [string]$OutputPath = "ext\Lidarr\_output\net8.0",
     [switch]$Force
 )
 

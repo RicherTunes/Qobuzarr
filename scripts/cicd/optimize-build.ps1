@@ -97,7 +97,7 @@ Write-Host "`n📦 Step 1: Optimizing Lidarr Dependencies" -ForegroundColor Blue
 $lidarrCacheKey = "lidarr-assemblies-2.13.2.4685"
 
 if ($UseCache) {
-    $lidarrPath = "ext\Lidarr\_output\net6.0"
+    $lidarrPath = "ext\Lidarr\_output\net8.0"
     $lidarrCached = Use-BuildCache -Key $lidarrCacheKey -OutputPath $lidarrPath -BuildAction {
         if (Test-Path ".\download-lidarr-assemblies.ps1") {
             & .\download-lidarr-assemblies.ps1 -LidarrVersion "2.13.2.4685" -Force
@@ -109,7 +109,7 @@ if ($UseCache) {
     }
 } else {
     # Direct download without cache
-    if (-not (Test-Path "ext\Lidarr\_output\net6.0\Lidarr.Core.dll")) {
+    if (-not (Test-Path "ext\Lidarr\_output\net8.0\Lidarr.Core.dll")) {
         & .\download-lidarr-assemblies.ps1 -LidarrVersion "2.13.2.4685"
     }
 }
