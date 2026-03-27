@@ -279,7 +279,7 @@ namespace Lidarr.Plugin.Qobuzarr.Models
             if (Genre?.Name.IsNotNullOrWhiteSpace() == true)
                 return Genre.Name;
 
-            return GenresList.FirstOrDefault() ?? "Unknown";
+            return GenresList?.FirstOrDefault() ?? "Unknown";
         }
 
         /// <summary>
