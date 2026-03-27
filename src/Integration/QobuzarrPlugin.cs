@@ -1,20 +1,22 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Lidarr.Plugin.Abstractions.Contracts;
 using Lidarr.Plugin.Abstractions.Manifest;
-using Microsoft.Extensions.Logging;
 
 namespace Lidarr.Plugin.Qobuzarr.Integration;
 
 /// <summary>
-/// Entry point for the Qobuzarr plugin under the Common library's IPlugin contract.
-/// Enables PluginSandbox-based runtime testing and future host integration.
+/// Legacy plugin stub — superseded by <see cref="QobuzarrStreamingPlugin"/>.
+///
+/// Kept internal (no IPlugin) so no scanner — PluginSandbox, host, or otherwise —
+/// can discover it as a plugin entry point.  The settings provider and manifest
+/// logic are preserved for any internal code that may still reference them,
+/// but <see cref="QobuzarrStreamingPlugin"/> is the single canonical IPlugin.
 /// </summary>
-public sealed class QobuzarrPlugin : IPlugin
+internal sealed class QobuzarrPlugin
 {
     private IPluginContext? _context;
 
