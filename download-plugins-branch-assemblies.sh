@@ -9,7 +9,7 @@ set -e
 
 # Default parameters
 LIDARR_VERSION="${1:-2.13.3.4692}"
-OUTPUT_PATH="${2:-ext/Lidarr/_output/net6.0}"
+OUTPUT_PATH="${2:-ext/Lidarr/_output/net8.0}"
 FORCE="${3:-false}"
 
 echo -e "\033[32mDownloading Lidarr Plugins Branch Assemblies\033[0m"

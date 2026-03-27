@@ -93,7 +93,7 @@ cat > "$FULL_OUTPUT_PATH/$PLUGIN_NAME.csproj" << EOF
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFramework>net6.0</TargetFramework>
+    <TargetFramework>net8.0</TargetFramework>
     <LangVersion>latest</LangVersion>
     <Nullable>enable</Nullable>
     <AssemblyName>$PROJECT_NAME</AssemblyName>

@@ -137,13 +137,13 @@ echo -e "\n${BLUE}📦 Step 1: Optimizing Lidarr Dependencies${NC}"
 LIDARR_CACHE_KEY="lidarr-assemblies-2.13.2.4685"
 
 if [[ "$USE_CACHE" == true ]]; then
-    LIDARR_PATH="ext/Lidarr/_output/net6.0"
+    LIDARR_PATH="ext/Lidarr/_output/net8.0"
     if use_build_cache "$LIDARR_CACHE_KEY" "./download-lidarr-assemblies.sh --version 2.13.2.4685 --force" "$LIDARR_PATH"; then
         echo -e "${GREEN}⚡ Lidarr assemblies loaded from cache (saved ~30s)${NC}"
     fi
 else
     # Direct download without cache
-    if [[ ! -f "ext/Lidarr/_output/net6.0/Lidarr.Core.dll" ]]; then
+    if [[ ! -f "ext/Lidarr/_output/net8.0/Lidarr.Core.dll" ]]; then
         ./download-lidarr-assemblies.sh --version 2.13.2.4685
     fi
 fi
