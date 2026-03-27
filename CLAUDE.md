@@ -839,6 +839,15 @@ The script delegates to `ext/Lidarr.Plugin.Common/scripts/local-ci.ps1`, which o
 | `PluginPackagingTests.PluginFluentValidationReference_ShouldMatch_HostVersion` | FluentValidation version 9 vs 11 mismatch — test never updated for host version change | Update expected version in test |
 | `MLOptimizationRegressionTests.ConcurrentPredictions_MaintainPerformance` | Latency threshold 20ms too tight for CI — got 81.4ms on shared runners | Relax threshold or use relative comparison |
 
+### Resolved Bugs (Wave 1 + Wave 2, Mar 26 2026)
+
+| Bug | Root Cause | Resolution |
+|-----|-----------|------------|
+| `QobuzAlbum.GetGenre()` null-ref | `GenresList` can be null after JSON deserialization; `.FirstOrDefault()` threw NRE | Wave 1: guarded with `GenresList?.FirstOrDefault() ?? "Unknown"` (PR #243) |
+| `QobuzAlbum.GetAllArtistNames()` null-ref | `Artists` collection or individual elements null from JSON | Wave 2: null guards on collection and elements (PR #244) |
+| `QobuzTrack.GetFullTitle()` null-ref | `Title` null; `.Contains()` threw NRE | Wave 2: fallback to "Unknown Track" (PR #244) |
+| `QobuzSearchResultContainer.HasMoreResults` / `GetNextOffset()` null-ref | `Items` null from JSON deserialization | Wave 2: guarded with `?.Count ?? 0` (PR #244) |
+
 # 🎯 **DEFINITIVE PLUGINS BRANCH COMPATIBILITY SOLUTION** 🎯
 
 ## **FINAL SOLUTION DISCOVERED** (2025-08-24)
