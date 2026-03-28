@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using FluentAssertions;
 using Xunit;
 using Lidarr.Plugin.Qobuzarr.Models;
+using Lidarr.Plugin.Qobuzarr.Utilities;
 
 namespace Qobuzarr.Tests.Unit
 {
@@ -22,14 +23,14 @@ namespace Qobuzarr.Tests.Unit
     public class AlbumEditionGuidTests
     {
         /// <summary>
-        /// Generates a GUID using the FIXED production logic that incorporates the edition.
-        /// This mirrors QobuzParser.CreateReleaseInfoForQuality after the fix.
+        /// Generates a GUID using the same centralized helper as production code
+        /// (TitleNormalizer.NormalizeEditionForGuid), ensuring test expectations
+        /// stay in sync with QobuzParser.CreateReleaseInfoForQuality.
         /// </summary>
         private static string GenerateGuid(string albumId, int qualityValue, string? version = null)
         {
-            var versionSuffix = string.IsNullOrWhiteSpace(version)
-                ? ""
-                : $"-{version.Trim().ToLowerInvariant().Replace(" ", "-")}";
+            var normalizedEdition = TitleNormalizer.NormalizeEditionForGuid(version);
+            var versionSuffix = normalizedEdition.Length == 0 ? "" : $"-{normalizedEdition}";
             return $"qobuz-{albumId}{versionSuffix}-{qualityValue}";
         }
 
