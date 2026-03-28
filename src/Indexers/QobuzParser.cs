@@ -228,10 +228,18 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
                 return null;
             }
 
+            // CRITICAL: Include quality AND edition/version in GUID to differentiate releases.
+            // Without the version, "Album (Standard)" and "Album (Deluxe Edition)" sharing the
+            // same Qobuz ID would collide, causing Lidarr to silently drop one edition.
+            // Backward-compatible: albums without a Version produce the same GUID as before.
+            var versionSuffix = string.IsNullOrWhiteSpace(album.Version)
+                ? ""
+                : $"-{album.Version.Trim().ToLowerInvariant().Replace(" ", "-")}";
+            var releaseGuid = $"qobuz-{album.Id}{versionSuffix}-{(int)quality}";
+
             var release = new ReleaseInfo
             {
-                // CRITICAL: Include quality in GUID to differentiate releases
-                Guid = $"qobuz-{album.Id}-{(int)quality}",
+                Guid = releaseGuid,
 
                 // CRITICAL: Set the download protocol to fix frontend display
                 DownloadProtocol = nameof(QobuzarrDownloadProtocol),
