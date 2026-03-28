@@ -5,6 +5,24 @@ All notable changes to Qobuzarr will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v-next] - GUID Identity Change for Album Editions
+
+### Changed
+- **Album GUIDs now incorporate the edition/version string.**
+  - Before: `qobuz-{albumId}-{quality}` (e.g., `qobuz-12345-6`)
+  - After: `qobuz-{albumId}-{normalizedVersion}-{quality}` (e.g., `qobuz-12345-deluxe-edition-6`)
+
+### Impact
+- Albums without editions: **no change** (backward-compatible).
+- Albums with editions: new unique GUIDs per edition.
+- Lidarr may re-show previously rejected editioned releases as "new".
+- No data loss -- existing downloads are unaffected.
+
+### Recommendation
+After upgrading, run a manual "Refresh" on any artist with multiple album editions to re-sync.
+
+---
+
 ## [0.0.12] - 2025-01-13
 
 ### Added

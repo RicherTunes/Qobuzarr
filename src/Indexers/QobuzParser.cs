@@ -16,6 +16,7 @@ using Lidarr.Plugin.Qobuzarr.Models;
 using Lidarr.Plugin.Qobuzarr.Configuration;
 using Lidarr.Plugin.Qobuzarr.Constants;
 using Lidarr.Plugin.Qobuzarr.Indexers.Parsing;
+using Lidarr.Plugin.Qobuzarr.Utilities;
 using NzbDrone.Core.IndexerSearch.Definitions;
 
 namespace Lidarr.Plugin.Qobuzarr.Indexers
@@ -232,9 +233,8 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
             // Without the version, "Album (Standard)" and "Album (Deluxe Edition)" sharing the
             // same Qobuz ID would collide, causing Lidarr to silently drop one edition.
             // Backward-compatible: albums without a Version produce the same GUID as before.
-            var versionSuffix = string.IsNullOrWhiteSpace(album.Version)
-                ? ""
-                : $"-{album.Version.Trim().ToLowerInvariant().Replace(" ", "-")}";
+            var normalizedEdition = TitleNormalizer.NormalizeEditionForGuid(album.Version);
+            var versionSuffix = normalizedEdition.Length == 0 ? "" : $"-{normalizedEdition}";
             var releaseGuid = $"qobuz-{album.Id}{versionSuffix}-{(int)quality}";
 
             var release = new ReleaseInfo
