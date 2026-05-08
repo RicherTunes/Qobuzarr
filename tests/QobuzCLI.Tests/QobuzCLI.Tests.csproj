@@ -19,7 +19,7 @@
       <PrivateAssets>all</PrivateAssets>
     </PackageReference>
     <PackageReference Include="Microsoft.Extensions.DependencyInjection" />
-    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" VersionOverride="9.0.0" />
     <PackageReference Include="Moq" />
     <PackageReference Include="FluentAssertions" />
     <!-- Ensure NLog is present when CLI tests load plugin types referencing NLog -->
