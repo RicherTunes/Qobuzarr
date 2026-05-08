@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using Lidarr.Plugin.Common.Services.Http;
-using Lidarr.Plugin.Qobuzarr.API.Signing;
 using Lidarr.Plugin.Qobuzarr.Models.Authentication;
 using Lidarr.Plugin.Qobuzarr.Authentication;
 using NLog;
@@ -16,35 +15,20 @@ namespace Lidarr.Plugin.Qobuzarr.API.PreRequest
     public class QobuzPreRequestHandler : IPreRequestHandler
     {
         private readonly IQobuzAuthenticationService _authService;
-        private readonly IQobuzRequestSigner? _requestSigner;
-        private readonly Lidarr.Plugin.Common.Services.Http.IRequestSigner? _sharedSigner;
+        private readonly IRequestSigner _signer;
         private readonly Func<Task<QobuzCredentials>> _credentialsProvider;
         private readonly Logger _logger;
 
         public QobuzPreRequestHandler(
             IQobuzAuthenticationService authService,
-            IQobuzRequestSigner requestSigner,
+            IRequestSigner signer,
             Func<Task<QobuzCredentials>> credentialsProvider,
             Logger logger)
         {
             _authService = authService ?? throw new ArgumentNullException(nameof(authService));
-            _requestSigner = requestSigner ?? throw new ArgumentNullException(nameof(requestSigner));
+            _signer = signer ?? throw new ArgumentNullException(nameof(signer));
             _credentialsProvider = credentialsProvider ?? throw new ArgumentNullException(nameof(credentialsProvider));
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
-            _sharedSigner = null;
-        }
-
-        public QobuzPreRequestHandler(
-            IQobuzAuthenticationService authService,
-            Lidarr.Plugin.Common.Services.Http.IRequestSigner sharedSigner,
-            Func<Task<QobuzCredentials>> credentialsProvider,
-            Logger logger)
-        {
-            _authService = authService ?? throw new ArgumentNullException(nameof(authService));
-            _sharedSigner = sharedSigner ?? throw new ArgumentNullException(nameof(sharedSigner));
-            _credentialsProvider = credentialsProvider ?? throw new ArgumentNullException(nameof(credentialsProvider));
-            _logger = logger ?? throw new ArgumentNullException(nameof(logger));
-            _requestSigner = null; // not used in this constructor
         }
 
         public async Task EnsureValidSessionAsync()
@@ -105,28 +89,15 @@ namespace Lidarr.Plugin.Qobuzarr.API.PreRequest
 
         public void SignIfRequired(string endpoint, IDictionary<string, string> parameters)
         {
-            if (_sharedSigner != null)
-            {
-                if (!_sharedSigner.RequiresSigning(endpoint)) return;
-            }
-            else
-            {
-                if (_requestSigner == null || !_requestSigner.RequiresSigning(endpoint)) return;
-            }
+            if (_signer == null || !_signer.RequiresSigning(endpoint)) return;
+
             var session = _authService.GetCachedSession();
             if (session == null)
             {
                 _logger.Warn("Cannot sign request for {0} without a valid session.", endpoint);
                 return;
             }
-            if (_sharedSigner != null)
-            {
-                _sharedSigner.Sign(endpoint, parameters, session.AppId, session.AppSecret);
-            }
-            else
-            {
-                _requestSigner.SignRequest(endpoint, (Dictionary<string, string>)parameters, session.AppId, session.AppSecret);
-            }
+            _signer.Sign(endpoint, parameters, session.AppId, session.AppSecret);
         }
     }
 }

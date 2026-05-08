@@ -2,8 +2,8 @@ using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using FluentAssertions;
+using Lidarr.Plugin.Common.Services.Http;
 using Lidarr.Plugin.Qobuzarr.API.PreRequest;
-using Lidarr.Plugin.Qobuzarr.API.Signing;
 using Lidarr.Plugin.Qobuzarr.Authentication;
 using Lidarr.Plugin.Qobuzarr.Models.Authentication;
 using Moq;
@@ -27,7 +27,7 @@ namespace Qobuzarr.Tests.Unit.API.Http
             var authService = new Mock<IQobuzAuthenticationService>();
             authService.Setup(x => x.GetCachedSession()).Returns(session);
 
-            var signer = new Mock<IQobuzRequestSigner>();
+            var signer = new Mock<IRequestSigner>();
 
             Func<Task<QobuzCredentials>> credsProvider = () => Task.FromResult(new QobuzCredentials());
             var logger = LogManager.GetCurrentClassLogger();
@@ -47,7 +47,7 @@ namespace Qobuzarr.Tests.Unit.API.Http
             var authService = new Mock<IQobuzAuthenticationService>();
             authService.Setup(x => x.GetCachedSession()).Returns((QobuzSession)null);
 
-            var signer = new Mock<IQobuzRequestSigner>();
+            var signer = new Mock<IRequestSigner>();
 
             Func<Task<QobuzCredentials>> credsProvider = () => Task.FromResult(new QobuzCredentials());
             var logger = LogManager.GetCurrentClassLogger();

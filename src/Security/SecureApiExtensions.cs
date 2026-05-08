@@ -4,6 +4,7 @@ using System.Linq;
 using System.Security;
 using Lidarr.Plugin.Qobuzarr.Abstractions;
 using Lidarr.Plugin.Qobuzarr.Utilities;
+using Lidarr.Plugin.Common.Observability;
 
 namespace Lidarr.Plugin.Qobuzarr.Security
 {
@@ -201,14 +202,8 @@ namespace Lidarr.Plugin.Qobuzarr.Security
 
         private static bool IsSensitiveParameter(string parameterName)
         {
-            var lowerName = parameterName?.ToLowerInvariant() ?? "";
-            return lowerName.Contains("token") ||
-                   lowerName.Contains("secret") ||
-                   lowerName.Contains("password") ||
-                   lowerName.Contains("auth") ||
-                   lowerName.Contains("credential") ||
-                   lowerName.Contains("key") ||
-                   lowerName == "request_sig";
+            // Delegate to the canonical detector in Lidarr.Plugin.Common.Observability.LogRedactor.
+            return LogRedactor.IsSensitiveParameter(parameterName);
         }
 
         private static bool IsPotentiallyExposedCredential(string paramName, string paramValue)
