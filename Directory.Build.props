@@ -89,4 +89,11 @@
   <PropertyGroup Condition="$(MSBuildProjectDirectory.Contains('ext\Lidarr')) OR $(MSBuildProjectDirectory.Contains('ext/Lidarr'))">
     <ManagePackageVersionsCentrally>false</ManagePackageVersionsCentrally>
   </PropertyGroup>
+
+  <!-- Isolate Common submodule obj/ per-repo to prevent concurrent build file locks (CS2012).
+       When multiple repos build simultaneously, they all write to ext/Lidarr.Plugin.Common/src/obj/
+       causing file lock errors. This redirects intermediate output to a repo-specific directory. -->
+  <PropertyGroup Condition="$(MSBuildProjectDirectory.Contains('ext\Lidarr.Plugin.Common')) OR $(MSBuildProjectDirectory.Contains('ext/Lidarr.Plugin.Common'))">
+    <BaseIntermediateOutputPath>$(MSBuildProjectDirectory)\obj-qobuzarr\</BaseIntermediateOutputPath>
+  </PropertyGroup>
 </Project>
