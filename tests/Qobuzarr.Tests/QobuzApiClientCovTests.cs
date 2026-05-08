@@ -12,7 +12,6 @@ using NzbDrone.Common.Http;
 using Xunit;
 using Lidarr.Plugin.Qobuzarr.API;
 using Lidarr.Plugin.Qobuzarr.API.Http;
-using Lidarr.Plugin.Qobuzarr.API.Signing;
 using Lidarr.Plugin.Qobuzarr.API.Caching;
 using Lidarr.Plugin.Qobuzarr.Models;
 using Lidarr.Plugin.Qobuzarr.Models.Authentication;
@@ -32,7 +31,7 @@ namespace Qobuzarr.Tests
     {
         private readonly Mock<IQobuzHttpClient> _mockHttpClient;
         private readonly Mock<ISessionManager> _mockSessionManager;
-        private readonly Mock<IQobuzRequestSigner> _mockRequestSigner;
+        private readonly Mock<IRequestSigner> _mockRequestSigner;
         private readonly Mock<IQobuzResponseCache> _mockResponseCache;
         private readonly Mock<Logger> _mockLogger;
         private readonly QobuzSession _validSession;
@@ -41,7 +40,7 @@ namespace Qobuzarr.Tests
         {
             _mockHttpClient = new Mock<IQobuzHttpClient>();
             _mockSessionManager = new Mock<ISessionManager>();
-            _mockRequestSigner = new Mock<IQobuzRequestSigner>();
+            _mockRequestSigner = new Mock<IRequestSigner>();
             _mockResponseCache = new Mock<IQobuzResponseCache>();
             _mockLogger = new Mock<Logger>();
 
@@ -944,12 +943,12 @@ namespace Qobuzarr.Tests
                 .Returns(true);
 
             var capturedParams = new Dictionary<string, string>();
-            _mockRequestSigner.Setup(x => x.SignRequest(
+            _mockRequestSigner.Setup(x => x.Sign(
                 "track/getFileUrl",
-                It.IsAny<Dictionary<string, string>>(),
+                It.IsAny<IDictionary<string, string>>(),
                 _validSession.AppId,
                 _validSession.AppSecret))
-                .Callback<string, Dictionary<string, string>, string, string>((_, p, __, ___) =>
+                .Callback<string, IDictionary<string, string>, string, string>((_, p, __, ___) =>
                 {
                     foreach (var kvp in p) capturedParams[kvp.Key] = kvp.Value;
                 });
@@ -974,9 +973,9 @@ namespace Qobuzarr.Tests
 
             // Assert
             _mockRequestSigner.Verify(x => x.RequiresSigning("track/getFileUrl"), Times.Once);
-            _mockRequestSigner.Verify(x => x.SignRequest(
+            _mockRequestSigner.Verify(x => x.Sign(
                 "track/getFileUrl",
-                It.IsAny<Dictionary<string, string>>(),
+                It.IsAny<IDictionary<string, string>>(),
                 _validSession.AppId,
                 _validSession.AppSecret), Times.Once);
         }
@@ -1012,9 +1011,9 @@ namespace Qobuzarr.Tests
             await client.GetAsync<TestResponse>("album/get");
 
             // Assert
-            _mockRequestSigner.Verify(x => x.SignRequest(
+            _mockRequestSigner.Verify(x => x.Sign(
                 It.IsAny<string>(),
-                It.IsAny<Dictionary<string, string>>(),
+                It.IsAny<IDictionary<string, string>>(),
                 It.IsAny<string>(),
                 It.IsAny<string>()), Times.Never);
         }

@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using NLog;
+using Lidarr.Plugin.Common.Services.Http;
 using Lidarr.Plugin.Qobuzarr.Utilities;
 
 namespace Lidarr.Plugin.Qobuzarr.API.Signing
@@ -9,8 +10,10 @@ namespace Lidarr.Plugin.Qobuzarr.API.Signing
     /// <summary>
     /// Implementation of request signing for Qobuz API endpoints.
     /// Generates MD5 signatures for protected endpoints like streaming URLs.
+    /// Implements <see cref="IRequestSigner"/> directly (no separate Qobuz-specific
+    /// interface or adapter); Qobuz MD5 signing is the genuine domain logic.
     /// </summary>
-    public class QobuzRequestSigner : IQobuzRequestSigner
+    public class QobuzRequestSigner : IRequestSigner
     {
         private readonly Logger _logger;
 
@@ -20,8 +23,17 @@ namespace Lidarr.Plugin.Qobuzarr.API.Signing
         }
 
         /// <inheritdoc/>
-        public void SignRequest(string endpoint, Dictionary<string, string> parameters, string appId, string appSecret)
+        public bool RequiresSigning(string endpoint)
         {
+            // Currently only track/getFileUrl requires signing.
+            // Add other endpoints here if Qobuz adds more protected endpoints.
+            return endpoint != null && endpoint.Contains("track/getFileUrl");
+        }
+
+        /// <inheritdoc/>
+        public void Sign(string endpoint, IDictionary<string, string> parameters, string appId, string appSecret)
+        {
+            if (parameters == null) throw new ArgumentNullException(nameof(parameters));
             if (string.IsNullOrWhiteSpace(appSecret))
             {
                 throw new InvalidOperationException("App Secret is required for signed requests. Ensure App ID and App Secret are a matching pair from Qobuz.");
@@ -32,19 +44,22 @@ namespace Lidarr.Plugin.Qobuzarr.API.Signing
             parameters["request_ts"] = timestamp;
 
             // Generate and add signature based on endpoint type
-            if (endpoint.Contains("track/getFileUrl"))
+            if (endpoint != null && endpoint.Contains("track/getFileUrl"))
             {
+                parameters.TryGetValue("track_id", out var trackId);
+                parameters.TryGetValue("format_id", out var formatId);
+
                 var signature = GenerateTrackUrlSignature(
-                    parameters.GetValueOrDefault("track_id", ""),
-                    parameters.GetValueOrDefault("format_id", ""),
+                    trackId ?? string.Empty,
+                    formatId ?? string.Empty,
                     timestamp,
                     appSecret);
 
                 parameters["request_sig"] = signature;
 
                 _logger.Debug("Added signature for track/getFileUrl: track_id={0}, format_id={1}, app_id={2}",
-                    parameters.GetValueOrDefault("track_id"),
-                    parameters.GetValueOrDefault("format_id"),
+                    trackId,
+                    formatId,
                     appId);
             }
             else if (RequiresSigning(endpoint))
@@ -56,15 +71,10 @@ namespace Lidarr.Plugin.Qobuzarr.API.Signing
             }
         }
 
-        /// <inheritdoc/>
-        public bool RequiresSigning(string endpoint)
-        {
-            // Currently only track/getFileUrl requires signing
-            // Add other endpoints here if Qobuz adds more protected endpoints
-            return endpoint.Contains("track/getFileUrl");
-        }
-
-        /// <inheritdoc/>
+        /// <summary>
+        /// Generates the MD5 signature for the track/getFileUrl streaming endpoint.
+        /// Exposed for diagnostics/testing.
+        /// </summary>
         public string GenerateTrackUrlSignature(string trackId, string formatId, string timestamp, string appSecret)
         {
             // Exact concatenation order from QobuzApiSharp:
@@ -74,15 +84,18 @@ namespace Lidarr.Plugin.Qobuzarr.API.Signing
             return HashingUtility.ComputeMD5Hash(signatureString);
         }
 
-        /// <inheritdoc/>
-        public string GenerateGenericSignature(string endpoint, Dictionary<string, string> parameters, string appId, string appSecret)
+        /// <summary>
+        /// Generates a generic Qobuz MD5 signature for arbitrary endpoints.
+        /// Exposed for diagnostics/testing.
+        /// </summary>
+        public string GenerateGenericSignature(string endpoint, IDictionary<string, string> parameters, string appId, string appSecret)
         {
             // Extract method and object name from endpoint
             var parts = endpoint.Split('/');
             var method = parts.LastOrDefault();
             var objectName = parts.FirstOrDefault()?.TrimStart('/');
 
-            // Sort parameters (excluding app_id and user_auth_token)
+            // Sort parameters (excluding app_id, user_auth_token, request_ts, request_sig)
             var signatureParams = parameters
                 .Where(p => p.Key != "app_id" && p.Key != "user_auth_token" && p.Key != "request_ts" && p.Key != "request_sig")
                 .OrderBy(p => p.Key)
