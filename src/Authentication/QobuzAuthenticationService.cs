@@ -19,6 +19,7 @@ using Lidarr.Plugin.Qobuzarr.Utilities;
 using Lidarr.Plugin.Qobuzarr.Services.Interfaces;
 using Lidarr.Plugin.Common.Interfaces;
 using Lidarr.Plugin.Common.Services.Authentication;
+using CommonInterfaces = Lidarr.Plugin.Common.Interfaces;
 
 namespace Lidarr.Plugin.Qobuzarr.Authentication
 {
@@ -50,6 +51,8 @@ namespace Lidarr.Plugin.Qobuzarr.Authentication
         private static readonly System.Net.Http.HttpClient WebPlayerHttpClient = CreateWebPlayerHttpClient();
 
         private readonly ICached<QobuzSession> _sessionCache;
+        private readonly FileTokenStore<QobuzSession> _persistentStore;
+        private readonly object _persistLock = new object();
 
         public QobuzAuthenticationService(IHttpClient httpClient,
                                         IConfigService configService,
@@ -65,6 +68,18 @@ namespace Lidarr.Plugin.Qobuzarr.Authentication
             _logger = logger;
             _credentialValidator = credentialValidator ?? new CredentialValidator(logger);
             _sessionCache = _cacheManager.GetCache<QobuzSession>(GetType());
+
+            // Cross-platform encrypted at-rest persistence via the common library.
+            // Uses DPAPI on Windows, Keychain on macOS, Secret Service / DataProtection on Linux.
+            try
+            {
+                _persistentStore = new FileTokenStore<QobuzSession>(SessionManager.GetDefaultSessionFilePath());
+            }
+            catch (Exception ex)
+            {
+                _logger?.Warn(ex, "Failed to initialize persistent session store; sessions will be in-memory only");
+                _persistentStore = null;
+            }
         }
 
         private static System.Net.Http.HttpClient CreateRawHttpClient()
@@ -423,13 +438,21 @@ namespace Lidarr.Plugin.Qobuzarr.Authentication
             try
             {
                 var session = _sessionCache.Find(SESSION_CACHE_KEY);
-
-                if (session == null || !session.IsValid())
+                if (session != null && session.IsValid())
                 {
-                    return null;
+                    return CloneSession(session);
                 }
 
-                return CloneSession(session);
+                // Fall through to the persistent store (e.g., on first call after restart).
+                var persisted = TryLoadPersistedSession();
+                if (persisted != null && persisted.IsValid())
+                {
+                    // Refresh the in-memory cache so subsequent reads are fast.
+                    _sessionCache.Set(SESSION_CACHE_KEY, CloneSession(persisted), TimeSpan.FromHours(24));
+                    return CloneSession(persisted);
+                }
+
+                return null;
             }
             catch (Exception ex)
             {
@@ -445,15 +468,69 @@ namespace Lidarr.Plugin.Qobuzarr.Authentication
                 if (session == null || !session.IsValid())
                 {
                     _sessionCache.Remove(SESSION_CACHE_KEY);
+                    TryClearPersistedSession();
                     return;
                 }
 
                 _sessionCache.Set(SESSION_CACHE_KEY, CloneSession(session), TimeSpan.FromHours(24));
+                TryPersistSession(session);
                 _logger.Debug("Session stored in cache");
             }
             catch (Exception ex)
             {
                 _logger.Warn(ex, "Failed to store session in cache");
+            }
+        }
+
+        private QobuzSession TryLoadPersistedSession()
+        {
+            if (_persistentStore == null) return null;
+            try
+            {
+                lock (_persistLock)
+                {
+                    var envelope = _persistentStore.LoadAsync().GetAwaiter().GetResult();
+                    return envelope?.Session;
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.Debug(ex, "Failed to load persisted session");
+                return null;
+            }
+        }
+
+        private void TryPersistSession(QobuzSession session)
+        {
+            if (_persistentStore == null || session == null) return;
+            try
+            {
+                lock (_persistLock)
+                {
+                    _persistentStore.SaveAsync(
+                        new CommonInterfaces.TokenEnvelope<QobuzSession>(CloneSession(session), session.ExpiresAt))
+                        .GetAwaiter().GetResult();
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.Debug(ex, "Failed to persist session");
+            }
+        }
+
+        private void TryClearPersistedSession()
+        {
+            if (_persistentStore == null) return;
+            try
+            {
+                lock (_persistLock)
+                {
+                    _persistentStore.ClearAsync().GetAwaiter().GetResult();
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.Debug(ex, "Failed to clear persisted session");
             }
         }
 
@@ -481,10 +558,26 @@ namespace Lidarr.Plugin.Qobuzarr.Authentication
             };
         }
 
-        // Optional: factory to create a StreamingTokenManager wired to this service
+        // Factory: create a StreamingTokenManager wired to this auth service and the
+        // shared on-disk encrypted FileTokenStore so that all consumers (this service,
+        // SessionManager, and any QobuzApiClient fallback) coordinate state.
         public StreamingTokenManager<QobuzSession, QobuzCredentials> CreateTokenManager()
         {
-            return new StreamingTokenManager<QobuzSession, QobuzCredentials>(this, new NoopLogger<StreamingTokenManager<QobuzSession, QobuzCredentials>>());
+            var store = new FileTokenStore<QobuzSession>(SessionManager.GetDefaultSessionFilePath());
+            var options = new StreamingTokenManagerOptions<QobuzSession>
+            {
+                DefaultSessionLifetime = TimeSpan.FromHours(24),
+                RefreshBuffer = TimeSpan.FromMinutes(30),
+                RefreshCheckInterval = TimeSpan.FromMinutes(5),
+                MaxRefreshAttempts = 3,
+                GetSessionExpiry = s => s.ExpiresAt,
+                EnableProactiveRefresh = false, // QobuzApiClient supplies its own credentials provider per-request
+            };
+            return new StreamingTokenManager<QobuzSession, QobuzCredentials>(
+                this,
+                new NoopLogger<StreamingTokenManager<QobuzSession, QobuzCredentials>>(),
+                store,
+                options);
         }
 
         private sealed class NoopLogger<T> : Microsoft.Extensions.Logging.ILogger<T>
@@ -501,6 +594,7 @@ namespace Lidarr.Plugin.Qobuzarr.Authentication
             try
             {
                 _sessionCache.Remove(SESSION_CACHE_KEY);
+                TryClearPersistedSession();
                 _logger.Debug("Session cleared from cache");
             }
             catch (Exception ex)

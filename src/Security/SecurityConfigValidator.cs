@@ -11,10 +11,17 @@ namespace Lidarr.Plugin.Qobuzarr.Security
     /// Validates plugin configuration for security best practices and potential vulnerabilities.
     /// Provides comprehensive security assessment of user-provided settings.
     /// </summary>
+    /// <remarks>
+    /// This validator was previously coupled to <c>SecureCredentialManager</c> for opaque
+    /// "credential security" checks. As part of the token-storage migration to the common
+    /// library, the small set of credential-format heuristics that the validator actually
+    /// needs (<see cref="ValidateCredentialSecurity"/> and the env-var placeholder check)
+    /// have been inlined here, eliminating the dependency on the deprecated SecureString-based
+    /// credential manager.
+    /// </remarks>
     public partial class SecurityConfigValidator
     {
         private readonly IQobuzLogger _logger;
-        private readonly SecureCredentialManager _credentialManager;
 
         // Security patterns and validation rules (GeneratedRegex for SYSLIB1045)
         [GeneratedRegex(@"^[^@\s]+@[^@\s]+\.[^@\s]+$")]
@@ -29,10 +36,9 @@ namespace Lidarr.Plugin.Qobuzarr.Security
             "union select", "' or ", "\" or ", "; drop ", "; delete "
         };
 
-        public SecurityConfigValidator(IQobuzLogger logger, SecureCredentialManager credentialManager = null)
+        public SecurityConfigValidator(IQobuzLogger logger)
         {
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
-            _credentialManager = credentialManager ?? new SecureCredentialManager(logger);
         }
 
         /// <summary>
@@ -94,13 +100,13 @@ namespace Lidarr.Plugin.Qobuzarr.Security
             // Email authentication validation
             if (settings.IsEmailAuth())
             {
-                if (!_credentialManager.ValidateCredentialSecurity(settings.Email, "Email"))
+                if (!ValidateCredentialSecurity(settings.Email, "Email"))
                 {
                     result.AddMajorIssue("Email credential security issue",
                         "Email appears to contain placeholder or invalid data");
                 }
 
-                if (!_credentialManager.ValidateCredentialSecurity(settings.Password, "Password"))
+                if (!ValidateCredentialSecurity(settings.Password, "Password"))
                 {
                     result.AddCriticalIssue("Password security issue",
                         "Password appears weak or contains placeholder data");
@@ -116,13 +122,13 @@ namespace Lidarr.Plugin.Qobuzarr.Security
             // Token authentication validation
             if (settings.IsTokenAuth())
             {
-                if (!_credentialManager.ValidateCredentialSecurity(settings.UserId, "User ID"))
+                if (!ValidateCredentialSecurity(settings.UserId, "User ID"))
                 {
                     result.AddMajorIssue("User ID security issue",
                         "User ID appears to contain placeholder or invalid data");
                 }
 
-                if (!_credentialManager.ValidateCredentialSecurity(settings.AuthToken, "Auth Token"))
+                if (!ValidateCredentialSecurity(settings.AuthToken, "Auth Token"))
                 {
                     result.AddCriticalIssue("Auth Token security issue",
                         "Auth token appears invalid or contains placeholder data");
@@ -346,6 +352,127 @@ namespace Lidarr.Plugin.Qobuzarr.Security
                    lower == "password" ||
                    lower == "admin" ||
                    lower == "user";
+        }
+
+        /// <summary>
+        /// Performs heuristic safety checks on a credential value (not on storage). Returns
+        /// false when the credential is empty, looks like a placeholder/env-var, or trips a
+        /// hard-rejection pattern (file path, Windows env var, path traversal).
+        /// </summary>
+        /// <remarks>
+        /// Inlined from the deprecated <c>SecureCredentialManager.ValidateCredentialSecurity</c>
+        /// during the token-storage migration to the common library. The behavior is preserved
+        /// to keep <see cref="SecurityConfigValidator"/> tests stable.
+        /// </remarks>
+        protected internal virtual bool ValidateCredentialSecurity(string credential, string credentialType)
+        {
+            if (string.IsNullOrWhiteSpace(credential))
+            {
+                _logger.Warn("Empty {0} provided", credentialType);
+                return false;
+            }
+
+            // Check for common security anti-patterns
+            var lowerCredential = credential.ToLowerInvariant();
+
+            if (lowerCredential.Contains("example") ||
+                lowerCredential.Contains("test") ||
+                lowerCredential.Contains("demo") ||
+                lowerCredential.Contains("placeholder") ||
+                lowerCredential.Contains("changeme") ||
+                lowerCredential == "password" ||
+                lowerCredential == "admin")
+            {
+                _logger.Warn("Potentially unsafe {0} detected - contains common placeholder values", credentialType);
+                return false;
+            }
+
+            // Check minimum complexity for passwords
+            if (credentialType.ToLowerInvariant().Contains("password") && credential.Length < 8)
+            {
+                _logger.Warn("Password appears to be too short for security best practices");
+                return false;
+            }
+
+            // HARD REJECT: Obvious environment variable placeholders.
+            if (IsEnvironmentVariablePlaceholder(credential))
+            {
+                _logger.Warn("Credential appears to be an environment variable placeholder instead of actual credential");
+                return false;
+            }
+
+            // HARD REJECT: Obvious file paths and Windows environment variables.
+            if (credential.StartsWith("%") && credential.EndsWith("%") ||
+                credential.Contains(":\\") ||
+                credential.StartsWith("./") ||
+                credential.Contains("../") ||
+                credential.Contains("..\\") ||
+                credential.StartsWith("file:", StringComparison.OrdinalIgnoreCase))
+            {
+                _logger.Warn("Credential appears to contain file path or environment variable instead of actual credential");
+                return false;
+            }
+
+            return true;
+        }
+
+        private static bool IsEnvironmentVariablePlaceholder(string credential)
+        {
+            if (string.IsNullOrWhiteSpace(credential))
+            {
+                return false;
+            }
+
+            if (credential.Length >= 3 &&
+                credential.StartsWith("%", StringComparison.Ordinal) &&
+                credential.EndsWith("%", StringComparison.Ordinal))
+            {
+                return IsValidEnvVarName(credential.AsSpan(1, credential.Length - 2));
+            }
+
+            if (credential.Length >= 2 && credential.StartsWith("$", StringComparison.Ordinal))
+            {
+                if (credential.Length >= 4 &&
+                    credential.StartsWith("${", StringComparison.Ordinal) &&
+                    credential.EndsWith("}", StringComparison.Ordinal))
+                {
+                    return IsValidEnvVarName(credential.AsSpan(2, credential.Length - 3));
+                }
+
+                return IsValidEnvVarName(credential.AsSpan(1));
+            }
+
+            if (credential.StartsWith("%(", StringComparison.Ordinal) && credential.EndsWith(")s", StringComparison.Ordinal))
+            {
+                return IsValidEnvVarName(credential.AsSpan(2, credential.Length - 4));
+            }
+
+            return false;
+        }
+
+        private static bool IsValidEnvVarName(ReadOnlySpan<char> name)
+        {
+            if (name.IsEmpty)
+            {
+                return false;
+            }
+
+            var first = name[0];
+            if (!(char.IsLetter(first) || first == '_'))
+            {
+                return false;
+            }
+
+            for (int i = 1; i < name.Length; i++)
+            {
+                var c = name[i];
+                if (!(char.IsLetterOrDigit(c) || c == '_'))
+                {
+                    return false;
+                }
+            }
+
+            return true;
         }
     }
 
