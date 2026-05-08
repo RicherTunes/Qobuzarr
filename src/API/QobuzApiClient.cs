@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Net;
 using System.Threading;
 using System.Threading.Tasks;
 using Newtonsoft.Json;
@@ -16,6 +17,7 @@ using Lidarr.Plugin.Qobuzarr.API.Http;
 using Lidarr.Plugin.Qobuzarr.Services.Interfaces;
 using Lidarr.Plugin.Qobuzarr.API.Signing;
 using Lidarr.Plugin.Qobuzarr.API.Caching;
+using Lidarr.Plugin.Common.Services.Caching;
 using Lidarr.Plugin.Common.Services.Http;
 using Lidarr.Plugin.Common.Utilities;
 using IRequestSigner = Lidarr.Plugin.Common.Services.Http.IRequestSigner;
@@ -46,6 +48,20 @@ namespace Lidarr.Plugin.Qobuzarr.API
         private IPreRequestHandler? _preRequestHandler;
         // Fallback session storage for managers that don't expose concrete Store/Clear
         private QobuzSession? _fallbackSession;
+
+        // Lazily initialized cache+conditional+resilience executor (common Phase 3a unification).
+        // Built once per QobuzApiClient instance; the executor itself is stateless across requests.
+        // Resilience policy is intentionally minimal (MaxRetries=1) because retries, per-host gates,
+        // adaptive rate limiting and the retry budget already live in QobuzHttpClient.ExecuteAsync.
+        private CachingHttpExecutor? _cachingExecutor;
+        private static readonly ResiliencePolicy ExecutorResiliencePolicy = ResiliencePolicy.Default.With(
+            name: "qobuz-passthrough",
+            maxRetries: 1,
+            retryBudget: TimeSpan.FromSeconds(1),
+            initialBackoff: TimeSpan.FromMilliseconds(1),
+            maxBackoff: TimeSpan.FromMilliseconds(1),
+            jitterMin: TimeSpan.Zero,
+            jitterMax: TimeSpan.Zero);
 
         /// <summary>
         /// Initializes a new instance of the QobuzApiClient with the required dependencies.
@@ -301,74 +317,15 @@ namespace Lidarr.Plugin.Qobuzarr.API
                     _requestSigner.Sign(endpoint, allParameters, currentSession.AppId, currentSession.AppSecret);
                 }
 
-                // Check cache first for GET requests
-                if (method == "GET")
-                {
-                    var cached = _responseCache.Get<T>(endpoint, allParameters);
-                    if (cached != null)
-                    {
-                        _logger.Debug("Returning cached response for {0}", endpoint);
-                        return cached;
-                    }
-                }
-
-                // Build HTTP request
-                var requestBuilder = _httpClient.BuildRequest(url, method);
-
-                if (method == "GET")
-                {
-                    foreach (var param in allParameters)
-                    {
-                        requestBuilder.AddQueryParam(param.Key, param.Value);
-                    }
-
-                    // Log the final URL being called (without auth token for security)
-                    var safeParams = allParameters.Where(kv => kv.Key != "user_auth_token")
-                                                 .Select(kv => $"{kv.Key}={kv.Value}");
-                    _logger.Debug("🚀 Final API call: {0}?{1}&user_auth_token=***", url, string.Join("&", safeParams));
-                }
-
-                var request = requestBuilder.Build();
-
-                if (method == "POST" && data != null)
-                {
-                    request.SetContent(JsonConvert.SerializeObject(data));
-                    request.Headers.ContentType = "application/json";
-                }
-
                 _logger.Debug("Making {0} request to {1}", method, endpoint);
 
-                // Execute request through HTTP client (includes rate limiting and retries)
-                var response = await _httpClient.ExecuteAsync(request).ConfigureAwait(false);
-
-                _logger.Debug("📡 API response received: Status={0}, Length={1} chars",
-                    response.StatusCode, response.Content?.Length ?? 0);
-
-                if (response.HasHttpError)
+                if (method == "GET")
                 {
-                    _logger.Error("❌ API Error Response: {0}", response.Content);
-                    HandleErrorResponse(response);
+                    return await ExecuteCachedGetAsync<T>(endpoint, url, allParameters).ConfigureAwait(false);
                 }
 
-                // Deserialize response
-                var result = JsonConvert.DeserializeObject<T>(response.Content);
-
-                _logger.Debug("✅ Response deserialized to: {0}", typeof(T).Name);
-
-                // Log first 500 chars of response for debugging (sanitized)
-                if (response.Content?.Length > 0)
-                {
-                    var sanitized = response.Content.Length > 500 ? response.Content.Substring(0, 500) + "..." : response.Content;
-                    _logger.Trace("📄 Response content: {0}", sanitized);
-                }
-
-                // Cache successful GET responses
-                if (method == "GET" && result != null)
-                {
-                    _responseCache.Set(endpoint, allParameters, result);
-                }
-
-                return result;
+                // POST path — uncached, goes through Lidarr's IHttpClient directly.
+                return await ExecuteUncachedAsync<T>(method, url, allParameters, data).ConfigureAwait(false);
             }
             catch (Exception ex)
             {
@@ -377,29 +334,173 @@ namespace Lidarr.Plugin.Qobuzarr.API
             }
         }
 
+        /// <summary>
+        /// Routes a cacheable GET through the common <see cref="CachingHttpExecutor"/>. Cache lookup,
+        /// soft-revalidate, stale-if-error and 404/410 terminal eviction are owned by the executor;
+        /// rate limiting and HTTP retries remain in <see cref="QobuzHttpClient.ExecuteAsync"/>.
+        /// </summary>
+        private async Task<T> ExecuteCachedGetAsync<T>(string endpoint, string url, Dictionary<string, string> allParameters) where T : class
+        {
+            // Build the StreamingApiRequestBuilder. Qobuz puts auth in the query string, not headers,
+            // so we encode allParameters as query params on a path-less endpoint URL. The CachingHttpExecutor
+            // then drives the request through LidarrHttpClientInvoker -> IQobuzHttpClient.ExecuteAsync,
+            // which applies adaptive rate limiting, per-host gating and HTTP retries as before.
+            var builder = new StreamingApiRequestBuilder(url)
+                .Get()
+                .QueryParams(allParameters);
+
+            // Log the final URL being called (without auth token for security)
+            var safeParams = allParameters.Where(kv => kv.Key != "user_auth_token")
+                                         .Select(kv => $"{kv.Key}={kv.Value}");
+            _logger.Debug("🚀 Final API call: {0}?{1}&user_auth_token=***", url, string.Join("&", safeParams));
+
+            var key = new CacheKey(endpoint, allParameters);
+            var policy = ResolveCachePolicy(endpoint);
+
+            // We deserialize after SendAsync (rather than via a ParseAsync hook) so that
+            // JsonReaderException surfaces to the caller; the executor swallows hook exceptions
+            // by design, but the legacy QobuzApiClient contract is to propagate Newtonsoft errors.
+            var hooks = new CachingHttpHooks<object?>(
+                OnHit: (kind, ck) =>
+                {
+                    if (kind != CacheHitKind.Miss)
+                    {
+                        _logger.Trace("Cache outcome for {0}: {1}", endpoint, kind);
+                    }
+                });
+
+            var executor = GetOrCreateExecutor();
+            var result = await executor.SendAsync(builder, key, policy, hooks).ConfigureAwait(false);
+
+            // Surface non-success statuses as exceptions (mirrors legacy behavior where
+            // HttpException from IQobuzHttpClient.ExecuteAsync would have been thrown).
+            // The executor returns 5xx/4xx as Passthrough/EvictOnTerminal without throwing.
+            var statusInt = (int)result.StatusCode;
+            var bodyText = result.Body != null && result.Body.Length > 0
+                ? System.Text.Encoding.UTF8.GetString(result.Body)
+                : string.Empty;
+            if (statusInt >= 400)
+            {
+                _logger.Error("❌ API Error Response: {0}", bodyText);
+                HandleErrorResponse(result.StatusCode, bodyText);
+            }
+
+            // Log first 500 chars of response for debugging (sanitized)
+            if (!string.IsNullOrEmpty(bodyText))
+            {
+                var sanitized = bodyText.Length > 500 ? bodyText.Substring(0, 500) + "..." : bodyText;
+                _logger.Trace("📄 Response content: {0}", sanitized);
+            }
+
+            // Deserialize. JsonReaderException propagates by design — callers depend on this.
+            var payload = JsonConvert.DeserializeObject<T>(bodyText);
+            _logger.Debug("✅ Response deserialized to: {0}", typeof(T).Name);
+            return payload;
+        }
+
+        /// <summary>
+        /// Legacy uncached path for POST (and any other non-GET methods). Caching/conditional
+        /// revalidation does not apply here.
+        /// </summary>
+        private async Task<T> ExecuteUncachedAsync<T>(string method, string url, Dictionary<string, string> allParameters, object? data) where T : class
+        {
+            var requestBuilder = _httpClient.BuildRequest(url, method);
+            var request = requestBuilder.Build();
+
+            if (string.Equals(method, "POST", StringComparison.OrdinalIgnoreCase) && data != null)
+            {
+                request.SetContent(JsonConvert.SerializeObject(data));
+                request.Headers.ContentType = "application/json";
+            }
+
+            var response = await _httpClient.ExecuteAsync(request).ConfigureAwait(false);
+
+            _logger.Debug("📡 API response received: Status={0}, Length={1} chars",
+                response.StatusCode, response.Content?.Length ?? 0);
+
+            if (response.HasHttpError)
+            {
+                _logger.Error("❌ API Error Response: {0}", response.Content);
+                HandleErrorResponse(response);
+            }
+
+            var result = JsonConvert.DeserializeObject<T>(response.Content);
+
+            _logger.Debug("✅ Response deserialized to: {0}", typeof(T).Name);
+
+            if (response.Content?.Length > 0)
+            {
+                var sanitized = response.Content.Length > 500 ? response.Content.Substring(0, 500) + "..." : response.Content;
+                _logger.Trace("📄 Response content: {0}", sanitized);
+            }
+
+            return result;
+        }
+
+        private CachingHttpExecutor GetOrCreateExecutor()
+        {
+            if (_cachingExecutor != null) return _cachingExecutor;
+
+            var invoker = new LidarrHttpClientInvoker(_httpClient, _logger);
+            _cachingExecutor = new CachingHttpExecutor(
+                invoker: invoker,
+                cache: _responseCache,
+                resiliencePolicy: ExecutorResiliencePolicy);
+            return _cachingExecutor;
+        }
+
+        private CachePolicy ResolveCachePolicy(string endpoint)
+        {
+            if (_responseCache.ShouldCache(endpoint))
+            {
+                var duration = _responseCache.GetCacheDuration(endpoint);
+                // Qobuz API does not emit ETag/Last-Modified, so conditional revalidation is unavailable.
+                // SoftRevalidateWindow is set to the cache duration so any in-TTL cached body serves
+                // without contacting the origin — this preserves the legacy fast-path cache hit semantic
+                // (the executor only returns "hit" via soft-revalidate, 304-fold, or stale-if-error;
+                // see CachingHttpExecutor.SendAsync). Stale-if-error and terminal eviction provide the
+                // remaining resilience guarantees.
+                return CachePolicy.Default
+                    .With(duration: duration)
+                    .WithExecutor(
+                        softRevalidateWindow: duration,
+                        staleIfErrorTtl: duration,
+                        evictOnTerminalStatus: true);
+            }
+
+            return CachePolicy.Disabled;
+        }
+
 
         private void HandleErrorResponse(HttpResponse response)
         {
-            var statusCode = (int)response.StatusCode;
+            HandleErrorResponse(response.StatusCode, response.Content);
+        }
+
+        private static void HandleErrorResponse(HttpStatusCode statusCode, string? content)
+        {
+            var status = (int)statusCode;
 
             try
             {
-                var errorResponse = JsonConvert.DeserializeObject<QobuzErrorResponse>(response.Content);
-                var message = errorResponse?.Message ?? $"HTTP {statusCode}";
+                var errorResponse = string.IsNullOrEmpty(content)
+                    ? null
+                    : JsonConvert.DeserializeObject<QobuzErrorResponse>(content);
+                var message = errorResponse?.Message ?? $"HTTP {status}";
 
-                throw statusCode switch
+                throw status switch
                 {
-                    401 => new QobuzApiException("Authentication failed", statusCode, "AuthenticationFailed"),
-                    403 => new QobuzApiException("Access forbidden - check app credentials", statusCode, "AccessForbidden"),
-                    404 => new QobuzApiException("Resource not found", statusCode, "NotFound"),
-                    429 => new QobuzApiException("Rate limit exceeded", statusCode, "RateLimited"),
-                    >= 500 => new QobuzApiException("Server error", statusCode, "ServerError"),
-                    _ => new QobuzApiException(message, statusCode, "ApiError")
+                    401 => new QobuzApiException("Authentication failed", status, "AuthenticationFailed"),
+                    403 => new QobuzApiException("Access forbidden - check app credentials", status, "AccessForbidden"),
+                    404 => new QobuzApiException("Resource not found", status, "NotFound"),
+                    429 => new QobuzApiException("Rate limit exceeded", status, "RateLimited"),
+                    >= 500 => new QobuzApiException("Server error", status, "ServerError"),
+                    _ => new QobuzApiException(message, status, "ApiError")
                 };
             }
             catch (JsonException)
             {
-                throw new QobuzApiException($"HTTP {statusCode}: {response.Content}", statusCode, "UnknownError");
+                throw new QobuzApiException($"HTTP {status}: {content}", status, "UnknownError");
             }
         }
 
