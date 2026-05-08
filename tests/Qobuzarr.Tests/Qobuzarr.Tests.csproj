@@ -42,7 +42,23 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\Qobuzarr.csproj" />
+    <!--
+      AdditionalProperties: build the plugin WITHOUT the post-build ILRepack/RepackPlugin step
+      when consumed by tests. The merged plugin DLL internalizes Lidarr.Plugin.Common types,
+      giving them a new identity inside Lidarr.Plugin.Qobuzarr and breaking type identity vs
+      the standalone Lidarr.Plugin.Common.dll the test compiles against. Without this flag
+      the test runtime hits MissingMethodException (e.g. QobuzApiClient ctor expects
+      Lidarr.Plugin.Common.Services.Http.IRequestSigner from the merged assembly but tests
+      pass it from the standalone Common assembly). Tests must reference the un-merged plugin
+      DLL to preserve type identity.
+    -->
+    <ProjectReference Include="..\..\Qobuzarr.csproj">
+      <!-- OutputPath redirect: keep the test-only un-merged plugin DLL out of the repo /bin/
+           directory. Without this, building tests overwrites the merged release artifact in
+           bin/, which breaks PluginSandboxRuntimeTests and LibraryLinkingEdgeCaseTests that
+           load the merged DLL by repo-root path. -->
+      <AdditionalProperties>PluginPackagingDisable=true;OutputPath=bin-tests\;EnablePluginDeployment=false</AdditionalProperties>
+    </ProjectReference>
     <ProjectReference Include="..\..\ext\Lidarr.Plugin.Common\testkit\Lidarr.Plugin.Common.TestKit.csproj" />
   </ItemGroup>
 
