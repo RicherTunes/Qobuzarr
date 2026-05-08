@@ -494,11 +494,14 @@ namespace Qobuzarr.IntegrationTests
             SkipIfNotReady();
             Output.WriteLine("📚 Validating Security Documentation");
 
-            // This test validates that security measures are properly documented
+            // This test validates that security measures are properly documented.
+            // Note: SecureCredentialManager.cs was removed during the token-storage migration
+            // to the common library; SessionManager + LegacySessionMigrator replace it.
             var securityFiles = new[]
             {
                 "src/Security/InputSanitizer.cs",
-                "src/Security/SecureCredentialManager.cs",
+                "src/Authentication/SessionManager.cs",
+                "src/Authentication/LegacySessionMigrator.cs",
                 "docs/VERIFICATION-REPORT.md"
             };
 
