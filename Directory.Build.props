@@ -48,8 +48,9 @@
     <EmbedUntrackedSources>true</EmbedUntrackedSources>
     <ContinuousIntegrationBuild Condition="'$(CI)' == 'true'">true</ContinuousIntegrationBuild>
     <Deterministic>true</Deterministic>
-    <!-- Map project directories to a stable root to avoid leaking developer paths in PDBs -->
-    <PathMap>$(MSBuildProjectDirectory)=/src</PathMap>
+    <!-- Map project directories to a stable root to avoid leaking developer paths in PDBs.
+         Disabled when DisablePathMap=true (e.g., for coverage runs that need real paths). -->
+    <PathMap Condition="'$(DisablePathMap)' != 'true'">$(MSBuildProjectDirectory)=/src</PathMap>
   </PropertyGroup>
 
   <!-- Common Build Settings -->
