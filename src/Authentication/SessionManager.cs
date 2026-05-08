@@ -1,615 +1,325 @@
 using System;
+using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
-using NzbDrone.Common.Cache;
 using NLog;
 using Lidarr.Plugin.Qobuzarr.Models.Authentication;
-using Lidarr.Plugin.Qobuzarr.Exceptions;
 using Lidarr.Plugin.Qobuzarr.Services.Interfaces;
-using Lidarr.Plugin.Qobuzarr.Configuration;
+using Lidarr.Plugin.Common.Services.Authentication;
 
 namespace Lidarr.Plugin.Qobuzarr.Authentication
 {
     /// <summary>
-    /// Manages the complete lifecycle of Qobuz authentication sessions including storage,
-    /// validation, expiration tracking, and automatic renewal coordination.
-    /// Implements the centralized ISessionManager interface.
+    /// Manages Qobuz authentication sessions backed by the common library's
+    /// <see cref="StreamingTokenManager{TSession,TCredentials}"/> and
+    /// <see cref="FileTokenStore{TSession}"/>. Provides cross-platform at-rest
+    /// session encryption (DPAPI on Windows, Keychain on macOS, Secret Service
+    /// or DataProtection on Linux) and persistence across plugin restarts.
     /// </summary>
     /// <remarks>
-    /// This service provides centralized session management with the following capabilities:
-    /// 
-    /// Session Lifecycle:
-    /// - Session creation and secure storage in cache
-    /// - Automatic expiration detection and cleanup
-    /// - Session validation with configurable refresh thresholds
-    /// - Thread-safe access for concurrent operations
-    /// 
-    /// Expiration Management:
-    /// - Configurable refresh buffer (default: 30 minutes before expiry)
-    /// - Automatic expiration notifications via events
-    /// - Grace period handling for session transitions
-    /// - Background monitoring for proactive refresh
-    /// 
-    /// Performance Features:
-    /// - In-memory caching with TTL management
-    /// - Lazy session validation to reduce API calls
-    /// - Metrics tracking for session health monitoring
-    /// - Efficient thread-safe operations
-    /// 
-    /// This is a core domain service that focuses purely on session state management
-    /// without handling authentication logic or API communication.
+    /// Replaces the legacy in-memory <c>ICached</c> session storage and the
+    /// Windows-only DPAPI/SecureString wrappers (<c>SecureSessionManager</c> and
+    /// <c>SecureCredentialManager</c>). Sessions are persisted to a per-user
+    /// JSON envelope at <see cref="GetDefaultSessionFilePath"/> and protected
+    /// with the host-appropriate token protector selected by the common
+    /// library's protector factory.
     /// </remarks>
-    public class SessionManager : ISessionManager
+    public class SessionManager : ISessionManager, IDisposable
     {
-        private readonly ICacheManager _cacheManager;
+        /// <summary>Default sub-directory under <c>%AppData%/ArrPlugins</c> for token storage.</summary>
+        public const string DefaultStorageFolder = "Qobuzarr";
+
+        /// <summary>Default file name for the persisted session envelope.</summary>
+        public const string DefaultSessionFileName = "session.json";
+
         private readonly Logger _logger;
         private readonly IQobuzAuthenticationService _authenticationService;
-        private readonly ICached<QobuzSession> _sessionCache;
-        private readonly object _sessionLock = new object();
+        private readonly StreamingTokenManager<QobuzSession, QobuzCredentials> _tokenManager;
+        private readonly object _credentialsLock = new();
 
-        // Configuration
-        private readonly TimeSpan _sessionCacheTtl = TimeSpan.FromHours(24); // Qobuz session lifetime
-        private readonly TimeSpan _refreshBuffer = TimeSpan.FromMinutes(30); // Refresh 30 minutes before expiry
-        private readonly TimeSpan _gracePeriod = TimeSpan.FromMinutes(5); // Allow grace period for transitions
+        // Last-known credentials supplied via Create/Refresh, used for proactive refresh.
+        private QobuzCredentials? _lastCredentials;
 
-        // Session state
-        private QobuzSession? _currentSession;
-        private DateTime? _lastValidationCheck;
-        private readonly TimeSpan _validationCacheDuration = TimeSpan.FromMinutes(2); // Cache validation for 2 minutes
-
-        // Metrics
-        private long _sessionsCreated = 0;
-        private long _sessionsExpired = 0;
-        private long _validationChecks = 0;
-        private DateTime _serviceStartTime = DateTime.UtcNow;
-
-        // Events
-        public event EventHandler<SessionExpiringEventArgs>? SessionExpiring;
-        public event EventHandler<SessionExpiredEventArgs>? SessionExpired;
-        public event EventHandler<SessionValidatedEventArgs>? SessionValidated;
-
-        private const string SESSION_CACHE_KEY = "qobuz_current_session";
-
-
-        public SessionManager(ICacheManager cacheManager, IQobuzAuthenticationService authenticationService, Logger logger)
+        public SessionManager(IQobuzAuthenticationService authenticationService, Logger logger)
+            : this(authenticationService, logger, sessionFilePath: null)
         {
-            _cacheManager = cacheManager ?? throw new ArgumentNullException(nameof(cacheManager));
+        }
+
+        /// <summary>
+        /// Test/host-friendly constructor that allows overriding the persistent storage path.
+        /// </summary>
+        public SessionManager(IQobuzAuthenticationService authenticationService, Logger logger, string? sessionFilePath)
+        {
             _authenticationService = authenticationService ?? throw new ArgumentNullException(nameof(authenticationService));
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
 
-            _sessionCache = _cacheManager.GetCache<QobuzSession>(GetType(), "sessions");
+            var effectivePath = sessionFilePath ?? GetDefaultSessionFilePath();
 
-            _logger.Debug("SessionManager initialized with {0}min refresh buffer", _refreshBuffer.TotalMinutes);
+            // Best-effort migration of any legacy plaintext envelope produced by an
+            // earlier in-memory-only storage layer. The legacy SessionManager and
+            // SecureSessionManager were memory-only, so on-disk migration is a no-op
+            // for users; the helper still drops a sentinel file so re-runs are idempotent.
+            LegacySessionMigrator.MigrateIfNeeded(effectivePath, _logger);
+
+            // QobuzAuthenticationService implements IStreamingTokenAuthenticationService<...>,
+            // so we hand it through directly without an additional adapter.
+            var authAdapter = (IStreamingTokenAuthenticationService<QobuzSession, QobuzCredentials>)authenticationService;
+
+            var options = new StreamingTokenManagerOptions<QobuzSession>
+            {
+                DefaultSessionLifetime = TimeSpan.FromHours(24),
+                RefreshBuffer = TimeSpan.FromMinutes(30),
+                RefreshCheckInterval = TimeSpan.FromMinutes(5),
+                MaxRefreshAttempts = 3,
+                GetSessionExpiry = s => s.ExpiresAt,
+                ProactiveRefreshCredentialsProvider = () =>
+                {
+                    lock (_credentialsLock)
+                    {
+                        return _lastCredentials;
+                    }
+                },
+                EnableProactiveRefresh = true,
+            };
+
+            _tokenManager = new StreamingTokenManager<QobuzSession, QobuzCredentials>(
+                authAdapter,
+                new NLogLoggerAdapter<StreamingTokenManager<QobuzSession, QobuzCredentials>>(logger),
+                new FileTokenStore<QobuzSession>(effectivePath),
+                options);
+
+            _logger.Debug("SessionManager initialized (storage={0})", effectivePath);
         }
 
-        // Implement centralized interface methods
+        // --- ISessionManager surface ---
+
         public async Task<QobuzSession?> CreateSessionAsync(QobuzCredentials credentials, CancellationToken cancellationToken = default)
         {
+            if (credentials == null) return null;
+
             try
             {
-                // Use the real authentication service instead of dummy values
-                var session = await _authenticationService.AuthenticateAsync(credentials);
-
-                if (session != null && session.IsValid())
+                lock (_credentialsLock)
                 {
-                    StoreSession(session);
-                    _logger.Info("✅ Real authentication session created for user: {0}", session.UserId);
-                    return session;
+                    _lastCredentials = credentials;
                 }
 
-                _logger.Error("❌ Authentication failed - invalid credentials");
-                return null;
+                await _tokenManager.RefreshSessionAsync(credentials).ConfigureAwait(false);
+                var status = await _tokenManager.GetSessionStatusAsync().ConfigureAwait(false);
+                if (!status.IsValid)
+                {
+                    return null;
+                }
+
+                var session = await _tokenManager.GetValidSessionAsync(credentials).ConfigureAwait(false);
+                _logger.Info("Authentication session created for user: {0}", session?.UserId);
+                return session;
             }
             catch (Exception ex)
             {
-                _logger.Error(ex, "❌ Failed to create authentication session");
+                _logger.Error(ex, "Failed to create authentication session");
                 return null;
             }
         }
 
         public async Task<QobuzSession?> GetCurrentSessionAsync(CancellationToken cancellationToken = default)
         {
-            return await Task.FromResult(GetCurrentSession());
+            try
+            {
+                var status = await _tokenManager.GetSessionStatusAsync().ConfigureAwait(false);
+                if (!status.IsValid)
+                {
+                    return null;
+                }
+
+                QobuzCredentials? creds;
+                lock (_credentialsLock) { creds = _lastCredentials; }
+
+                try
+                {
+                    return await _tokenManager.GetValidSessionAsync(creds).ConfigureAwait(false);
+                }
+                catch (InvalidOperationException)
+                {
+                    // Session exists but expired and no fallback credentials available.
+                    return null;
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.Debug(ex, "GetCurrentSessionAsync failed");
+                return null;
+            }
         }
 
-        public async Task<bool> IsSessionValidAsync(QobuzSession session, CancellationToken cancellationToken = default)
+        public Task<bool> IsSessionValidAsync(QobuzSession session, CancellationToken cancellationToken = default)
         {
-            return await Task.FromResult(session?.IsValid() == true);
+            return Task.FromResult(session?.IsValid() == true);
         }
 
         public async Task InvalidateSessionAsync(CancellationToken cancellationToken = default)
         {
-            ClearSession();
-            await Task.CompletedTask;
+            await _tokenManager.ClearSessionAsync(cancellationToken).ConfigureAwait(false);
+            _authenticationService.ClearSession();
+            lock (_credentialsLock) { _lastCredentials = null; }
         }
 
         public async Task<QobuzSession?> RefreshSessionAsync(QobuzSession session, CancellationToken cancellationToken = default)
         {
-            // Placeholder - would normally make API calls to refresh the session
-            if (session == null) return null;
-
-            var refreshedSession = new QobuzSession
+            QobuzCredentials? creds;
+            lock (_credentialsLock) { creds = _lastCredentials; }
+            if (creds == null)
             {
-                UserId = session.UserId,
-                AuthToken = session.AuthToken + "_refreshed",
-                ExpiresAt = DateTime.UtcNow.AddHours(24),
-                CreatedAt = DateTime.UtcNow
-            };
+                _logger.Debug("RefreshSessionAsync: no credentials available; cannot refresh");
+                return null;
+            }
 
-            StoreSession(refreshedSession);
-            return await Task.FromResult(refreshedSession);
+            try
+            {
+                await _tokenManager.RefreshSessionAsync(creds).ConfigureAwait(false);
+                return await _tokenManager.GetValidSessionAsync(creds).ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                _logger.Warn(ex, "RefreshSessionAsync failed");
+                return null;
+            }
         }
 
-        #region Session Storage and Retrieval
+        public bool HasValidSession()
+        {
+            try
+            {
+                return _tokenManager.GetSessionStatus().IsValid;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        // --- Compatibility surface for direct callers (e.g., QobuzApiClient cast) ---
 
         /// <summary>
-        /// Stores a new session, replacing any existing session.
+        /// Stores a session by writing it to the auth service's in-memory cache and
+        /// to the persisted, encrypted on-disk envelope. Use when a session is acquired
+        /// outside the token manager (e.g., direct call to <c>AuthenticateAsync</c>).
         /// </summary>
-        /// <param name="session">The session to store</param>
-        /// <exception cref="ArgumentNullException">Thrown if session is null</exception>
-        /// <exception cref="InvalidOperationException">Thrown if session is invalid</exception>
         public void StoreSession(QobuzSession session)
         {
-            if (session == null)
-                throw new ArgumentNullException(nameof(session));
-
-            if (!session.IsValid())
-                throw new InvalidOperationException("Cannot store invalid session");
-
-            lock (_sessionLock)
+            if (session == null || !session.IsValid())
             {
-                try
-                {
-                    // Store in cache with TTL
-                    _sessionCache.Set(SESSION_CACHE_KEY, session, _sessionCacheTtl);
+                ClearSession();
+                return;
+            }
 
-                    // Update current session reference
-                    _currentSession = session;
-                    _lastValidationCheck = DateTime.UtcNow;
-
-                    Interlocked.Increment(ref _sessionsCreated);
-
-                    _logger.Info("✅ Session stored successfully - UserId: {0}, Expires: {1}",
-                        session.UserId, session.ExpiresAt);
-
-                    // Check if session needs refresh soon
-                    if (session.NeedsRefresh())
-                    {
-                        var timeToExpiry = session.ExpiresAt - DateTime.UtcNow;
-                        _logger.Warn("⚠️ Stored session expires soon in {0:F1} minutes", timeToExpiry.TotalMinutes);
-                        OnSessionExpiring(session, timeToExpiry);
-                    }
-                }
-                catch (Exception ex)
-                {
-                    _logger.Error(ex, "Failed to store session in cache");
-                    throw;
-                }
+            try
+            {
+                // The auth service's StoreSession also writes through to the FileTokenStore
+                // when configured to do so (see QobuzAuthenticationService).
+                _authenticationService.StoreSession(session);
+                _logger.Debug("Session stored via SessionManager");
+            }
+            catch (Exception ex)
+            {
+                _logger.Warn(ex, "Failed to store session");
             }
         }
 
         /// <summary>
-        /// Retrieves the current session if available and valid.
-        /// </summary>
-        /// <param name="validateExpiration">Whether to validate expiration before returning</param>
-        /// <returns>Current valid session or null if none available</returns>
-        public QobuzSession? GetCurrentSession(bool validateExpiration = true)
-        {
-            lock (_sessionLock)
-            {
-                try
-                {
-                    // First check in-memory reference
-                    if (_currentSession != null)
-                    {
-                        if (!validateExpiration || _currentSession.IsValid())
-                        {
-                            return _currentSession;
-                        }
-                        else
-                        {
-                            _logger.Debug("In-memory session is expired, clearing");
-                            _currentSession = null;
-                        }
-                    }
-
-                    // Fallback to cache
-                    var cachedSession = _sessionCache.Find(SESSION_CACHE_KEY);
-                    if (cachedSession != null)
-                    {
-                        if (!validateExpiration || cachedSession.IsValid())
-                        {
-                            _currentSession = cachedSession;
-                            _logger.Debug("Session retrieved from cache");
-                            return cachedSession;
-                        }
-                        else
-                        {
-                            _logger.Debug("Cached session is expired, removing");
-                            _sessionCache.Remove(SESSION_CACHE_KEY);
-                        }
-                    }
-
-                    _logger.Debug("No valid session available");
-                    return null;
-                }
-                catch (Exception ex)
-                {
-                    _logger.Warn(ex, "Error retrieving session from cache");
-                    return null;
-                }
-            }
-        }
-
-        /// <summary>
-        /// Clears the current session from all storage.
+        /// Clears the current session both in-memory and on disk.
         /// </summary>
         public void ClearSession()
         {
-            lock (_sessionLock)
+            try
             {
-                try
-                {
-                    var hadSession = _currentSession != null;
-
-                    _currentSession = null;
-                    _lastValidationCheck = null;
-                    _sessionCache.Remove(SESSION_CACHE_KEY);
-
-                    if (hadSession)
-                    {
-                        _logger.Info("Session cleared successfully");
-                    }
-                    else
-                    {
-                        _logger.Debug("Session clear called but no session was present");
-                    }
-                }
-                catch (Exception ex)
-                {
-                    _logger.Error(ex, "Error clearing session from cache");
-                }
+                _tokenManager.ClearSession();
+                _authenticationService.ClearSession();
+                lock (_credentialsLock) { _lastCredentials = null; }
+                _logger.Debug("Session cleared");
             }
-        }
-
-        #endregion
-
-        #region Session Validation
-
-        /// <summary>
-        /// Validates the current session and determines if it needs refresh or is expired.
-        /// </summary>
-        /// <param name="forceCheck">Forces validation even if recently checked</param>
-        /// <returns>Session validation result with detailed status</returns>
-        public SessionValidationResult ValidateSession(bool forceCheck = false)
-        {
-            lock (_sessionLock)
+            catch (Exception ex)
             {
-                var now = DateTime.UtcNow;
-                Interlocked.Increment(ref _validationChecks);
-
-                // Check if we can skip validation due to recent check
-                if (!forceCheck && _lastValidationCheck.HasValue &&
-                    now - _lastValidationCheck.Value < _validationCacheDuration)
-                {
-                    var session = GetCurrentSession(false);
-                    if (session != null)
-                    {
-                        return new SessionValidationResult
-                        {
-                            IsValid = session.IsValid(),
-                            NeedsRefresh = session.NeedsRefresh(),
-                            Session = session,
-                            ValidationTime = _lastValidationCheck.Value,
-                            WasCached = true
-                        };
-                    }
-                }
-
-                _lastValidationCheck = now;
-                var currentSession = GetCurrentSession(true);
-
-                var result = new SessionValidationResult
-                {
-                    ValidationTime = now,
-                    WasCached = false
-                };
-
-                if (currentSession == null)
-                {
-                    result.IsValid = false;
-                    result.NeedsRefresh = false;
-                    result.Status = SessionStatus.NoSession;
-
-                    _logger.Debug("Validation: No session available");
-                }
-                else
-                {
-                    result.Session = currentSession;
-                    result.IsValid = currentSession.IsValid();
-                    result.NeedsRefresh = currentSession.NeedsRefresh();
-
-                    var timeToExpiry = currentSession.ExpiresAt - now;
-                    result.TimeToExpiry = timeToExpiry;
-
-                    if (!result.IsValid)
-                    {
-                        result.Status = SessionStatus.Expired;
-                        _logger.Warn("Validation: Session expired {0:F1} minutes ago",
-                            Math.Abs(timeToExpiry.TotalMinutes));
-
-                        // Auto-cleanup expired session
-                        ClearSession();
-                        Interlocked.Increment(ref _sessionsExpired);
-                        OnSessionExpired(currentSession);
-                    }
-                    else if (result.NeedsRefresh)
-                    {
-                        result.Status = SessionStatus.NeedsRefresh;
-                        _logger.Debug("Validation: Session valid but needs refresh in {0:F1} minutes",
-                            timeToExpiry.TotalMinutes);
-
-                        OnSessionExpiring(currentSession, timeToExpiry);
-                    }
-                    else
-                    {
-                        result.Status = SessionStatus.Valid;
-                        _logger.Trace("Validation: Session valid for {0:F1} more minutes",
-                            timeToExpiry.TotalMinutes);
-                    }
-                }
-
-                OnSessionValidated(result);
-                return result;
+                _logger.Warn(ex, "Error clearing session");
             }
         }
 
         /// <summary>
-        /// Checks if there is a valid session available.
+        /// Resolves the default cross-platform session file location.
         /// </summary>
-        /// <returns>True if a valid session exists</returns>
-        public bool HasValidSession()
+        public static string GetDefaultSessionFilePath()
         {
-            var session = GetCurrentSession(true);
-            return session?.IsValid() == true;
-        }
-
-        /// <summary>
-        /// Checks if the current session needs refresh soon.
-        /// </summary>
-        /// <returns>True if session needs refresh within the buffer period</returns>
-        public bool SessionNeedsRefresh()
-        {
-            var session = GetCurrentSession(true);
-            return session?.NeedsRefresh() == true;
-        }
-
-        /// <summary>
-        /// Gets the time until the current session expires.
-        /// </summary>
-        /// <returns>Time to expiry, or null if no session</returns>
-        public TimeSpan? GetTimeToExpiry()
-        {
-            var session = GetCurrentSession(false);
-            if (session == null) return null;
-
-            var timeToExpiry = session.ExpiresAt - DateTime.UtcNow;
-            return timeToExpiry > TimeSpan.Zero ? timeToExpiry : TimeSpan.Zero;
-        }
-
-        #endregion
-
-        #region Session Monitoring
-
-        /// <summary>
-        /// Performs comprehensive session health monitoring.
-        /// </summary>
-        /// <returns>Detailed session health report</returns>
-        public SessionHealthReport GetHealthReport()
-        {
-            var validation = ValidateSession(forceCheck: true);
-            var uptime = DateTime.UtcNow - _serviceStartTime;
-
-            return new SessionHealthReport
+            var appData = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
+            if (string.IsNullOrWhiteSpace(appData))
             {
-                GeneratedAt = DateTime.UtcNow,
-                ServiceUptime = uptime,
-                CurrentSession = validation.Session,
-                ValidationResult = validation,
-                Metrics = new SessionMetrics
-                {
-                    SessionsCreated = _sessionsCreated,
-                    SessionsExpired = _sessionsExpired,
-                    ValidationChecks = _validationChecks,
-                    CacheHitRate = CalculateCacheHitRate()
-                },
-                Configuration = new SessionConfiguration
-                {
-                    CacheTtl = _sessionCacheTtl,
-                    RefreshBuffer = _refreshBuffer,
-                    GracePeriod = _gracePeriod,
-                    ValidationCacheDuration = _validationCacheDuration
-                }
+                appData = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+            }
+
+            return Path.Combine(appData, "ArrPlugins", DefaultStorageFolder, DefaultSessionFileName);
+        }
+
+        public void Dispose()
+        {
+            try { _tokenManager.Dispose(); } catch { }
+            GC.SuppressFinalize(this);
+        }
+
+        // Adapter to surface NLog through Microsoft.Extensions.Logging.ILogger<T>.
+        private sealed class NLogLoggerAdapter<T> : Microsoft.Extensions.Logging.ILogger<T>
+        {
+            private readonly Logger _nlog;
+            public NLogLoggerAdapter(Logger nlog) { _nlog = nlog; }
+
+            public IDisposable BeginScope<TState>(TState state) where TState : notnull => NoopDisposable.Instance;
+
+            public bool IsEnabled(Microsoft.Extensions.Logging.LogLevel logLevel) => logLevel switch
+            {
+                Microsoft.Extensions.Logging.LogLevel.Trace => _nlog.IsTraceEnabled,
+                Microsoft.Extensions.Logging.LogLevel.Debug => _nlog.IsDebugEnabled,
+                Microsoft.Extensions.Logging.LogLevel.Information => _nlog.IsInfoEnabled,
+                Microsoft.Extensions.Logging.LogLevel.Warning => _nlog.IsWarnEnabled,
+                Microsoft.Extensions.Logging.LogLevel.Error => _nlog.IsErrorEnabled,
+                Microsoft.Extensions.Logging.LogLevel.Critical => _nlog.IsFatalEnabled,
+                _ => false
             };
-        }
 
-        /// <summary>
-        /// Performs background maintenance tasks.
-        /// This should be called periodically to cleanup expired sessions and perform health checks.
-        /// </summary>
-        public void PerformMaintenance()
-        {
-            try
+            public void Log<TState>(
+                Microsoft.Extensions.Logging.LogLevel logLevel,
+                Microsoft.Extensions.Logging.EventId eventId,
+                TState state,
+                Exception? exception,
+                Func<TState, Exception?, string> formatter)
             {
-                _logger.Trace("Performing session maintenance");
-
-                // Force validation to cleanup expired sessions
-                var validation = ValidateSession(forceCheck: true);
-
-                // Additional maintenance tasks could be added here
-                // such as cache cleanup, metrics aggregation, etc.
-
-                _logger.Trace("Session maintenance completed - Status: {0}", validation.Status);
-            }
-            catch (Exception ex)
-            {
-                _logger.Error(ex, "Error during session maintenance");
-            }
-        }
-
-        #endregion
-
-        #region Event Handling
-
-        private void OnSessionExpiring(QobuzSession session, TimeSpan timeRemaining)
-        {
-            try
-            {
-                SessionExpiring?.Invoke(this, new SessionExpiringEventArgs
+                if (!IsEnabled(logLevel)) return;
+                var message = formatter?.Invoke(state, exception) ?? string.Empty;
+                switch (logLevel)
                 {
-                    Session = session,
-                    TimeRemaining = timeRemaining,
-                    RefreshRecommended = timeRemaining <= _refreshBuffer
-                });
+                    case Microsoft.Extensions.Logging.LogLevel.Trace:
+                        if (exception != null) _nlog.Trace(exception, message); else _nlog.Trace(message);
+                        break;
+                    case Microsoft.Extensions.Logging.LogLevel.Debug:
+                        if (exception != null) _nlog.Debug(exception, message); else _nlog.Debug(message);
+                        break;
+                    case Microsoft.Extensions.Logging.LogLevel.Information:
+                        if (exception != null) _nlog.Info(exception, message); else _nlog.Info(message);
+                        break;
+                    case Microsoft.Extensions.Logging.LogLevel.Warning:
+                        if (exception != null) _nlog.Warn(exception, message); else _nlog.Warn(message);
+                        break;
+                    case Microsoft.Extensions.Logging.LogLevel.Error:
+                        if (exception != null) _nlog.Error(exception, message); else _nlog.Error(message);
+                        break;
+                    case Microsoft.Extensions.Logging.LogLevel.Critical:
+                        if (exception != null) _nlog.Fatal(exception, message); else _nlog.Fatal(message);
+                        break;
+                }
             }
-            catch (Exception ex)
+
+            private sealed class NoopDisposable : IDisposable
             {
-                _logger.Error(ex, "Error in SessionExpiring event handler");
+                public static readonly NoopDisposable Instance = new();
+                public void Dispose() { }
             }
         }
-
-        private void OnSessionExpired(QobuzSession session)
-        {
-            try
-            {
-                SessionExpired?.Invoke(this, new SessionExpiredEventArgs
-                {
-                    Session = session,
-                    ExpiredAt = DateTime.UtcNow
-                });
-            }
-            catch (Exception ex)
-            {
-                _logger.Error(ex, "Error in SessionExpired event handler");
-            }
-        }
-
-        private void OnSessionValidated(SessionValidationResult result)
-        {
-            try
-            {
-                SessionValidated?.Invoke(this, new SessionValidatedEventArgs
-                {
-                    ValidationResult = result
-                });
-            }
-            catch (Exception ex)
-            {
-                _logger.Error(ex, "Error in SessionValidated event handler");
-            }
-        }
-
-        #endregion
-
-        #region Utility Methods
-
-        private double CalculateCacheHitRate()
-        {
-            // Simplified implementation - in production you'd track hits/misses more precisely
-            return _validationChecks > 0 ? 0.85 : 0.0; // Placeholder
-        }
-
-        #endregion
     }
-
-    #region Supporting Data Structures
-
-    /// <summary>
-    /// Result of session validation check.
-    /// </summary>
-    public class SessionValidationResult
-    {
-        public bool IsValid { get; set; }
-        public bool NeedsRefresh { get; set; }
-        public QobuzSession? Session { get; set; }
-        public DateTime ValidationTime { get; set; }
-        public bool WasCached { get; set; }
-        public SessionStatus Status { get; set; }
-        public TimeSpan? TimeToExpiry { get; set; }
-    }
-
-    /// <summary>
-    /// Session status enumeration.
-    /// </summary>
-    public enum SessionStatus
-    {
-        NoSession,
-        Valid,
-        NeedsRefresh,
-        Expired
-    }
-
-    /// <summary>
-    /// Comprehensive session health report.
-    /// </summary>
-    public class SessionHealthReport
-    {
-        public DateTime GeneratedAt { get; set; }
-        public TimeSpan ServiceUptime { get; set; }
-        public QobuzSession? CurrentSession { get; set; }
-        public SessionValidationResult ValidationResult { get; set; }
-        public SessionMetrics Metrics { get; set; }
-        public SessionConfiguration Configuration { get; set; }
-    }
-
-    /// <summary>
-    /// Session management metrics.
-    /// </summary>
-    public class SessionMetrics
-    {
-        public long SessionsCreated { get; set; }
-        public long SessionsExpired { get; set; }
-        public long ValidationChecks { get; set; }
-        public double CacheHitRate { get; set; }
-    }
-
-    /// <summary>
-    /// Session manager configuration.
-    /// </summary>
-    public class SessionConfiguration
-    {
-        public TimeSpan CacheTtl { get; set; }
-        public TimeSpan RefreshBuffer { get; set; }
-        public TimeSpan GracePeriod { get; set; }
-        public TimeSpan ValidationCacheDuration { get; set; }
-    }
-
-    /// <summary>
-    /// Event arguments for session expiring notifications.
-    /// </summary>
-    public class SessionExpiringEventArgs : EventArgs
-    {
-        public QobuzSession Session { get; set; }
-        public TimeSpan TimeRemaining { get; set; }
-        public bool RefreshRecommended { get; set; }
-    }
-
-    /// <summary>
-    /// Event arguments for session expired notifications.
-    /// </summary>
-    public class SessionExpiredEventArgs : EventArgs
-    {
-        public QobuzSession Session { get; set; }
-        public DateTime ExpiredAt { get; set; }
-    }
-
-    /// <summary>
-    /// Event arguments for session validation notifications.
-    /// </summary>
-    public class SessionValidatedEventArgs : EventArgs
-    {
-        public SessionValidationResult ValidationResult { get; set; }
-    }
-
-    #endregion
 }

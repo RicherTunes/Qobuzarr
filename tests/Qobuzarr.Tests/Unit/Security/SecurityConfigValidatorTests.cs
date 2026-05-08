@@ -615,12 +615,10 @@ namespace Qobuzarr.Tests.Unit.Security
         [Fact]
         public void ValidateConfiguration_WithException_ShouldLogErrorAndReturnCriticalIssue()
         {
-            // Arrange
-            var mockCredentialManager = new Mock<SecureCredentialManager>(_mockLogger.Object);
-            mockCredentialManager.Setup(m => m.ValidateCredentialSecurity(It.IsAny<string>(), It.IsAny<string>()))
-                .Throws(new Exception("Test exception"));
-
-            var validatorWithMock = new SecurityConfigValidator(_mockLogger.Object, mockCredentialManager.Object);
+            // Arrange: subclass overrides the inlined heuristic to throw, mirroring the
+            // legacy test that mocked SecureCredentialManager. The internal helper has been
+            // promoted to protected internal virtual specifically to enable this seam.
+            var validatorWithThrowingHelper = new ThrowingValidator(_mockLogger.Object);
 
             var settings = new QobuzIndexerSettings
             {
@@ -630,11 +628,21 @@ namespace Qobuzarr.Tests.Unit.Security
             };
 
             // Act
-            var result = validatorWithMock.ValidateConfiguration(settings);
+            var result = validatorWithThrowingHelper.ValidateConfiguration(settings);
 
             // Assert
             result.CriticalIssues.Should().Contain(i => i.Title.Contains("Security validation process failed"));
             _mockLogger.Verify(l => l.Error(It.IsAny<Exception>(), It.IsAny<string>(), It.IsAny<object[]>()), Times.Once());
+        }
+
+        private sealed class ThrowingValidator : SecurityConfigValidator
+        {
+            public ThrowingValidator(IQobuzLogger logger) : base(logger) { }
+
+            protected internal override bool ValidateCredentialSecurity(string credential, string credentialType)
+            {
+                throw new Exception("Test exception");
+            }
         }
 
         #endregion
