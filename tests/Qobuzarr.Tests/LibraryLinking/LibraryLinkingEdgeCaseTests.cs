@@ -115,8 +115,19 @@ namespace Qobuzarr.Tests.LibraryLinking
         /// </summary>
         private static bool IsPackagingDisabled()
         {
+            // Check 1: filesystem - is Common alongside the plugin DLL?
             var pluginDir = Path.GetDirectoryName(PluginAssemblyPath)!;
-            return File.Exists(Path.Combine(pluginDir, "Lidarr.Plugin.Common.dll"));
+            if (File.Exists(Path.Combine(pluginDir, "Lidarr.Plugin.Common.dll")))
+            {
+                return true;
+            }
+
+            // Check 2: actual loaded assembly - if the test runtime is using the un-merged
+            // plugin DLL (typical when tests build the plugin with PluginPackagingDisable=true
+            // for type-identity reasons), Assembly.LoadFrom on the merged repo /bin/ copy can
+            // return the already-loaded un-merged assembly. Detect by inspecting refs.
+            var loadedRefs = PluginAssembly.GetReferencedAssemblies();
+            return loadedRefs.Any(a => a.Name == "Lidarr.Plugin.Common");
         }
 
         [SkippableFact]
