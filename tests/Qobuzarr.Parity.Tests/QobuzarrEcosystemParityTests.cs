@@ -47,46 +47,14 @@ public class QobuzarrEcosystemParityTests : EcosystemParityTestBase
 
     // Behavior-contract checks (wave 6 — opt-in via PluginAssembly override above)
     //
-    // Two checks are filtered for documented, intentional divergences below; the rest run unmodified.
-    //
-    //  - Check_UsesCommonFileTokenStore: ILRepack merges common's internal MemoryTokenStore<T>
-    //    into the plugin assembly. The check sees common's own type as a "plugin-local" offender.
-    //    We allowlist the common-namespaced type since it ships from common itself, not qobuzarr.
-    //
-    //  - Check_UsesCommonHttpResponseCache: QobuzResponseCache : StreamingResponseCache is a
-    //    legitimate Qobuz-specific subclass (overrides ShouldCache, GetCacheDuration,
-    //    GenerateCacheKey for Qobuz endpoint masking and TTLs). It transitively implements
-    //    IStreamingResponseCache via the common-provided base class — this is the supported
-    //    extension model, not a fork. Allowlisted.
-    [Fact] public void Check_UsesCommonFileTokenStore_Test()
-    {
-        var result = Check_UsesCommonFileTokenStore();
-        if (!result.Passed)
-        {
-            // Filter out common-namespaced types that ILRepack merged in.
-            var residual = result.Errors
-                .SelectMany(e => e.Split(": ", 2).Length == 2 ? e.Split(": ", 2)[1].Split(", ") : new[] { e })
-                .Where(t => !t.StartsWith("Lidarr.Plugin.Common.", System.StringComparison.Ordinal))
-                .ToList();
-            Assert.True(residual.Count == 0, "Plugin-local ITokenStore<> offenders: " + string.Join(", ", residual));
-        }
-    }
+    // Wave 11 refined the checks to eliminate the two prior false-positives:
+    //  - Check_UsesCommonFileTokenStore now allowlists Lidarr.Plugin.Common.* namespace
+    //    types (handles ILRepack-internalized MemoryTokenStore<T>).
+    //  - Check_UsesCommonHttpResponseCache now walks the base-class chain to recognize
+    //    legitimate subclasses of common's StreamingResponseCache (e.g. QobuzResponseCache).
+    [Fact] public void Check_UsesCommonFileTokenStore_Test() => Assert.True(Check_UsesCommonFileTokenStore().Passed, string.Join("; ", Check_UsesCommonFileTokenStore().Errors));
 
-    [Fact] public void Check_UsesCommonHttpResponseCache_Test()
-    {
-        var result = Check_UsesCommonHttpResponseCache();
-        if (!result.Passed)
-        {
-            // Allowlist QobuzResponseCache: subclass of common's StreamingResponseCache
-            // (intentional Qobuz-specific extension, see class doc).
-            var residual = result.Errors
-                .SelectMany(e => e.Split(": ", 2).Length == 2 ? e.Split(": ", 2)[1].Split(", ") : new[] { e })
-                .Where(t => t != "Lidarr.Plugin.Qobuzarr.API.Caching.QobuzResponseCache")
-                .Where(t => !t.StartsWith("Lidarr.Plugin.Common.", System.StringComparison.Ordinal))
-                .ToList();
-            Assert.True(residual.Count == 0, "Plugin-local IStreamingResponseCache offenders: " + string.Join(", ", residual));
-        }
-    }
+    [Fact] public void Check_UsesCommonHttpResponseCache_Test() => Assert.True(Check_UsesCommonHttpResponseCache().Passed, string.Join("; ", Check_UsesCommonHttpResponseCache().Errors));
 
     [Fact] public void Check_RegistersBridgeDefaults_Test() => Assert.True(Check_RegistersBridgeDefaults().Passed, string.Join("; ", Check_RegistersBridgeDefaults().Errors));
     [Fact] public void Check_PluginManifest_Capabilities_HaveBackingTypes_Test() => Assert.True(Check_PluginManifest_Capabilities_HaveBackingTypes().Passed, string.Join("; ", Check_PluginManifest_Capabilities_HaveBackingTypes().Errors));
