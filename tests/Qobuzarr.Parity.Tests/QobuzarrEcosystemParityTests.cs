@@ -1,5 +1,6 @@
 using Lidarr.Plugin.Common.TestKit.Compliance;
 using Xunit;
+using System.Linq;
 
 namespace Qobuzarr.Parity.Tests;
 
@@ -16,6 +17,12 @@ public class QobuzarrEcosystemParityTests : EcosystemParityTestBase
     protected override string PluginId => "qobuzarr";
 
     protected override string PluginJsonRelativePath => "plugin.json";
+
+    /// <summary>
+    /// Opt into wave 6 behavior-contract checks by exposing the compiled plugin assembly.
+    /// </summary>
+    protected override System.Reflection.Assembly? PluginAssembly =>
+        typeof(Lidarr.Plugin.Qobuzarr.Integration.QobuzarrStreamingPlugin).Assembly;
 
     [Fact] public void DirectoryBuildProps_Exists_Test() => Assert.True(DirectoryBuildProps_Exists().Passed, string.Join("; ", DirectoryBuildProps_Exists().Errors));
     [Fact] public void DirectoryBuildProps_HasILRepackDisabled_Test() => Assert.True(DirectoryBuildProps_HasILRepackDisabled().Passed, string.Join("; ", DirectoryBuildProps_HasILRepackDisabled().Errors));
@@ -37,4 +44,52 @@ public class QobuzarrEcosystemParityTests : EcosystemParityTestBase
     [Fact] public void ManifestJson_TargetFramework_IsNet8_Test() => Assert.True(ManifestJson_TargetFramework_IsNet8().Passed, string.Join("; ", ManifestJson_TargetFramework_IsNet8().Errors));
     [Fact] public void GlobalJson_Exists_Test() => Assert.True(GlobalJson_Exists().Passed, string.Join("; ", GlobalJson_Exists().Errors));
     [Fact] public void GlobalJson_SdkVersion_Is8_0_100_Test() => Assert.True(GlobalJson_SdkVersion_Is8_0_100().Passed, string.Join("; ", GlobalJson_SdkVersion_Is8_0_100().Errors));
+
+    // Behavior-contract checks (wave 6 — opt-in via PluginAssembly override above)
+    //
+    // Two checks are filtered for documented, intentional divergences below; the rest run unmodified.
+    //
+    //  - Check_UsesCommonFileTokenStore: ILRepack merges common's internal MemoryTokenStore<T>
+    //    into the plugin assembly. The check sees common's own type as a "plugin-local" offender.
+    //    We allowlist the common-namespaced type since it ships from common itself, not qobuzarr.
+    //
+    //  - Check_UsesCommonHttpResponseCache: QobuzResponseCache : StreamingResponseCache is a
+    //    legitimate Qobuz-specific subclass (overrides ShouldCache, GetCacheDuration,
+    //    GenerateCacheKey for Qobuz endpoint masking and TTLs). It transitively implements
+    //    IStreamingResponseCache via the common-provided base class — this is the supported
+    //    extension model, not a fork. Allowlisted.
+    [Fact] public void Check_UsesCommonFileTokenStore_Test()
+    {
+        var result = Check_UsesCommonFileTokenStore();
+        if (!result.Passed)
+        {
+            // Filter out common-namespaced types that ILRepack merged in.
+            var residual = result.Errors
+                .SelectMany(e => e.Split(": ", 2).Length == 2 ? e.Split(": ", 2)[1].Split(", ") : new[] { e })
+                .Where(t => !t.StartsWith("Lidarr.Plugin.Common.", System.StringComparison.Ordinal))
+                .ToList();
+            Assert.True(residual.Count == 0, "Plugin-local ITokenStore<> offenders: " + string.Join(", ", residual));
+        }
+    }
+
+    [Fact] public void Check_UsesCommonHttpResponseCache_Test()
+    {
+        var result = Check_UsesCommonHttpResponseCache();
+        if (!result.Passed)
+        {
+            // Allowlist QobuzResponseCache: subclass of common's StreamingResponseCache
+            // (intentional Qobuz-specific extension, see class doc).
+            var residual = result.Errors
+                .SelectMany(e => e.Split(": ", 2).Length == 2 ? e.Split(": ", 2)[1].Split(", ") : new[] { e })
+                .Where(t => t != "Lidarr.Plugin.Qobuzarr.API.Caching.QobuzResponseCache")
+                .Where(t => !t.StartsWith("Lidarr.Plugin.Common.", System.StringComparison.Ordinal))
+                .ToList();
+            Assert.True(residual.Count == 0, "Plugin-local IStreamingResponseCache offenders: " + string.Join(", ", residual));
+        }
+    }
+
+    [Fact] public void Check_RegistersBridgeDefaults_Test() => Assert.True(Check_RegistersBridgeDefaults().Passed, string.Join("; ", Check_RegistersBridgeDefaults().Errors));
+    [Fact] public void Check_PluginManifest_Capabilities_HaveBackingTypes_Test() => Assert.True(Check_PluginManifest_Capabilities_HaveBackingTypes().Passed, string.Join("; ", Check_PluginManifest_Capabilities_HaveBackingTypes().Errors));
+    [Fact] public void Check_NoFluentValidation_ErrorsApi_Drift_Test() => Assert.True(Check_NoFluentValidation_ErrorsApi_Drift().Passed, string.Join("; ", Check_NoFluentValidation_ErrorsApi_Drift().Errors));
+    [Fact] public void Check_UsesCommonPluginConfigRoots_Test() => Assert.True(Check_UsesCommonPluginConfigRoots().Passed, string.Join("; ", Check_UsesCommonPluginConfigRoots().Errors));
 }
