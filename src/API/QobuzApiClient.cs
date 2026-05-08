@@ -51,17 +51,14 @@ namespace Lidarr.Plugin.Qobuzarr.API
 
         // Lazily initialized cache+conditional+resilience executor (common Phase 3a unification).
         // Built once per QobuzApiClient instance; the executor itself is stateless across requests.
-        // Resilience policy is intentionally minimal (MaxRetries=1) because retries, per-host gates,
-        // adaptive rate limiting and the retry budget already live in QobuzHttpClient.ExecuteAsync.
+        // The executor is configured with the common Phase 5e ResiliencePolicy.Passthrough preset:
+        // retries, per-host gates, adaptive rate limiting and the retry budget already live in
+        // QobuzHttpClient.ExecuteAsync (the underlying transport via LidarrHttpClientInvoker), so
+        // the executor's resilience layer must be a no-op (MaxRetries=1, no timeout, ~no backoff).
+        // Stacking another retry layer on a transport that already retries leads to multiplied
+        // retry counts and explosive backoff. Source: Phase 3b adoption feedback.
         private CachingHttpExecutor? _cachingExecutor;
-        private static readonly ResiliencePolicy ExecutorResiliencePolicy = ResiliencePolicy.Default.With(
-            name: "qobuz-passthrough",
-            maxRetries: 1,
-            retryBudget: TimeSpan.FromSeconds(1),
-            initialBackoff: TimeSpan.FromMilliseconds(1),
-            maxBackoff: TimeSpan.FromMilliseconds(1),
-            jitterMin: TimeSpan.Zero,
-            jitterMax: TimeSpan.Zero);
+        private static readonly ResiliencePolicy ExecutorResiliencePolicy = ResiliencePolicy.Passthrough;
 
         /// <summary>
         /// Initializes a new instance of the QobuzApiClient with the required dependencies.
@@ -455,15 +452,18 @@ namespace Lidarr.Plugin.Qobuzarr.API
             {
                 var duration = _responseCache.GetCacheDuration(endpoint);
                 // Qobuz API does not emit ETag/Last-Modified, so conditional revalidation is unavailable.
-                // SoftRevalidateWindow is set to the cache duration so any in-TTL cached body serves
-                // without contacting the origin — this preserves the legacy fast-path cache hit semantic
-                // (the executor only returns "hit" via soft-revalidate, 304-fold, or stale-if-error;
-                // see CachingHttpExecutor.SendAsync). Stale-if-error and terminal eviction provide the
-                // remaining resilience guarantees.
+                // HotHitMode = EnabledForFreshEntries enables the executor's hot-cache-hit fast path:
+                // before invoking the resilience pipeline, any cached entry still within its nominal
+                // Duration is returned as CacheHitKind.Hit without contacting the origin. This expresses
+                // traditional "if cached and fresh, return cached" semantics directly, replacing the
+                // earlier workaround that abused SoftRevalidateWindow=duration to achieve the same effect
+                // on an API without validators. Stale-if-error and terminal eviction continue to provide
+                // resilience for the past-duration / 5xx / 404 paths.
+                // Source: Phase 5e common refinement motivated by qobuzarr Phase 3b adoption feedback.
                 return CachePolicy.Default
                     .With(duration: duration)
                     .WithExecutor(
-                        softRevalidateWindow: duration,
+                        hotHitMode: HotCacheHitMode.EnabledForFreshEntries,
                         staleIfErrorTtl: duration,
                         evictOnTerminalStatus: true);
             }
