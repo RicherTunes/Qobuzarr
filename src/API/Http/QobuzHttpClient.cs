@@ -10,6 +10,7 @@ using Lidarr.Plugin.Qobuzarr.Configuration;
 using Lidarr.Plugin.Qobuzarr.Services;
 using Lidarr.Plugin.Qobuzarr.Utilities;
 using Lidarr.Plugin.Common.Services.Performance;
+using Lidarr.Plugin.Common.Observability;
 using Lidarr.Plugin.Qobuzarr.Constants;
 using SharedRetryUtilities = Lidarr.Plugin.Common.Utilities.RetryUtilities;
 
@@ -306,21 +307,11 @@ namespace Lidarr.Plugin.Qobuzarr.API.Http
 
         private static bool IsSensitiveQueryKey(string key)
         {
-            if (string.IsNullOrWhiteSpace(key))
-            {
-                return false;
-            }
-
-            var lower = key.Trim().ToLowerInvariant();
-
-            // Most important explicit keys used by Qobuz and our auth flow
-            if (lower is "user_auth_token" or "auth_token" or "token" or "app_secret" or "password" or "api_key" or "apikey" or "request_sig")
-            {
-                return true;
-            }
-
-            // Conservative fallbacks for other secret-bearing keys
-            return lower.Contains("token") || lower.Contains("secret") || lower.Contains("password") || lower.Contains("apikey");
+            // Delegate to the canonical detector in Lidarr.Plugin.Common.Observability.LogRedactor.
+            // Qobuz-specific keys (user_auth_token, app_secret, request_sig, auth_token) are all
+            // covered by LogRedactor.IsSensitiveParameter via its "auth"/"token"/"secret"/"sig"
+            // exact and contains rules.
+            return LogRedactor.IsSensitiveParameter(key?.Trim());
         }
     }
 }

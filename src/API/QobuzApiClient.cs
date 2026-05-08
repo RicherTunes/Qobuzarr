@@ -18,6 +18,7 @@ using Lidarr.Plugin.Qobuzarr.API.Signing;
 using Lidarr.Plugin.Qobuzarr.API.Caching;
 using Lidarr.Plugin.Common.Services.Http;
 using Lidarr.Plugin.Common.Utilities;
+using IRequestSigner = Lidarr.Plugin.Common.Services.Http.IRequestSigner;
 
 namespace Lidarr.Plugin.Qobuzarr.API
 {
@@ -29,14 +30,14 @@ namespace Lidarr.Plugin.Qobuzarr.API
     /// This refactored implementation delegates specific responsibilities to focused components:
     /// - HTTP communication: IQobuzHttpClient
     /// - Authentication: IQobuzAuthenticationManager
-    /// - Request signing: IQobuzRequestSigner
+    /// - Request signing: Lidarr.Plugin.Common.Services.Http.IRequestSigner
     /// - Response caching: IQobuzResponseCache
     /// </remarks>
     public class QobuzApiClient : IQobuzApiClient
     {
         private readonly IQobuzHttpClient _httpClient;
         private readonly ISessionManager _sessionManager;
-        private readonly IQobuzRequestSigner _requestSigner;
+        private readonly IRequestSigner _requestSigner;
         private readonly IQobuzResponseCache _responseCache;
         private readonly Logger _logger;
         private IQobuzAuthenticationService? _authService;
@@ -57,7 +58,7 @@ namespace Lidarr.Plugin.Qobuzarr.API
         public QobuzApiClient(
             IQobuzHttpClient httpClient,
             ISessionManager sessionManager,
-            IQobuzRequestSigner requestSigner,
+            IRequestSigner requestSigner,
             IQobuzResponseCache responseCache,
             Logger logger)
         {
@@ -297,7 +298,7 @@ namespace Lidarr.Plugin.Qobuzarr.API
                 }
                 else if (_requestSigner.RequiresSigning(endpoint) && currentSession != null)
                 {
-                    _requestSigner.SignRequest(endpoint, allParameters, currentSession.AppId, currentSession.AppSecret);
+                    _requestSigner.Sign(endpoint, allParameters, currentSession.AppId, currentSession.AppSecret);
                 }
 
                 // Check cache first for GET requests

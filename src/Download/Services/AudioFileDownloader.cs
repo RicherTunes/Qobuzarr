@@ -272,14 +272,15 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Services
         {
             if (buffer.Length < 4) return false;
 
-            return extension.ToLowerInvariant() switch
+            // M4A is not currently covered by common's AudioMagicBytesValidator (which checks
+            // the first 4 bytes); preserve the legacy ftyp-after-size check for that extension.
+            // For all other audio extensions, defer to the canonical validator from common.
+            if (string.Equals(extension, ".m4a", StringComparison.OrdinalIgnoreCase))
             {
-                ".mp3" => buffer[0] == 0xFF && (buffer[1] & 0xE0) == 0xE0, // MP3 frame header
-                ".flac" => buffer[0] == 0x66 && buffer[1] == 0x4C && buffer[2] == 0x61 && buffer[3] == 0x43, // "fLaC"
-                ".m4a" => buffer.Skip(4).Take(4).SequenceEqual(new byte[] { 0x66, 0x74, 0x79, 0x70 }), // "ftyp" after size
-                ".wav" => buffer[0] == 0x52 && buffer[1] == 0x49 && buffer[2] == 0x46 && buffer[3] == 0x46, // "RIFF"
-                _ => true // Assume valid for unknown extensions
-            };
+                return buffer.Skip(4).Take(4).SequenceEqual(new byte[] { 0x66, 0x74, 0x79, 0x70 }); // "ftyp" after size
+            }
+
+            return AudioMagicBytesValidator.IsValidAudioMagicBytes(buffer.AsSpan());
         }
 
         private static bool IsRetryableNetworkError(Exception ex)

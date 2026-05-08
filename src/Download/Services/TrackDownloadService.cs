@@ -15,6 +15,7 @@ using Lidarr.Plugin.Qobuzarr.Exceptions;
 using Lidarr.Plugin.Qobuzarr.Models;
 using Lidarr.Plugin.Qobuzarr.Services.Http;
 using Lidarr.Plugin.Qobuzarr.Utilities;
+using Lidarr.Plugin.Common.Utilities;
 
 namespace Lidarr.Plugin.Qobuzarr.Download.Services
 {
@@ -297,7 +298,7 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Services
 
             File.Move(partialPath, filePath, overwrite: true);
 
-            AudioMagicBytesValidator.ValidateAudioMagicBytes(filePath);
+            Lidarr.Plugin.Common.Utilities.AudioMagicBytesValidator.ValidateAudioMagicBytes(filePath);
 
             if (!Lidarr.Plugin.Common.Utilities.ValidationUtilities.ValidateDownloadedFile(filePath))
             {

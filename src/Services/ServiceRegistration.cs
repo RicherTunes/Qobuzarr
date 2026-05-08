@@ -57,7 +57,7 @@ namespace Lidarr.Plugin.Qobuzarr.Services
             // - API.QobuzApiClient : IQobuzApiClient
             // - Authentication.QobuzAuthenticationService : IQobuzAuthenticationService
             // - Authentication.SessionManager : ISessionManager
-            // - API.Signing.QobuzRequestSigner : IQobuzRequestSigner
+            // - API.Signing.QobuzRequestSigner : Lidarr.Plugin.Common.Services.Http.IRequestSigner
             // - API.Caching.QobuzResponseCache : IQobuzResponseCache
             // - Services.UnifiedQualityService : IQualityService
         }
@@ -77,8 +77,8 @@ namespace Lidarr.Plugin.Qobuzarr.Services
                 (typeof(Authentication.IQobuzAuthenticationService), typeof(Authentication.QobuzAuthenticationService)),
                 // Session management
                 (typeof(Interfaces.ISessionManager), typeof(Authentication.SessionManager)),
-                // Request signing
-                (typeof(API.Signing.IQobuzRequestSigner), typeof(API.Signing.QobuzRequestSigner)),
+                // Request signing (registers as the common IRequestSigner abstraction)
+                (typeof(Lidarr.Plugin.Common.Services.Http.IRequestSigner), typeof(API.Signing.QobuzRequestSigner)),
                 // Response caching
                 (typeof(API.Caching.IQobuzResponseCache), typeof(API.Caching.QobuzResponseCache)),
                 // Main API client
