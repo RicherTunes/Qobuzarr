@@ -58,6 +58,41 @@ public sealed class QobuzarrSettingsSchemaTests
     }
 
     [Fact]
+    public void Email_DescriptionMentionsSubscription()
+    {
+        // Wave 85 UX TDD: pre-fix description was "Qobuz account email address for
+        // authentication." — user knows it's a Qobuz email but doesn't know if
+        // free Qobuz accounts work. Description should mention subscription so
+        // users on a free tier (no streaming) don't waste time troubleshooting.
+        var def = GetDefinition("Email");
+        Assert.NotNull(def.Description);
+        Assert.True(
+            def.Description!.Contains("subscri", System.StringComparison.OrdinalIgnoreCase) ||
+            def.Description.Contains("paid", System.StringComparison.OrdinalIgnoreCase) ||
+            def.Description.Contains("Studio", System.StringComparison.OrdinalIgnoreCase),
+            $"Email description should mention subscription requirement: {def.Description}");
+    }
+
+    [Fact]
+    public void Password_DescriptionDistinguishesFromApiKey()
+    {
+        // Users sometimes paste their app secret or API key into the password
+        // field. Description should explicitly say "account password" (not API
+        // key) so the wrong-paste case is clear.
+        var def = GetDefinition("Password");
+        Assert.NotNull(def.Description);
+        Assert.Contains("password", def.Description!, System.StringComparison.OrdinalIgnoreCase);
+        // Should NOT just say "Qobuz account password" — should add hint that
+        // it's the same one used to log in to qobuz.com.
+        Assert.True(
+            def.Description.Contains("login", System.StringComparison.OrdinalIgnoreCase) ||
+            def.Description.Contains("log in", System.StringComparison.OrdinalIgnoreCase) ||
+            def.Description.Contains("qobuz.com", System.StringComparison.OrdinalIgnoreCase) ||
+            def.Description.Contains("not an", System.StringComparison.OrdinalIgnoreCase),
+            $"Password description should clarify it's the login password, not an API key: {def.Description}");
+    }
+
+    [Fact]
     public void CountryCode_DescriptionGivesExamples()
     {
         var def = GetDefinition("CountryCode");
