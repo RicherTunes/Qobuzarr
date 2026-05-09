@@ -96,7 +96,7 @@ public sealed class QobuzarrStreamingPlugin : StreamingPlugin<QobuzarrStreamingM
             {
                 Key = "PreferredQuality",
                 DisplayName = "Preferred Quality",
-                Description = "Audio quality preference (5=MP3-320, 6=FLAC-CD, 7=FLAC-Hi-Res, 27=FLAC-Max).",
+                Description = "Preferred audio quality. Codes: 5=MP3-320kbps, 6=CD-quality FLAC (16-bit/44.1kHz), 7=Hi-Res FLAC (24-bit/96kHz), 27=Max FLAC (24-bit/192kHz). Your Qobuz subscription tier may not include all qualities — the plugin falls back to the highest you have access to. Default 6 (CD-quality FLAC) works on every paid tier that includes lossless.",
                 DataType = SettingDataType.Integer,
                 DefaultValue = 6
             },
