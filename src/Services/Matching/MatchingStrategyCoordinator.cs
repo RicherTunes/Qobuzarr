@@ -204,7 +204,10 @@ namespace Lidarr.Plugin.Qobuzarr.Services.Matching
         /// </summary>
         public IReadOnlyList<string> GetAvailableStrategies()
         {
-            return _strategies.Select(s => s.StrategyName).ToList().AsReadOnly();
+            // Wave 82 polish: List<T> already implements IReadOnlyList<T>, so the
+            // extra `.AsReadOnly()` wrapper allocation is wasted. Returning the
+            // list directly is just as immutable from the caller's perspective.
+            return _strategies.Select(s => s.StrategyName).ToList();
         }
     }
 }

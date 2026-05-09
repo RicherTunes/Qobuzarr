@@ -260,7 +260,9 @@ namespace Lidarr.Plugin.Qobuzarr.Testing
 
         public int GetLogCount(LogLevel level)
         {
-            return Entries.Where(e => e.Level == level).ToList().Count;
+            // Wave 82 polish: `.Count(predicate)` skips the `.ToList()` allocation
+            // entirely. Same result, less GC pressure in test loops.
+            return Entries.Count(e => e.Level == level);
         }
 
         public void Clear()
