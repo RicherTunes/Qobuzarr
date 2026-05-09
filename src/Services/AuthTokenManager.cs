@@ -23,7 +23,7 @@ namespace Lidarr.Plugin.Qobuzarr.Services
     /// 4. Background monitoring and preemptive refresh
     /// 5. Graceful handling of refresh failures and fallback strategies
     /// </remarks>
-    public class AuthTokenManager
+    public class AuthTokenManager : IDisposable
     {
         private readonly Logger _logger;
         private readonly IQobuzAuthService _authService;
@@ -395,6 +395,10 @@ namespace Lidarr.Plugin.Qobuzarr.Services
             catch (Exception ex)
             {
                 _logger.Error(ex, "Error during AuthTokenManager disposal");
+            }
+            finally
+            {
+                GC.SuppressFinalize(this);
             }
         }
     }
