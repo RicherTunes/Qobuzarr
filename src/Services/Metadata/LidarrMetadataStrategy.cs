@@ -51,8 +51,19 @@ namespace Lidarr.Plugin.Qobuzarr.Services.Metadata
 
                 if (qobuzTrack != null)
                 {
+                    // Wave 81 robustness: guard the Qobuz track ID parse. Pre-fix
+                    // `int.Parse` would throw FormatException on API data drift
+                    // (e.g. Qobuz adds a non-numeric ID variant), crashing the
+                    // entire album download. Skip the bad track and continue.
+                    if (!int.TryParse(qobuzTrack.Id, out var qobuzTrackIdInt))
+                    {
+                        _logger.Warn("Skipping track {0} '{1}': Qobuz track ID '{2}' is not a valid integer (API drift?). Lidarr will fall back to the standard metadata path for this track.",
+                                     lidarrTrack.TrackNumber, lidarrTrack.Title, qobuzTrack.Id);
+                        continue;
+                    }
+
                     // Only get streaming URL from Qobuz - use Lidarr for everything else
-                    var streamingUrl = await GetStreamingUrlAsync(int.Parse(qobuzTrack.Id));
+                    var streamingUrl = await GetStreamingUrlAsync(qobuzTrackIdInt);
 
                     var trackDownload = CreateTrackDownloadFromLidarr(streamingUrl, lidarrTrack, lidarrAlbum, qobuzTrack);
                     downloads.Add(trackDownload);
@@ -146,10 +157,15 @@ namespace Lidarr.Plugin.Qobuzarr.Services.Metadata
             LidarrAlbum lidarrAlbum,
             QobuzTrack qobuzTrack)
         {
+            // Wave 81 robustness: TryParse with 0 fallback. The caller now pre-validates
+            // and skips tracks whose ID won't parse, so this branch is defensive only —
+            // but if it ever fires, we want a sentinel value (0) over a hard FormatException
+            // that crashes the whole download.
+            _ = int.TryParse(qobuzTrack.Id, out var qobuzTrackId);
             return new TrackDownload
             {
                 StreamingUrl = streamingUrl,
-                QobuzTrackId = int.Parse(qobuzTrack.Id),
+                QobuzTrackId = qobuzTrackId,
 
                 // Rich Lidarr metadata (no additional API calls needed)
                 Title = lidarrTrack.Title,
