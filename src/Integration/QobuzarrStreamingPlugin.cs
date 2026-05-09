@@ -88,7 +88,7 @@ public sealed class QobuzarrStreamingPlugin : StreamingPlugin<QobuzarrStreamingM
             {
                 Key = "DownloadPath",
                 DisplayName = "Download Path",
-                Description = "Root folder where downloaded music will be saved.",
+                Description = "Root folder where downloaded music will be saved. Must be writable by the Lidarr process. Examples: /downloads/qobuz (Docker), C:\\Music\\Qobuz (Windows), /Volumes/Music/Qobuz (macOS). Lidarr organizes files into Artist/Album subfolders under this root.",
                 DataType = SettingDataType.String,
                 IsRequired = true
             },
@@ -104,7 +104,7 @@ public sealed class QobuzarrStreamingPlugin : StreamingPlugin<QobuzarrStreamingM
             {
                 Key = "CountryCode",
                 DisplayName = "Country Code",
-                Description = "Two-letter ISO country code (e.g., US, CA, GB).",
+                Description = "Two-letter ISO country code matching your Qobuz account region (e.g., US, CA, GB, DE, FR, JP). This determines which catalog you see — set this WRONG and you'll get tracks unavailable in your region. Most users should use the country code Qobuz showed during signup.",
                 DataType = SettingDataType.String,
                 DefaultValue = "US"
             },
@@ -112,7 +112,7 @@ public sealed class QobuzarrStreamingPlugin : StreamingPlugin<QobuzarrStreamingM
             {
                 Key = "SearchLimit",
                 DisplayName = "Search Limit",
-                Description = "Maximum results per search query (10-500).",
+                Description = "Maximum results returned per search query. Range 10-500, default 100. Higher values give Lidarr more candidates to choose from but slow each search. Lower values speed up first-result-back but may miss matches on common-named albums.",
                 DataType = SettingDataType.Integer,
                 DefaultValue = 100
             },
