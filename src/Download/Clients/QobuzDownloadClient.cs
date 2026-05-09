@@ -313,7 +313,12 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Clients
                 {
                     if (!_fileService.ValidateDownloadPath(settings.DownloadPath))
                     {
-                        failures.Add(new ValidationFailure("DownloadPath", "Download path is not accessible or has insufficient space"));
+                        // Wave 75 UX: name the path so the user knows which one is the
+                        // problem (download paths are often shared volumes / SMB mounts
+                        // where the failure isn't visible at the input field).
+                        failures.Add(new ValidationFailure(
+                            "DownloadPath",
+                            $"Download path '{settings.DownloadPath}' is not accessible or has insufficient space. Check that the path exists, Lidarr has write permission, and the disk has free space."));
                         return;
                     }
 
@@ -323,7 +328,9 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Clients
                     }
                     catch (Exception ex)
                     {
-                        failures.Add(new ValidationFailure("DownloadPath", $"Cannot create download directory: {ex.Message}"));
+                        failures.Add(new ValidationFailure(
+                            "DownloadPath",
+                            $"Cannot create download directory '{settings.DownloadPath}': {ex.Message}. Check parent directory permissions."));
                         return;
                     }
                 }
@@ -333,7 +340,9 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Clients
             catch (Exception ex)
             {
                 _logger.Error(ex, "Qobuz download client test failed");
-                failures.Add(new ValidationFailure("", $"Connection test failed: {ex.Message}"));
+                failures.Add(new ValidationFailure(
+                    "",
+                    $"Connection test failed ({ex.GetType().Name}): {ex.Message}. Full details in Lidarr logs."));
             }
         }
 
