@@ -268,7 +268,9 @@ namespace Lidarr.Plugin.Qobuzarr.Authentication
                 }
                 else
                 {
-                    throw new InvalidOperationException("No valid authentication method provided");
+                    // Wave 96 UX: name the two valid input shapes so user can fix.
+                    throw new InvalidOperationException(
+                        "No valid authentication method provided. Either fill in Email + Password, OR provide a previously-captured user ID + auth token. See plugin settings.");
                 }
 
                 // Store the session
@@ -389,7 +391,10 @@ namespace Lidarr.Plugin.Qobuzarr.Authentication
 
             if (!isValid)
             {
-                throw new InvalidOperationException("Invalid user ID or auth token");
+                // Wave 96 UX: name the most-common cause (token expired) and the
+                // recovery action (re-authenticate via email/password).
+                throw new InvalidOperationException(
+                    "Invalid user ID or auth token. The token may have expired (Qobuz tokens are short-lived). Re-authenticate by clearing the user ID + token fields and using your Email + Password instead.");
             }
 
             return session;
