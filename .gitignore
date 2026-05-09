@@ -7,6 +7,11 @@ obj/**/plugin.json
 bin/**/plugin.json
 artifacts/**/plugin.json
 
+# Per the Tidalarr-style PluginPackagingDisable test-side ProjectReference output —
+# tests build the plugin assembly to bin-tests/ to avoid type-identity conflicts
+# with the merged DLL in bin/. Build artifact, not source.
+bin-tests/
+
 # Build results and artifacts
 [Dd]ebug/
 [Dd]ebugPublic/
