@@ -477,7 +477,9 @@ namespace Lidarr.Plugin.Qobuzarr.API
             HandleErrorResponse(response.StatusCode, response.Content);
         }
 
-        private static void HandleErrorResponse(HttpStatusCode statusCode, string? content)
+        // Internal for testability — lets us assert that each HTTP status maps to a
+        // user-actionable error message. Not part of the public API.
+        internal static void HandleErrorResponse(HttpStatusCode statusCode, string? content)
         {
             var status = (int)statusCode;
 
@@ -488,13 +490,22 @@ namespace Lidarr.Plugin.Qobuzarr.API
                     : JsonConvert.DeserializeObject<QobuzErrorResponse>(content);
                 var message = errorResponse?.Message ?? $"HTTP {status}";
 
+                // Wave 62 UX: messages now name a remediation, not just the failure mode.
                 throw status switch
                 {
-                    401 => new QobuzApiException("Authentication failed", status, "AuthenticationFailed"),
-                    403 => new QobuzApiException("Access forbidden - check app credentials", status, "AccessForbidden"),
+                    401 => new QobuzApiException(
+                        "Authentication failed (HTTP 401). Verify your Qobuz email and password are correct, or re-authenticate from plugin settings if your session expired.",
+                        status, "AuthenticationFailed"),
+                    403 => new QobuzApiException(
+                        "Access forbidden (HTTP 403). This usually means your Qobuz subscription does not include the requested resource (e.g. a Hi-Res track on a non-Hi-Res plan). Check your subscription tier or app credentials.",
+                        status, "AccessForbidden"),
                     404 => new QobuzApiException("Resource not found", status, "NotFound"),
-                    429 => new QobuzApiException("Rate limit exceeded", status, "RateLimited"),
-                    >= 500 => new QobuzApiException("Server error", status, "ServerError"),
+                    429 => new QobuzApiException(
+                        "Qobuz is rate-limiting requests (HTTP 429). The plugin will wait and retry automatically. If this persists, slow down concurrent searches/downloads in plugin settings.",
+                        status, "RateLimited"),
+                    >= 500 => new QobuzApiException(
+                        $"Qobuz server error (HTTP {status}). This is a temporary problem on Qobuz's side, not your configuration. The plugin will retry; check Qobuz status if it persists.",
+                        status, "ServerError"),
                     _ => new QobuzApiException(message, status, "ApiError")
                 };
             }
