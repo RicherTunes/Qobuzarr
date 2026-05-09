@@ -408,7 +408,10 @@ namespace Qobuzarr.Tests
             var exception = await Assert.ThrowsAsync<InvalidOperationException>(
                 async () => await service.AuthenticateAsync(credentials));
 
-            exception.Message.Should().Be("No valid authentication method provided");
+            // Message now includes remediation hints (Email + Password vs token); the
+            // load-bearing contract is the start-of-message + that the exception type
+            // is InvalidOperationException for "no valid input shape provided".
+            exception.Message.Should().StartWith("No valid authentication method provided");
         }
 
         #endregion
@@ -502,7 +505,9 @@ namespace Qobuzarr.Tests
             var exception = await Assert.ThrowsAsync<InvalidOperationException>(
                 async () => await _authService.AuthenticateAsync(credentials));
 
-            exception.Message.Should().Be("Invalid user ID or auth token");
+            // Message now adds a re-authenticate-with-email/password remediation hint;
+            // start-of-message is the load-bearing contract.
+            exception.Message.Should().StartWith("Invalid user ID or auth token");
         }
 
         #endregion
