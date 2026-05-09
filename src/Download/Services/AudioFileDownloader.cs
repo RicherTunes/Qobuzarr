@@ -24,6 +24,14 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Services
 
         private const int MaxRetries = QobuzPluginConstants.Download.MaxRetries;
         private const int RetryDelayMs = QobuzPluginConstants.Download.RetryDelayMs;
+
+        /// <summary>
+        /// Hard cap on per-attempt backoff delay. Without this, attempt 6+ at base 1s
+        /// reaches 32s+ which is too long to keep a user waiting before failing fast.
+        /// 30 seconds was the previous in-line magic number — extracted so it's
+        /// discoverable and tunable in one place rather than buried in a Math.Min.
+        /// </summary>
+        private const int MaxRetryBackoffMs = 30_000;
         private const int LargeFileThresholdBytes = QobuzPluginConstants.Download.LargeFileThresholdBytes;
         private const int BufferSize = QobuzPluginConstants.Download.BufferSize;
         private const int ChunkSize = QobuzPluginConstants.Download.ChunkSize;
@@ -63,7 +71,7 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Services
                     {
                         _logger.Debug("Download retry attempt {0}/{1} for: {2}", attempt, MaxRetries, streamUrl);
                         // Exponential backoff for retries
-                        var delay = Math.Min(RetryDelayMs * (int)Math.Pow(2, attempt - 1), 30000); // Max 30 seconds
+                        var delay = Math.Min(RetryDelayMs * (int)Math.Pow(2, attempt - 1), MaxRetryBackoffMs);
                         await Task.Delay(delay, cancellationToken).ConfigureAwait(false);
                     }
 
