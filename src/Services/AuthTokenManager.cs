@@ -222,13 +222,36 @@ namespace Lidarr.Plugin.Qobuzarr.Services
         }
 
         /// <summary>
-        /// Internal token refresh implementation
+        /// Internal token refresh implementation. Refresh-slot claiming is atomic:
+        /// at most one thread enters the refresh branch even under heavy concurrent
+        /// load; everyone else falls through to the wait loop. The previous code did
+        /// the check-and-set on `_isRefreshing` outside the lock, which let two
+        /// threads both observe `_isRefreshing == false` and both call
+        /// `_authService.AuthenticateAsync()` — last writer to `_currentToken` won,
+        /// silently overwriting the earlier (still-valid) refresh.
         /// </summary>
         private async Task RefreshTokenInternalAsync(CancellationToken cancellationToken)
         {
-            if (_isRefreshing)
+            bool weOwnRefresh;
+            lock (_tokenLock)
             {
-                // Wait for ongoing refresh to complete
+                if (_isRefreshing)
+                {
+                    weOwnRefresh = false;
+                }
+                else
+                {
+                    _isRefreshing = true;
+                    weOwnRefresh = true;
+                }
+            }
+
+            if (!weOwnRefresh)
+            {
+                // Some other thread is performing the refresh. Wait for completion.
+                // Polling _isRefreshing is safe because it's volatile and the owner
+                // clears it in `finally`, so the read sees a fresh value once the
+                // owner exits.
                 while (_isRefreshing && !cancellationToken.IsCancellationRequested)
                 {
                     await Task.Delay(500, cancellationToken);
@@ -236,7 +259,6 @@ namespace Lidarr.Plugin.Qobuzarr.Services
                 return;
             }
 
-            _isRefreshing = true;
             var refreshStartTime = DateTime.UtcNow;
 
             try
