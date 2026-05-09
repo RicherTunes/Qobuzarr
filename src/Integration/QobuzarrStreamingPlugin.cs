@@ -72,7 +72,7 @@ public sealed class QobuzarrStreamingPlugin : StreamingPlugin<QobuzarrStreamingM
             {
                 Key = "Email",
                 DisplayName = "Email Address",
-                Description = "Qobuz account email address for authentication.",
+                Description = "Qobuz account email address (same email you use to sign in at qobuz.com). A paid subscription is required — Studio Premier or Sublime tier for streaming, no free tier.",
                 DataType = SettingDataType.String,
                 IsRequired = true
             },
@@ -80,7 +80,7 @@ public sealed class QobuzarrStreamingPlugin : StreamingPlugin<QobuzarrStreamingM
             {
                 Key = "Password",
                 DisplayName = "Password",
-                Description = "Qobuz account password.",
+                Description = "Your Qobuz account password — the same one you use to log in at qobuz.com. NOT an API key or app secret.",
                 DataType = SettingDataType.Password,
                 IsRequired = true
             },
