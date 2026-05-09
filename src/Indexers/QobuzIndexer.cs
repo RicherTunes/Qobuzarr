@@ -278,7 +278,11 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
             catch (Exception ex)
             {
                 _logger.Error(ex, "❌ Indexer test failed");
-                failures.Add(new ValidationFailure("Test", $"Test failed: {ex.Message}"));
+                // Wave 74 UX: include exception type so users can tell network from
+                // auth from rate-limit errors at a glance.
+                failures.Add(new ValidationFailure(
+                    "Test",
+                    $"Test failed ({ex.GetType().Name}): {ex.Message}. Full details in Lidarr logs."));
             }
         }
 
