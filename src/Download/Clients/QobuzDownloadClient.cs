@@ -657,8 +657,10 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Clients
                 var bytesWritten = await DownloadToFileAsync(streamUrl, outputPath, downloadItem.CancellationTokenSource.Token);
                 _logger.Debug("💾 Audio file written: {0} bytes", bytesWritten);
 
-                // 5. Apply metadata tags using TagLibSharp
-                await ApplyMetadataTagsAsync(outputPath, track, album);
+                // 5. Apply metadata tags using TagLibSharp — propagate cancellation so a
+                // user-canceled download doesn't keep TagLib writing to a file that's
+                // about to be cleaned up.
+                await ApplyMetadataTagsAsync(outputPath, track, album, downloadItem.CancellationTokenSource.Token);
 
                 _logger.Info("✅ Downloaded: {0} ({1:F1} MB)", track.Title, bytesWritten / 1024.0 / 1024.0);
             }
@@ -774,10 +776,15 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Clients
             return totalWritten;
         }
 
-        private async Task ApplyMetadataTagsAsync(string filePath, QobuzTrack track, QobuzAlbum album)
+        private async Task ApplyMetadataTagsAsync(string filePath, QobuzTrack track, QobuzAlbum album, CancellationToken cancellationToken = default)
         {
+            // Pre-flight cancellation check — if the download was canceled mid-write,
+            // skip the metadata pass entirely rather than queue a Task that will
+            // race with the cleanup of `filePath`.
+            cancellationToken.ThrowIfCancellationRequested();
             await Task.Run(() =>
             {
+                cancellationToken.ThrowIfCancellationRequested();
                 try
                 {
                     using var file = TagLib.File.Create(filePath);
@@ -830,7 +837,7 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Clients
                 {
                     _logger.Warn(ex, "Failed to apply metadata to: {0}", Path.GetFileName(filePath));
                 }
-            });
+            }, cancellationToken).ConfigureAwait(false);
         }
 
         /// <summary>
