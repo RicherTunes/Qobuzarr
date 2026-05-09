@@ -405,6 +405,60 @@ pwsh scripts/verify-local.ps1 -IncludeSmoke      # + Docker smoke test (mounts p
 
 The script delegates to `ext/Lidarr.Plugin.Common/scripts/local-ci.ps1`, which orchestrates the same gates as CI: host assembly extraction with .NET 8 + FV 9.5.4 guardrails, plugin packaging via `New-PluginPackage`, and packaging closure validation via `generate-expected-contents.ps1 -Check`.
 
+## Docker E2E Harness (wave 22b)
+
+A runnable end-to-end harness boots a real Lidarr container, mounts the merged
+Qobuzarr plugin DLL, waits for the API, and asserts plugin liveness against the
+Lidarr REST API. Built on common's lifted `LidarrContainerFixture` (wave 22a) —
+this plugin contributes only ~80 lines of per-plugin glue.
+
+### Run locally
+
+```powershell
+# One-shot (builds plugin via verify-local.ps1, then runs the smoke matrix)
+pwsh scripts/e2e.ps1
+
+# Re-run without rebuilding (merged DLL already at bin/)
+pwsh scripts/e2e.ps1 -SkipBuild
+
+# Run a single test
+pwsh scripts/e2e.ps1 -Filter 'FullyQualifiedName~Indexer_Test'
+```
+
+If Docker Desktop isn't running the tests **skip gracefully**.
+
+### Pinned image and per-plugin constants
+
+| Knob | Value |
+|------|-------|
+| Image | `ghcr.io/hotio/lidarr:pr-plugins-3.1.2.4913` |
+| Container name | `qobuzarr-e2e` |
+| Host port | `8692` (avoids tidalarr `8690` / applemusicarr `8691`) |
+| Mount path | `/config/plugins/RicherTunes/Qobuzarr` |
+| Mounted DLL | `bin/Lidarr.Plugin.Qobuzarr.dll` (ILRepacked merged output) |
+| Schema match substring | `"Qobuz"` |
+
+### ILRepack interaction (critical)
+
+The harness mounts the **merged** plugin DLL (where `Lidarr.Plugin.Common`
+types are internalized) — that's what Lidarr loads in production. The
+test project itself keeps `PluginPackagingDisable=true;OutputPath=bin-tests/`
+on its `<ProjectReference>` (Phase 6 fix) so test compilation resolves against
+the standalone Common assembly. The fixture's `FindPluginDll` deliberately
+points at `bin/`, **not** `bin-tests/`. Don't conflate the two: tests need the
+un-merged DLL for type identity; Lidarr needs the merged DLL.
+
+Per-plugin glue lives in `tests/Qobuzarr.Tests/Runtime/`:
+
+- `QobuzarrLidarrContainerFixture.cs` — subclasses common's fixture and
+  populates `LidarrContainerOptions`; defines `[CollectionDefinition]`.
+- `DockerE2ETests.cs` — four `[SkippableFact]`s delegating to the
+  smoke-assertion extension methods on the fixture
+  (`AssertPluginAppearsInIndexerSchemaAsync`,
+  `AssertPluginAppearsInDownloadClientSchemaAsync`,
+  `AssertIndexerTestReturnsSensibleFailureAsync`,
+  `AssertDownloadClientTestReturnsSensibleFailureAsync`).
+
 ## Flaky Tests Policy
 
 **Flaky tests are priority tech debt that must be paid immediately.** A test that passes sometimes and fails sometimes erodes trust in the entire test suite. When a flaky test is discovered:
