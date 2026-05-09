@@ -470,7 +470,11 @@ namespace Qobuzarr.Tests
             var exception = await Assert.ThrowsAsync<QobuzApiException>(
                 () => client.GetAsync<object>("album/get"));
 
-            exception.Message.Should().Be("Authentication failed");
+            // UX improvement: messages now include actionable remediation hints rather
+            // than just the failure mode. The old equality check was brittle to wording
+            // tweaks; substring + status-code + error-type are the load-bearing contract.
+            exception.Message.Should().StartWith("Authentication failed");
+            exception.Message.Should().Contain("Qobuz");   // remediation must name the service
             exception.StatusCode.Should().Be(401);
             exception.ErrorType.Should().Be("AuthenticationFailed");
         }
@@ -503,7 +507,8 @@ namespace Qobuzarr.Tests
             var exception = await Assert.ThrowsAsync<QobuzApiException>(
                 () => client.GetAsync<object>("album/get"));
 
-            exception.Message.Should().Be("Access forbidden - check app credentials");
+            exception.Message.Should().StartWith("Access forbidden");
+            exception.Message.Should().Contain("subscription");   // hint at tier-mismatch cause
             exception.StatusCode.Should().Be(403);
             exception.ErrorType.Should().Be("AccessForbidden");
         }
@@ -569,7 +574,8 @@ namespace Qobuzarr.Tests
             var exception = await Assert.ThrowsAsync<QobuzApiException>(
                 () => client.GetAsync<object>("album/get"));
 
-            exception.Message.Should().Be("Rate limit exceeded");
+            exception.Message.Should().Contain("rate-limiting");   // current wording
+            exception.Message.Should().Contain("retry");            // remediation hint
             exception.StatusCode.Should().Be(429);
             exception.ErrorType.Should().Be("RateLimited");
         }
@@ -602,7 +608,8 @@ namespace Qobuzarr.Tests
             var exception = await Assert.ThrowsAsync<QobuzApiException>(
                 () => client.GetAsync<object>("album/get"));
 
-            exception.Message.Should().Be("Server error");
+            exception.Message.Should().Contain("Qobuz server error");
+            exception.Message.Should().Contain("temporary");   // signals server-side, not user
             exception.StatusCode.Should().Be(500);
             exception.ErrorType.Should().Be("ServerError");
         }
@@ -635,7 +642,8 @@ namespace Qobuzarr.Tests
             var exception = await Assert.ThrowsAsync<QobuzApiException>(
                 () => client.GetAsync<object>("album/get"));
 
-            exception.Message.Should().Be("Server error");
+            exception.Message.Should().Contain("Qobuz server error");
+            exception.Message.Should().Contain("temporary");
             exception.StatusCode.Should().Be(503);
             exception.ErrorType.Should().Be("ServerError");
         }
