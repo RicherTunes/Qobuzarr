@@ -49,7 +49,7 @@ permissions:
 jobs:
   smoke-test:
     name: 🔥 Plugin Co-existence
-    uses: RicherTunes/Lidarr.Plugin.Common/.github/workflows/multi-plugin-smoke-test.yml@main
+    uses: RicherTunes/Lidarr.Plugin.Common/.github/workflows/multi-plugin-smoke-test.yml@405544e7e949ca00739499ac22fdb2b7a83cf328
     with:
       test_plugins: 'qobuzarr,tidalarr,brainarr,applemusicarr'
       caller_plugin: 'qobuzarr'
