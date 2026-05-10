@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using Lidarr.Plugin.Abstractions.Contracts;
 using Lidarr.Plugin.Common.Extensions;
 using Lidarr.Plugin.Common.Hosting;
+using Lidarr.Plugin.Common.Services.Performance;
 using Lidarr.Plugin.Common.Services.Registration;
 using Lidarr.Plugin.Qobuzarr.API;
 using Lidarr.Plugin.Qobuzarr.Integration.Bridge;
@@ -28,10 +29,22 @@ public sealed class QobuzarrStreamingPlugin : StreamingPlugin<QobuzarrStreamingM
         // AddBridgeDefaults uses TryAdd, so custom registrations added before this call take precedence.
         services.AddBridgeDefaults();
 
-        // Register the bridge-compatible API client backed by System.Net.Http.HttpClient.
-        // This replaces the full QobuzApiClient which requires NLog, IHttpClient, ICacheManager from the host.
-        services.AddSingleton<HttpClient>(_ => new HttpClient { Timeout = TimeSpan.FromSeconds(30) });
-        services.AddSingleton<IQobuzApiClient, BridgeQobuzApiClient>();
+        // Explicit rate-limiter registration. QobuzHttpClient (the Lidarr-native path) takes
+        // IUniversalAdaptiveRateLimiter as an OPTIONAL ctor parameter — without an explicit
+        // registration, Lidarr's DryIoC silently passes null and the limiter on that path is
+        // dead code too. Registering UniversalAdaptiveRateLimiter as a singleton ensures both
+        // the Lidarr-native and the bridge HTTP paths share one budget per Qobuz endpoint.
+        services.AddSingleton<IUniversalAdaptiveRateLimiter, UniversalAdaptiveRateLimiter>();
+
+        // Wire the bridge HTTP path through QobuzRateLimitingHandler. The handler gates every
+        // request via WaitIfNeededAsync, feeds responses back via RecordResponse, and honors
+        // Retry-After on 429s. Same DelegatingHandler pattern as tidalarr's TidalRateLimitingHandler.
+        services.AddTransient<QobuzRateLimitingHandler>();
+        services.AddHttpClient<IQobuzApiClient, BridgeQobuzApiClient>(client =>
+        {
+            client.Timeout = TimeSpan.FromSeconds(30);
+        })
+        .AddHttpMessageHandler<QobuzRateLimitingHandler>();
     }
 
     /// <inheritdoc />
