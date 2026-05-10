@@ -2,6 +2,12 @@
   <!-- Enable centralized package management for plugin projects only -->
   <PropertyGroup>
     <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
+    <!-- Without transitive pinning, a `PackageVersion` for a package that no
+         project directly references is silently ignored — so our security
+         override of System.Security.Cryptography.Xml never takes effect.
+         Enable transitive pinning so any PackageVersion entry can override
+         transitive resolution (the canonical fix for CPM transitive CVEs). -->
+    <CentralPackageTransitivePinningEnabled>true</CentralPackageTransitivePinningEnabled>
   </PropertyGroup>
   <!-- Disable central package management for Lidarr source projects -->
   <PropertyGroup Condition="$(MSBuildProjectDirectory.Contains('ext\Lidarr-source')) OR $(MSBuildProjectDirectory.Contains('ext/Lidarr-source'))">
