@@ -178,9 +178,14 @@ jobs:
       shell: bash
       run: |
         echo "Checking for stray pr-plugins-2. references..."
+        # The grep also self-matches the literal string in the next two echo lines
+        # of this very workflow — exclude ci.yml so the lint doesn't trip on its
+        # own diagnostics. The .gitignore-style allowlist below skips submodule
+        # contents and CLAUDE.md (developer notes about historical net6 tags).
         HITS=$(grep -r "pr-plugins-2\." --include="*.yml" --include="*.yaml" --include="*.ps1" --include="*.sh" --include="*.cs" --include="*.csproj" --include="*.md" . \
           | grep -v "CLAUDE\.md" \
           | grep -v "^\./ext/" \
+          | grep -v "^\./.github/workflows/ci\.yml:" \
           || true)
         if [ -n "$HITS" ]; then
           echo "::error::Found stray pr-plugins-2. references (net6 image tags). These must use pr-plugins-3.x:"
