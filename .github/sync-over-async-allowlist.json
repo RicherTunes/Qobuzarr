@@ -4,11 +4,51 @@
   "entries": [
     {
       "file": "src/Download/Clients/QobuzDownloadClient.cs",
-      "line": 1003,
+      "line": 1019,
       "pattern": "DisposeAsync().ConfigureAwait(false).GetAwaiter().GetResult()",
       "method": "QobuzDownloadClient.Dispose()",
       "category": "A",
       "reason": "IDisposable.Dispose() is inherently synchronous. DownloadClientBase lifecycle requires sync disposal; async cleanup delegated to DisposeAsync().",
+      "owner": "alex",
+      "expiresOn": "2026-08-01"
+    },
+    {
+      "file": "src/Authentication/LegacySessionMigrator.cs",
+      "line": 62,
+      "pattern": "store.SaveAsync(...).GetAwaiter().GetResult()",
+      "method": "LegacySessionMigrator.MigrateIfNeeded()",
+      "category": "A",
+      "reason": "One-shot startup migration of legacy plaintext session to protected envelope. Runs from sync init path before any async context exists; making the migrator async cascades to plugin construction.",
+      "owner": "alex",
+      "expiresOn": "2026-08-01"
+    },
+    {
+      "file": "src/Authentication/QobuzAuthenticationService.cs",
+      "line": 497,
+      "pattern": "_persistentStore.LoadAsync().GetAwaiter().GetResult()",
+      "method": "QobuzAuthenticationService.TryLoadPersistedSession()",
+      "category": "A",
+      "reason": "Wrapped in lock(_persistLock) to serialize file I/O against concurrent persist/clear. Mixing lock {} with await is a well-known deadlock vector; switching to SemaphoreSlim cascades async to every authentication call-site (IIndexer.Test, IDownloadClient.Test) which Lidarr invokes synchronously.",
+      "owner": "alex",
+      "expiresOn": "2026-08-01"
+    },
+    {
+      "file": "src/Authentication/QobuzAuthenticationService.cs",
+      "line": 517,
+      "pattern": "_persistentStore.SaveAsync(...).GetAwaiter().GetResult()",
+      "method": "QobuzAuthenticationService.TryPersistSession()",
+      "category": "A",
+      "reason": "Same lock(_persistLock) constraint as TryLoadPersistedSession — see entry for line 497.",
+      "owner": "alex",
+      "expiresOn": "2026-08-01"
+    },
+    {
+      "file": "src/Authentication/QobuzAuthenticationService.cs",
+      "line": 533,
+      "pattern": "_persistentStore.ClearAsync().GetAwaiter().GetResult()",
+      "method": "QobuzAuthenticationService.TryClearPersistedSession()",
+      "category": "A",
+      "reason": "Same lock(_persistLock) constraint as TryLoadPersistedSession — see entry for line 497.",
       "owner": "alex",
       "expiresOn": "2026-08-01"
     }
