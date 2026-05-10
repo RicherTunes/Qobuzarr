@@ -1,24 +1,41 @@
 using System;
 using System.Net;
 using System.Net.Http;
+using Lidarr.Plugin.Common.Services.Performance;
 using Lidarr.Plugin.Qobuzarr.Configuration;
 using Lidarr.Plugin.Qobuzarr.Constants;
+using Lidarr.Plugin.Qobuzarr.Integration.Bridge;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace Lidarr.Plugin.Qobuzarr.Services.Http
 {
     /// <summary>
-    /// Provides a singleton System.Net.Http.HttpClient configured for downloads and streaming.
-    /// Avoids socket exhaustion and enables per-host connection limits.
+    /// Singleton-scoped <see cref="System.Net.Http.HttpClient"/> used by qobuzarr's audio
+    /// download paths (full FLAC/MP3 body streaming with HTTP range support). Lidarr's
+    /// own <c>IHttpClient</c> abstraction is optimised for short API calls and does not
+    /// expose <see cref="HttpClient.SendAsync(HttpRequestMessage, HttpCompletionOption, System.Threading.CancellationToken)"/>
+    /// with <see cref="HttpCompletionOption.ResponseHeadersRead"/> — that is the only
+    /// path that lets us stream chunks to disk without buffering the entire file in RAM.
+    /// So this class wraps a raw <see cref="HttpClient"/>, configured with sensible
+    /// connection-pool limits, and chains <see cref="QobuzRateLimitingHandler"/> in front
+    /// of the transport so every audio request is gated by
+    /// <see cref="IUniversalAdaptiveRateLimiter"/> alongside the API path.
+    ///
+    /// Prior to this class being DI-registered, it was a static class with a
+    /// <c>Lazy&lt;HttpClient&gt;</c> whose handler chain had no rate-limit awareness —
+    /// audio downloads (large + numerous) bypassed the budget entirely. That gap is
+    /// closed here.
     /// </summary>
-    internal static class SharedSystemHttpClient
+    public sealed class SharedSystemHttpClient : IDisposable
     {
-        private static readonly Lazy<HttpClient> _client = new Lazy<HttpClient>(CreateClient, isThreadSafe: true);
+        private readonly HttpClient _client;
+        private bool _disposed;
 
-        public static HttpClient Instance => _client.Value;
-
-        private static HttpClient CreateClient()
+        public SharedSystemHttpClient(IUniversalAdaptiveRateLimiter? rateLimiter = null,
+                                      ILogger<QobuzRateLimitingHandler>? rateLimiterLogger = null)
         {
-            var handler = new SocketsHttpHandler
+            var sockets = new SocketsHttpHandler
             {
                 AutomaticDecompression = DecompressionMethods.GZip | DecompressionMethods.Deflate,
                 PooledConnectionLifetime = TimeSpan.FromMinutes(10),
@@ -28,25 +45,52 @@ namespace Lidarr.Plugin.Qobuzarr.Services.Http
                 AllowAutoRedirect = true
             };
 
-            var client = new HttpClient(handler, disposeHandler: true)
+            // When IUniversalAdaptiveRateLimiter is available (bridge DI path or any
+            // container that explicitly registers it), chain QobuzRateLimitingHandler in
+            // front of the transport so every audio request honours the global budget
+            // and Retry-After. When unavailable (DryIoC auto-discovery without an
+            // explicit registration), fall back to the raw transport — same shape as
+            // the QobuzHttpClient pattern where the limiter is optional. Audio downloads
+            // then behave as they did before this refactor (no per-request gating).
+            HttpMessageHandler handler = sockets;
+            if (rateLimiter is not null)
+            {
+                handler = new QobuzRateLimitingHandler(rateLimiter, rateLimiterLogger ?? NullLogger<QobuzRateLimitingHandler>.Instance)
+                {
+                    InnerHandler = sockets
+                };
+            }
+
+            _client = new HttpClient(handler, disposeHandler: true)
             {
                 Timeout = TimeSpan.FromMinutes(10)
             };
 
             try
             {
-                // Apply a sensible default UA for Qobuz endpoints
-                client.DefaultRequestHeaders.UserAgent.ParseAdd(QobuzConstants.Api.UserAgent);
-                client.DefaultRequestHeaders.ConnectionClose = false;
-                client.DefaultRequestHeaders.ExpectContinue = false;
+                _client.DefaultRequestHeaders.UserAgent.ParseAdd(QobuzConstants.Api.UserAgent);
+                _client.DefaultRequestHeaders.ConnectionClose = false;
+                _client.DefaultRequestHeaders.ExpectContinue = false;
             }
             catch
             {
-                // If header parsing fails for any reason, continue with defaults
+                // Header parse failures are non-fatal — the defaults are still useful.
             }
+        }
 
-            return client;
+        /// <summary>
+        /// The underlying rate-limited <see cref="HttpClient"/>. Callers should use this
+        /// directly — methods like
+        /// <see cref="HttpClient.SendAsync(HttpRequestMessage, HttpCompletionOption, System.Threading.CancellationToken)"/>
+        /// flow through the rate-limit handler transparently.
+        /// </summary>
+        public HttpClient HttpClient => _client;
+
+        public void Dispose()
+        {
+            if (_disposed) return;
+            _disposed = true;
+            _client.Dispose();
         }
     }
 }
-

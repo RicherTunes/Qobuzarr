@@ -52,6 +52,7 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Clients
         private readonly IDownloadSummary _downloadSummary;
         private readonly IBatchProcessor _batchProcessor;
         private readonly Lidarr.Plugin.Qobuzarr.Download.Services.ITrackDownloadService _trackDownloadService;
+        private readonly Lidarr.Plugin.Qobuzarr.Services.Http.SharedSystemHttpClient _sharedHttp;
         // Removed dependency on IQobuzTrackDownloaderFactory - consolidated into this class
         private readonly ConcurrentDictionary<string, QobuzDownloadItem> _activeDownloads;
         private QobuzDownloadItem _lastQueuedItem;
@@ -71,6 +72,7 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Clients
                                   IDownloadSummary downloadSummary,
                                   IBatchProcessor batchProcessor,
                                   Lidarr.Plugin.Qobuzarr.Download.Services.ITrackDownloadService trackDownloadService,
+                                  Lidarr.Plugin.Qobuzarr.Services.Http.SharedSystemHttpClient sharedHttp,
                                   IConfigService configService,
                                   IDiskProvider diskProvider,
                                   IRemotePathMappingService remotePathMappingService,
@@ -88,6 +90,7 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Clients
             _downloadSummary = downloadSummary ?? throw new ArgumentNullException(nameof(downloadSummary));
             _batchProcessor = batchProcessor ?? throw new ArgumentNullException(nameof(batchProcessor));
             _trackDownloadService = trackDownloadService ?? throw new ArgumentNullException(nameof(trackDownloadService));
+            _sharedHttp = sharedHttp ?? throw new ArgumentNullException(nameof(sharedHttp));
             // Track downloader functionality consolidated into this class
 
             _activeDownloads = new ConcurrentDictionary<string, QobuzDownloadItem>();
@@ -694,8 +697,10 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Clients
 
         private async Task<long> DownloadToFileAsync(string url, string filePath, CancellationToken cancellationToken)
         {
-            // Stream to a temporary .partial file, then atomic move to final
-            var httpClient = SharedSystemHttpClient.Instance;
+            // Stream to a temporary .partial file, then atomic move to final.
+            // _sharedHttp.HttpClient routes through QobuzRateLimitingHandler so audio
+            // download egress respects the shared adaptive budget.
+            var httpClient = _sharedHttp.HttpClient;
             var partialPath = filePath + ".partial";
             long existing = 0;
             if (File.Exists(partialPath))

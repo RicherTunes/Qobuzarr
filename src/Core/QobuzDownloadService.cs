@@ -24,15 +24,18 @@ namespace Lidarr.Plugin.Qobuzarr.Core
         private readonly IQobuzHttpClient _httpClient;
         private readonly IQobuzLogger _logger;
         private readonly QobuzApiService _apiService;
+        private readonly SharedSystemHttpClient _sharedHttp;
 
         public QobuzDownloadService(
             IQobuzHttpClient httpClient,
             IQobuzLogger logger,
-            QobuzApiService apiService)
+            QobuzApiService apiService,
+            SharedSystemHttpClient sharedHttp)
         {
             _httpClient = httpClient;
             _logger = logger;
             _apiService = apiService;
+            _sharedHttp = sharedHttp;
         }
 
         public async Task<string> DownloadTrackAsync(
@@ -80,7 +83,8 @@ namespace Lidarr.Plugin.Qobuzarr.Core
                     try { System.IO.File.Delete(partialPath); } catch { /* best effort */ }
                 }
 
-                var http = SharedSystemHttpClient.Instance;
+                // Rate-limited shared HttpClient (QobuzRateLimitingHandler in the chain).
+                var http = _sharedHttp.HttpClient;
                 var request = new HttpRequestMessage(HttpMethod.Get, streamInfo.Url);
 
                 long existing = 0;

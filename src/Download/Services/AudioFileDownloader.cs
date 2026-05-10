@@ -21,6 +21,7 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Services
         private readonly IHttpClient _httpClient;
         private readonly IQobuzLogger _logger;
         private readonly IQualityFallbackProvider _qualityFallbackProvider;
+        private readonly SharedSystemHttpClient _sharedHttp;
 
         private const int MaxRetries = QobuzPluginConstants.Download.MaxRetries;
         private const int RetryDelayMs = QobuzPluginConstants.Download.RetryDelayMs;
@@ -36,11 +37,12 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Services
         private const int BufferSize = QobuzPluginConstants.Download.BufferSize;
         private const int ChunkSize = QobuzPluginConstants.Download.ChunkSize;
 
-        public AudioFileDownloader(IHttpClient httpClient, IQobuzLogger logger, IQualityFallbackProvider qualityFallbackProvider)
+        public AudioFileDownloader(IHttpClient httpClient, IQobuzLogger logger, IQualityFallbackProvider qualityFallbackProvider, SharedSystemHttpClient sharedHttp)
         {
             _httpClient = Guard.NotNull(httpClient, nameof(httpClient));
             _logger = Guard.NotNull(logger, nameof(logger));
             _qualityFallbackProvider = Guard.NotNull(qualityFallbackProvider, nameof(qualityFallbackProvider));
+            _sharedHttp = Guard.NotNull(sharedHttp, nameof(sharedHttp));
         }
 
         public async Task DownloadAudioFileAsync(
@@ -75,8 +77,10 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Services
                         await Task.Delay(delay, cancellationToken).ConfigureAwait(false);
                     }
 
-                    // Resumable streaming via shared HttpClient
-                    var http = SharedSystemHttpClient.Instance;
+                    // Resumable streaming via the shared rate-limited HttpClient.
+                    // Egress is gated by QobuzRateLimitingHandler inside _sharedHttp,
+                    // so 429s + Retry-After are honoured alongside the API path.
+                    var http = _sharedHttp.HttpClient;
                     var partialPath = outputPath + ".partial";
                     long existing = 0;
                     if (File.Exists(partialPath))

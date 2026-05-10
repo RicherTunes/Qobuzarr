@@ -29,6 +29,7 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Services
         private readonly IConcurrencyManager _concurrencyManager;
         private readonly IDownloadSummary _downloadSummary;
         private readonly IDownloadQueueService _queueService;
+        private readonly Lidarr.Plugin.Qobuzarr.Services.Http.SharedSystemHttpClient _sharedHttp;
         private readonly Logger _logger;
 
         public TrackDownloadService(
@@ -36,12 +37,14 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Services
             IConcurrencyManager concurrencyManager,
             IDownloadSummary downloadSummary,
             IDownloadQueueService queueService,
+            Lidarr.Plugin.Qobuzarr.Services.Http.SharedSystemHttpClient sharedHttp,
             Logger logger)
         {
             _apiClient = apiClient ?? throw new ArgumentNullException(nameof(apiClient));
             _concurrencyManager = concurrencyManager ?? throw new ArgumentNullException(nameof(concurrencyManager));
             _downloadSummary = downloadSummary ?? throw new ArgumentNullException(nameof(downloadSummary));
             _queueService = queueService ?? throw new ArgumentNullException(nameof(queueService));
+            _sharedHttp = sharedHttp ?? throw new ArgumentNullException(nameof(sharedHttp));
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         }
 
@@ -219,7 +222,10 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Services
 
         private async Task<long> DownloadToFileAsync(string url, string filePath, CancellationToken cancellationToken)
         {
-            var httpClient = SharedSystemHttpClient.Instance;
+            // _sharedHttp.HttpClient is the rate-limited shared client; its handler chain
+            // includes QobuzRateLimitingHandler, so audio body fetches respect the same
+            // adaptive budget + Retry-After behaviour as the API path.
+            var httpClient = _sharedHttp.HttpClient;
             var partialPath = filePath + ".partial";
             long existing = 0;
             if (File.Exists(partialPath))
