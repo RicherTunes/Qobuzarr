@@ -45,8 +45,14 @@ namespace Lidarr.Plugin.Qobuzarr.Services.Metadata
 
             foreach (var qobuzTrack in qobuzAlbum.GetTracks())
             {
-                var streamingUrl = await GetStreamingUrlAsync(int.Parse(qobuzTrack.Id));
-                var qobuzMetadata = await GetQobuzTrackAsync(int.Parse(qobuzTrack.Id));
+                if (!int.TryParse(qobuzTrack.Id, System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, out var trackId))
+                {
+                    _logger.Warn("Skipping Qobuz track with non-numeric Id {0} (title: {1}); cannot resolve streaming URL.", qobuzTrack.Id, qobuzTrack.Title ?? "(unknown)");
+                    continue;
+                }
+
+                var streamingUrl = await GetStreamingUrlAsync(trackId);
+                var qobuzMetadata = await GetQobuzTrackAsync(trackId);
 
                 var trackDownload = CreateTrackDownloadFromQobuz(streamingUrl, qobuzTrack, qobuzMetadata);
                 downloads.Add(trackDownload);
@@ -68,10 +74,15 @@ namespace Lidarr.Plugin.Qobuzarr.Services.Metadata
             QobuzTrack qobuzTrack,
             QobuzTrack metadata)
         {
+            // qobuzTrack.Id is guaranteed numeric here because the caller (DownloadAlbumAsync)
+            // filtered with int.TryParse before invoking GetStreamingUrlAsync. Use the same
+            // safe-parse pattern as a defense-in-depth measure (parse-once, fall back to 0).
+            int.TryParse(qobuzTrack.Id, System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, out var qobuzTrackId);
+
             return new TrackDownload
             {
                 StreamingUrl = streamingUrl,
-                QobuzTrackId = int.Parse(qobuzTrack.Id),
+                QobuzTrackId = qobuzTrackId,
 
                 // Qobuz metadata
                 Title = metadata.Title ?? qobuzTrack.Title,
