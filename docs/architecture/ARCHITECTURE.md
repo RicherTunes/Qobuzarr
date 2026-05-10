@@ -299,7 +299,7 @@ This design ensures:
 5. Fallback to `QueryComplexityClassifier` for rule-based analysis
 6. `SmartQueryStrategy` determines optimal number of queries (1-3)
 7. `QobuzRequestGenerator` builds optimized API requests
-8. `AdaptiveQobuzApiClient` executes requests with adaptive rate limiting
+8. `QobuzApiClient` (native path) executes requests; `QobuzHttpClient` enforces rate limits via `IUniversalAdaptiveRateLimiter`
 9. Responses are cached and returned
 10. `QobuzParser` converts to Lidarr models
 11. Results displayed in Lidarr UI

@@ -159,53 +159,18 @@ public class SecurityValidationResult
 
 ## API Client
 
-### AdaptiveQobuzApiClient
+### QobuzApiClient + BridgeQobuzApiClient
 
-**Enhanced in v0.0.12**: Secure, adaptive API client with advanced features.
+The Lidarr-native indexer/download path uses `QobuzApiClient` (signs requests, manages the Qobuz session, integrates with Lidarr's `IHttpClient`). The plugin-host bridge path uses `BridgeQobuzApiClient` (raw `HttpClient`-backed; pooled via `IHttpClientFactory`).
 
-#### Core Methods
+Both paths share rate-limiting and adaptive backoff:
 
-##### GetAsync&lt;T&gt;
-```csharp
-Task<T> GetAsync<T>(string endpoint, Dictionary<string, string> parameters = null)
-```
+- **Native path**: `QobuzHttpClient` calls `IUniversalAdaptiveRateLimiter` directly.
+- **Bridge path**: `QobuzRateLimitingHandler` (a `DelegatingHandler`) gates every outbound request via `WaitIfNeededAsync` and feeds responses to `RecordResponse`. It also honors `Retry-After` on 429s.
 
-**Security Features:**
-- HTTPS enforcement with certificate validation
-- Request signing with HMAC-SHA256
-- Response integrity verification
-- Input sanitization and validation
+Rate-limit configuration is shared across both paths because `services.AddSingleton<IUniversalAdaptiveRateLimiter, UniversalAdaptiveRateLimiter>()` registers a single instance.
 
-**Performance Features:**
-- Adaptive rate limiting (60-500 req/min)
-- Intelligent caching with pattern recognition
-- Automatic retry with exponential backoff
-- Connection pooling and keep-alive
-
-#### New Advanced Features
-
-##### ExecuteWithRetryAsync
-```csharp
-Task<T> ExecuteWithRetryAsync<T>(Func<Task<T>> operation, RetryPolicy policy = null)
-```
-
-**Retry Strategies:**
-- Exponential backoff: 1s, 2s, 4s, 8s, 16s
-- Jittered delays to prevent thundering herd
-- Circuit breaker pattern for sustained failures
-- Adaptive timeout adjustment
-
-##### GetWithCacheAsync
-```csharp
-Task<T> GetWithCacheAsync<T>(string endpoint, Dictionary<string, string> parameters, 
-    TimeSpan? cacheExpiration = null)
-```
-
-**Advanced Caching:**
-- Multi-level cache hierarchy (memory → disk → network)
-- Cache invalidation with dependency tracking
-- Compressed cache storage for large responses
-- Cache statistics and hit rate monitoring
+**Historical note**: prior to commit `da88095` (2026-05-10) a separate `AdaptiveQobuzApiClient` decorator existed but was never wired into DI — it has been deleted. The decorator-pattern adaptive rate limiting it described is now provided by the two paths above.
 
 ### QobuzRequestSigner
 

@@ -34,26 +34,22 @@ graph TB
 
 ### 1. Secure API Client Implementation
 
-**Primary Class**: [`AdaptiveQobuzApiClient`](../../src/API/AdaptiveQobuzApiClient.cs)
+**Primary Classes**:
+- [`QobuzApiClient`](../../src/API/QobuzApiClient.cs) — Lidarr-native path used by the indexer + download client; signs requests via `QobuzRequestSigner` and routes through Lidarr's `IHttpClient`.
+- [`BridgeQobuzApiClient`](../../src/Integration/Bridge/BridgeQobuzApiClient.cs) — plugin-host bridge path; uses the typed-`HttpClient` factory wired in `QobuzarrStreamingPlugin.ConfigureServices`.
 
-The secure API client provides comprehensive protection for all Qobuz API communications:
+Both paths share `IUniversalAdaptiveRateLimiter` (singleton) so request budgets are unified across native and bridge code paths. The bridge path additionally chains `QobuzRateLimitingHandler` (a `DelegatingHandler`) which gates outbound requests and honors `Retry-After` headers on 429 responses.
 
 ```csharp
-var apiClient = new AdaptiveQobuzApiClient(
-    httpClient: secureHttpClient,
-    logger: logger,
-    rateLimiter: adaptiveRateLimiter,
-    requestSigner: qobuzRequestSigner
-);
+// Native path (DI-resolved via Lidarr's container):
+public QobuzApiClient(IHttpClient httpClient, IUniversalAdaptiveRateLimiter rateLimiter, ...)
 
-// Secure search with automatic credential protection
-var searchResult = await apiClient.SearchAlbumsAsync(
-    query: sanitizedQuery,
-    limit: validatedLimit,
-    offset: validatedOffset,
-    country: validatedCountryCode
-);
+// Bridge path (DI-resolved via Microsoft.Extensions.DependencyInjection):
+services.AddHttpClient<IQobuzApiClient, BridgeQobuzApiClient>(client => { client.Timeout = ...; })
+        .AddHttpMessageHandler<QobuzRateLimitingHandler>();
 ```
+
+**Historical note**: an earlier `AdaptiveQobuzApiClient` decorator class was removed (deleted in PR #261); it was never wired into either path's DI graph. The adaptive rate limiting it described is now provided by the two paths above sharing one `IUniversalAdaptiveRateLimiter`.
 
 ### 2. Request Authentication Security
 
