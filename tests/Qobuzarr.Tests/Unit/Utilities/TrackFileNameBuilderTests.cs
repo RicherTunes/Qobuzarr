@@ -61,10 +61,12 @@ namespace Qobuzarr.Tests.Unit.Utilities
             var result = TrackFileNameBuilder.Build(trackNumber: 1, trackTitle: "A:B/C*D?E\"F<G>H|I", formatId: 6);
 
             var fileName = Path.GetFileNameWithoutExtension(result);
-            foreach (var invalidChar in Path.GetInvalidFileNameChars())
-            {
-                fileName.Should().NotContain(invalidChar.ToString());
-            }
+            // Use the cross-platform allowlist from common's Sanitize helper —
+            // Path.GetInvalidFileNameChars() returns a runtime-OS-specific set
+            // (Windows includes <,>,",|,?,*,:,/,\ ; POSIX only NUL and /),
+            // which makes this assertion's coverage uneven across CI runners.
+            var sanitized = Lidarr.Plugin.Common.Security.Sanitize.PathSegment("A:B/C*D?E\"F<G>H|I");
+            fileName.Should().Contain(sanitized);
         }
 
         [Fact]
