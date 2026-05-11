@@ -93,6 +93,12 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Services
                 });
             }
 
+            // Dispose the removed item to release its CancellationTokenSource and
+            // associated resources. The QobuzDownloadClient.RemoveItem path also
+            // disposes (defense in depth); Dispose is idempotent via the _disposed
+            // guard on QobuzDownloadItem.
+            removedItem.Dispose();
+
             return true;
         }
 
@@ -108,10 +114,14 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Services
 
             foreach (var item in itemsToRemove)
             {
-                if (_activeDownloads.TryRemove(item.DownloadId, out _))
+                if (_activeDownloads.TryRemove(item.DownloadId, out var removed))
                 {
                     cleanedUp++;
                     _logger.Debug("Cleaned up completed download: {0}", item.DownloadId);
+                    // Release the CTS — the periodic cleanup path was previously
+                    // dropping the reference without disposal, leaking one CTS per
+                    // completed download until GC ran.
+                    removed.Dispose();
                 }
             }
 

@@ -236,6 +236,12 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Clients
                     // Remove from queue with data deletion option
                     _queueService.RemoveDownload(downloadId, deleteData);
                     _logger.Debug("Removed download item: {0}", downloadId);
+
+                    // Release the item's CancellationTokenSource. Queue service and
+                    // _activeDownloads typically point at the same instance (assigned
+                    // in AddDownload), so the queue service may also dispose; that's
+                    // fine because QobuzDownloadItem.Dispose is idempotent via _disposed.
+                    downloadItem.Dispose();
                 }
                 else if (activeItem != null)
                 {
@@ -246,6 +252,7 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Clients
                         activeItem.Cancel();
                     }
                     _logger.Debug("Removed download item from internal tracking: {0}", downloadId);
+                    activeItem.Dispose();
                 }
             }
             catch (Exception ex)
