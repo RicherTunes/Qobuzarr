@@ -62,6 +62,9 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Clients
         [FieldDefinition(11, Label = "Count Previews as Failures", Type = FieldType.Checkbox, Section = "Reliability", Advanced = true, HelpText = "When calculating success rate, count skipped preview tracks as failures. Enable this for stricter quality control.")]
         public bool TreatPreviewAsFailure { get; set; } = false;
 
+        [FieldDefinition(12, Label = "Enable Quality Fallback", Type = FieldType.Checkbox, Section = "Reliability", Advanced = true, HelpText = "When enabled (default), Qobuz can return a lower quality if your requested format is not available for a track (e.g. requested format 27 / Hi-Res 192 but track is only licensed at format 6 / CD). When DISABLED, the download fails with an explicit error naming the requested vs returned quality — useful if you want to ensure HiRes-or-nothing and prefer to retry later.")]
+        public bool EnableQualityFallback { get; set; } = true;
+
         public NzbDroneValidationResult Validate()
         {
             return new NzbDroneValidationResult(Validator.Validate(this));
@@ -102,7 +105,7 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Clients
                 SkipPreviewTracks = SkipPreviewTracks,
                 MaxConcurrentTrackDownloads = GetEffectiveConcurrency(),
                 ContinueOnTrackFailure = true,
-                EnableQualityFallback = true,
+                EnableQualityFallback = this.EnableQualityFallback,
                 FailOnNoTracksAvailable = true
             };
         }
