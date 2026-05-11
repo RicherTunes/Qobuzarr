@@ -17,6 +17,7 @@ using Lidarr.Plugin.Qobuzarr.API;
 using Lidarr.Plugin.Qobuzarr.Security;
 using Lidarr.Plugin.Qobuzarr.Indexers.Core;
 using Lidarr.Plugin.Common.Base;
+using Lidarr.Plugin.Common.Services.Diagnostics;
 using Lidarr.Plugin.Qobuzarr.Download;
 using NzbDrone.Core.Download;
 using Lidarr.Plugin.Common.Services;
@@ -278,12 +279,29 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
             catch (Exception ex)
             {
                 _logger.Error(ex, "❌ Indexer test failed");
-                // Wave 74 UX: include exception type so users can tell network from
-                // auth from rate-limit errors at a glance.
-                failures.Add(new ValidationFailure(
-                    "Test",
-                    $"Test failed ({ex.GetType().Name}): {ex.Message}. Full details in Lidarr logs."));
+                // Use common's HttpExceptionClassifier so the user-visible message is
+                // an actionable category hint (auth / rate-limit / network / timeout
+                // / server / etc.) rather than a leaked CLR type name like
+                // "SocketException: No such host is known". The operator still gets
+                // the full stack trace via _logger.Error above.
+                failures.Add(new ValidationFailure("Test", BuildTestFailureMessage(ex)));
             }
+        }
+
+        /// <summary>
+        /// Build the user-visible Test() failure text from an exception caught
+        /// during indexer-connection validation. Delegates to common's
+        /// <see cref="HttpExceptionClassifier"/> to get a categorised hint
+        /// (auth / rate-limit / network / timeout / server / client / unknown)
+        /// and appends a pointer to the Lidarr log for operator deep-dives.
+        ///
+        /// CLR type names ("SocketException", "HttpRequestException") are
+        /// deliberately stripped — they are not actionable for end users.
+        /// </summary>
+        public static string BuildTestFailureMessage(Exception ex)
+        {
+            var classification = HttpExceptionClassifier.Classify(ex);
+            return $"{classification.Hint} Full details in Lidarr logs.";
         }
 
         #endregion
