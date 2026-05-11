@@ -1,6 +1,7 @@
 using System;
 using System.ComponentModel;
 using FluentValidation;
+using Lidarr.Plugin.Common.Services.Validation;
 using NzbDrone.Core.Annotations;
 using NzbDrone.Core.Download;
 using NzbDrone.Core.Validation;
@@ -209,24 +210,15 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Clients
                 .InclusiveBetween(0, 100)
                 .WithMessage("Minimum success rate must be between 0 and 100");
 
-            // Validate that download path is accessible (if provided)
+            // Validate that download path is well-formed. Delegates to common's
+            // DownloadPathValidator so every RicherTunes streaming plugin gives
+            // the same first-run UX (rejects traversal segments, relative paths,
+            // tilde-expansion, embedded NULs). The NotEmpty rule above handles
+            // the empty case; this rule short-circuits on empty input so it
+            // doesn't double-report.
             RuleFor(c => c.DownloadPath)
-                .Must(path => string.IsNullOrWhiteSpace(path) || IsValidPath(path))
-                .WithMessage("Download path must be a valid directory path");
-        }
-
-        private bool IsValidPath(string path)
-        {
-            try
-            {
-                // Basic path validation - just check if it's a valid path format
-                var fullPath = System.IO.Path.GetFullPath(path);
-                return true;
-            }
-            catch
-            {
-                return false;
-            }
+                .Must(path => string.IsNullOrWhiteSpace(path) || DownloadPathValidator.Validate(path).IsValid)
+                .WithMessage(c => DownloadPathValidator.Validate(c.DownloadPath ?? string.Empty).Message);
         }
     }
 }
