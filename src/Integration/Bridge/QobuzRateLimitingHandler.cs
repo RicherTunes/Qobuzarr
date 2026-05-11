@@ -1,9 +1,9 @@
 using System;
 using System.Net;
 using System.Net.Http;
-using System.Net.Http.Headers;
 using System.Threading;
 using System.Threading.Tasks;
+using Lidarr.Plugin.Common.Services.Http;
 using Lidarr.Plugin.Common.Services.Performance;
 using Microsoft.Extensions.Logging;
 
@@ -38,7 +38,7 @@ namespace Lidarr.Plugin.Qobuzarr.Integration.Bridge
 
         protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
         {
-            string endpointKey = BuildEndpointKey(request);
+            string endpointKey = RateLimitHeaderUtilities.BuildHostFirstSegmentKey(request);
 
             try
             {
@@ -55,9 +55,9 @@ namespace Lidarr.Plugin.Qobuzarr.Integration.Bridge
             catch (ObjectDisposedException) { /* limiter shut down */ }
 
             // Honor Retry-After on 429 so the caller's retry policy doesn't burn the bucket.
-            if (response.StatusCode == HttpStatusCode.TooManyRequests && response.Headers.RetryAfter is { } retryAfter)
+            if (response.StatusCode == HttpStatusCode.TooManyRequests)
             {
-                TimeSpan delay = ResolveRetryAfter(retryAfter);
+                TimeSpan delay = RateLimitHeaderUtilities.ResolveRetryAfter(response);
                 if (delay > TimeSpan.Zero)
                 {
                     _logger?.LogWarning("Qobuz returned 429 for {Endpoint}; honoring Retry-After of {Delay}", endpointKey, delay);
@@ -70,26 +70,6 @@ namespace Lidarr.Plugin.Qobuzarr.Integration.Bridge
             }
 
             return response;
-        }
-
-        private static string BuildEndpointKey(HttpRequestMessage request)
-        {
-            Uri? uri = request.RequestUri;
-            if (uri is null) return "unknown";
-            string host = uri.Host;
-            string firstSeg = uri.Segments.Length > 1 ? uri.Segments[1].TrimEnd('/') : string.Empty;
-            return $"{host}:{firstSeg}";
-        }
-
-        private static TimeSpan ResolveRetryAfter(RetryConditionHeaderValue retryAfter)
-        {
-            if (retryAfter.Delta is { } delta) return delta;
-            if (retryAfter.Date is { } date)
-            {
-                TimeSpan untilDate = date - DateTimeOffset.UtcNow;
-                return untilDate > TimeSpan.Zero ? untilDate : TimeSpan.Zero;
-            }
-            return TimeSpan.Zero;
         }
     }
 }
