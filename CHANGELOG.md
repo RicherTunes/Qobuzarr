@@ -5,6 +5,32 @@ All notable changes to Qobuzarr will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.0] - 2026-05-23
+
+### Phase 0 + Phase 1 — Ecosystem Alignment and HashingUtility Migration
+
+#### Ecosystem version contract (Phase 0.3)
+
+- Bumped `commonVersion` to `1.8.0` in `plugin.json` to align with Common v1.8.0.
+- Parity-lint `VersionContract` check passes (`ecosystem-parity-lint.ps1 -Check VersionContract`).
+
+#### Phase 0 — HashingUtility deprecation cleanup
+
+- Obsoleted local `HashingUtility` pass-through methods (`ComputePasswordMD5Hash`, `ComputeMD5Hash`, `GenerateCacheKey`); call sites now use `Lidarr.Plugin.Common.Utilities.HashingUtility` directly.
+- Pass-throughs carry `[Obsolete("... Removal: v0.2.0.", error: false)]` to enable a clean cutover.
+- `StreamingApiRequestBuilder` adoption confirmed in Tidal-optimized examples; Qobuz indexer plumbed.
+- `FileTokenStore<QobuzSession>` adopted for encrypted session persistence.
+
+#### Phase 1 — docs, ML flag, and security
+
+- Feature flag added for ML-powered query optimization path; `HashingUtility` migration completed in that path.
+- Analyzer baseline established (`docs/ANALYZER_BASELINE.md`); skipped-test inventory updated.
+- Security hardening backlog added: 11 findings, 2 High severity — see `docs/SECURITY_HARDENING_BACKLOG.md`.
+- README augmented with Shared Infrastructure section (Common services consumed, version contract reference).
+- Documentation section updated in README with CHANGELOG, CONTRIBUTING, SECURITY, and docs/ links.
+
+---
+
 ## [v-next] - GUID Identity Change for Album Editions
 
 ### Changed

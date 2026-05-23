@@ -190,13 +190,28 @@ dotnet test /p:CollectCoverage=true /p:CoverletOutputFormat=opencover
 dotnet test --filter Category=Integration
 ```
 
+## Shared Infrastructure
+
+Qobuzarr is built on [Lidarr.Plugin.Common](https://github.com/RicherTunes/Lidarr.Plugin.Common) — the shared library for all RicherTunes Lidarr streaming plugins.
+
+**Key shared services consumed by Qobuzarr:**
+
+- `FileTokenStore<T>` — encrypted session persistence for Qobuz credentials
+- `StreamingApiRequestBuilder` — request construction with authentication and query-string signing
+- `UniversalAdaptiveRateLimiter` — adaptive rate-limiting for Qobuz API calls
+- `HashingUtility` — MD5 and cache-key generation (migrated from legacy pass-throughs in v0.1.0)
+
+**Ecosystem version contract:** Qobuzarr tracks `commonVersion: 1.8.0`. The `ecosystem-parity-lint.ps1 -Check VersionContract` gate enforces that the plugin's `VERSION` file, `plugin.json`, and the Common submodule pin all agree. See [Common's ECOSYSTEM_VERSION_CONTRACT.md](https://github.com/RicherTunes/Lidarr.Plugin.Common/blob/main/docs/ECOSYSTEM_VERSION_CONTRACT.md) for details.
+
 ## 📝 Documentation
 
-- [Configuration Guide](docs/CONFIGURATION-GUIDE.md) - Detailed setup instructions
-- [API Reference](docs/API-REFERENCE.md) - Plugin API documentation
-- [Development Guide](docs/DEVELOPMENT.md) - Contributing guidelines
+- [Changelog](CHANGELOG.md)
+- [Contributing](CONTRIBUTING.md)
+- [Security](SECURITY.md)
+- [Configuration Guide](docs/user/CONFIGURATION-GUIDE.md) - Detailed setup instructions
 - [Architecture](docs/ARCHITECTURE.md) - System design details
-- [Troubleshooting](docs/TROUBLESHOOTING.md) - Common issues and solutions
+- [Troubleshooting](docs/user/TROUBLESHOOTING.md) - Common issues and solutions
+- [Docs directory](docs/)
 
 ## 🤝 Contributing
 
