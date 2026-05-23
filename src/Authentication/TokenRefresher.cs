@@ -2,6 +2,7 @@ using System;
 using System.Threading;
 using System.Threading.Tasks;
 using NLog;
+using Lidarr.Plugin.Common.Observability;
 using Lidarr.Plugin.Qobuzarr.Models.Authentication;
 using Lidarr.Plugin.Qobuzarr.Authentication;
 using Lidarr.Plugin.Qobuzarr.Services.Interfaces;
@@ -354,7 +355,9 @@ namespace Lidarr.Plugin.Qobuzarr.Authentication
                     catch (Exception ex) when (attempt < _maxRetryAttempts)
                     {
                         lastException = ex;
-                        _logger.Warn("Token refresh attempt {0} failed: {1}", attempt, ex.Message);
+                        // Refresh exceptions from Qobuz sometimes echo the rejected
+                        // token in their message; defense-in-depth redaction.
+                        _logger.Warn("Token refresh attempt {0} failed: {1}", attempt, LogRedactor.Redact(ex.Message));
 
                         if (cancellationToken.IsCancellationRequested)
                         {

@@ -25,19 +25,19 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
         private readonly ConcurrentQueue<MemorySnapshot> _memorySnapshots = new();
 
         // Cache metrics
-        private long _cacheHits = 0;
-        private long _cacheMisses = 0;
+        private long _cacheHits;
+        private long _cacheMisses;
         private readonly ConcurrentQueue<DateTime> _cacheHitTimes = new();
 
         // Accuracy metrics with time-based windows
         private readonly ConcurrentQueue<AccuracySnapshot> _accuracyHistory = new();
-        private double _currentAccuracy = 0.0;
-        private int _correctPredictions = 0;
-        private int _totalPredictions = 0;
+        private double _currentAccuracy;
+        private int _correctPredictions;
+        private int _totalPredictions;
 
         // API optimization metrics
-        private long _apiCallsSaved = 0;
-        private long _totalApiCallsWithoutOptimization = 0;
+        private long _apiCallsSaved;
+        private long _totalApiCallsWithoutOptimization;
         private readonly ConcurrentQueue<OptimizationSnapshot> _optimizationHistory = new();
 
         // Rolling window configurations
@@ -497,7 +497,7 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
 
         #region IDisposable Implementation
 
-        private bool _disposed = false;
+        private bool _disposed;
 
         public void Dispose()
         {

@@ -104,11 +104,12 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers.Core
                 lock (_metricsLock)
                 {
                     var key = GetMetricsKey(queryUrl);
-                    if (!_performanceMetrics.ContainsKey(key))
+                    if (!_performanceMetrics.TryGetValue(key, out var metrics))
                     {
-                        _performanceMetrics[key] = new MLPerformanceMetrics();
+                        metrics = new MLPerformanceMetrics();
+                        _performanceMetrics[key] = metrics;
                     }
-                    _performanceMetrics[key].EstimatedBaselineCalls = baselineCalls;
+                    metrics.EstimatedBaselineCalls = baselineCalls;
                 }
 
                 return baselineCalls;
@@ -131,11 +132,11 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers.Core
                 lock (_metricsLock)
                 {
                     var key = GetMetricsKey(queryUrl);
-                    if (_performanceMetrics.ContainsKey(key))
+                    if (_performanceMetrics.TryGetValue(key, out var metricsRecord))
                     {
-                        _performanceMetrics[key].ActualCalls = actualCalls;
-                        _performanceMetrics[key].CallsSaved = callsSaved;
-                        _performanceMetrics[key].OptimizationPercentage =
+                        metricsRecord.ActualCalls = actualCalls;
+                        metricsRecord.CallsSaved = callsSaved;
+                        metricsRecord.OptimizationPercentage =
                             baselineCalls > 0 ? (double)callsSaved / baselineCalls * 100.0 : 0.0;
                     }
                 }

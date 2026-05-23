@@ -129,7 +129,7 @@ namespace Lidarr.Plugin.Qobuzarr.Services
                 _statistics.ErrorCounts[errorType] = _statistics.ErrorCounts.GetValueOrDefault(errorType, 0) + 1;
 
                 // Record detailed error information
-                if (!_errorHistory.ContainsKey(operationType))
+                if (!_errorHistory.TryGetValue(operationType, out _))
                 {
                     _errorHistory[operationType] = new List<ErrorRecord>();
                 }
@@ -162,7 +162,7 @@ namespace Lidarr.Plugin.Qobuzarr.Services
         {
             lock (_statsLock)
             {
-                if (!_qualityProfileUsage.ContainsKey(qualityProfileId))
+                if (!_qualityProfileUsage.TryGetValue(qualityProfileId, out _))
                 {
                     _qualityProfileUsage[qualityProfileId] = new QualityProfileRecord
                     {
@@ -510,7 +510,7 @@ namespace Lidarr.Plugin.Qobuzarr.Services
 
         private int ConvertQobuzQualityToInt(string qobuzQuality)
         {
-            return qobuzQuality?.ToLower() switch
+            return qobuzQuality?.ToLowerInvariant() switch
             {
                 "flac-hires" => 27,  // Hi-Res FLAC
                 "flac-cd" => 6,      // CD Quality FLAC

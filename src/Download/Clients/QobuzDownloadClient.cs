@@ -638,7 +638,7 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Clients
             });
 
             // REAL download implementation - get stream URL and download actual audio
-            string outputPath = null;
+            string? outputPath = null;
 
             try
             {

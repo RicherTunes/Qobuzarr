@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using Newtonsoft.Json;
 using NzbDrone.Common.Http;
 using NLog;
+using Lidarr.Plugin.Common.Observability;
 using Lidarr.Plugin.Qobuzarr.Models.Lidarr;
 using Lidarr.Plugin.Qobuzarr.Configuration;
 
@@ -333,7 +334,9 @@ namespace Lidarr.Plugin.Qobuzarr.Integration
                 }
                 catch (JsonException ex)
                 {
-                    _logger.Error(ex, "Failed to deserialize response from {0}: {1}", endpoint, response.Content);
+                    // Response body on a deserialize failure may include Lidarr
+                    // API-key echoes or auth header fragments; redact before logging.
+                    _logger.Error(ex, "Failed to deserialize response from {0}: {1}", endpoint, LogRedactor.Redact(response.Content));
                     throw new LidarrApiException($"Invalid JSON response from Lidarr: {ex.Message}", (int)response.StatusCode, "InvalidJson");
                 }
             }

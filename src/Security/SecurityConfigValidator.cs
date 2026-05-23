@@ -48,8 +48,7 @@ namespace Lidarr.Plugin.Qobuzarr.Security
         /// <returns>Security validation result with findings</returns>
         public SecurityValidationResult ValidateConfiguration(QobuzIndexerSettings settings)
         {
-            if (settings == null)
-                throw new ArgumentNullException(nameof(settings));
+            ArgumentNullException.ThrowIfNull(settings);
 
             var result = new SecurityValidationResult();
 
@@ -243,13 +242,13 @@ namespace Lidarr.Plugin.Qobuzarr.Security
                 }
                 else
                 {
-                    if (uri.Scheme.ToLower() != "https")
+                    if (!uri.Scheme.Equals("https", StringComparison.OrdinalIgnoreCase))
                     {
                         result.AddCriticalIssue("Insecure connection",
                             "Base URL should use HTTPS for secure communication");
                     }
 
-                    if (uri.Host.ToLower() != "www.qobuz.com")
+                    if (!uri.Host.Equals("www.qobuz.com", StringComparison.OrdinalIgnoreCase))
                     {
                         result.AddMajorIssue("Non-standard API endpoint",
                             $"Base URL points to {uri.Host} instead of official Qobuz API");
@@ -333,8 +332,7 @@ namespace Lidarr.Plugin.Qobuzarr.Security
             if (string.IsNullOrWhiteSpace(value))
                 return false;
 
-            var lowerValue = value.ToLowerInvariant();
-            return SuspiciousPatterns.Any(pattern => lowerValue.Contains(pattern.ToLowerInvariant()));
+            return SuspiciousPatterns.Any(pattern => value.Contains(pattern, StringComparison.OrdinalIgnoreCase));
         }
 
         private bool IsObviouslyFakeCredential(string credential)
@@ -388,7 +386,7 @@ namespace Lidarr.Plugin.Qobuzarr.Security
             }
 
             // Check minimum complexity for passwords
-            if (credentialType.ToLowerInvariant().Contains("password") && credential.Length < 8)
+            if (credentialType.Contains("password", StringComparison.OrdinalIgnoreCase) && credential.Length < 8)
             {
                 _logger.Warn("Password appears to be too short for security best practices");
                 return false;
@@ -402,9 +400,9 @@ namespace Lidarr.Plugin.Qobuzarr.Security
             }
 
             // HARD REJECT: Obvious file paths and Windows environment variables.
-            if (credential.StartsWith("%") && credential.EndsWith("%") ||
+            if (credential.StartsWith('%') && credential.EndsWith('%') ||
                 credential.Contains(":\\") ||
-                credential.StartsWith("./") ||
+                credential.StartsWith("./", StringComparison.Ordinal) ||
                 credential.Contains("../") ||
                 credential.Contains("..\\") ||
                 credential.StartsWith("file:", StringComparison.OrdinalIgnoreCase))
@@ -424,17 +422,17 @@ namespace Lidarr.Plugin.Qobuzarr.Security
             }
 
             if (credential.Length >= 3 &&
-                credential.StartsWith("%", StringComparison.Ordinal) &&
-                credential.EndsWith("%", StringComparison.Ordinal))
+                credential.StartsWith('%') &&
+                credential.EndsWith('%'))
             {
                 return IsValidEnvVarName(credential.AsSpan(1, credential.Length - 2));
             }
 
-            if (credential.Length >= 2 && credential.StartsWith("$", StringComparison.Ordinal))
+            if (credential.Length >= 2 && credential.StartsWith('$'))
             {
                 if (credential.Length >= 4 &&
                     credential.StartsWith("${", StringComparison.Ordinal) &&
-                    credential.EndsWith("}", StringComparison.Ordinal))
+                    credential.EndsWith('}'))
                 {
                     return IsValidEnvVarName(credential.AsSpan(2, credential.Length - 3));
                 }

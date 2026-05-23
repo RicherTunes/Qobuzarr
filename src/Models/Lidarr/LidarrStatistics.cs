@@ -145,7 +145,7 @@ namespace Lidarr.Plugin.Qobuzarr.Models.Lidarr
         /// </summary>
         public bool IsCritical()
         {
-            return Type?.ToLower() == "error";
+            return Type?.ToLowerInvariant() == "error";
         }
 
         /// <summary>
@@ -153,7 +153,7 @@ namespace Lidarr.Plugin.Qobuzarr.Models.Lidarr
         /// </summary>
         public bool IsWarning()
         {
-            return Type?.ToLower() == "warning";
+            return Type?.ToLowerInvariant() == "warning";
         }
 
         /// <summary>
@@ -161,7 +161,7 @@ namespace Lidarr.Plugin.Qobuzarr.Models.Lidarr
         /// </summary>
         public bool IsHealthy()
         {
-            return Type?.ToLower() == "ok";
+            return Type?.ToLowerInvariant() == "ok";
         }
     }
 

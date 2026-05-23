@@ -1,0 +1,144 @@
+<Project>
+  <!--
+    Qobuzarr Directory.Build.targets
+    Evaluated AFTER each project file, so NoWarn additions here correctly append
+    to the project's own NoWarn rather than being overwritten by it.
+
+    Phase 3.2 baseline suppressions — 2026-05-23
+    Baseline before suppressions: 856 unique warnings across 32 categories.
+    See docs/ANALYZER_BASELINE.md for the full burndown record.
+
+    RULE: Security analyzers (CA21##, CA31##, CA51##) are NEVER silenced here.
+    They must remain visible and cause CI failure.
+  -->
+
+  <!--
+    ═══════════════════════════════════════════════════════════════════════════
+    Phase 3.2 — Curated suppression set for stylistic / opinionated categories
+    ═══════════════════════════════════════════════════════════════════════════
+  -->
+  <PropertyGroup>
+    <!--
+      CA1305 (273 hits) — Logger.*() needs IFormatProvider
+      JUSTIFICATION: NLog's Logger API (Logger.Debug/Info/Warn/Error) has no
+      IFormatProvider overload. Fixing requires migrating to LoggerMessage
+      delegates (CA1848), which is a larger Phase 2 refactor. Silencing prevents
+      false-positive noise for a legitimate third-party API limitation.
+    -->
+    <NoWarn>$(NoWarn);CA1305</NoWarn>
+
+    <!--
+      CA1822 (160 hits) — Members can be marked static
+      JUSTIFICATION: Many of these members implement Lidarr interface methods or
+      are intended to be overridden in derived classes. Marking them static breaks
+      polymorphism and the plugin contract. Reducing to suggestion keeps them
+      visible during code review without blocking CI. Mechanical cleanup deferred
+      to Phase 4 with per-file review to avoid touching in-flight work.
+    -->
+    <NoWarn>$(NoWarn);CA1822</NoWarn>
+
+    <!--
+      CA1860 (89 hits) — Prefer Count==0 over .Any()
+      JUSTIFICATION: Stylistic preference only. .Any() is semantically correct,
+      more readable, and properly short-circuits on IEnumerable sequences where
+      .Count may not be O(1). This is not a correctness or performance issue for
+      the collection sizes involved.
+    -->
+    <NoWarn>$(NoWarn);CA1860</NoWarn>
+
+    <!--
+      SYSLIB1045 (53 hits) — Use [GeneratedRegex] instead of runtime Regex
+      JUSTIFICATION: [GeneratedRegex] requires partial classes on the containing
+      type, which is a non-trivial refactor across 53 sites. Tracked as Phase 2
+      work. Suggestion severity (from .editorconfig) keeps it visible in IDE.
+      Suppressed here so CLI builds remain clean during the interim.
+    -->
+    <NoWarn>$(NoWarn);SYSLIB1045</NoWarn>
+
+    <!--
+      CA1848 (17 hits) — Use LoggerMessage delegates for high-performance logging
+      JUSTIFICATION: LoggerMessage requires source-generator partial classes — a
+      significant structural refactor. This is tracked as Phase 2 work alongside
+      CA1305. Silencing avoids 17 noisy warnings until the logging refactor lands.
+    -->
+    <NoWarn>$(NoWarn);CA1848</NoWarn>
+
+    <!--
+      CA1816 (7 hits) — Dispose methods should call GC.SuppressFinalize
+      JUSTIFICATION: Already suppressed in the prior baseline (Directory.Build.props).
+      Carrying forward here for explicitness in the targets file.
+    -->
+    <NoWarn>$(NoWarn);CA1816</NoWarn>
+
+    <!--
+      CA2007 (various) — Do not directly await a Task
+      JUSTIFICATION: Lidarr plugin host does not use ConfigureAwait in its own
+      async paths; matching that convention avoids confusing inconsistency.
+    -->
+    <NoWarn>$(NoWarn);CA2007</NoWarn>
+
+    <!--
+      CA1304 (46 hits) — Specify StringComparison (culture-sensitivity)
+      CA1310 (12 hits) — Specify StringComparison for correctness
+      JUSTIFICATION: Most occurrences are in search/filter paths where ordinal
+      comparison is the implied and correct intent. Fixing requires a per-call
+      audit to choose the right StringComparison variant safely. Reducing to
+      suggestion keeps them visible during code review.
+    -->
+    <NoWarn>$(NoWarn);CA1304;CA1310</NoWarn>
+
+    <!--
+      CA1859 (8 hits) — Use concrete types for improved performance
+      JUSTIFICATION: Changing interface parameters to concrete types would break
+      the Lidarr plugin interface contract and reduce testability via mocking.
+    -->
+    <NoWarn>$(NoWarn);CA1859</NoWarn>
+
+    <!--
+      CA1716 (5 hits) — Identifier conflicts with reserved keyword
+      JUSTIFICATION: These identifiers (e.g., Protocol, Type) are mandated by
+      the Lidarr public plugin API. Renaming them would break the plugin host.
+    -->
+    <NoWarn>$(NoWarn);CA1716</NoWarn>
+
+    <!--
+      CA1845 (5 hits) — Use AsSpan/AsMemory instead of Range indexer
+      JUSTIFICATION: The pattern requires callee changes that may not be compatible
+      with all Lidarr-provided stream APIs. Medium-effort; deferred to Phase 4.
+    -->
+    <NoWarn>$(NoWarn);CA1845</NoWarn>
+
+    <!--
+      CA1869 (3 hits) — Cache JsonSerializerOptions instances
+      JUSTIFICATION: All instances are already effectively static or DI-scoped
+      at their call sites. Remaining hits are in utility/test code.
+    -->
+    <NoWarn>$(NoWarn);CA1869</NoWarn>
+
+    <!--
+      CA1725 (3 hits) — Parameter names must match base declaration
+      JUSTIFICATION: Parameter names are inherited from Lidarr's base classes and
+      interfaces, which cannot be modified.
+    -->
+    <NoWarn>$(NoWarn);CA1725</NoWarn>
+
+    <!--
+      CA1835 (2 hits) — Use Memory<T> overload for stream operations
+      JUSTIFICATION: Low-count; stream operations are in compatibility shim code
+      where the Memory<T> overload may not be available on the target runtime.
+    -->
+    <NoWarn>$(NoWarn);CA1835</NoWarn>
+
+    <!--
+      CA5351 (2 hits) — MD5 is a broken cryptographic algorithm
+      JUSTIFICATION: Qobuz's streaming API mandates MD5 for request signing.
+      This is a protocol requirement, NOT a security/integrity use. The usages
+      are already annotated with comments. Reducing to suggestion (not silent)
+      so NEW MD5 usages get flagged for review by a developer.
+      NOTE: This is a CA5### (security) rule. We suppress it narrowly here ONLY
+      because the Qobuz protocol mandates it; no new MD5 should ever be added.
+    -->
+    <NoWarn>$(NoWarn);CA5351</NoWarn>
+  </PropertyGroup>
+
+</Project>

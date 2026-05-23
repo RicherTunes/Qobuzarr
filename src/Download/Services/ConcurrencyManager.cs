@@ -41,13 +41,13 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Services
         // Single semaphore with int.MaxValue max count - never replaced, only permit count changes
         private readonly SemaphoreSlim _semaphore;
         private int _currentLimit;
-        private int _activeSlots = 0;
-        private volatile bool _disposed = false;
+        private int _activeSlots;
+        private volatile bool _disposed;
 
         // Permit tracking for dynamic limit adjustment (see class remarks)
-        private int _reservedPermits = 0;
-        private int _pendingPermitReductions = 0;
-        private long _totalSlotsUsed = 0;
+        private int _reservedPermits;
+        private int _pendingPermitReductions;
+        private long _totalSlotsUsed;
 
         public ConcurrencyManager(Logger logger, int initialLimit = 4)
         {
@@ -270,8 +270,7 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Services
 
         private void ThrowIfDisposed()
         {
-            if (_disposed)
-                throw new ObjectDisposedException(nameof(ConcurrencyManager));
+            ObjectDisposedException.ThrowIf(_disposed, this);
         }
 
         public void Dispose()

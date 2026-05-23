@@ -118,7 +118,7 @@ namespace Lidarr.Plugin.Qobuzarr.Security
                 throw new ArgumentException("Invalid email format");
 
             // Additional protection against special characters that could be used in injection
-            if (email.Contains("'") || email.Contains("\"") || email.Contains(";") ||
+            if (email.Contains('\'') || email.Contains('"') || email.Contains(';') ||
                 email.Contains("--") || email.Contains("/*") || email.Contains("*/"))
             {
                 throw new ArgumentException("Email contains invalid characters");
@@ -222,7 +222,7 @@ namespace Lidarr.Plugin.Qobuzarr.Security
                 throw new ArgumentException("Path cannot be empty");
 
             // Check for path traversal attempts before sanitizing
-            if (path.Contains("..") || path.Contains("~"))
+            if (path.Contains("..") || path.Contains('~'))
                 throw new ArgumentException("Path contains potential traversal patterns");
 
             // Remove any path traversal attempts that might have been missed
@@ -297,7 +297,7 @@ namespace Lidarr.Plugin.Qobuzarr.Security
                 throw new ArgumentException("App Secret exceeds maximum length");
 
             // Check for obviously malicious patterns
-            if (appSecret.Contains("'") || appSecret.Contains("\"") || appSecret.Contains(";"))
+            if (appSecret.Contains('\'') || appSecret.Contains('"') || appSecret.Contains(';'))
                 throw new ArgumentException("App Secret contains invalid characters");
 
             return appSecret;

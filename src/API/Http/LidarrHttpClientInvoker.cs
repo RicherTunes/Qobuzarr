@@ -45,7 +45,7 @@ namespace Lidarr.Plugin.Qobuzarr.API.Http
 
         public override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
         {
-            if (request == null) throw new ArgumentNullException(nameof(request));
+            ArgumentNullException.ThrowIfNull(request);
 
             // Translate HttpRequestMessage -> Lidarr HttpRequest via the existing builder.
             // The builder ensures Lidarr-specific defaults (UA, Accept) are applied.

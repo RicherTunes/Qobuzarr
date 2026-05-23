@@ -20,7 +20,7 @@ namespace Lidarr.Plugin.Qobuzarr.Download
         /// when calculating the success rate.
         /// Default: false (previews are not counted against success rate)
         /// </summary>
-        public bool TreatPreviewAsFailure { get; set; } = false;
+        public bool TreatPreviewAsFailure { get; set; }
 
         /// <summary>
         /// Whether to fail the entire album download if no tracks are available.

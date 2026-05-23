@@ -18,7 +18,7 @@ namespace Lidarr.Plugin.Qobuzarr.Download
         private readonly int _maxMemoryMB;
         private long _currentMemoryUsage;
         private readonly SemaphoreSlim _memoryThrottle;
-        private bool _disposed = false;
+        private bool _disposed;
 
         public BatchProcessor(Logger logger = null, int batchSize = 10, int maxMemoryMB = 500)
         {

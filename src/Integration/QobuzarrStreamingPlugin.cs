@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using Lidarr.Plugin.Abstractions.Contracts;
 using Lidarr.Plugin.Common.Extensions;
 using Lidarr.Plugin.Common.Hosting;
+using Lidarr.Plugin.Common.Services.Bridge;
 using Lidarr.Plugin.Common.Services.Performance;
 using Lidarr.Plugin.Common.Services.Registration;
 using Lidarr.Plugin.Qobuzarr.API;
@@ -29,6 +30,17 @@ public sealed class QobuzarrStreamingPlugin : StreamingPlugin<QobuzarrStreamingM
         // AddBridgeDefaults uses TryAdd, so custom registrations added before this call take precedence.
         services.AddBridgeDefaults();
 
+        // Wire AuthFailureGate so the indexer fail-fasts after the first 401/403
+        // and only spends ONE probe slot per 60s while auth is latched bad.
+        // Real-world driver: a user's IP was banned by Qobuz when Lidarr's search
+        // loop kept hammering this plugin after the session expired — every search
+        // returned 401, the plugin propagated, Lidarr retried, Qobuz banned.
+        services.AddSingleton(sp => new AuthFailureGate(
+            sp.GetRequiredService<IAuthFailureHandler>(),
+            TimeProvider.System,
+            TimeSpan.FromSeconds(60),
+            sp.GetService<ILogger<AuthFailureGate>>()));
+
         // Explicit rate-limiter registration. QobuzHttpClient (the Lidarr-native path) takes
         // IUniversalAdaptiveRateLimiter as an OPTIONAL ctor parameter — without an explicit
         // registration, Lidarr's DryIoC silently passes null and the limiter on that path is
@@ -36,14 +48,22 @@ public sealed class QobuzarrStreamingPlugin : StreamingPlugin<QobuzarrStreamingM
         // the Lidarr-native and the bridge HTTP paths share one budget per Qobuz endpoint.
         services.AddSingleton<IUniversalAdaptiveRateLimiter, UniversalAdaptiveRateLimiter>();
 
-        // Wire the bridge HTTP path through QobuzRateLimitingHandler. The handler gates every
-        // request via WaitIfNeededAsync, feeds responses back via RecordResponse, and honors
-        // Retry-After on 429s. Same DelegatingHandler pattern as tidalarr's TidalRateLimitingHandler.
+        // Wire the bridge HTTP path through both DelegatingHandlers:
+        //   1. AuthFailureDelegatingHandler — short-circuits when auth latched
+        //      bad (and probe slot exhausted), marks bad on 401/403, marks healthy
+        //      on first 2xx after bad. Registered FIRST so it sits OUTERMOST in
+        //      the pipeline — we want to refuse to hit the rate limiter at all
+        //      when auth is dead.
+        //   2. QobuzRateLimitingHandler — gates every (allowed) request via
+        //      WaitIfNeededAsync, feeds responses back via RecordResponse, and
+        //      honors Retry-After on 429s.
+        services.AddTransient<AuthFailureDelegatingHandler>();
         services.AddTransient<QobuzRateLimitingHandler>();
         services.AddHttpClient<IQobuzApiClient, BridgeQobuzApiClient>(client =>
         {
             client.Timeout = TimeSpan.FromSeconds(30);
         })
+        .AddHttpMessageHandler<AuthFailureDelegatingHandler>()
         .AddHttpMessageHandler<QobuzRateLimitingHandler>();
     }
 
@@ -63,7 +83,8 @@ public sealed class QobuzarrStreamingPlugin : StreamingPlugin<QobuzarrStreamingM
 
         var statusReporter = services.GetRequiredService<IIndexerStatusReporter>();
         var adapterLogger = services.GetRequiredService<ILogger<QobuzIndexerAdapter>>();
-        return ValueTask.FromResult<IIndexer?>(new QobuzIndexerAdapter(apiClient, statusReporter, adapterLogger, settings));
+        var authGate = services.GetService<AuthFailureGate>();
+        return ValueTask.FromResult<IIndexer?>(new QobuzIndexerAdapter(apiClient, statusReporter, adapterLogger, settings, authGate));
     }
 
     /// <inheritdoc />

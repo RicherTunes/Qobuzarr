@@ -36,8 +36,7 @@ namespace Lidarr.Plugin.Qobuzarr.Services.Metadata
 
         public async Task<MetadataDownloadResult> DownloadAlbumAsync(QobuzAlbum qobuzAlbum, LidarrAlbum lidarrAlbum = null)
         {
-            if (qobuzAlbum == null)
-                throw new ArgumentNullException(nameof(qobuzAlbum));
+            ArgumentNullException.ThrowIfNull(qobuzAlbum);
 
             var downloads = new List<TrackDownload>();
 

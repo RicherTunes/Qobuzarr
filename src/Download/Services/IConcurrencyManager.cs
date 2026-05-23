@@ -64,7 +64,7 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Services
     internal class ConcurrencySlot : IDisposable
     {
         private readonly Action _release;
-        private volatile bool _disposed = false;
+        private volatile bool _disposed;
 
         public ConcurrencySlot(Action release)
         {

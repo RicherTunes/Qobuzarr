@@ -92,7 +92,7 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
             try
             {
                 // Try to get context from cache first
-                var cacheKey = $"{artistName?.ToLower()}|{albumTitle?.ToLower()}";
+                var cacheKey = $"{artistName?.ToLowerInvariant()}|{albumTitle?.ToLowerInvariant()}";
                 if (_contextCache.TryGetValue(cacheKey, out var cached) && !cached.IsExpired())
                 {
                     ApplyCachedContext(context, cached);
@@ -178,7 +178,7 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
                 {
                     // Try fuzzy match
                     artist = artists.FirstOrDefault(a =>
-                        Lidarr.Plugin.Qobuzarr.Utilities.StringSimilarity.LevenshteinDistance(a.Name.ToLower(), artistName.ToLower()) <= 2);
+                        Lidarr.Plugin.Qobuzarr.Utilities.StringSimilarity.LevenshteinDistance(a.Name.ToLowerInvariant(), artistName.ToLowerInvariant()) <= 2);
                 }
 
                 if (artist != null)
@@ -232,7 +232,7 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
                 {
                     // Try fuzzy match
                     album = albums.FirstOrDefault(a =>
-                        Lidarr.Plugin.Qobuzarr.Utilities.StringSimilarity.LevenshteinDistance(a.Title.ToLower(), albumTitle.ToLower()) <= 3);
+                        Lidarr.Plugin.Qobuzarr.Utilities.StringSimilarity.LevenshteinDistance(a.Title.ToLowerInvariant(), albumTitle.ToLowerInvariant()) <= 3);
                 }
 
                 if (album != null)

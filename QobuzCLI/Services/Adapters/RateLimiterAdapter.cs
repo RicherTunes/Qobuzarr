@@ -31,6 +31,11 @@ namespace QobuzCLI.Services.Adapters
             _pluginRateLimiter.RecordResponse(service, endpoint, response);
         }
 
+        public void RecordAuthFailure(string service, string endpoint)
+        {
+            _pluginRateLimiter.RecordAuthFailure(service, endpoint);
+        }
+
         public int GetCurrentLimit(string service, string endpoint)
         {
             return _pluginRateLimiter.GetCurrentLimit(service, endpoint);

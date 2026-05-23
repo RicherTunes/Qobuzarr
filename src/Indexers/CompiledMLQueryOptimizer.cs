@@ -26,8 +26,8 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
     {
         private readonly Logger _logger;
         private readonly Dictionary<QueryComplexity, int> _statistics;
-        private int _totalPredictions = 0;
-        private int _correctPredictions = 0;
+        private int _totalPredictions;
+        private int _correctPredictions;
         private readonly MLPerformanceMetrics _performanceMetrics;
         private readonly IPerformanceMonitoringService? _productionMonitor;
         private readonly object _metricsLock = new object();
@@ -341,9 +341,9 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
             features[0] = Math.Min(artist.Split(' ').Length / 5.0f, 1.0f);
             features[1] = Math.Min(album.Split(' ').Length / 10.0f, 1.0f);
             features[2] = CountSpecialChars(album) / 5.0f;
-            features[3] = (album.Contains("(") || album.Contains("[")) ? 1.0f : 0.0f;
+            features[3] = (album.Contains('(') || album.Contains('[')) ? 1.0f : 0.0f;
             features[4] = IsSpecialEdition(album) ? 1.0f : 0.0f;
-            features[5] = (!artist.Contains(" ")) ? 1.0f : 0.0f;
+            features[5] = (!artist.Contains(' ')) ? 1.0f : 0.0f;
             features[6] = IsCommonAlbumPattern(album) ? 1.0f : 0.0f;
             features[7] = Math.Min(album.Length / 50.0f, 1.0f);
 
@@ -404,7 +404,7 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
         private bool IsCommonAlbumPattern(string album)
         {
             // Common patterns that are usually simple to search
-            if (album.Length < 20 && !album.Contains("(") && !album.Contains("["))
+            if (album.Length < 20 && !album.Contains('(') && !album.Contains('['))
                 return true;
 
             // Self-titled albums
@@ -585,7 +585,7 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
 
         #region IDisposable Implementation
 
-        private bool _disposed = false;
+        private bool _disposed;
 
         public void Dispose()
         {

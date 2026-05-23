@@ -233,7 +233,7 @@ namespace Lidarr.Plugin.Qobuzarr.Services
             if (string.IsNullOrWhiteSpace(restrictionMessage))
                 return TrackUnavailableReason.Unknown;
 
-            var message = restrictionMessage.ToLower();
+            var message = restrictionMessage.ToLowerInvariant();
 
             if (message.Contains("format") && message.Contains("not available"))
                 return TrackUnavailableReason.NoQualityAvailable;

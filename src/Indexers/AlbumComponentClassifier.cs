@@ -368,16 +368,16 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
             // Split on whitespace and commas (but preserve hyphens in meaningful terms)
             var allTokens = WhitespaceCommaPattern().Split(workingTitle)
                                 .Where(t => !string.IsNullOrWhiteSpace(t))
-                                .Select(t => t.Trim().Trim(new char[] { '.', ',', '!', '?' }))
+                                .Select(t => t.Trim().Trim('.', ',', '!', '?'))
                                 .Where(t => !string.IsNullOrWhiteSpace(t))
                                 .ToList();
 
             // Restore preserved phrases
             for (int i = 0; i < allTokens.Count; i++)
             {
-                if (preservedPhrases.ContainsKey(allTokens[i]))
+                if (preservedPhrases.TryGetValue(allTokens[i], out var preserved))
                 {
-                    allTokens[i] = preservedPhrases[allTokens[i]];
+                    allTokens[i] = preserved;
                 }
             }
 

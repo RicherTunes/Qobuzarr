@@ -79,19 +79,16 @@ namespace Lidarr.Plugin.Qobuzarr.Services
         /// </summary>
         private string ComputeMD5Hash(string input)
         {
-            using (var md5 = MD5.Create())
+            // CA5351: MD5 is required by the Qobuz streaming API for request signing (protocol requirement, not security use)
+            var inputBytes = Encoding.UTF8.GetBytes(input);
+            var hashBytes = MD5.HashData(inputBytes);
+            var sb = new StringBuilder();
+            foreach (var b in hashBytes)
             {
-                var inputBytes = Encoding.UTF8.GetBytes(input);
-                var hashBytes = md5.ComputeHash(inputBytes);
-
-                var sb = new StringBuilder();
-                foreach (var b in hashBytes)
-                {
-                    sb.Append(b.ToString("x2"));
-                }
-
-                return sb.ToString();
+                sb.Append(b.ToString("x2"));
             }
+
+            return sb.ToString();
         }
     }
 

@@ -271,8 +271,7 @@ namespace Lidarr.Plugin.Qobuzarr.Services
 
         protected void ThrowIfDisposed()
         {
-            if (_disposed)
-                throw new ObjectDisposedException(nameof(ProgressTracker));
+            ObjectDisposedException.ThrowIf(_disposed, this);
         }
 
         public virtual void Dispose()
