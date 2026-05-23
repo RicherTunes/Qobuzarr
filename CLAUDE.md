@@ -81,6 +81,12 @@ At least one asset name must contain `net8.0.zip`.
 - Expose to the user what brings value in `QobuzSettings.cs`; otherwise, it should be in `QobuzarrConstants.cs`.
 - Be aware that this project shares a common library with http://github.com/RicherTunes/Lidarr.Plugin.Common so always think of ways to ensure generic code can be shared with this library so other projects may benefits. Think architecturally when doing so.
 
+## Plugin DLL Naming Contract (CRITICAL)
+
+**The main plugin DLL filename MUST match the glob `Lidarr.Plugin.*.dll`.** Lidarr's PluginLoader (`NzbDrone.Common/Extensions/PathExtensions.cs:334`) scans `/config/plugins/{owner}/{name}/` with `Directory.GetFiles(folder, "Lidarr.Plugin.*.dll")` — any other filename is silently ignored. No error, no warning, no log line; the plugin just never appears in `/api/v1/system/plugins`.
+
+For Qobuzarr this is satisfied by `<AssemblyName>Lidarr.Plugin.Qobuzarr</AssemblyName>` in `Qobuzarr.csproj`. Don't drop that line "to clean up" — it's load-bearing.
+
 ## Build Commands
 
 **IMPORTANT**: Always use the analyzer suppression flags to avoid StyleCop errors from Lidarr source code.
