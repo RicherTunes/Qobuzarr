@@ -30,6 +30,20 @@ namespace Lidarr.Plugin.Qobuzarr.Constants
         }
 
         /// <summary>
+        /// Experimental features that are behind opt-in flags. These are NOT production-ready
+        /// and must be explicitly enabled by setting the corresponding configuration property.
+        /// See docs/EXPERIMENTAL_FEATURES.md for documentation, risks, and removal conditions.
+        /// </summary>
+        public static class Experimental
+        {
+            /// <summary>
+            /// [Experimental] HybridMLQueryOptimizer combined feature extraction.
+            /// Controlled by HybridConfiguration.EnableHybridFeatureExtraction (default: false).
+            /// </summary>
+            public const string HybridFeatureExtraction = "HybridFeatureExtraction";
+        }
+
+        /// <summary>
         /// Default configuration values.
         /// </summary>
         public static class Defaults

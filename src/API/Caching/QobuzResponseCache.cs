@@ -5,7 +5,7 @@ using NLog;
 using Lidarr.Plugin.Qobuzarr.Configuration;
 using Lidarr.Plugin.Qobuzarr.Constants;
 using Lidarr.Plugin.Qobuzarr.Services;
-using Lidarr.Plugin.Qobuzarr.Utilities;
+using CommonUtilities = Lidarr.Plugin.Common.Utilities;
 using Lidarr.Plugin.Common.Services.Caching;
 using Microsoft.Extensions.Logging;
 
@@ -30,13 +30,22 @@ namespace Lidarr.Plugin.Qobuzarr.API.Caching
         /// <inheritdoc/>
         public override bool ShouldCache(string endpoint)
         {
-            // Cache search results and metadata, but not authentication or streaming URLs
-            return endpoint.Contains("/search/") ||
-                   endpoint.Contains("/album/get") ||
-                   endpoint.Contains("/artist/get") ||
-                   endpoint.Contains("/track/get") ||
-                   endpoint.Contains("/playlist/get") ||
-                   endpoint.Contains("/label/get");
+            if (string.IsNullOrEmpty(endpoint)) return false;
+
+            // Anchor to end-of-string. The earlier substring approach mismatched
+            // both ways: the trailing-slash pattern "/search/" never matched any
+            // real endpoint (so /album/search was never cached), and the bare
+            // "/track/get" pattern matched "/track/getFileUrl" — the streaming
+            // URL endpoint, which MUST NOT be cached as it returns short-lived
+            // signed URLs.
+            return endpoint.EndsWith("/album/search", StringComparison.Ordinal) ||
+                   endpoint.EndsWith("/track/search", StringComparison.Ordinal) ||
+                   endpoint.EndsWith("/artist/search", StringComparison.Ordinal) ||
+                   endpoint.EndsWith("/album/get", StringComparison.Ordinal) ||
+                   endpoint.EndsWith("/artist/get", StringComparison.Ordinal) ||
+                   endpoint.EndsWith("/track/get", StringComparison.Ordinal) ||
+                   endpoint.EndsWith("/playlist/get", StringComparison.Ordinal) ||
+                   endpoint.EndsWith("/label/get", StringComparison.Ordinal);
         }
 
         /// <inheritdoc/>
@@ -65,7 +74,7 @@ namespace Lidarr.Plugin.Qobuzarr.API.Caching
                 .Select(p => $"{p.Key}={p.Value}");
             var key = $"qobuz_api_{endpoint}_{string.Join("&", filtered)}";
             // Use stable hashing for deterministic cache keys across processes
-            return HashingUtility.ComputeMD5Hash(key);
+            return CommonUtilities.HashingUtility.ComputeMD5Hash(key);
         }
 
         private static readonly Lazy<Microsoft.Extensions.Logging.ILogger> _sharedMsLogger

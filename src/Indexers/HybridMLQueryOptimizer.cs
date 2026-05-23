@@ -337,14 +337,32 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
             await System.Threading.Tasks.Task.CompletedTask;
         }
 
+        // [Experimental] — gated by HybridConfiguration.EnableHybridFeatureExtraction (default: false).
+        // When disabled: returns a zero-vector placeholder so callers compile and run safely.
+        // When enabled: delegates to the baseline model's feature extractor (if it exposes one).
+        // Full implementation is deferred; see docs/EXPERIMENTAL_FEATURES.md.
         private float[] ExtractCombinedFeatures(string artist, string album)
         {
-            // Use baseline model's feature extraction as primary
-            // Personal model should use compatible feature extraction
+            if (!_config.EnableHybridFeatureExtraction)
+            {
+                // Disabled path: return zero-vector placeholder.
+                // This is safe — callers treat all-zero features as "no signal".
+                return new float[25];
+            }
 
-            // This is a simplified approach - in practice, both models should use
-            // the same feature extraction pipeline for compatibility
-            return new float[25]; // Placeholder - should extract actual features
+            // Enabled (experimental) path: delegate to baseline feature extractor when available.
+            if (_baselineModel is IFeatureExtractor featureExtractor)
+            {
+                var features = featureExtractor.ExtractFeatures(artist, album);
+                if (features != null && features.Length == 25)
+                    return features;
+            }
+
+            // Fallback: placeholder until a full extractor pipeline is wired up.
+            _logger.Warn("HybridMLQueryOptimizer: EnableHybridFeatureExtraction=true but " +
+                         "_baselineModel does not implement IFeatureExtractor. " +
+                         "Returning zero-vector placeholder. See docs/EXPERIMENTAL_FEATURES.md.");
+            return new float[25];
         }
 
         /// <summary>
@@ -469,5 +487,26 @@ HYBRID MODEL USAGE:
         /// Strategy for handling model disagreements
         /// </summary>
         public string DisagreementStrategy { get; set; } = "confidence_based";
+
+        /// <summary>
+        /// [Experimental] Enable the combined feature extraction pipeline used by ExtractCombinedFeatures.
+        /// When false (default), ExtractCombinedFeatures returns a zero-vector placeholder and no
+        /// feature extraction occurs. When true, the baseline model's IFeatureExtractor implementation
+        /// is used if available. See docs/EXPERIMENTAL_FEATURES.md before enabling in production.
+        /// </summary>
+        public bool EnableHybridFeatureExtraction { get; set; } = false;
+    }
+
+    /// <summary>
+    /// Optional interface that pattern-learning engine implementations may provide to expose
+    /// their internal feature extraction pipeline for use by the hybrid model.
+    /// </summary>
+    public interface IFeatureExtractor
+    {
+        /// <summary>
+        /// Extracts a fixed-length (25-element) float feature vector from an artist/album pair.
+        /// Returns null if the input is insufficient to produce features.
+        /// </summary>
+        float[]? ExtractFeatures(string artist, string album);
     }
 }

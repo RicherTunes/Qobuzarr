@@ -15,9 +15,9 @@ using NLog;
 using Lidarr.Plugin.Qobuzarr.Models.Authentication;
 using Lidarr.Plugin.Qobuzarr.Configuration;
 using Lidarr.Plugin.Qobuzarr.Security;
-using Lidarr.Plugin.Qobuzarr.Utilities;
 using Lidarr.Plugin.Qobuzarr.Services.Interfaces;
 using Lidarr.Plugin.Common.Interfaces;
+using Lidarr.Plugin.Common.Observability;
 using Lidarr.Plugin.Common.Services.Authentication;
 using CommonInterfaces = Lidarr.Plugin.Common.Interfaces;
 
@@ -487,6 +487,10 @@ namespace Lidarr.Plugin.Qobuzarr.Authentication
             }
         }
 
+        // TODO(phase-1.1): Convert TryLoadPersistedSession to async Task<QobuzSession> and
+        // propagate async through GetCachedSession -> IQobuzAuthenticationService.
+        // Blocked on: public interface is sync; ripple affects all callers (>3).
+        // See: docs/SYNC_ASYNC_DEBT.md — src/Authentication/QobuzAuthenticationService.cs:498
         private QobuzSession TryLoadPersistedSession()
         {
             if (_persistentStore == null) return null;
@@ -494,6 +498,7 @@ namespace Lidarr.Plugin.Qobuzarr.Authentication
             {
                 lock (_persistLock)
                 {
+                    // CS0618-safe: sync-over-async debt documented in docs/SYNC_ASYNC_DEBT.md
                     var envelope = _persistentStore.LoadAsync().GetAwaiter().GetResult();
                     return envelope?.Session;
                 }
@@ -505,6 +510,9 @@ namespace Lidarr.Plugin.Qobuzarr.Authentication
             }
         }
 
+        // TODO(phase-1.1): Convert TryPersistSession to async Task and propagate through
+        // StoreSession -> IQobuzAuthenticationService.
+        // See: docs/SYNC_ASYNC_DEBT.md — src/Authentication/QobuzAuthenticationService.cs:518
         private void TryPersistSession(QobuzSession session)
         {
             if (_persistentStore == null || session == null) return;
@@ -512,6 +520,7 @@ namespace Lidarr.Plugin.Qobuzarr.Authentication
             {
                 lock (_persistLock)
                 {
+                    // CS0618-safe: sync-over-async debt documented in docs/SYNC_ASYNC_DEBT.md
                     _persistentStore.SaveAsync(
                         new CommonInterfaces.TokenEnvelope<QobuzSession>(CloneSession(session), session.ExpiresAt))
                         .GetAwaiter().GetResult();
@@ -523,6 +532,9 @@ namespace Lidarr.Plugin.Qobuzarr.Authentication
             }
         }
 
+        // TODO(phase-1.1): Convert TryClearPersistedSession to async Task and propagate through
+        // ClearSession -> IQobuzAuthenticationService.
+        // See: docs/SYNC_ASYNC_DEBT.md — src/Authentication/QobuzAuthenticationService.cs:534
         private void TryClearPersistedSession()
         {
             if (_persistentStore == null) return;
@@ -530,6 +542,7 @@ namespace Lidarr.Plugin.Qobuzarr.Authentication
             {
                 lock (_persistLock)
                 {
+                    // CS0618-safe: sync-over-async debt documented in docs/SYNC_ASYNC_DEBT.md
                     _persistentStore.ClearAsync().GetAwaiter().GetResult();
                 }
             }
@@ -705,7 +718,10 @@ namespace Lidarr.Plugin.Qobuzarr.Authentication
                 var seed = seedAndTimezoneMatch.Groups[1].Value;
                 var productionTimezone = System.Globalization.CultureInfo.InvariantCulture.TextInfo.ToTitleCase(seedAndTimezoneMatch.Groups[2].Value);
 
-                _logger.Debug($"Found seed: {seed}, timezone: {productionTimezone}");
+                // seed + info + extras concatenated forms the live app-secret
+                // derivation input; logging any of them in clear leaks the
+                // signing key to anyone with debug logs.
+                _logger.Debug($"Found seed: {LogRedactor.Redact(seed)}, timezone: {productionTimezone}");
 
                 // Step 2: Find info and extras for the production timezone
                 var infoAndExtrasPattern = "name:\"[^\"]*/" + productionTimezone + "\",info:\"(?<info>[^\"]*)\",extras:\"(?<extras>[^\"]*)\"";
@@ -719,7 +735,7 @@ namespace Lidarr.Plugin.Qobuzarr.Authentication
                 var info = infoAndExtrasMatch.Groups[1].Value;
                 var extras = infoAndExtrasMatch.Groups[2].Value;
 
-                _logger.Debug($"Found info: {info}, extras: {extras}");
+                _logger.Debug($"Found info: {LogRedactor.Redact(info)}, extras: {LogRedactor.Redact(extras)}");
 
                 // Step 3: Concatenate seed, info, and extras
                 var base64EncodedAppSecret = seed + info + extras;
@@ -756,7 +772,7 @@ namespace Lidarr.Plugin.Qobuzarr.Authentication
             if (string.IsNullOrEmpty(password))
                 return string.Empty;
 
-            return HashingUtility.ComputeMD5Hash(password);
+            return Lidarr.Plugin.Common.Utilities.HashingUtility.ComputeMD5Hash(password);
         }
     }
 }

@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using NLog;
 using Lidarr.Plugin.Common.Services.Http;
-using Lidarr.Plugin.Qobuzarr.Utilities;
+using CommonUtilities = Lidarr.Plugin.Common.Utilities;
 
 namespace Lidarr.Plugin.Qobuzarr.API.Signing
 {
@@ -81,7 +81,7 @@ namespace Lidarr.Plugin.Qobuzarr.API.Signing
             // "trackgetFileUrlformat_id" + format_id + "intentstreamtrack_id" + track_id + timestamp + app_secret
             var signatureString = $"trackgetFileUrlformat_id{formatId}intentstreamtrack_id{trackId}{timestamp}{appSecret}";
 
-            return HashingUtility.ComputeMD5Hash(signatureString);
+            return CommonUtilities.HashingUtility.ComputeMD5Hash(signatureString);
         }
 
         /// <summary>
@@ -104,7 +104,7 @@ namespace Lidarr.Plugin.Qobuzarr.API.Signing
 
             var signatureString = $"{objectName}{method}{string.Join("", signatureParams)}{appId}";
 
-            return HashingUtility.ComputeMD5Hash(signatureString);
+            return CommonUtilities.HashingUtility.ComputeMD5Hash(signatureString);
         }
     }
 }
