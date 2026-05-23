@@ -14,6 +14,10 @@ using Qobuzarr.Tests.TestData;
 
 namespace Qobuzarr.Tests.Unit.Authentication
 {
+    // Serialized with QobuzAuthenticationServiceCovTests via [Collection] — both classes
+    // share QobuzAuthenticationService's file-backed _persistentStore default path.
+    // See Collections/AuthenticationTestCollection.cs for the full explanation.
+    [Xunit.Collection(Qobuzarr.Tests.Collections.AuthenticationTestCollection.Name)]
     public class QobuzAuthenticationServiceTests : TestFixtureBase
     {
         private readonly QobuzAuthenticationService _authService;
