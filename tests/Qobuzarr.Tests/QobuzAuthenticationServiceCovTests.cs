@@ -19,6 +19,10 @@ namespace Qobuzarr.Tests
     /// Coverage tests for QobuzAuthenticationService focusing on uncovered code paths.
     /// Tests: token provider methods, credential validation, authentication flows, and edge cases.
     /// </summary>
+    // Serialized with QobuzAuthenticationServiceTests via [Collection] — both classes
+    // share QobuzAuthenticationService's file-backed _persistentStore default path.
+    // See Collections/AuthenticationTestCollection.cs for the full explanation.
+    [Xunit.Collection(Qobuzarr.Tests.Collections.AuthenticationTestCollection.Name)]
     public class QobuzAuthenticationServiceCovTests : TestFixtureBase
     {
         private readonly QobuzAuthenticationService _authService;
