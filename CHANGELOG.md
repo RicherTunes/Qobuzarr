@@ -5,6 +5,55 @@ All notable changes to Qobuzarr will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.0] - 2026-05-23
+
+### Liveness fix
+
+- **Sync-over-async deadlock in `QobuzIndexerAdapter.RecordAuthOutcomeFromException` removed.** The previous wave's auth-gate wire-up called `_authGate.Handler.HandleFailureAsync(...).AsTask().GetAwaiter().GetResult()` from inside async catch blocks — deadlocks the calling thread whenever `IAuthFailureHandler.HandleFailureAsync` is implemented (or wrapped) in a way that captures the synchronization context. The default handler doesn't capture, so the deadlock didn't fire in practice; but it's a foot-gun loaded for the next person who implements a custom handler. Method renamed `RecordAuthOutcomeFromExceptionAsync`, returns `Task`, called with `await … ConfigureAwait(false)`. Pure liveness fix; gate behavior on the happy path is unchanged.
+
+### Common library bump
+
+- Bumps `ext/Lidarr.Plugin.Common` from `431fe97` (between v1.7.1 and v1.8.0) to **v1.9.1**. Picks up `AuthFailureGate`, `SecureMemory`, `PagedResponseValidator`, `Conservative rate-limit profile`, `HttpExceptionClassifier`, testkit-lifted plugin contracts, `Lidarr.Plugin.*.dll` naming enforcement.
+
+### Auth-failure gate adoption
+
+- `QobuzarrStreamingPlugin.ConfigureServices` registers `AuthFailureDelegatingHandler` + `AuthFailureGate` (60s probe interval).
+- `CredentialValidator` + `TokenRefresher` + `AuthTokenManager` drive the gate (record failure on 401/403, signal success on recovery).
+- `QobuzIndexerAdapter.SearchAlbumsAsync` short-circuits at the top when the gate is latched bad and no probe slot is available — closes the search-loop hammering family.
+- New `QobuzAuthFailureDelegatingHandlerWireUpTests` pins the full handler chain.
+
+### Pagination + dedup
+
+- `QobuzIndexerAdapter.SearchAlbumsAsync` replaced the "not implemented" warning with a 20-page walker that dedupes on album id and preserves accumulated results on mid-page failure (defeats Qobuz's silent-offset-ignored failure mode).
+
+### Log redaction sweep
+
+- Every outbound log statement carrying secret-bearing material in `QobuzApiClient`, `QobuzRequestSigner`, `LidarrApiClient`, and `BridgeQobuzApiClient` now routes through `LogRedactor.Redact` / `RedactException`.
+- New `QobuzApiClientLogRedactionTests` asserts redaction at the API client surface.
+
+### Exception shape
+
+- `QobuzApiException` hoisted out of `QobuzApiClient` as a top-level type in `src/Exceptions/`. `StatusCode` field widened to `HttpStatusCode?` for consistency with Common's exception shape. Call sites updated.
+
+### ML indexer + concurrency hardening
+
+- ML-flag-gated path + `HashingUtility` migration. Cache-key normalization uses `ToLowerInvariant` for Turkish-I safety (cosmetic cache cold-start on upgrade, no correctness impact).
+- Download + concurrency stack: `BatchProcessor`, `DownloadPolicy`, `QobuzDownloadClient`, `QobuzDownloadItem`, `ConcurrencyManager`, `AdaptiveConcurrencyManager`, `AdaptiveRateLimiter`, `TrackDownloadService`, `QobuzStreamUrlService`, `QobuzStreamAvailabilityService` updated for `RecordAuthFailure` pass-through and tightened concurrency invariants.
+
+### Analyzer baseline
+
+- New `Directory.Build.targets` + `qobuzarr-warning-baseline.txt` + `.editorconfig` addendum documenting CA-rule suppressions. Mechanical CA1805 / CA1304 / CA1866 / CA1510 + `ToLowerInvariant` cleanups across ~30 files.
+
+### Packaging
+
+- Plugin manifest emits `commonVersion: "1.9.1"` from the template (Pester test pins the build-output ↔ template alignment).
+
+### Tests
+
+- 43 / 43 auth-gate + indexer-adapter tests pass. Full Qobuzarr suite green (build clean).
+
+[Full diff](https://github.com/RicherTunes/qobuzarr/compare/v0.1.0...v0.5.0)
+
 ## [0.1.0] - 2026-05-23
 
 ### Phase 0 + Phase 1 — Ecosystem Alignment and HashingUtility Migration
