@@ -111,18 +111,18 @@ namespace Lidarr.Plugin.Qobuzarr.Models.Lidarr
                 ["pageSize"] = PageSize.ToString(),
                 ["sortKey"] = SortKey,
                 ["sortDirection"] = SortDirection,
-                ["includeStatistics"] = IncludeStatistics.ToString().ToLower(),
-                ["includeArtist"] = IncludeArtist.ToString().ToLower()
+                ["includeStatistics"] = IncludeStatistics.ToString().ToLowerInvariant(),
+                ["includeArtist"] = IncludeArtist.ToString().ToLowerInvariant()
             };
 
             if (Monitored.HasValue)
-                parameters["monitored"] = Monitored.Value.ToString().ToLower();
+                parameters["monitored"] = Monitored.Value.ToString().ToLowerInvariant();
 
             if (Grabbed.HasValue)
-                parameters["grabbed"] = Grabbed.Value.ToString().ToLower();
+                parameters["grabbed"] = Grabbed.Value.ToString().ToLowerInvariant();
 
             if (Available.HasValue)
-                parameters["available"] = Available.Value.ToString().ToLower();
+                parameters["available"] = Available.Value.ToString().ToLowerInvariant();
 
             if (ArtistId.HasValue)
                 parameters["artistId"] = ArtistId.Value.ToString();

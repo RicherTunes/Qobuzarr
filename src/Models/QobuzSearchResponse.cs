@@ -23,7 +23,7 @@ namespace Lidarr.Plugin.Qobuzarr.Models
         [JsonProperty("message")]
         public string Message { get; set; }
 
-        public bool IsSuccess => Status?.ToLower() == "success" || string.IsNullOrEmpty(Status);
+        public bool IsSuccess => Status?.ToLowerInvariant() == "success" || string.IsNullOrEmpty(Status);
     }
 
     public class QobuzSearchResultContainer<T>
@@ -65,7 +65,7 @@ namespace Lidarr.Plugin.Qobuzarr.Models
         [JsonProperty("message")]
         public string Message { get; set; }
 
-        public bool IsSuccess => Status?.ToLower() == "success" || string.IsNullOrEmpty(Status);
+        public bool IsSuccess => Status?.ToLowerInvariant() == "success" || string.IsNullOrEmpty(Status);
 
         /// <summary>
         /// Get all album results
@@ -98,7 +98,7 @@ namespace Lidarr.Plugin.Qobuzarr.Models
         [JsonProperty("message")]
         public string Message { get; set; }
 
-        public bool IsSuccess => Status?.ToLower() == "success" || string.IsNullOrEmpty(Status);
+        public bool IsSuccess => Status?.ToLowerInvariant() == "success" || string.IsNullOrEmpty(Status);
 
         /// <summary>
         /// Get all artist results
@@ -126,7 +126,7 @@ namespace Lidarr.Plugin.Qobuzarr.Models
         [JsonProperty("message")]
         public string Message { get; set; }
 
-        public bool IsSuccess => Status?.ToLower() == "success" || string.IsNullOrEmpty(Status);
+        public bool IsSuccess => Status?.ToLowerInvariant() == "success" || string.IsNullOrEmpty(Status);
     }
 
     /// <summary>
@@ -146,6 +146,6 @@ namespace Lidarr.Plugin.Qobuzarr.Models
         [JsonProperty("message")]
         public string Message { get; set; }
 
-        public bool IsSuccess => Status?.ToLower() == "success" || string.IsNullOrEmpty(Status);
+        public bool IsSuccess => Status?.ToLowerInvariant() == "success" || string.IsNullOrEmpty(Status);
     }
 }

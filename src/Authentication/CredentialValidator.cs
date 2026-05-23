@@ -454,8 +454,8 @@ namespace Lidarr.Plugin.Qobuzarr.Authentication
                 return !string.IsNullOrWhiteSpace(domain) &&
                        domain.Contains('.') &&
                        !domain.Contains("..") &&
-                       !domain.StartsWith("-") &&
-                       !domain.EndsWith("-");
+                       !domain.StartsWith('-') &&
+                       !domain.EndsWith('-');
             }
             catch
             {

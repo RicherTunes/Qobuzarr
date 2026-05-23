@@ -28,6 +28,11 @@ namespace Lidarr.Plugin.Qobuzarr.Exceptions
         /// </summary>
         public bool IsRetryable { get; }
 
+        /// <summary>
+        /// Alias for <see cref="ErrorCode"/>.
+        /// </summary>
+        public string ErrorType => ErrorCode ?? "Unknown";
+
         public QobuzApiException(string message, string endpoint, HttpStatusCode? statusCode = null, string errorCode = null, bool isRetryable = false)
             : base(message)
         {
@@ -35,6 +40,15 @@ namespace Lidarr.Plugin.Qobuzarr.Exceptions
             StatusCode = statusCode;
             ErrorCode = errorCode;
             IsRetryable = isRetryable;
+        }
+
+        /// <summary>
+        /// Compact constructor for callers where the endpoint isn't readily
+        /// available at the throw site (e.g. centralized HTTP error handlers).
+        /// </summary>
+        public QobuzApiException(string message, int statusCode, string errorType)
+            : this(message, endpoint: string.Empty, statusCode: (HttpStatusCode)statusCode, errorCode: errorType)
+        {
         }
 
         public QobuzApiException(string message, string endpoint, Exception innerException, HttpStatusCode? statusCode = null, string errorCode = null, bool isRetryable = false)

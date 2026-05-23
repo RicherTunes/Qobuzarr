@@ -227,7 +227,7 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
         private bool HasPattern(string input, string pattern)
         {
             if (string.IsNullOrEmpty(input)) return false;
-            return input.ToLowerInvariant().Contains(pattern.ToLowerInvariant());
+            return input.Contains(pattern, StringComparison.OrdinalIgnoreCase);
         }
 
         private bool HasNonAscii(string input)

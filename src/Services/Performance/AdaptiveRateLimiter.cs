@@ -25,6 +25,12 @@ namespace Lidarr.Plugin.Qobuzarr.Services.Performance
             _inner.RecordResponse(service, endpoint, response);
         }
 
+        public void RecordAuthFailure(string service, string endpoint)
+        {
+            if (_disposed) return;
+            _inner.RecordAuthFailure(service, endpoint);
+        }
+
         public int GetCurrentLimit(string service, string endpoint)
         {
             ThrowIfDisposed();

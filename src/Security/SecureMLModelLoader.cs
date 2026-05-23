@@ -25,7 +25,7 @@ namespace Lidarr.Plugin.Qobuzarr.Security
         private readonly List<string> _allowedAssemblyNames;
         private readonly List<ModelLoadAuditEntry> _auditLog;
         private readonly object _loadLock = new object();
-        private bool _disposed = false;
+        private bool _disposed;
 
         // Security constants
         private const int MaxAssemblySize = 10 * 1024 * 1024; // 10MB max size
@@ -247,7 +247,7 @@ namespace Lidarr.Plugin.Qobuzarr.Security
             try
             {
                 // Remove any path traversal attempts
-                if (path.Contains("..") || path.Contains("~") ||
+                if (path.Contains("..") || path.Contains('~') ||
                     path.IndexOfAny(Path.GetInvalidPathChars()) >= 0)
                 {
                     return null;

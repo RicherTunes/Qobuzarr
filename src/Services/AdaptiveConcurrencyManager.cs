@@ -22,8 +22,8 @@ namespace Lidarr.Plugin.Qobuzarr.Services
         private readonly ConcurrentQueue<bool> _recentSuccesses = new();
 
         // Cached calculations to avoid expensive LINQ operations on property access
-        private double _cachedAverageLatency = 0;
-        private double _cachedSuccessRate = 1.0;
+        private double _cachedAverageLatency;
+        private double _cachedSuccessRate = 1.0; // intentional: 1.0 is the meaningful default (100% success rate assumed)
         private DateTime _lastCalculationTime = DateTime.UtcNow;
         private volatile bool _cacheIsStale = true;
         private readonly object _cacheLock = new object();
@@ -31,8 +31,8 @@ namespace Lidarr.Plugin.Qobuzarr.Services
 
         // Current settings
         private volatile int _currentConcurrency;
-        private volatile int _consecutiveSuccesses = 0;
-        private volatile int _consecutiveFailures = 0;
+        private volatile int _consecutiveSuccesses;
+        private volatile int _consecutiveFailures;
         private DateTime _lastAdjustment = DateTime.UtcNow;
 
         // Shared semaphore for concurrency control
@@ -338,9 +338,9 @@ namespace Lidarr.Plugin.Qobuzarr.Services
         {
             if (error == null) return false;
 
-            return error.Message.ToLower().Contains("rate limit") ||
-                   error.Message.ToLower().Contains("429") ||
-                   error.Message.ToLower().Contains("too many requests");
+            return error.Message.Contains("rate limit", StringComparison.OrdinalIgnoreCase) ||
+                   error.Message.Contains("429", StringComparison.OrdinalIgnoreCase) ||
+                   error.Message.Contains("too many requests", StringComparison.OrdinalIgnoreCase);
         }
 
         /// <summary>

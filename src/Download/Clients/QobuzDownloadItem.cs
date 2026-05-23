@@ -12,7 +12,7 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Clients
 {
     public class QobuzDownloadItem : IDisposable
     {
-        private bool _disposed = false;
+        private bool _disposed;
         private int _qualityFallbackCount;
         private string? _qualityFallbackExample;
 

@@ -534,7 +534,7 @@ namespace Lidarr.Plugin.Qobuzarr.Services
         /// </summary>
         private int ConvertQobuzQualityToInt(string qobuzQuality)
         {
-            return qobuzQuality?.ToLower() switch
+            return qobuzQuality?.ToLowerInvariant() switch
             {
                 "flac-hires" => 27,  // Hi-Res FLAC
                 "flac-cd" => 6,      // CD Quality FLAC

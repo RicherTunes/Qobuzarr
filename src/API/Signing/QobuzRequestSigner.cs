@@ -33,7 +33,7 @@ namespace Lidarr.Plugin.Qobuzarr.API.Signing
         /// <inheritdoc/>
         public void Sign(string endpoint, IDictionary<string, string> parameters, string appId, string appSecret)
         {
-            if (parameters == null) throw new ArgumentNullException(nameof(parameters));
+            ArgumentNullException.ThrowIfNull(parameters);
             if (string.IsNullOrWhiteSpace(appSecret))
             {
                 throw new InvalidOperationException("App Secret is required for signed requests. Ensure App ID and App Secret are a matching pair from Qobuz.");

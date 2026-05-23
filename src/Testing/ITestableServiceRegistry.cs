@@ -52,8 +52,7 @@ namespace Lidarr.Plugin.Qobuzarr.Testing
 
         public void RegisterMock<TService>(TService mockInstance) where TService : class
         {
-            if (mockInstance == null)
-                throw new ArgumentNullException(nameof(mockInstance));
+            ArgumentNullException.ThrowIfNull(mockInstance);
 
             _mocks.AddOrUpdate(typeof(TService), mockInstance, (key, existing) => mockInstance);
             _logger?.Debug("Registered mock for {0}", typeof(TService).Name);

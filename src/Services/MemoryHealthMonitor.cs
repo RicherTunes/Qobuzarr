@@ -18,7 +18,7 @@ namespace Lidarr.Plugin.Qobuzarr.Services
         private readonly object _statsLock = new object();
 
         private MemoryHealthStatistics _currentStats;
-        private bool _disposed = false;
+        private bool _disposed;
 
         // Thresholds (configurable)
         private readonly long _warningThresholdMB;

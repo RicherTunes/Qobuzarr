@@ -477,7 +477,7 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
 
         private bool IsLikelyCompilation(QobuzAlbum album)
         {
-            var title = album.GetFullTitle().ToLower();
+            var title = album.GetFullTitle().ToLowerInvariant();
             var compilationKeywords = new[] { "compilation", "various artists", "best of", "greatest hits", "collection" };
 
             return compilationKeywords.Any(keyword => title.Contains(keyword)) ||
@@ -496,7 +496,7 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
             var categories = new List<int>();
 
             // Map genres to category IDs (these would need to match Lidarr's categories)
-            var genre = album.GetGenre().ToLower();
+            var genre = album.GetGenre().ToLowerInvariant();
 
             // Basic genre categorization
             if (genre.Contains("jazz"))
@@ -542,10 +542,10 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
                 return 0;
 
             var score = 0;
-            var queryLower = originalQuery.ToLower();
-            var titleLower = release.Title?.ToLower() ?? "";
-            var artistLower = release.Artist?.ToLower() ?? "";
-            var albumLower = release.Album?.ToLower() ?? "";
+            var queryLower = originalQuery.ToLowerInvariant();
+            var titleLower = release.Title?.ToLowerInvariant() ?? "";
+            var artistLower = release.Artist?.ToLowerInvariant() ?? "";
+            var albumLower = release.Album?.ToLowerInvariant() ?? "";
 
             // Exact matches
             if (titleLower.Contains(queryLower))

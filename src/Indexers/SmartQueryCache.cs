@@ -28,10 +28,10 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
         private readonly TimeSpan PopularQueryExpiry = TimeSpan.FromDays(7);
 
         // Performance metrics
-        private long _hits = 0;
-        private long _misses = 0;
-        private long _evictions = 0;
-        private long _preloadHits = 0;
+        private long _hits;
+        private long _misses;
+        private long _evictions;
+        private long _preloadHits;
 
         public SmartQueryCache(Logger logger = null)
         {
@@ -213,7 +213,7 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
         /// </summary>
         private void RecordQueryPattern(string artist, string album, QueryComplexity complexity)
         {
-            var patternKey = $"{artist.ToLower()}|{complexity}";
+            var patternKey = $"{artist.ToLowerInvariant()}|{complexity}";
 
             _patterns.AddOrUpdate(patternKey,
                 new QueryPattern
@@ -237,11 +237,8 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
         private string GenerateCacheKey(string artist, string album)
         {
             var input = $"{artist?.ToLowerInvariant()}|{album?.ToLowerInvariant()}";
-            using (var sha256 = SHA256.Create())
-            {
-                var hash = sha256.ComputeHash(Encoding.UTF8.GetBytes(input));
-                return Convert.ToBase64String(hash).Substring(0, 16);
-            }
+            var hash = SHA256.HashData(Encoding.UTF8.GetBytes(input));
+            return Convert.ToBase64String(hash).Substring(0, 16);
         }
 
         /// <summary>

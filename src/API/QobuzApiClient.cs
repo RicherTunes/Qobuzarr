@@ -8,6 +8,8 @@ using Newtonsoft.Json;
 using NzbDrone.Common.Http;
 using NzbDrone.Common.Cache;
 using NLog;
+using Lidarr.Plugin.Common.Observability;
+using Lidarr.Plugin.Qobuzarr.Exceptions;
 using Lidarr.Plugin.Qobuzarr.Models;
 using Lidarr.Plugin.Qobuzarr.Models.Authentication;
 using Lidarr.Plugin.Qobuzarr.Configuration;
@@ -287,8 +289,11 @@ namespace Lidarr.Plugin.Qobuzarr.API
                 {
                     allParameters["app_id"] = currentSession.AppId;
                     allParameters["user_auth_token"] = currentSession.AuthToken;
+                    // app_id is one half of the authenticated credential pair;
+                    // emit the redacted form alongside the token tail.
                     _logger.Trace("🔐 Added authentication: app_id={0}, token=***{1}",
-                        currentSession.AppId, currentSession.AuthToken?.Substring(Math.Max(0, currentSession.AuthToken.Length - 4)) ?? "null");
+                        LogRedactor.Redact(currentSession.AppId),
+                        currentSession.AuthToken?.Substring(Math.Max(0, currentSession.AuthToken.Length - 4)) ?? "null");
                 }
 
                 // Add custom parameters (builder handles URL encoding)
@@ -300,8 +305,10 @@ namespace Lidarr.Plugin.Qobuzarr.API
                         var value = param.Value?.Trim() ?? string.Empty;
                         allParameters[param.Key] = value;
                     }
+                    // Custom params can carry credentials when callers route auth
+                    // material through the params dictionary; redact before logging.
                     _logger.Trace("📋 Custom parameters added: {0}",
-                        string.Join(", ", parameters.Select(kv => $"{kv.Key}={kv.Value}")));
+                        LogRedactor.Redact(string.Join(", ", parameters.Select(kv => $"{kv.Key}={kv.Value}"))));
                 }
 
                 // Handle request signing for protected endpoints
@@ -346,10 +353,14 @@ namespace Lidarr.Plugin.Qobuzarr.API
                 .Get()
                 .QueryParams(allParameters);
 
-            // Log the final URL being called (without auth token for security)
+            // Filter out the user_auth_token entry, then pass the remainder through the
+            // central redactor — app_id, signed parameters and request signatures still
+            // qualify as credential material even with the token stripped.
             var safeParams = allParameters.Where(kv => kv.Key != "user_auth_token")
                                          .Select(kv => $"{kv.Key}={kv.Value}");
-            _logger.Debug("🚀 Final API call: {0}?{1}&user_auth_token=***", url, string.Join("&", safeParams));
+            _logger.Debug("🚀 Final API call: {0}?{1}&user_auth_token=***",
+                url,
+                LogRedactor.Redact(string.Join("&", safeParams)));
 
             var key = new CacheKey(endpoint, allParameters);
             var policy = ResolveCachePolicy(endpoint);
@@ -417,7 +428,9 @@ namespace Lidarr.Plugin.Qobuzarr.API
 
             if (response.HasHttpError)
             {
-                _logger.Error("❌ API Error Response: {0}", response.Content);
+                // Error payloads from Qobuz auth/user endpoints can echo session
+                // tokens and signed parameters; redact before logging.
+                _logger.Error("❌ API Error Response: {0}", LogRedactor.Redact(response.Content));
                 HandleErrorResponse(response);
             }
 
@@ -428,7 +441,9 @@ namespace Lidarr.Plugin.Qobuzarr.API
             if (response.Content?.Length > 0)
             {
                 var sanitized = response.Content.Length > 500 ? response.Content.Substring(0, 500) + "..." : response.Content;
-                _logger.Trace("📄 Response content: {0}", sanitized);
+                // Truncation is not redaction — bodies may contain bearer tokens
+                // and session payloads well within the first 500 chars.
+                _logger.Trace("📄 Response content: {0}", LogRedactor.Redact(sanitized));
             }
 
             return result;
@@ -460,12 +475,11 @@ namespace Lidarr.Plugin.Qobuzarr.API
                 // on an API without validators. Stale-if-error and terminal eviction continue to provide
                 // resilience for the past-duration / 5xx / 404 paths.
                 // Source: Phase 5e common refinement motivated by qobuzarr Phase 3b adoption feedback.
-                return CachePolicy.Default
-                    .With(duration: duration)
-                    .WithExecutor(
-                        hotHitMode: HotCacheHitMode.EnabledForFreshEntries,
-                        staleIfErrorTtl: duration,
-                        evictOnTerminalStatus: true);
+                return CachePolicy.Default.With(
+                    duration: duration,
+                    hotHitMode: HotCacheHitMode.EnabledForFreshEntries,
+                    staleIfErrorTtl: duration,
+                    evictOnTerminalStatus: true);
             }
 
             return CachePolicy.Disabled;
@@ -783,33 +797,4 @@ namespace Lidarr.Plugin.Qobuzarr.API
         }
     }
 
-    /// <summary>
-    /// Exception thrown when the Qobuz API returns an error response or when API communication fails.
-    /// Provides structured access to HTTP status codes and categorized error types for proper error handling.
-    /// </summary>
-    public class QobuzApiException : Exception
-    {
-        /// <summary>
-        /// Gets the HTTP status code returned by the Qobuz API.
-        /// </summary>
-        public int StatusCode { get; }
-
-        /// <summary>
-        /// Gets the categorized error type for programmatic error handling.
-        /// Common values: AuthenticationFailed, AccessForbidden, NotFound, RateLimited, ServerError, ApiError.
-        /// </summary>
-        public string ErrorType { get; }
-
-        /// <summary>
-        /// Initializes a new instance of QobuzApiException with detailed error information.
-        /// </summary>
-        /// <param name="message">The error message describing what went wrong.</param>
-        /// <param name="statusCode">The HTTP status code returned by the API.</param>
-        /// <param name="errorType">The categorized error type for programmatic handling.</param>
-        public QobuzApiException(string message, int statusCode, string errorType) : base(message)
-        {
-            StatusCode = statusCode;
-            ErrorType = errorType;
-        }
-    }
 }

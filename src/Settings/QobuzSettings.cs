@@ -36,7 +36,7 @@ namespace Lidarr.Plugin.Qobuzarr.Settings
         /// <summary>
         /// Enable advanced logging for troubleshooting
         /// </summary>
-        public bool VerboseLogging { get; set; } = false;
+        public bool VerboseLogging { get; set; }
 
         /// <summary>
         /// Preferred audio format for downloads

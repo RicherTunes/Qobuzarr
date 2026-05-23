@@ -2,6 +2,7 @@ using System;
 using System.Threading;
 using System.Threading.Tasks;
 using NLog;
+using Lidarr.Plugin.Common.Observability;
 
 namespace Lidarr.Plugin.Qobuzarr.Services
 {
@@ -126,7 +127,9 @@ namespace Lidarr.Plugin.Qobuzarr.Services
                 catch (AuthenticationException authEx) when (attempt < maxAttempts)
                 {
                     lastException = authEx;
-                    _logger.Warn("🔐 AUTH FAILURE: Attempt {0} failed, refreshing token: {1}", attempt, authEx.Message);
+                    // Auth exception messages from Qobuz sometimes echo the rejected
+                    // token; defense-in-depth redaction.
+                    _logger.Warn("🔐 AUTH FAILURE: Attempt {0} failed, refreshing token: {1}", attempt, LogRedactor.Redact(authEx.Message));
 
                     // Mark token as invalid to force refresh
                     lock (_tokenLock)
@@ -139,7 +142,7 @@ namespace Lidarr.Plugin.Qobuzarr.Services
                 catch (Exception ex) when (IsAuthenticationError(ex) && attempt < maxAttempts)
                 {
                     lastException = ex;
-                    _logger.Warn("🔐 POTENTIAL AUTH ERROR: Attempt {0} failed, trying token refresh: {1}", attempt, ex.Message);
+                    _logger.Warn("🔐 POTENTIAL AUTH ERROR: Attempt {0} failed, trying token refresh: {1}", attempt, LogRedactor.Redact(ex.Message));
 
                     // Mark token as invalid to force refresh
                     lock (_tokenLock)

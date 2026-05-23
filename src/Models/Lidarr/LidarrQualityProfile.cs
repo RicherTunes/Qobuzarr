@@ -99,8 +99,8 @@ namespace Lidarr.Plugin.Qobuzarr.Models.Lidarr
         public bool PrefersLossless()
         {
             var preferredQuality = GetPreferredQuality();
-            return preferredQuality?.Name?.ToLower().Contains("flac") == true ||
-                   preferredQuality?.Name?.ToLower().Contains("lossless") == true ||
+            return preferredQuality?.Name?.Contains("flac", StringComparison.OrdinalIgnoreCase) == true ||
+                   preferredQuality?.Name?.Contains("lossless", StringComparison.OrdinalIgnoreCase) == true ||
                    preferredQuality?.Resolution >= 16; // Assuming 16-bit or higher indicates lossless
         }
 
@@ -160,8 +160,8 @@ namespace Lidarr.Plugin.Qobuzarr.Models.Lidarr
         /// <returns>The corresponding Qobuz quality string (e.g., "flac-hires", "flac-cd", "mp3-320").</returns>
         public string ToQobuzQuality()
         {
-            var name = Name?.ToLower() ?? "";
-            var source = Source?.ToLower() ?? "";
+            var name = Name?.ToLowerInvariant() ?? "";
+            var source = Source?.ToLowerInvariant() ?? "";
 
             // High-resolution lossless formats
             if (Resolution >= 24 || name.Contains("24bit") || name.Contains("hires") || name.Contains("hi-res"))
@@ -202,7 +202,7 @@ namespace Lidarr.Plugin.Qobuzarr.Models.Lidarr
         /// </summary>
         public bool IsLossless()
         {
-            var name = Name?.ToLower() ?? "";
+            var name = Name?.ToLowerInvariant() ?? "";
             return name.Contains("flac") || name.Contains("lossless") || Resolution >= 16;
         }
 
@@ -211,7 +211,7 @@ namespace Lidarr.Plugin.Qobuzarr.Models.Lidarr
         /// </summary>
         public bool IsHighResolution()
         {
-            return Resolution >= 24 || Name?.ToLower().Contains("hires") == true || Name?.ToLower().Contains("hi-res") == true;
+            return Resolution >= 24 || Name?.Contains("hires", StringComparison.OrdinalIgnoreCase) == true || Name?.Contains("hi-res", StringComparison.OrdinalIgnoreCase) == true;
         }
     }
 

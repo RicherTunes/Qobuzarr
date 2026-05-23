@@ -171,7 +171,7 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers.Parsing
 
         public bool IsLikelyCompilation(QobuzAlbum album)
         {
-            var title = album.GetFullTitle().ToLower();
+            var title = album.GetFullTitle().ToLowerInvariant();
             var compilationKeywords = new[] { "compilation", "various artists", "best of", "greatest hits", "collection" };
 
             return compilationKeywords.Any(keyword => title.Contains(keyword)) ||

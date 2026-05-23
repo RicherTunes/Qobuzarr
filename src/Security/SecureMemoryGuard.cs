@@ -14,7 +14,7 @@ namespace Lidarr.Plugin.Qobuzarr.Security
     public sealed class SecureMemoryGuard : IDisposable
     {
         private readonly IQobuzLogger _logger;
-        private bool _disposed = false;
+        private bool _disposed;
 
         public SecureMemoryGuard(IQobuzLogger logger)
         {
@@ -81,7 +81,7 @@ namespace Lidarr.Plugin.Qobuzarr.Security
         public byte[] SecureStringToBytes(SecureString secureString)
         {
             if (secureString == null || secureString.Length == 0)
-                return new byte[0];
+                return Array.Empty<byte>();
 
             IntPtr ptr = IntPtr.Zero;
             byte[]? bytes = null;
@@ -190,7 +190,7 @@ namespace Lidarr.Plugin.Qobuzarr.Security
         {
             private readonly IQobuzLogger _logger;
             private readonly System.Collections.Generic.List<Action> _cleanupActions;
-            private bool _disposed = false;
+            private bool _disposed;
 
             internal SecureScope(IQobuzLogger logger)
             {
@@ -293,10 +293,8 @@ namespace Lidarr.Plugin.Qobuzarr.Security
             this SecureString secureString,
             Func<string, TResult> action)
         {
-            if (secureString == null)
-                throw new ArgumentNullException(nameof(secureString));
-            if (action == null)
-                throw new ArgumentNullException(nameof(action));
+            ArgumentNullException.ThrowIfNull(secureString);
+            ArgumentNullException.ThrowIfNull(action);
 
             IntPtr ptr = IntPtr.Zero;
             try

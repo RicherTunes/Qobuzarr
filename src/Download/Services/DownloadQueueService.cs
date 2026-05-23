@@ -30,8 +30,7 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Services
 
         public void AddDownload(QobuzDownloadItem item)
         {
-            if (item == null)
-                throw new ArgumentNullException(nameof(item));
+            ArgumentNullException.ThrowIfNull(item);
 
             if (string.IsNullOrWhiteSpace(item.DownloadId))
                 throw new ArgumentException("Download item must have a valid DownloadId", nameof(item));

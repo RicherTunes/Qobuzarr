@@ -224,11 +224,11 @@ namespace Lidarr.Plugin.Qobuzarr.Services
         /// </summary>
         private static int GetStatusCodeFromError(string errorType, Exception exception)
         {
-            if (errorType?.ToLowerInvariant().Contains("rate") == true ||
-                errorType?.ToLowerInvariant().Contains("limit") == true)
+            if (errorType?.Contains("rate", StringComparison.OrdinalIgnoreCase) == true ||
+                errorType?.Contains("limit", StringComparison.OrdinalIgnoreCase) == true)
                 return 429;
 
-            if (errorType?.ToLowerInvariant().Contains("auth") == true)
+            if (errorType?.Contains("auth", StringComparison.OrdinalIgnoreCase) == true)
                 return 401;
 
             if (exception?.Message?.Contains("404") == true)
@@ -302,11 +302,8 @@ namespace Lidarr.Plugin.Qobuzarr.Services
                 RecentRateLimitHits++;
             }
 
-            if (!ErrorCounts.ContainsKey(errorType))
-            {
-                ErrorCounts[errorType] = 0;
-            }
-            ErrorCounts[errorType]++;
+            ErrorCounts.TryGetValue(errorType, out var currentCount);
+            ErrorCounts[errorType] = currentCount + 1;
         }
 
         public void UpdateMetrics()

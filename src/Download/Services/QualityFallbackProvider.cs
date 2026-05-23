@@ -32,7 +32,7 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Services
             if (string.IsNullOrWhiteSpace(restrictionMessage))
                 return TrackUnavailableReason.NoQualityAvailable;
 
-            var message = restrictionMessage.ToLower();
+            var message = restrictionMessage.ToLowerInvariant();
 
             if (message.Contains("preview") || message.Contains("sample"))
                 return TrackUnavailableReason.PreviewOnly;

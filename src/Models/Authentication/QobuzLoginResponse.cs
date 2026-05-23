@@ -75,10 +75,10 @@ namespace Lidarr.Plugin.Qobuzarr.Models.Authentication
         public QobuzSubscription ToSubscription()
         {
             // Map the detailed subscription to our simplified model
-            var isHiRes = Offer?.ToLower().Contains("sublime") == true ||
-                         Offer?.ToLower().Contains("studio") == true;
+            var isHiRes = Offer?.Contains("sublime", StringComparison.OrdinalIgnoreCase) == true ||
+                         Offer?.Contains("studio", StringComparison.OrdinalIgnoreCase) == true;
 
-            var maxSampleRate = Offer?.ToLower() switch
+            var maxSampleRate = Offer?.ToLowerInvariant() switch
             {
                 var o when o.Contains("sublime") => 192000,
                 var o when o.Contains("studio") => 96000,

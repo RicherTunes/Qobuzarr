@@ -14,8 +14,8 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers.RequestGeneration
         private readonly object _metricsLock = new object();
 
         // Metrics tracking
-        private int _totalOriginalQueries = 0;
-        private int _totalOptimizedQueries = 0;
+        private int _totalOriginalQueries;
+        private int _totalOptimizedQueries;
         private DateTime _lastMetricsReset = DateTime.UtcNow;
 
         public QueryMetricsTracker(Logger logger)

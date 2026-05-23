@@ -139,7 +139,7 @@ public sealed class BridgeQobuzApiClient : IQobuzApiClient, IDisposable
         // Normalise endpoint: ensure leading slash
         var ep = string.IsNullOrWhiteSpace(endpoint)
             ? string.Empty
-            : (endpoint.StartsWith("/") ? endpoint : "/" + endpoint);
+            : (endpoint.StartsWith('/') ? endpoint : "/" + endpoint);
 
         var queryParams = new Dictionary<string, string>(parameters ?? new Dictionary<string, string>());
 

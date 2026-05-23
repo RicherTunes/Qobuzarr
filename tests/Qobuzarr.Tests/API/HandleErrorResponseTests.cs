@@ -1,5 +1,6 @@
 using System.Net;
 using Lidarr.Plugin.Qobuzarr.API;
+using Lidarr.Plugin.Qobuzarr.Exceptions;
 using Xunit;
 
 namespace Qobuzarr.Tests.API;
@@ -17,7 +18,7 @@ public sealed class HandleErrorResponseTests
         var ex = Assert.Throws<QobuzApiException>(() =>
             QobuzApiClient.HandleErrorResponse(HttpStatusCode.Unauthorized, "{}"));
 
-        Assert.Equal(401, ex.StatusCode);
+        Assert.Equal(HttpStatusCode.Unauthorized, ex.StatusCode);
         Assert.Equal("AuthenticationFailed", ex.ErrorType);
         // Must give the user something to act on
         Assert.True(
@@ -33,7 +34,7 @@ public sealed class HandleErrorResponseTests
         var ex = Assert.Throws<QobuzApiException>(() =>
             QobuzApiClient.HandleErrorResponse(HttpStatusCode.Forbidden, "{}"));
 
-        Assert.Equal(403, ex.StatusCode);
+        Assert.Equal(HttpStatusCode.Forbidden, ex.StatusCode);
         Assert.Contains("credentials", ex.Message, System.StringComparison.OrdinalIgnoreCase);
     }
 
@@ -43,7 +44,7 @@ public sealed class HandleErrorResponseTests
         var ex = Assert.Throws<QobuzApiException>(() =>
             QobuzApiClient.HandleErrorResponse(HttpStatusCode.TooManyRequests, "{}"));
 
-        Assert.Equal(429, ex.StatusCode);
+        Assert.Equal(HttpStatusCode.TooManyRequests, ex.StatusCode);
         Assert.Equal("RateLimited", ex.ErrorType);
         Assert.True(
             ex.Message.Contains("wait", System.StringComparison.OrdinalIgnoreCase) ||
@@ -58,7 +59,7 @@ public sealed class HandleErrorResponseTests
         var ex = Assert.Throws<QobuzApiException>(() =>
             QobuzApiClient.HandleErrorResponse(HttpStatusCode.InternalServerError, "{}"));
 
-        Assert.Equal(500, ex.StatusCode);
+        Assert.Equal(HttpStatusCode.InternalServerError, ex.StatusCode);
         Assert.Equal("ServerError", ex.ErrorType);
         // 500-class is on Qobuz's side; the user shouldn't try changing settings.
         Assert.True(
@@ -77,7 +78,7 @@ public sealed class HandleErrorResponseTests
         var ex = Assert.Throws<QobuzApiException>(() =>
             QobuzApiClient.HandleErrorResponse(HttpStatusCode.NotFound, "{}"));
 
-        Assert.Equal(404, ex.StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, ex.StatusCode);
         Assert.Equal("NotFound", ex.ErrorType);
     }
 }

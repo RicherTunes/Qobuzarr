@@ -317,8 +317,7 @@ namespace Lidarr.Plugin.Qobuzarr.Services
 
         private void ThrowIfDisposed()
         {
-            if (_disposed)
-                throw new ObjectDisposedException(nameof(LidarrQueueManager));
+            ObjectDisposedException.ThrowIf(_disposed, this);
         }
 
         #endregion
