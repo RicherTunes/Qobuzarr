@@ -20,13 +20,26 @@ namespace Qobuzarr.Tests.Compliance
 
         /// <summary>
         /// Assemblies that MUST be present in the package.
-        /// These are plugin dependencies that Lidarr doesn't provide.
+        ///
+        /// Previously this list also contained Lidarr.Plugin.Abstractions.dll.
+        /// As of May 2026 the Abstractions assembly is merged + internalized into
+        /// Lidarr.Plugin.Qobuzarr.dll via ILRepack (see
+        /// ext/Lidarr.Plugin.Common/build/PluginPackaging.targets). Shipping it as a
+        /// sidecar reintroduces the COR_E_INVALIDOPERATION cross-ALC conflict that
+        /// the merge was meant to eliminate, so it now belongs in the forbidden list.
         /// </summary>
         private static readonly HashSet<string> RequiredAssemblies = new(StringComparer.OrdinalIgnoreCase)
         {
-            "Lidarr.Plugin.Qobuzarr.dll",           // The plugin itself
-            "Lidarr.Plugin.Abstractions.dll"        // Plugin contract (host does NOT provide this)
+            "Lidarr.Plugin.Qobuzarr.dll",           // The plugin itself (merged via ILRepack)
         };
+
+        /// <summary>
+        /// Sub-threshold DLL size means ILRepack's RepackPlugin target didn't run —
+        /// Common + Abstractions weren't internalized, so the runtime will fail with
+        /// "Could not load file or assembly Lidarr.Plugin.Common / Abstractions" because
+        /// the forbidden-list correctly omitted the sidecars but the merge produced nothing.
+        /// </summary>
+        private const long MergedDllMinimumBytes = 2_000_000;
 
         /// <summary>
         /// Assemblies that MUST NOT be present in the package.
@@ -38,6 +51,15 @@ namespace Qobuzarr.Tests.Compliance
             "FluentValidation.dll",
             "Microsoft.Extensions.DependencyInjection.Abstractions.dll",
             "Microsoft.Extensions.Logging.Abstractions.dll",
+            "Microsoft.Extensions.Caching.Abstractions.dll",
+            "Microsoft.Extensions.Caching.Memory.dll",
+            "Microsoft.Extensions.Options.dll",
+            "Microsoft.Extensions.Primitives.dll",
+
+            // Plugin abstractions — merged + internalized by ILRepack, MUST NOT ship as sidecars.
+            // Were in RequiredAssemblies before the May 2026 merge architecture switch.
+            "Lidarr.Plugin.Abstractions.dll",
+            "Lidarr.Plugin.Common.dll",
 
             // Lidarr host assemblies
             "Lidarr.Core.dll",
@@ -119,6 +141,33 @@ namespace Qobuzarr.Tests.Compliance
                 assemblies.Should().Contain(required,
                     $"package must contain required assembly {required}");
             }
+        }
+
+        [Fact]
+        public void Plugin_Dll_Should_Be_Merged_Size()
+        {
+            var packagePath = FindLatestPackage();
+            if (packagePath == null)
+            {
+                if (RequirePackageExists)
+                {
+                    throw new InvalidOperationException(
+                        "No package found but REQUIRE_PACKAGE_TESTS/CI is set.");
+                }
+                _output.WriteLine("No package found - skipping test.");
+                return;
+            }
+
+            using var archive = ZipFile.OpenRead(packagePath);
+            var entry = archive.Entries.FirstOrDefault(e =>
+                Path.GetFileName(e.FullName).Equals("Lidarr.Plugin.Qobuzarr.dll", StringComparison.OrdinalIgnoreCase));
+
+            entry.Should().NotBeNull("Lidarr.Plugin.Qobuzarr.dll must be in the package");
+            entry!.Length.Should().BeGreaterOrEqualTo(
+                MergedDllMinimumBytes,
+                "merged DLL should be at least 2MB (includes internalized Common + Abstractions). " +
+                "A smaller DLL means ILRepack didn't run and runtime will fail with " +
+                "'Could not load file or assembly Lidarr.Plugin.Common / Abstractions'");
         }
 
         [Fact]
@@ -271,7 +320,17 @@ namespace Qobuzarr.Tests.Compliance
 
         private static string? FindLatestPackage()
         {
-            // Look for packages in standard locations
+            // Honor PLUGIN_PACKAGE_PATH first — the CI workflow sets this so tests run
+            // against the exact package that will be uploaded to the release.
+            var envPath = Environment.GetEnvironmentVariable("PLUGIN_PACKAGE_PATH");
+            if (!string.IsNullOrWhiteSpace(envPath) && File.Exists(envPath))
+            {
+                return envPath;
+            }
+
+            // Look for packages in standard locations. Match both the legacy
+            // `qobuzarr-*.zip` (slug-cased) and the current `Lidarr.Plugin.Qobuzarr-*.zip`
+            // (assembly-named) glob — release.yml uses the latter.
             var searchPaths = new[]
             {
                 Path.Combine(GetRepoRoot(), "artifacts", "packages"),
@@ -279,17 +338,22 @@ namespace Qobuzarr.Tests.Compliance
                 GetRepoRoot()
             };
 
+            string[] globs = { "Lidarr.Plugin.Qobuzarr-*.zip", "qobuzarr-*.zip" };
+
             foreach (var searchPath in searchPaths)
             {
                 if (!Directory.Exists(searchPath))
                     continue;
 
-                var packages = Directory.GetFiles(searchPath, "qobuzarr-*.zip")
-                    .OrderByDescending(File.GetLastWriteTime)
-                    .ToList();
+                foreach (var glob in globs)
+                {
+                    var packages = Directory.GetFiles(searchPath, glob)
+                        .OrderByDescending(File.GetLastWriteTime)
+                        .ToList();
 
-                if (packages.Any())
-                    return packages.First();
+                    if (packages.Any())
+                        return packages.First();
+                }
             }
 
             return null;
