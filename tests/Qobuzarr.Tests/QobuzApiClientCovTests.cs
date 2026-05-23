@@ -13,6 +13,7 @@ using Xunit;
 using Lidarr.Plugin.Qobuzarr.API;
 using Lidarr.Plugin.Qobuzarr.API.Http;
 using Lidarr.Plugin.Qobuzarr.API.Caching;
+using Lidarr.Plugin.Qobuzarr.Exceptions;
 using Lidarr.Plugin.Qobuzarr.Models;
 using Lidarr.Plugin.Qobuzarr.Models.Authentication;
 using Lidarr.Plugin.Qobuzarr.Services.Interfaces;
@@ -475,7 +476,7 @@ namespace Qobuzarr.Tests
             // tweaks; substring + status-code + error-type are the load-bearing contract.
             exception.Message.Should().StartWith("Authentication failed");
             exception.Message.Should().Contain("Qobuz");   // remediation must name the service
-            exception.StatusCode.Should().Be(401);
+            exception.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
             exception.ErrorType.Should().Be("AuthenticationFailed");
         }
 
@@ -509,7 +510,7 @@ namespace Qobuzarr.Tests
 
             exception.Message.Should().StartWith("Access forbidden");
             exception.Message.Should().Contain("subscription");   // hint at tier-mismatch cause
-            exception.StatusCode.Should().Be(403);
+            exception.StatusCode.Should().Be(HttpStatusCode.Forbidden);
             exception.ErrorType.Should().Be("AccessForbidden");
         }
 
@@ -542,7 +543,7 @@ namespace Qobuzarr.Tests
                 () => client.GetAsync<object>("album/get"));
 
             exception.Message.Should().Be("Resource not found");
-            exception.StatusCode.Should().Be(404);
+            exception.StatusCode.Should().Be(HttpStatusCode.NotFound);
             exception.ErrorType.Should().Be("NotFound");
         }
 
@@ -576,7 +577,7 @@ namespace Qobuzarr.Tests
 
             exception.Message.Should().Contain("rate-limiting");   // current wording
             exception.Message.Should().Contain("retry");            // remediation hint
-            exception.StatusCode.Should().Be(429);
+            exception.StatusCode.Should().Be(HttpStatusCode.TooManyRequests);
             exception.ErrorType.Should().Be("RateLimited");
         }
 
@@ -610,7 +611,7 @@ namespace Qobuzarr.Tests
 
             exception.Message.Should().Contain("Qobuz server error");
             exception.Message.Should().Contain("temporary");   // signals server-side, not user
-            exception.StatusCode.Should().Be(500);
+            exception.StatusCode.Should().Be(HttpStatusCode.InternalServerError);
             exception.ErrorType.Should().Be("ServerError");
         }
 
@@ -644,7 +645,7 @@ namespace Qobuzarr.Tests
 
             exception.Message.Should().Contain("Qobuz server error");
             exception.Message.Should().Contain("temporary");
-            exception.StatusCode.Should().Be(503);
+            exception.StatusCode.Should().Be(HttpStatusCode.ServiceUnavailable);
             exception.ErrorType.Should().Be("ServerError");
         }
 
@@ -677,7 +678,7 @@ namespace Qobuzarr.Tests
                 () => client.GetAsync<object>("album/get"));
 
             exception.Message.Should().Be("Bad request parameters");
-            exception.StatusCode.Should().Be(400);
+            exception.StatusCode.Should().Be(HttpStatusCode.BadRequest);
             exception.ErrorType.Should().Be("ApiError");
         }
 
@@ -714,7 +715,7 @@ namespace Qobuzarr.Tests
                 () => client.GetAsync<object>("album/get"));
 
             exception.Message.Should().Be("HTTP 500: not valid json at all");
-            exception.StatusCode.Should().Be(500);
+            exception.StatusCode.Should().Be(HttpStatusCode.InternalServerError);
             exception.ErrorType.Should().Be("UnknownError");
         }
 
@@ -773,7 +774,9 @@ namespace Qobuzarr.Tests
 
         #region ExecuteRequestAsync with PreRequestHandler
 
-        [Fact(Skip = "Moq callback signature mismatch after plugins-branch assembly swap")]
+        // Fixed 2026-05-23 (Phase 1): Moq Callback<T> arity updated to match
+        // ExecuteAsync(HttpRequest, CancellationToken) signature after plugins-branch assembly swap.
+        [Fact]
         public async Task ExecuteRequestAsync_WithPreRequestHandler_ShouldUseHandlerMethods()
         {
             // Lines 230-233, 268-271, 294-297: PreRequestHandler paths
@@ -785,15 +788,16 @@ namespace Qobuzarr.Tests
             mockPreHandler.Setup(x => x.EnsureValidSessionAsync())
                 .Returns(Task.CompletedTask);
 
-            mockPreHandler.Setup(x => x.InjectAuthParameters(It.IsAny<Dictionary<string, string>>()))
-                .Callback<Dictionary<string, string>>(dict =>
+            // Fix: InjectAuthParameters and SignIfRequired take IDictionary<string, string> (interface type)
+            mockPreHandler.Setup(x => x.InjectAuthParameters(It.IsAny<IDictionary<string, string>>()))
+                .Callback<IDictionary<string, string>>(dict =>
                 {
                     dict["app_id"] = "test_app";
                     dict["user_auth_token"] = "test_token";
                 });
 
-            mockPreHandler.Setup(x => x.SignIfRequired(It.IsAny<string>(), It.IsAny<Dictionary<string, string>>()))
-                .Callback<string, Dictionary<string, string>>((endpoint, dict) =>
+            mockPreHandler.Setup(x => x.SignIfRequired(It.IsAny<string>(), It.IsAny<IDictionary<string, string>>()))
+                .Callback<string, IDictionary<string, string>>((endpoint, dict) =>
                 {
                     dict["request_sig"] = "test_sig";
                 });
@@ -813,8 +817,9 @@ namespace Qobuzarr.Tests
                 HttpStatusCode.OK);
 
             HttpRequest capturedRequest = null;
+            // Fix: use Callback<HttpRequest, CancellationToken> to match the two-arg ExecuteAsync signature
             _mockHttpClient.Setup(x => x.ExecuteAsync(It.IsAny<HttpRequest>(), default))
-                .Callback<HttpRequest>(req => capturedRequest = req)
+                .Callback<HttpRequest, System.Threading.CancellationToken>((req, _) => capturedRequest = req)
                 .ReturnsAsync(httpResponse);
 
             // Act
@@ -822,8 +827,8 @@ namespace Qobuzarr.Tests
 
             // Assert
             mockPreHandler.Verify(x => x.EnsureValidSessionAsync(), Times.Once);
-            mockPreHandler.Verify(x => x.InjectAuthParameters(It.IsAny<Dictionary<string, string>>()), Times.Once);
-            mockPreHandler.Verify(x => x.SignIfRequired("album/get", It.IsAny<Dictionary<string, string>>()), Times.Once);
+            mockPreHandler.Verify(x => x.InjectAuthParameters(It.IsAny<IDictionary<string, string>>()), Times.Once);
+            mockPreHandler.Verify(x => x.SignIfRequired("album/get", It.IsAny<IDictionary<string, string>>()), Times.Once);
             _mockSessionManager.Verify(x => x.GetCurrentSessionAsync(default), Times.Never);
         }
 
@@ -1035,7 +1040,9 @@ namespace Qobuzarr.Tests
 
         #region Parameter Trimming
 
-        [Fact(Skip = "Moq callback signature mismatch after plugins-branch assembly swap")]
+        // Fixed 2026-05-23 (Phase 1): Moq Callback<T> arity updated to match
+        // ExecuteAsync(HttpRequest, CancellationToken) signature after plugins-branch assembly swap.
+        [Fact]
         public async Task ExecuteRequestAsync_WithParameterContainingWhitespace_ShouldTrimValue()
         {
             // Lines 285-287: var value = param.Value?.Trim() ?? string.Empty;
@@ -1053,8 +1060,9 @@ namespace Qobuzarr.Tests
             _mockHttpClient.Setup(x => x.BuildRequest(It.IsAny<string>(), It.IsAny<string>()))
                 .Returns(requestBuilder);
 
+            // Fix: use Callback<HttpRequest, CancellationToken> to match the two-arg ExecuteAsync signature
             _mockHttpClient.Setup(x => x.ExecuteAsync(It.IsAny<HttpRequest>(), default))
-                .Callback<HttpRequest>(req => capturedRequest = req)
+                .Callback<HttpRequest, System.Threading.CancellationToken>((req, _) => capturedRequest = req)
                 .ReturnsAsync(HttpTestHelpers.CreateResponse("{\"id\": \"123\"}", HttpStatusCode.OK));
 
             // Act

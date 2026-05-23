@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Security;
 using Lidarr.Plugin.Qobuzarr.Abstractions;
-using Lidarr.Plugin.Qobuzarr.Utilities;
+using CommonUtilities = Lidarr.Plugin.Common.Utilities;
 using Lidarr.Plugin.Common.Observability;
 
 namespace Lidarr.Plugin.Qobuzarr.Security
@@ -45,7 +45,7 @@ namespace Lidarr.Plugin.Qobuzarr.Security
                 // "trackgetFileUrlformat_id" + format_id + "intentstreamtrack_id" + track_id + timestamp + app_secret
                 signatureString = $"trackgetFileUrlformat_id{formatId}intentstreamtrack_id{trackId}{timestamp}{appSecret}";
 
-                signature = HashingUtility.ComputeMD5Hash(signatureString);
+                signature = CommonUtilities.HashingUtility.ComputeMD5Hash(signatureString);
 
                 logger.Debug("Generated secure signature for track/getFileUrl: format_id={0}, track_id={1}",
                     formatId, trackId);
@@ -98,7 +98,7 @@ namespace Lidarr.Plugin.Qobuzarr.Security
                     .ToList();
 
                 signatureString = $"{objectName}{method}{string.Join("", signatureParams)}{appId}";
-                signature = HashingUtility.ComputeMD5Hash(signatureString);
+                signature = CommonUtilities.HashingUtility.ComputeMD5Hash(signatureString);
 
                 logger.Debug("Generated secure generic signature for {0}", endpoint);
 
