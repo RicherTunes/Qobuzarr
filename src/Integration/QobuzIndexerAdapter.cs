@@ -6,6 +6,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Lidarr.Plugin.Abstractions.Contracts;
 using Lidarr.Plugin.Abstractions.Models;
+using Lidarr.Plugin.Common.Services.Bridge;
 using Lidarr.Plugin.Qobuzarr.API;
 using Lidarr.Plugin.Qobuzarr.Models;
 using Microsoft.Extensions.Logging;
@@ -23,17 +24,70 @@ public sealed class QobuzIndexerAdapter : IIndexer
     private readonly IIndexerStatusReporter _statusReporter;
     private readonly ILogger<QobuzIndexerAdapter> _logger;
     private readonly QobuzarrStreamingSettings _settings;
+    private readonly AuthFailureGate? _authGate;
 
     public QobuzIndexerAdapter(
         IQobuzApiClient apiClient,
         IIndexerStatusReporter statusReporter,
         ILogger<QobuzIndexerAdapter> logger,
-        QobuzarrStreamingSettings settings)
+        QobuzarrStreamingSettings settings,
+        AuthFailureGate? authGate = null)
     {
         _apiClient = apiClient ?? throw new ArgumentNullException(nameof(apiClient));
         _statusReporter = statusReporter ?? throw new ArgumentNullException(nameof(statusReporter));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         _settings = settings ?? throw new ArgumentNullException(nameof(settings));
+        _authGate = authGate;
+    }
+
+    /// <summary>
+    /// Returns true when auth is latched bad AND no probe slot is available — the caller
+    /// should return an empty result without touching the network. This is the
+    /// fix for the real-world Qobuz IP-ban incident: Lidarr's search loop drove the
+    /// adapter at full rate while auth was expired; without this gate every search
+    /// fired through to the API and Qobuz banned the source IP.
+    /// </summary>
+    private bool IsAuthShortCircuited()
+    {
+        if (_authGate is null) return false;
+        if (_authGate.IsHealthy) return false;
+        return !_authGate.TryAcquireProbeSlot();
+    }
+
+    private async Task RecordAuthOutcomeFromExceptionAsync(Exception ex)
+    {
+        if (_authGate is null) return;
+        if (LooksLikeAuthFailure(ex))
+        {
+            // Was: sync-over-async via `.AsTask().GetAwaiter().GetResult()`.
+            // That pattern deadlocks when invoked from a context that
+            // captures the synchronization context (e.g. the older Lidarr
+            // search loop). Use straight await and ConfigureAwait(false) so
+            // the gate's handler can be implemented either sync or async by
+            // future plugin authors without the call site reintroducing the
+            // deadlock. Caller is now responsible for awaiting this method.
+            await _authGate.Handler.HandleFailureAsync(new AuthFailure
+            {
+                ErrorCode = (ex as Lidarr.Plugin.Qobuzarr.Exceptions.QobuzApiException)?.StatusCode?.ToString(),
+                Message = ex.Message,
+            }).ConfigureAwait(false);
+        }
+    }
+
+    private static bool LooksLikeAuthFailure(Exception ex)
+    {
+        if (ex is Lidarr.Plugin.Qobuzarr.Exceptions.QobuzApiException qae &&
+            qae.StatusCode is System.Net.HttpStatusCode.Unauthorized or System.Net.HttpStatusCode.Forbidden)
+        {
+            return true;
+        }
+        if (ex is System.Net.Http.HttpRequestException hre &&
+            hre.StatusCode is System.Net.HttpStatusCode.Unauthorized or System.Net.HttpStatusCode.Forbidden)
+        {
+            return true;
+        }
+        if (ex is Lidarr.Plugin.Qobuzarr.Authentication.QobuzAuthenticationException) return true;
+        return false;
     }
 
     /// <inheritdoc />
@@ -66,35 +120,79 @@ public sealed class QobuzIndexerAdapter : IIndexer
         {
             return Array.Empty<StreamingAlbum>();
         }
+        if (IsAuthShortCircuited())
+        {
+            _logger.LogDebug("Short-circuiting Qobuz album search; auth latched bad and probe slot exhausted");
+            return Array.Empty<StreamingAlbum>();
+        }
 
         try
         {
             await _statusReporter.ReportStatusAsync(IndexerStatus.Searching, $"Searching albums: {query}", cancellationToken).ConfigureAwait(false);
 
-            var parameters = new Dictionary<string, string>
+            // Walk pages until: (a) the server reports no more results,
+            // (b) the safety cap is reached, or (c) a page returns no new
+            // album ids — the dedup net protects against an API that
+            // silently ignores `offset` and re-returns the same first page.
+            // A mid-pagination failure preserves the accumulated results
+            // instead of throwing them away.
+            const int maxPages = 20;
+            var pageLimit = _settings.SearchLimit;
+            var result = new List<StreamingAlbum>();
+            var seenIds = new HashSet<string>(StringComparer.Ordinal);
+            var offset = 0;
+            for (var page = 0; page < maxPages; page++)
             {
-                ["query"] = query,
-                ["limit"] = _settings.SearchLimit.ToString()
-            };
+                List<QobuzAlbum> albums;
+                bool hasMore;
+                int nextOffset;
+                try
+                {
+                    var parameters = new Dictionary<string, string>
+                    {
+                        ["query"] = query,
+                        ["limit"] = pageLimit.ToString(),
+                        ["offset"] = offset.ToString(),
+                    };
 
-            var response = await _apiClient.GetAsync<QobuzAlbumSearchResponse>("/album/search", parameters).ConfigureAwait(false);
+                    var response = await _apiClient.GetAsync<QobuzAlbumSearchResponse>("/album/search", parameters).ConfigureAwait(false);
+                    albums = response?.GetAlbums() ?? new List<QobuzAlbum>();
+                    hasMore = response?.Albums?.HasMoreResults == true;
+                    nextOffset = response?.Albums?.GetNextOffset() ?? (offset + albums.Count);
+                }
+                catch (Exception ex) when (page > 0)
+                {
+                    await RecordAuthOutcomeFromExceptionAsync(ex).ConfigureAwait(false);
+                    _logger.LogWarning(ex, "Qobuz album search page {Page} failed; returning {Count} accumulated results", page, result.Count);
+                    break;
+                }
 
-            var albums = response?.GetAlbums() ?? new List<QobuzAlbum>();
-            var result = albums.Select(MapToStreamingAlbum).ToList();
+                var newCount = 0;
+                foreach (var album in albums)
+                {
+                    if (album?.Id != null && seenIds.Add(album.Id))
+                    {
+                        result.Add(MapToStreamingAlbum(album));
+                        newCount++;
+                    }
+                }
+
+                if (!hasMore || newCount == 0)
+                {
+                    break;
+                }
+
+                offset = nextOffset;
+            }
 
             _logger.LogDebug("Qobuz album search for '{Query}' returned {Count} results", query, result.Count);
-
-            if (response?.Albums?.HasMoreResults == true)
-            {
-                _logger.LogWarning("Search for '{Query}' returned {Count} of {Total} results — pagination not yet implemented",
-                    query, result.Count, response.Albums.Total);
-            }
 
             await _statusReporter.ReportStatusAsync(IndexerStatus.Idle, null, cancellationToken).ConfigureAwait(false);
             return result;
         }
         catch (Exception ex)
         {
+            await RecordAuthOutcomeFromExceptionAsync(ex).ConfigureAwait(false);
             _logger.LogError(ex, "Error searching Qobuz albums for query '{Query}'", query);
             await _statusReporter.ReportErrorAsync(ex, cancellationToken).ConfigureAwait(false);
             throw;
@@ -106,6 +204,11 @@ public sealed class QobuzIndexerAdapter : IIndexer
     {
         if (string.IsNullOrWhiteSpace(albumId))
         {
+            return null;
+        }
+        if (IsAuthShortCircuited())
+        {
+            _logger.LogDebug("Short-circuiting Qobuz album fetch; auth latched bad and probe slot exhausted");
             return null;
         }
 
@@ -126,6 +229,7 @@ public sealed class QobuzIndexerAdapter : IIndexer
         }
         catch (Exception ex)
         {
+            await RecordAuthOutcomeFromExceptionAsync(ex).ConfigureAwait(false);
             _logger.LogError(ex, "Error fetching Qobuz album '{AlbumId}'", albumId);
             await _statusReporter.ReportErrorAsync(ex, cancellationToken).ConfigureAwait(false);
             throw;
