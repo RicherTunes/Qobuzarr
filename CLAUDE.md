@@ -532,6 +532,7 @@ Per-plugin glue lives in `tests/Qobuzarr.Tests/Runtime/`:
 | `AlbumEditionLidarrIntegrationTests.AlbumRepository_FindByTitle_WithDifferentEditions_*` | GUID collision for different album editions (genuine) | Fix GUID generation to incorporate edition info |
 | `PluginPackagingTests.PluginFluentValidationReference_ShouldMatch_HostVersion` | FluentValidation version 9 vs 11 mismatch -- test never updated for host version change | Update expected version in test |
 | `MLOptimizationRegressionTests.ConcurrentPredictions_MaintainPerformance` | Latency threshold 20ms too tight for CI -- got 81.4ms on shared runners | Relax threshold or use relative comparison |
+| `QobuzAuthenticationServiceCovTests.ClearAuthenticationCache_ClearsStoredSession` <br> `QobuzAuthenticationServiceTests.GetCachedSession_WithExpiredSession_ShouldReturnNull` | QobuzAuthenticationService initializes its own file-backed `_persistentStore` when no override is injected; two test classes running concurrently both write+read the same session file. **Partially mitigated** May 2026 by `[Collection("QobuzAuthentication")]` on both test classes, but tests still race ~1-in-4 sweeps because xUnit can still parallelize INSTANCES within a class. | Inject an in-memory persistent store in the test fixture (TestFixtureBase needs an `IPersistentSessionStore` mock) so each test instance has isolated state instead of all sharing the same file path. |
 
 ### Resolved Bugs (Wave 1 + Wave 2, Mar 26 2026)
 

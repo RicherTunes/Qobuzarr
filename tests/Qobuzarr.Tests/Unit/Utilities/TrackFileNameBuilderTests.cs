@@ -58,15 +58,28 @@ namespace Qobuzarr.Tests.Unit.Utilities
         [Fact]
         public void Build_ShouldSanitizeTitleForFileSystem()
         {
-            var result = TrackFileNameBuilder.Build(trackNumber: 1, trackTitle: "A:B/C*D?E\"F<G>H|I", formatId: 6);
+            var input = "A:B/C*D?E\"F<G>H|I";
+            var result = TrackFileNameBuilder.Build(trackNumber: 1, trackTitle: input, formatId: 6);
 
             var fileName = Path.GetFileNameWithoutExtension(result);
-            // Use the cross-platform allowlist from common's Sanitize helper —
-            // Path.GetInvalidFileNameChars() returns a runtime-OS-specific set
-            // (Windows includes <,>,",|,?,*,:,/,\ ; POSIX only NUL and /),
-            // which makes this assertion's coverage uneven across CI runners.
-            var sanitized = Lidarr.Plugin.Common.Security.Sanitize.PathSegment("A:B/C*D?E\"F<G>H|I");
+
+            // Production routes through FileSystemUtilities.CreateTrackFileName -> SanitizeFileName
+            // -> FileNameSanitizer.SanitizeFileName(input, replacement=' '), which REPLACES invalid
+            // characters with spaces. The previous expectation used Sanitize.PathSegment which
+            // STRIPS invalid chars entirely (different policy), giving a substring like "ABCDEFGHI"
+            // that never appears in the space-separated "A B C D E F G H I" output. Compute the
+            // expected via the same pipeline production uses.
+            var sanitized = Lidarr.Plugin.Common.Utilities.FileNameSanitizer.SanitizeFileName(input).Trim();
             fileName.Should().Contain(sanitized);
+
+            // Defense in depth: regardless of the precise policy, the filename must contain
+            // no OS-invalid characters. (Path.GetInvalidFileNameChars varies by OS; the test
+            // intentionally checks both the Windows superset and the POSIX subset so this
+            // assertion stays meaningful on either runner.)
+            foreach (var ch in new[] { '<', '>', ':', '"', '|', '?', '*', '/', '\\' })
+            {
+                fileName.Should().NotContain(ch.ToString(), $"sanitized filename must not contain '{ch}'");
+            }
         }
 
         [Fact]
