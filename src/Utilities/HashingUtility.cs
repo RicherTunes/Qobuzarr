@@ -18,6 +18,7 @@ namespace Lidarr.Plugin.Qobuzarr.Utilities
         /// <param name="input">The string to hash</param>
         /// <returns>The MD5 hash as a lowercase hexadecimal string</returns>
         /// <exception cref="ArgumentNullException">Thrown when input is null</exception>
+        [Obsolete("Use Lidarr.Plugin.Common.Utilities.HashingUtility.ComputeMD5Hash directly. Removal: v0.2.0.", error: false)]
         public static string ComputeMD5Hash(string input)
         {
             return Lidarr.Plugin.Common.Utilities.HashingUtility.ComputeMD5Hash(input);
@@ -35,7 +36,8 @@ namespace Lidarr.Plugin.Qobuzarr.Utilities
             // Validate password for security
             password = InputSanitizer.ValidatePassword(password);
 
-            return ComputeMD5Hash(password);
+            // Call Common directly to avoid CS0618 self-obsolete chain via local ComputeMD5Hash.
+            return Lidarr.Plugin.Common.Utilities.HashingUtility.ComputeMD5Hash(password);
         }
 
         /// <summary>
@@ -44,6 +46,7 @@ namespace Lidarr.Plugin.Qobuzarr.Utilities
         /// </summary>
         /// <param name="components">The components to combine into a cache key</param>
         /// <returns>A stable cache key string</returns>
+        [Obsolete("Use Lidarr.Plugin.Common.Utilities.HashingUtility.GenerateCacheKey directly. Removal: v0.2.0.", error: false)]
         public static string GenerateCacheKey(params string[] components)
         {
             return Lidarr.Plugin.Common.Utilities.HashingUtility.GenerateCacheKey(components);
