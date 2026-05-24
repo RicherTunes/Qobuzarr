@@ -7,6 +7,7 @@ using Lidarr.Plugin.Qobuzarr.Authentication;
 using Lidarr.Plugin.Qobuzarr.Indexers;
 using Lidarr.Plugin.Qobuzarr.Download.Clients;
 using Lidarr.Plugin.Qobuzarr.Services;
+using Lidarr.Plugin.Qobuzarr.Services.Http;
 
 namespace Lidarr.Plugin.Qobuzarr
 {
@@ -37,6 +38,22 @@ namespace Lidarr.Plugin.Qobuzarr
             /// Gets the plugin version from the assembly metadata (single source of truth in csproj)
             /// </summary>
             public static string Version => System.Reflection.Assembly.GetExecutingAssembly().GetName().Version?.ToString() ?? "0.0.0.0";
+        }
+
+        /// <summary>
+        /// Releases static plugin-level resources whose lifetimes are tied to the plugin's
+        /// AssemblyLoadContext.  Call once during plugin unload to prevent socket-pool leaks
+        /// across Lidarr reload cycles.
+        /// <list type="bullet">
+        ///   <item>SharedSystemHttpClient.Dispose — disposes the Lazy HttpClient + SocketsHttpHandler,
+        ///   releasing the underlying socket pool.  After 3-5 reload cycles without this call,
+        ///   sockets exhaust (audit finding).</item>
+        /// </list>
+        /// Wave 8A additions should append further static Dispose() calls after the one below.
+        /// </summary>
+        public static void Dispose()
+        {
+            SharedSystemHttpClient.Dispose();
         }
     }
 }
