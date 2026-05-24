@@ -5,6 +5,20 @@ All notable changes to Qobuzarr will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.5] - 2026-05-24
+
+### Changed
+- GUID grammar migrated to Common-standard `qobuz:album:{id}` prefix format; legacy `qobuz-{albumId}-{quality}` parser retained as fallback for existing Lidarr database entries.
+- `PluginLogContext` + `Scrub` observability helpers adopted at 5 call-site entry points — structured ambient context on all log lines.
+
+### Tests
+- `GuidGrammarMigrationTests` added; format assertions in existing tests updated to reflect new grammar.
+
+### Dependencies
+- Common submodule bumped to v1.11.0.
+
+[Full diff](https://github.com/RicherTunes/Qobuzarr/compare/v0.5.4...v0.5.5)
+
 ## [0.5.4] - 2026-05-24
 
 ### Fixed
