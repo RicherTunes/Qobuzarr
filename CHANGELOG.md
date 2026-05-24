@@ -5,6 +5,23 @@ All notable changes to Qobuzarr will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.4] - 2026-05-24
+
+### Fixed
+- `SharedSystemHttpClient` disposed on module unload — eliminates socket leak on plugin reload.
+- `QobuzarrModule.Dispose` wired into `StreamingPluginModule` lifecycle — teardown is now ordered correctly.
+
+### Changed
+- `BackendHealthCache` adopted for connection-refused fail-fast — replaces hand-rolled per-plugin copy.
+- `AuthFailureGate` wired into `BridgeQobuzApiClient` (indexer + downloader) — parity with Tidalarr and AppleMusicarr.
+- `HttpExceptionClassifier` adopted in `AuthTokenManager` + `AdaptiveQobuzApiClient` for consistent status detection.
+- `HostGateRegistry.Shutdown` called on module dispose.
+
+### Dependencies
+- Common submodule bumped to v1.10.0.
+
+[Full diff](https://github.com/RicherTunes/Qobuzarr/compare/v0.5.3...v0.5.4)
+
 ## [0.5.3] - 2026-05-23
 
 ### Fixed
