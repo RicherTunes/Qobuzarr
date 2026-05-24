@@ -102,7 +102,7 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Services
             var cleanedUp = 0;
 
             var itemsToRemove = _activeDownloads.Values
-                .Where(item => item.Status == DownloadItemStatus.Completed &&
+                .Where(item => item.GetHostStatus() == DownloadItemStatus.Completed &&
                               item.StartedAt < cutoffTime)
                 .ToList();
 
@@ -127,7 +127,7 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Services
 
         public int GetDownloadCountByStatus(DownloadItemStatus status)
         {
-            return _activeDownloads.Values.Count(item => item.Status == status);
+            return _activeDownloads.Values.Count(item => item.GetHostStatus() == status);
         }
 
         public void UpdateDownloadStatus(string downloadId, DownloadItemStatus status, string message = null)
@@ -138,8 +138,8 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Services
                 return;
             }
 
-            var previousStatus = item.Status;
-            item.Status = status;
+            var previousStatus = item.GetHostStatus();
+            item.SetHostStatus(status);
 
             if (!string.IsNullOrWhiteSpace(message))
             {
@@ -169,10 +169,10 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Services
                 return new DownloadQueueStatistics
                 {
                     TotalDownloads = downloads.Count,
-                    QueuedDownloads = downloads.Count(d => d.Status == DownloadItemStatus.Queued),
-                    DownloadingDownloads = downloads.Count(d => d.Status == DownloadItemStatus.Downloading),
-                    CompletedDownloads = downloads.Count(d => d.Status == DownloadItemStatus.Completed),
-                    FailedDownloads = downloads.Count(d => d.Status == DownloadItemStatus.Failed),
+                    QueuedDownloads = downloads.Count(d => d.GetHostStatus() == DownloadItemStatus.Queued),
+                    DownloadingDownloads = downloads.Count(d => d.GetHostStatus() == DownloadItemStatus.Downloading),
+                    CompletedDownloads = downloads.Count(d => d.GetHostStatus() == DownloadItemStatus.Completed),
+                    FailedDownloads = downloads.Count(d => d.GetHostStatus() == DownloadItemStatus.Failed),
                     TotalBytesDownloaded = downloads.Sum(d => d.TotalSize),
                     LastUpdated = DateTime.UtcNow
                 };

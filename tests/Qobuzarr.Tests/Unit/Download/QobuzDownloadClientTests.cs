@@ -32,10 +32,14 @@ namespace Qobuzarr.Tests.Unit.Download
     // Tests restored and updated for current API
     public class QobuzDownloadClientTests : TestFixtureBase
     {
-        // Test-specific DownloadClient that overrides Settings access for testing
+        // Test-specific DownloadClient that overrides Settings access for testing.
+        // Also overrides Tracker to provide a per-test-instance store so the static
+        // process-wide store doesn't contaminate test isolation.
         private class TestableQobuzDownloadClient : QobuzDownloadClient
         {
             private QobuzDownloadSettings _testSettings;
+            private readonly Lidarr.Plugin.Common.HostBridge.HostBridgeDownloadTrackerStore<QobuzDownloadItem> _testTracker
+                = new Lidarr.Plugin.Common.HostBridge.HostBridgeDownloadTrackerStore<QobuzDownloadItem>();
 
             public TestableQobuzDownloadClient(
                 IQobuzAuthenticationService authService,
@@ -71,6 +75,10 @@ namespace Qobuzarr.Tests.Unit.Download
 
             // Override GetEffectiveSettings to return test settings
             protected override QobuzDownloadSettings GetEffectiveSettings() => _testSettings;
+
+            // Override Tracker with a fresh per-instance store for test isolation.
+            protected override Lidarr.Plugin.Common.HostBridge.HostBridgeDownloadTrackerStore<QobuzDownloadItem> Tracker
+                => _testTracker;
 
             public void SetTestSettings(QobuzDownloadSettings settings)
             {

@@ -7,32 +7,82 @@ using Lidarr.Plugin.Qobuzarr.Models;
 using Lidarr.Plugin.Qobuzarr.Constants;
 using Lidarr.Plugin.Qobuzarr.Download;
 using Lidarr.Plugin.Qobuzarr.Utilities;
+using Lidarr.Plugin.Common.HostBridge;
 
 namespace Lidarr.Plugin.Qobuzarr.Download.Clients
 {
-    public class QobuzDownloadItem : IDisposable
+    /// <summary>
+    /// Qobuz-specific download tracker item. Extends <see cref="HostBridgeDownloadItem"/>
+    /// (Option A subclass) to inherit thread-safe Status/Progress/CompletedAt fields from
+    /// Common, while adding the Qobuz-only extras that don't belong in the shared base:
+    /// <list type="bullet">
+    ///   <item><see cref="CancellationTokenSource"/> — user cancel path</item>
+    ///   <item><see cref="DownloadTask"/> — in-flight Task reference for graceful shutdown</item>
+    ///   <item><see cref="Album"/> — Qobuz album model needed by track-download orchestration</item>
+    ///   <item><see cref="DownloadedSize"/> — byte counter for speed/ETA calculation</item>
+    ///   <item>Quality fallback tracking (count + example string)</item>
+    /// </list>
+    /// Adopted by Wave 10B; replaces the standalone <c>IDisposable</c> class.
+    /// </summary>
+    public class QobuzDownloadItem : HostBridgeDownloadItem, IDisposable
     {
         private bool _disposed = false;
         private int _qualityFallbackCount;
         private string? _qualityFallbackExample;
 
-        public string DownloadId { get; set; }
-        public string AlbumId { get; set; }
-        public string Title { get; set; }
-        public string Artist { get; set; }
-        public DownloadItemStatus Status { get; set; }
-        public double Progress { get; set; }
-        public long TotalSize { get; set; }
-        public long DownloadedSize { get; set; }
-        public DateTime StartedAt { get; set; }
-        public string OutputPath { get; set; }
-        public string Message { get; set; }
-        public Task DownloadTask { get; set; }
-        public CancellationTokenSource CancellationTokenSource { get; set; }
-        public QobuzAlbum Album { get; set; }
+        // Qobuz-only extras ──────────────────────────────────────────────────────────────
+        public Task? DownloadTask { get; set; }
+        public CancellationTokenSource? CancellationTokenSource { get; set; }
+        public QobuzAlbum? Album { get; set; }
 
+        /// <summary>Bytes written to disk so far. Used for speed + ETA calculations.</summary>
+        public long DownloadedSize { get; set; }
+
+        /// <summary>Status message (e.g. failure reason, completion note).</summary>
+        public string? Message { get; set; }
+
+        // Quality fallback tracking ───────────────────────────────────────────────────────
         public int QualityFallbackCount => _qualityFallbackCount;
         public string? QualityFallbackExample => _qualityFallbackExample;
+
+        // HostBridgeDownloadItem status bridging ─────────────────────────────────────────
+
+        /// <summary>
+        /// Gets the Lidarr-host <see cref="DownloadItemStatus"/> by mapping from the
+        /// thread-safe Common enum. Call sites that previously accessed <c>.Status</c>
+        /// directly now call this helper at the Lidarr boundary.
+        /// </summary>
+        public DownloadItemStatus GetHostStatus() => GetStatus() switch
+        {
+            HostBridgeDownloadItemStatus.Queued       => DownloadItemStatus.Queued,
+            HostBridgeDownloadItemStatus.Downloading  => DownloadItemStatus.Downloading,
+            HostBridgeDownloadItemStatus.Completed    => DownloadItemStatus.Completed,
+            HostBridgeDownloadItemStatus.Failed       => DownloadItemStatus.Failed,
+            _                                         => DownloadItemStatus.Failed,
+        };
+
+        /// <summary>Sets the internal status from a Lidarr-host enum value.</summary>
+        public void SetHostStatus(DownloadItemStatus value)
+        {
+            SetStatus(value switch
+            {
+                DownloadItemStatus.Queued       => HostBridgeDownloadItemStatus.Queued,
+                DownloadItemStatus.Downloading  => HostBridgeDownloadItemStatus.Downloading,
+                DownloadItemStatus.Completed    => HostBridgeDownloadItemStatus.Completed,
+                DownloadItemStatus.Warning      => HostBridgeDownloadItemStatus.Failed, // no Warning in Common
+                _                               => HostBridgeDownloadItemStatus.Failed,
+            });
+
+            // Mirror CompletedAt for the retention sweep whenever we reach a terminal state.
+            if (value == DownloadItemStatus.Completed || value == DownloadItemStatus.Failed ||
+                value == DownloadItemStatus.Warning)
+            {
+                if (!CompletedAt.HasValue)
+                    CompletedAt = DateTime.UtcNow;
+            }
+        }
+
+        // ────────────────────────────────────────────────────────────────────────────────
 
         public void RecordQualityFallback(int requestedFormatId, int actualFormatId)
         {
@@ -43,9 +93,7 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Clients
                 null);
         }
 
-        /// <summary>
-        /// Calculate download speed in bytes per second
-        /// </summary>
+        /// <summary>Calculate download speed in bytes per second.</summary>
         public double GetDownloadSpeed()
         {
             var elapsed = DateTime.UtcNow - StartedAt;
@@ -55,12 +103,10 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Clients
             return DownloadedSize / elapsed.TotalSeconds;
         }
 
-        /// <summary>
-        /// Calculate estimated time remaining
-        /// </summary>
+        /// <summary>Calculate estimated time remaining.</summary>
         public TimeSpan? GetEstimatedTimeRemaining()
         {
-            if (Status != DownloadItemStatus.Downloading || Progress >= 100)
+            if (GetHostStatus() != DownloadItemStatus.Downloading || GetProgress() >= 100)
                 return null;
 
             var speed = GetDownloadSpeed();
@@ -73,27 +119,25 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Clients
             return TimeSpan.FromSeconds(remainingSeconds);
         }
 
-        /// <summary>
-        /// Get human-readable status message
-        /// </summary>
+        /// <summary>Get human-readable status message.</summary>
         public string GetStatusMessage()
         {
-            return Status switch
+            var status = GetHostStatus();
+            var progress = GetProgress();
+            return status switch
             {
-                DownloadItemStatus.Queued => "Queued for download",
-                DownloadItemStatus.Downloading => $"Downloading... {Progress:F1}%",
-                DownloadItemStatus.Completed => QualityFallbackCount > 0
+                DownloadItemStatus.Queued       => "Queued for download",
+                DownloadItemStatus.Downloading  => $"Downloading... {progress:F1}%",
+                DownloadItemStatus.Completed    => QualityFallbackCount > 0
                     ? $"Download completed (quality fallback used for {QualityFallbackCount} track(s){(QualityFallbackExample != null ? $": {QualityFallbackExample}" : "")})"
                     : "Download completed",
-                DownloadItemStatus.Failed => $"Download failed: {Message}",
-                DownloadItemStatus.Warning => $"Download warning: {Message}",
-                _ => "Unknown status"
+                DownloadItemStatus.Failed       => $"Download failed: {Message}",
+                DownloadItemStatus.Warning      => $"Download warning: {Message}",
+                _                               => "Unknown status"
             };
         }
 
-        /// <summary>
-        /// Cancel the download if it's in progress
-        /// </summary>
+        /// <summary>Cancel the download if it's in progress.</summary>
         public void Cancel()
         {
             if (_disposed)
@@ -105,13 +149,12 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Clients
             try
             {
                 CancellationTokenSource?.Cancel();
-                Status = DownloadItemStatus.Failed;
+                SetHostStatus(DownloadItemStatus.Failed);
                 Message = "Download cancelled by user";
             }
             catch (ObjectDisposedException)
             {
-                // Already disposed, just update status
-                Status = DownloadItemStatus.Failed;
+                SetHostStatus(DownloadItemStatus.Failed);
                 Message = "Download cancelled (already disposed)";
             }
             catch (Exception ex)
@@ -120,12 +163,11 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Clients
             }
         }
 
-        /// <summary>
-        /// Update progress and downloaded size
-        /// </summary>
+        /// <summary>Update progress and downloaded size.</summary>
         public void UpdateProgress(double progress, long downloadedSize = 0)
         {
-            Progress = Math.Max(0, Math.Min(100, progress));
+            var clamped = Math.Max(0, Math.Min(100, progress));
+            SetProgress(clamped);
 
             if (downloadedSize > 0)
             {
@@ -133,33 +175,30 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Clients
             }
             else if (TotalSize > 0)
             {
-                // Calculate downloaded size from progress if not provided
-                DownloadedSize = (long)(TotalSize * (Progress / 100.0));
+                DownloadedSize = (long)(TotalSize * (clamped / 100.0));
             }
 
-            // Update status based on progress
-            if (Progress >= 100 && Status == DownloadItemStatus.Downloading)
+            // Automatically transition to Completed when progress hits 100.
+            if (clamped >= 100 && GetStatus() == HostBridgeDownloadItemStatus.Downloading)
             {
-                Status = DownloadItemStatus.Completed;
+                SetHostStatus(DownloadItemStatus.Completed);
                 Message = "Download completed successfully";
             }
         }
 
-        /// <summary>
-        /// Mark download as failed with error message
-        /// </summary>
+        /// <summary>Mark download as failed with error message.</summary>
         public void SetFailed(string errorMessage)
         {
-            Status = DownloadItemStatus.Failed;
+            SetHostStatus(DownloadItemStatus.Failed);
             Message = errorMessage;
-            Progress = 0;
+            SetProgress(0);
         }
 
-        /// <summary>
-        /// Convert to Lidarr's DownloadClientItem format
-        /// </summary>
-        public DownloadClientItem ToDownloadClientItem(int downloadClientId = 0, string downloadClientName = null)
+        /// <summary>Convert to Lidarr's DownloadClientItem format.</summary>
+        public DownloadClientItem ToDownloadClientItem(int downloadClientId = 0, string? downloadClientName = null)
         {
+            var status = GetHostStatus();
+            var progress = GetProgress();
             return new DownloadClientItem
             {
                 DownloadId = DownloadId ?? "",
@@ -167,73 +206,59 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Clients
                 TotalSize = TotalSize,
                 RemainingSize = Math.Max(0, TotalSize - DownloadedSize),
                 RemainingTime = GetEstimatedTimeRemaining(),
-                Status = Status,
+                Status = status,
                 Message = GetStatusMessage() ?? "",
-                CanMoveFiles = Status == DownloadItemStatus.Completed && !string.IsNullOrEmpty(OutputPath),
-                CanBeRemoved = Status == DownloadItemStatus.Completed || Status == DownloadItemStatus.Failed,
+                CanMoveFiles = status == DownloadItemStatus.Completed && !string.IsNullOrEmpty(OutputPath),
+                CanBeRemoved = status == DownloadItemStatus.Completed || status == DownloadItemStatus.Failed,
                 OutputPath = new NzbDrone.Common.Disk.OsPath(OutputPath ?? ""),
                 IsEncrypted = false,
-                Category = QobuzarrConstants.DownloadCategory, // Set category to help Lidarr identify our downloads
-                SeedRatio = null, // Not applicable for direct downloads
+                Category = QobuzarrConstants.DownloadCategory,
+                SeedRatio = null,
                 Removed = false,
                 DownloadClientInfo = new DownloadClientItemClientInfo
                 {
                     Protocol = nameof(QobuzarrDownloadProtocol),
                     Type = QobuzarrConstants.PluginName,
-                    Id = downloadClientId, // Use actual download client ID
+                    Id = downloadClientId,
                     Name = downloadClientName ?? QobuzarrConstants.PluginName,
-                    RemoveCompletedDownloads = true, // Allow Lidarr to clean up after import
-                    HasPostImportCategory = true // Enable post-import processing
+                    RemoveCompletedDownloads = true,
+                    HasPostImportCategory = true
                 }
             };
         }
 
-        /// <summary>
-        /// Dispose pattern implementation to properly clean up CancellationTokenSource
-        /// </summary>
+        // IDisposable ────────────────────────────────────────────────────────────────────
+
         public void Dispose()
         {
             Dispose(true);
             GC.SuppressFinalize(this);
         }
 
-        /// <summary>
-        /// Protected virtual dispose method for derived classes
-        /// </summary>
         protected virtual void Dispose(bool disposing)
         {
             if (!_disposed)
             {
                 if (disposing)
                 {
-                    // Dispose managed resources
                     try
                     {
                         CancellationTokenSource?.Cancel();
                         CancellationTokenSource?.Dispose();
                     }
-                    catch (ObjectDisposedException)
-                    {
-                        // Already disposed, ignore
-                    }
+                    catch (ObjectDisposedException) { }
                     catch (Exception ex)
                     {
-                        // Log but don't throw in Dispose
                         Message = $"Error during disposal: {ex.Message}";
                     }
                 }
 
-                // Clean up unmanaged resources if any
                 CancellationTokenSource = null;
                 DownloadTask = null;
-
                 _disposed = true;
             }
         }
 
-        /// <summary>
-        /// Finalizer - only needed if we have unmanaged resources
-        /// </summary>
         ~QobuzDownloadItem()
         {
             Dispose(false);

@@ -24,10 +24,13 @@ namespace Qobuzarr.Tests
 {
     /// <summary>
     /// Testable subclass that provides mock settings without relying on base Definition.
+    /// Also overrides Tracker with a per-instance store for test isolation.
     /// </summary>
     public class TestableQobuzDownloadClient : QobuzDownloadClient
     {
         private readonly QobuzDownloadSettings _settings;
+        private readonly Lidarr.Plugin.Common.HostBridge.HostBridgeDownloadTrackerStore<Lidarr.Plugin.Qobuzarr.Download.Clients.QobuzDownloadItem> _testTracker
+            = new Lidarr.Plugin.Common.HostBridge.HostBridgeDownloadTrackerStore<Lidarr.Plugin.Qobuzarr.Download.Clients.QobuzDownloadItem>();
 
         public TestableQobuzDownloadClient(
             IQobuzAuthenticationService authService,
@@ -55,6 +58,9 @@ namespace Qobuzarr.Tests
         }
 
         protected override QobuzDownloadSettings GetEffectiveSettings() => _settings;
+
+        protected override Lidarr.Plugin.Common.HostBridge.HostBridgeDownloadTrackerStore<Lidarr.Plugin.Qobuzarr.Download.Clients.QobuzDownloadItem> Tracker
+            => _testTracker;
     }
 
     /// <summary>
@@ -539,9 +545,9 @@ namespace Qobuzarr.Tests
             var downloadItem = new QobuzDownloadItem
             {
                 DownloadId = "test-id",
-                Status = DownloadItemStatus.Downloading,
                 CancellationTokenSource = new System.Threading.CancellationTokenSource()
             };
+            downloadItem.SetHostStatus(DownloadItemStatus.Downloading);
             _mockQueueService.Setup(x => x.GetActiveDownloads())
                 .Returns(new List<QobuzDownloadItem> { downloadItem });
             _mockConcurrencyManager.Setup(x => x.Dispose());
@@ -565,9 +571,9 @@ namespace Qobuzarr.Tests
             var downloadItem = new QobuzDownloadItem
             {
                 DownloadId = "test-id",
-                Status = DownloadItemStatus.Downloading,
                 CancellationTokenSource = new System.Threading.CancellationTokenSource()
             };
+            downloadItem.SetHostStatus(DownloadItemStatus.Downloading);
             _mockQueueService.Setup(x => x.TryGetDownload("test-id", out downloadItem))
                 .Returns(true);
             _mockQueueService.Setup(x => x.RemoveDownload("test-id", false))
@@ -619,9 +625,9 @@ namespace Qobuzarr.Tests
             var downloadItem = new QobuzDownloadItem
             {
                 DownloadId = "test-id",
-                Status = DownloadItemStatus.Queued,
                 CancellationTokenSource = new System.Threading.CancellationTokenSource()
             };
+            // Status defaults to Queued
             _mockQueueService.Setup(x => x.TryGetDownload("test-id", out downloadItem))
                 .Returns(true);
             _mockQueueService.Setup(x => x.RemoveDownload("test-id", true))

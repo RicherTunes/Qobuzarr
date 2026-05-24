@@ -1,5 +1,4 @@
 using System;
-using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -54,9 +53,17 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Clients
         private readonly IDownloadSummary _downloadSummary;
         private readonly IBatchProcessor _batchProcessor;
         private readonly Lidarr.Plugin.Qobuzarr.Download.Services.ITrackDownloadService _trackDownloadService;
-        // Removed dependency on IQobuzTrackDownloaderFactory - consolidated into this class
-        private readonly ConcurrentDictionary<string, QobuzDownloadItem> _activeDownloads;
-        private QobuzDownloadItem _lastQueuedItem;
+        // Process-wide tracker store — survives Lidarr's client re-instantiation cycles.
+        // Static so a single store is shared across all QobuzDownloadClient instances
+        // that DryIoc may create over the plugin's lifetime (matching the Tidalarr pattern).
+        // Exposed as a protected virtual property so test subclasses can inject a fresh
+        // per-test store without the static accumulation contaminating test isolation.
+        private static readonly HostBridgeDownloadTrackerStore<QobuzDownloadItem> _staticTracker =
+            new HostBridgeDownloadTrackerStore<QobuzDownloadItem>(TimeSpan.FromMinutes(30));
+
+        protected virtual HostBridgeDownloadTrackerStore<QobuzDownloadItem> Tracker => _staticTracker;
+
+        private QobuzDownloadItem? _lastQueuedItem;
 
         public override string Name => QobuzarrConstants.PluginName;
 
@@ -90,9 +97,6 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Clients
             _downloadSummary = downloadSummary ?? throw new ArgumentNullException(nameof(downloadSummary));
             _batchProcessor = batchProcessor ?? throw new ArgumentNullException(nameof(batchProcessor));
             _trackDownloadService = trackDownloadService ?? throw new ArgumentNullException(nameof(trackDownloadService));
-            // Track downloader functionality consolidated into this class
-
-            _activeDownloads = new ConcurrentDictionary<string, QobuzDownloadItem>();
         }
 
         /// <summary>
@@ -146,15 +150,14 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Clients
                     AlbumId = albumId,
                     Title = remoteAlbum.Albums?.FirstOrDefault()?.Title ?? "Unknown Album",
                     Artist = remoteAlbum.Artist?.Name ?? "Unknown Artist",
-                    Status = DownloadItemStatus.Queued,
-                    Progress = 0,
                     StartedAt = DateTime.UtcNow,
                     OutputPath = outputPath,
                     CancellationTokenSource = new CancellationTokenSource()
                 };
+                // Status defaults to Queued (HostBridgeDownloadItem initial state = 0 = Queued)
 
-                // Track internally for tests and environments without a real queue service
-                _activeDownloads[downloadId] = downloadItem;
+                // Register with the process-wide tracker store (survives re-instantiation).
+                Tracker.AddOrReplace(downloadItem);
                 _lastQueuedItem = downloadItem;
 
                 // Add to queue service
@@ -177,16 +180,17 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Clients
         {
             try
             {
-                // Clean up old downloads
+                // CleanupOldDownloads is still called for the queue service side.
                 CleanupOldDownloads();
 
+                // Tracker.GetSnapshot() runs the 30-min retention sweep on completed/failed
+                // items as a side-effect, then returns all still-live entries.
+                var snapshot = Tracker.GetSnapshot();
                 var result = new List<DownloadClientItem>();
 
-                // Always include in-memory tracked items
-                foreach (var kv in _activeDownloads)
+                foreach (var item in snapshot)
                 {
-                    var it = kv.Value;
-                    result.Add(it.ToDownloadClientItem(0, Name));
+                    result.Add(item.ToDownloadClientItem(0, Name));
                 }
 
                 if (result.Count == 0 && _lastQueuedItem != null)
@@ -194,7 +198,7 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Clients
                     result.Add(_lastQueuedItem.ToDownloadClientItem(0, Name));
                 }
 
-                // Merge any queue-service items
+                // Merge any queue-service items not already captured.
                 var queued = _queueService.GetActiveDownloads() ?? Enumerable.Empty<QobuzDownloadItem>();
                 foreach (var q in queued)
                 {
@@ -219,36 +223,36 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Clients
         {
             try
             {
-                // Always try to remove from internal tracking (for tests and edge cases)
-                _activeDownloads.TryRemove(downloadId, out var activeItem);
+                // Remove from the process-wide tracker (handles optional data deletion).
+                Tracker.Remove(downloadId, deleteData, out var trackerItem,
+                    ex => _logger.Warn(ex, "Error deleting download data for {0}", downloadId));
 
-                // Clear _lastQueuedItem if it matches
+                // Clear _lastQueuedItem sentinel if it matches.
                 if (_lastQueuedItem?.DownloadId == downloadId)
                 {
                     _lastQueuedItem = null;
                 }
 
-                if (_queueService.TryGetDownload(downloadId, out var downloadItem))
+                // Cancel in-flight download if it's still running.
+                if (trackerItem != null &&
+                    trackerItem.GetStatus() == HostBridgeDownloadItemStatus.Downloading)
                 {
-                    // Cancel if still downloading
-                    if (downloadItem.Status == DownloadItemStatus.Downloading)
-                    {
-                        downloadItem.Cancel();
-                    }
+                    trackerItem.Cancel();
+                }
 
-                    // Remove from queue with data deletion option
+                // Also remove from the queue service (which has its own dict).
+                if (_queueService.TryGetDownload(downloadId, out var queueItem))
+                {
+                    if (queueItem.GetStatus() == HostBridgeDownloadItemStatus.Downloading)
+                    {
+                        queueItem.Cancel();
+                    }
                     _queueService.RemoveDownload(downloadId, deleteData);
                     _logger.Debug("Removed download item: {0}", downloadId);
                 }
-                else if (activeItem != null)
+                else if (trackerItem != null)
                 {
-                    // Item was in internal tracking but not in queue service
-                    // Cancel if still downloading
-                    if (activeItem.Status == DownloadItemStatus.Downloading)
-                    {
-                        activeItem.Cancel();
-                    }
-                    _logger.Debug("Removed download item from internal tracking: {0}", downloadId);
+                    _logger.Debug("Removed download item from tracker: {0}", downloadId);
                 }
             }
             catch (Exception ex)
@@ -379,7 +383,7 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Clients
         {
             try
             {
-                downloadItem.Status = DownloadItemStatus.Downloading;
+                downloadItem.SetHostStatus(DownloadItemStatus.Downloading);
                 _logger.Info("🎵 Starting download: {0} - {1}", downloadItem.Artist, downloadItem.Title);
 
                 // Get effective settings (supports test subclasses)
@@ -398,6 +402,7 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Clients
                 downloadItem.Album = album;
                 downloadItem.TotalSize = album.GetEstimatedTotalSize(settings.PreferredQuality);
 
+
                 // Create output directory using file service
                 _fileService.EnsureOutputDirectory(downloadItem.OutputPath);
 
@@ -405,8 +410,8 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Clients
                 await _trackDownloadService.DownloadAlbumAsync(downloadItem, album, settings, downloadItem.CancellationTokenSource.Token).ConfigureAwait(false);
 
                 // Mark as completed
-                downloadItem.Status = DownloadItemStatus.Completed;
-                downloadItem.Progress = 100;
+                downloadItem.SetHostStatus(DownloadItemStatus.Completed);
+                downloadItem.SetProgress(100);
                 downloadItem.Message = downloadItem.QualityFallbackCount > 0
                     ? $"Download completed successfully (quality fallback used for {downloadItem.QualityFallbackCount} track(s){(downloadItem.QualityFallbackExample != null ? $": {downloadItem.QualityFallbackExample}" : "")})"
                     : "Download completed successfully";
@@ -415,7 +420,7 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Clients
             }
             catch (OperationCanceledException)
             {
-                downloadItem.Status = DownloadItemStatus.Failed;
+                downloadItem.SetHostStatus(DownloadItemStatus.Failed);
                 downloadItem.Message = "Download was cancelled";
                 _logger.Info("⚠️ Download cancelled: {0} - {1}", downloadItem.Artist, downloadItem.Title);
             }
@@ -1056,8 +1061,8 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Clients
 
                 // Wait for all downloads to complete (with timeout)
                 var downloadTasks = activeDownloads
-                    .Where(d => d.DownloadTask != null && !d.DownloadTask.IsCompleted)
-                    .Select(d => d.DownloadTask)
+                    .Where(d => d.DownloadTask != null && !d.DownloadTask!.IsCompleted)
+                    .Select(d => d.DownloadTask!)
                     .ToList();
 
                 if (downloadTasks.Any())

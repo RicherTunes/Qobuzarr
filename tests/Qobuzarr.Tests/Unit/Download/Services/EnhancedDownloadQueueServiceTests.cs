@@ -184,7 +184,7 @@ namespace Qobuzarr.Tests.Unit.Download.Services
             foreach (var id in itemIds)
             {
                 _sut.TryGetDownload(id, out var item).Should().BeTrue();
-                item.Status.Should().BeOneOf(statuses);
+                item.GetHostStatus().Should().BeOneOf(statuses);
                 item.Message.Should().NotBeNullOrEmpty();
             }
         }
@@ -338,11 +338,17 @@ namespace Qobuzarr.Tests.Unit.Download.Services
         [Fact]
         public void AddDownload_WithNullProperties_HandlesGracefully()
         {
-            // Arrange
-            var item = CreateTestDownloadItem("null-test", "Test Album");
-            item.Artist = null;
-            item.Message = null;
-            item.OutputPath = null;
+            // Arrange: Artist and OutputPath are init-only (from HostBridgeDownloadItem base),
+            // so we set them to empty string in the factory (closest to "null" for init-only props).
+            // Message is QobuzDownloadItem-only and can be set to null after construction.
+            var item = new QobuzDownloadItem
+            {
+                DownloadId = "null-test",
+                Title = "Test Album",
+                // Artist and OutputPath left as empty string (their defaults) to simulate missing data.
+                CancellationTokenSource = new System.Threading.CancellationTokenSource()
+            };
+            item.Message = null; // This is QobuzDownloadItem's own property (not init-only).
 
             // Act & Assert (should not throw)
             _sut.AddDownload(item);
@@ -630,19 +636,20 @@ namespace Qobuzarr.Tests.Unit.Download.Services
             DownloadItemStatus status = DownloadItemStatus.Queued,
             long totalSize = 1000)
         {
-            return new QobuzDownloadItem
+            var item = new QobuzDownloadItem
             {
                 DownloadId = downloadId,
                 Title = title,
                 Artist = "Test Artist",
-                Status = status,
-                Progress = status == DownloadItemStatus.Completed ? 100 : 0,
                 TotalSize = totalSize,
                 StartedAt = DateTime.UtcNow,
                 OutputPath = outputPath,
                 CancellationTokenSource = new CancellationTokenSource(),
                 Message = $"Status: {status}"
             };
+            item.SetHostStatus(status);
+            item.SetProgress(status == DownloadItemStatus.Completed ? 100 : 0);
+            return item;
         }
 
         #endregion
