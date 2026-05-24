@@ -55,7 +55,8 @@ namespace Qobuzarr.Tests.Unit.API.Http
 
             memory.Logs.Should().NotBeEmpty();
             string.Join("\n", memory.Logs).Should().NotContain(token);
-            string.Join("\n", memory.Logs).Should().Contain("user_auth_token=[redacted]");
+            // Wave 17F: unified on Common.Scrub.Url which uses *** sentinel (was [redacted]).
+            string.Join("\n", memory.Logs).Should().Contain("user_auth_token=***");
         }
 
         private static HttpResponse CreateResponse(HttpRequest request, HttpStatusCode statusCode, int? retryAfterSeconds = null)
