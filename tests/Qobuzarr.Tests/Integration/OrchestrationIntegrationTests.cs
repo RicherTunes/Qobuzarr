@@ -173,11 +173,11 @@ namespace Qobuzarr.Tests.Integration
 
         private QobuzDownloadItem CreateTestDownloadItem(string id)
         {
+            // Status defaults to Queued (HostBridgeDownloadItemStatus.Queued = 0)
             return new QobuzDownloadItem
             {
                 DownloadId = id,
                 Title = $"Test Download {id}",
-                Status = DownloadItemStatus.Queued,
                 TotalSize = 1024 * 1024 * 10, // 10MB
                 OutputPath = $"/test/downloads/{id}",
                 StartedAt = DateTime.UtcNow

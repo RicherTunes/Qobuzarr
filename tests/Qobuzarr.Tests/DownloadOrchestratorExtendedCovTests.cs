@@ -525,9 +525,9 @@ namespace Qobuzarr.Tests
             {
                 DownloadId = downloadId,
                 Title = "Test Album",
-                Status = NzbDrone.Core.Download.DownloadItemStatus.Downloading,
                 CancellationTokenSource = new System.Threading.CancellationTokenSource()
             };
+            mockItem.SetHostStatus(NzbDrone.Core.Download.DownloadItemStatus.Downloading);
 
             _mockQueueService.Setup(x => x.TryGetDownload(downloadId, out mockItem))
                 .Returns(true);
@@ -537,7 +537,7 @@ namespace Qobuzarr.Tests
 
             // Assert - Line 97: return true;
             result.Should().BeTrue("download was found and cancelled");
-            mockItem.Status.Should().Be(NzbDrone.Core.Download.DownloadItemStatus.Failed,
+            mockItem.GetHostStatus().Should().Be(NzbDrone.Core.Download.DownloadItemStatus.Failed,
                 "cancelled download should have Failed status");
         }
 
@@ -573,11 +573,8 @@ namespace Qobuzarr.Tests
             // Arrange
             var sut = CreateSut();
             var downloadId = "test-id";
-            var mockItem = new QobuzDownloadItem
-            {
-                DownloadId = downloadId,
-                Status = NzbDrone.Core.Download.DownloadItemStatus.Downloading
-            };
+            var mockItem = new QobuzDownloadItem { DownloadId = downloadId };
+            mockItem.SetHostStatus(NzbDrone.Core.Download.DownloadItemStatus.Downloading);
 
             _mockQueueService.Setup(x => x.TryGetDownload(downloadId, out mockItem))
                 .Throws(new InvalidOperationException("Database error"));
