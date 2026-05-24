@@ -2,6 +2,7 @@ using System;
 using System.Threading;
 using System.Threading.Tasks;
 using NLog;
+using Lidarr.Plugin.Common.Services.Diagnostics;
 
 namespace Lidarr.Plugin.Qobuzarr.Services
 {
@@ -370,13 +371,7 @@ namespace Lidarr.Plugin.Qobuzarr.Services
             if (ex is AuthenticationException)
                 return true;
 
-            var message = ex.Message?.ToLowerInvariant() ?? "";
-            return message.Contains("unauthorized") ||
-                   message.Contains("forbidden") ||
-                   message.Contains("authentication") ||
-                   message.Contains("token") ||
-                   message.Contains("401") ||
-                   message.Contains("403");
+            return HttpExceptionClassifier.Classify(ex).Category == HttpFailureCategory.Auth;
         }
 
         #endregion
