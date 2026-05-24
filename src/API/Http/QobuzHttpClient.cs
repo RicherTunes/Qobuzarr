@@ -12,6 +12,8 @@ using Lidarr.Plugin.Qobuzarr.Utilities;
 using Lidarr.Plugin.Common.Services.Performance;
 using Lidarr.Plugin.Common.Observability;
 using Lidarr.Plugin.Qobuzarr.Constants;
+using Lidarr.Plugin.Common.Resilience;
+using Lidarr.Plugin.Qobuzarr.API;
 using SharedRetryUtilities = Lidarr.Plugin.Common.Utilities.RetryUtilities;
 
 namespace Lidarr.Plugin.Qobuzarr.API.Http
@@ -26,9 +28,13 @@ namespace Lidarr.Plugin.Qobuzarr.API.Http
         private readonly IUniversalAdaptiveRateLimiter? _adaptiveRateLimiter;
         private readonly Logger _logger;
         private readonly IPerformanceMonitoringService? _performanceMonitor;
+        private readonly BackendHealthCache _healthCache;
         private readonly object _fallbackLock = new object();
         private readonly System.Collections.Generic.Queue<DateTime> _fallbackRequestTimes = new System.Collections.Generic.Queue<DateTime>();
         private readonly TimeSpan _fallbackWindow = TimeSpan.FromMinutes(1);
+
+        // Stable provider key for all Qobuz API calls into the BackendHealthCache.
+        private const string BackendProvider = "qobuz:api";
 
         // Per-host concurrency gates
         private static readonly System.Collections.Concurrent.ConcurrentDictionary<string, SemaphoreSlim> _hostGates = new();
@@ -42,16 +48,18 @@ namespace Lidarr.Plugin.Qobuzarr.API.Http
             IHttpClient httpClient,
             Logger logger,
             IPerformanceMonitoringService? performanceMonitor = null,
-            IUniversalAdaptiveRateLimiter? adaptiveRateLimiter = null)
+            IUniversalAdaptiveRateLimiter? adaptiveRateLimiter = null,
+            BackendHealthCache? healthCache = null)
         {
             _httpClient = httpClient ?? throw new ArgumentNullException(nameof(httpClient));
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
             _performanceMonitor = performanceMonitor;
             _adaptiveRateLimiter = adaptiveRateLimiter; // Optional: relies on host DI; falls back gracefully when null
+            _healthCache = healthCache ?? BackendHealthCache.Shared;
         }
 
         public QobuzHttpClient(IHttpClient httpClient, Logger logger)
-            : this(httpClient, logger, performanceMonitor: null, adaptiveRateLimiter: null)
+            : this(httpClient, logger, performanceMonitor: null, adaptiveRateLimiter: null, healthCache: null)
         {
         }
 
@@ -93,6 +101,15 @@ namespace Lidarr.Plugin.Qobuzarr.API.Http
             var safeUrl = GetSafeUrlForLogging(request);
             _logger.Debug("Executing HTTP {0} request to {1}", request.Method, safeUrl);
 
+            // BackendHealthCache fast-path: if a prior connection-class failure is still within
+            // the grace window, fail immediately without burning the retry budget.
+            var requestHost = request?.Url?.Host ?? string.Empty;
+            if (_healthCache.IsKnownDown(BackendProvider, requestHost, out var knownDownReason))
+            {
+                _logger.Debug("BackendHealthCache: skipping HTTP call — {0}", knownDownReason);
+                throw new QobuzApiException("Qobuz API backend is temporarily unreachable: " + knownDownReason, 0, "BackendDown");
+            }
+
             var stopwatch = Stopwatch.StartNew();
             try
             {
@@ -132,6 +149,8 @@ namespace Lidarr.Plugin.Qobuzarr.API.Http
                                 var msgOk = new HttpResponseMessage(response.StatusCode);
                                 _adaptiveRateLimiter.RecordResponse(QobuzarrConstants.ServiceName, endpoint, msgOk);
                             }
+                            // Successful response: clear any previous down-state for this host.
+                            _healthCache.MarkUp(BackendProvider, requestHost);
                             return response;
                         }
 
@@ -190,6 +209,13 @@ namespace Lidarr.Plugin.Qobuzarr.API.Http
                 {
                     var msg = new HttpResponseMessage(System.Net.HttpStatusCode.InternalServerError);
                     _adaptiveRateLimiter.RecordResponse(QobuzarrConstants.ServiceName, endpoint, msg);
+                }
+                // Record connection-class failures (SocketException, DNS failure, connection refused)
+                // so subsequent callers can fail-fast within the grace window instead of retrying.
+                if (BackendHealthCache.IsConnectionClassFailure(ex))
+                {
+                    _healthCache.MarkDown(BackendProvider, requestHost, ex);
+                    _logger.Warn("BackendHealthCache: marked {0} down for {1}s — {2}", requestHost, BackendHealthCache.DefaultGraceSeconds, ex.Message);
                 }
                 throw;
             }
