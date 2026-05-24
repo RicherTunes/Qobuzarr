@@ -17,6 +17,7 @@ using Lidarr.Plugin.Qobuzarr.API;
 using Lidarr.Plugin.Qobuzarr.Security;
 using Lidarr.Plugin.Qobuzarr.Indexers.Core;
 using Lidarr.Plugin.Common.Base;
+using Lidarr.Plugin.Common.Diagnostics;
 using Lidarr.Plugin.Qobuzarr.Download;
 using NzbDrone.Core.Download;
 using Lidarr.Plugin.Common.Services;
@@ -51,6 +52,9 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
         private QobuzRequestGenerator? _requestGenerator;
         private QobuzParser? _parser;
         private readonly Lazy<IPatternLearningEngine> _patternLearningEngine;
+
+        // Warn-once gate for constructor wire-up failures (process-global, single fixed key)
+        private static readonly WarnOnce _wireWarn = new();
 
         public QobuzIndexer(
             IHttpClient httpClient,
@@ -102,7 +106,11 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
             }
             catch (Exception ex)
             {
-                _logger.Warn(ex, "Non-fatal: Failed to wire auth service/credentials provider to API client");
+                _wireWarn.TryWarn(
+                    "wireup",
+                    ex,
+                    e => _logger.Warn(e, "Non-fatal: Failed to wire auth service/credentials provider to API client (this warning will not repeat for this process)"),
+                    e => _logger.Debug(e, "Non-fatal: indexer wire-up failed again (warn-once already fired this process)"));
             }
         }
 
