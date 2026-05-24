@@ -4,6 +4,8 @@ using System.Linq;
 using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
+using Lidarr.Plugin.Abstractions.Contracts;
+using Lidarr.Plugin.Common.Services.Bridge;
 using Lidarr.Plugin.Qobuzarr.API;
 using Lidarr.Plugin.Qobuzarr.Models;
 using Lidarr.Plugin.Qobuzarr.Models.Authentication;
@@ -30,6 +32,7 @@ public sealed class BridgeQobuzApiClient : IQobuzApiClient, IDisposable
 
     private readonly HttpClient _httpClient;
     private readonly ILogger<BridgeQobuzApiClient> _logger;
+    private readonly AuthFailureGate _authFailureGate;
     private readonly bool _ownsHttpClient;
     private QobuzSession? _session;
 
@@ -38,10 +41,12 @@ public sealed class BridgeQobuzApiClient : IQobuzApiClient, IDisposable
     /// </summary>
     /// <param name="httpClient">HTTP client to use for requests. Caller retains ownership.</param>
     /// <param name="logger">Logger instance.</param>
-    public BridgeQobuzApiClient(HttpClient httpClient, ILogger<BridgeQobuzApiClient> logger)
+    /// <param name="authFailureGate">Gate that prevents hammering Qobuz when credentials are known bad.</param>
+    public BridgeQobuzApiClient(HttpClient httpClient, ILogger<BridgeQobuzApiClient> logger, AuthFailureGate authFailureGate)
     {
         _httpClient = httpClient ?? throw new ArgumentNullException(nameof(httpClient));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+        _authFailureGate = authFailureGate ?? throw new ArgumentNullException(nameof(authFailureGate));
         _ownsHttpClient = false;
     }
 
@@ -49,9 +54,11 @@ public sealed class BridgeQobuzApiClient : IQobuzApiClient, IDisposable
     /// Creates a new bridge API client with an internally managed HTTP client.
     /// </summary>
     /// <param name="logger">Logger instance.</param>
-    public BridgeQobuzApiClient(ILogger<BridgeQobuzApiClient> logger)
+    /// <param name="authFailureGate">Gate that prevents hammering Qobuz when credentials are known bad.</param>
+    public BridgeQobuzApiClient(ILogger<BridgeQobuzApiClient> logger, AuthFailureGate authFailureGate)
     {
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+        _authFailureGate = authFailureGate ?? throw new ArgumentNullException(nameof(authFailureGate));
         _httpClient = new HttpClient { Timeout = TimeSpan.FromSeconds(30) };
         _ownsHttpClient = true;
     }
@@ -79,6 +86,9 @@ public sealed class BridgeQobuzApiClient : IQobuzApiClient, IDisposable
     /// <inheritdoc />
     public async Task<T> GetAsync<T>(string endpoint, Dictionary<string, string>? parameters = null) where T : class
     {
+        // Fail fast if auth is known bad — prevents IP-ban cascade when credentials are revoked.
+        _authFailureGate.EnsureCanProceed();
+
         var url = BuildUrl(endpoint, parameters);
 
         _logger.LogDebug("Bridge GET {Endpoint}", endpoint);
@@ -90,6 +100,9 @@ public sealed class BridgeQobuzApiClient : IQobuzApiClient, IDisposable
     /// <inheritdoc />
     public async Task<T> PostAsync<T>(string endpoint, object? data = null) where T : class
     {
+        // Fail fast if auth is known bad — prevents IP-ban cascade when credentials are revoked.
+        _authFailureGate.EnsureCanProceed();
+
         var url = BuildUrl(endpoint, parameters: null);
 
         _logger.LogDebug("Bridge POST {Endpoint}", endpoint);
@@ -178,11 +191,25 @@ public sealed class BridgeQobuzApiClient : IQobuzApiClient, IDisposable
             _logger.LogError("Bridge API error: HTTP {StatusCode} for {Endpoint}: {Body}",
                 statusCode, endpoint, body.Length > 500 ? body[..500] + "..." : body);
 
+            // Signal the auth gate on 401/403 to prevent IP-ban cascades when credentials are bad.
+            if (statusCode is 401 or 403)
+            {
+                await _authFailureGate.HandleFailureAsync(new AuthFailure
+                {
+                    ErrorCode = statusCode.ToString(),
+                    Message = $"Qobuz returned HTTP {statusCode} for {endpoint}. Check your credentials.",
+                    CanReauthenticate = true
+                }).ConfigureAwait(false);
+            }
+
             throw new Exceptions.QobuzApiException(
                 $"HTTP {statusCode}: {(body.Length > 200 ? body[..200] : body)}",
                 endpoint,
                 response.StatusCode);
         }
+
+        // Success path: reset the gate so a prior transient failure doesn't block indefinitely.
+        await _authFailureGate.HandleSuccessAsync().ConfigureAwait(false);
 
         var result = JsonConvert.DeserializeObject<T>(body);
         if (result is null)

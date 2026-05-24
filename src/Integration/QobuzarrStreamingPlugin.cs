@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using Lidarr.Plugin.Abstractions.Contracts;
 using Lidarr.Plugin.Common.Extensions;
 using Lidarr.Plugin.Common.Hosting;
+using Lidarr.Plugin.Common.Services.Bridge;
 using Lidarr.Plugin.Common.Services.Performance;
 using Lidarr.Plugin.Common.Services.Registration;
 using Lidarr.Plugin.Qobuzarr.API;
@@ -28,6 +29,11 @@ public sealed class QobuzarrStreamingPlugin : StreamingPlugin<QobuzarrStreamingM
         // Register bridge defaults (auth failure handler, status reporter, rate limit reporter).
         // AddBridgeDefaults uses TryAdd, so custom registrations added before this call take precedence.
         services.AddBridgeDefaults();
+
+        // AuthFailureGate — singleton wrapping the IAuthFailureHandler registered above.
+        // Prevents Lidarr's search loop from hammering api.qobuz.com when credentials are known bad.
+        // Mirrors the Tidalarr/AppleMusicarr pattern.
+        services.AddSingleton<AuthFailureGate>();
 
         // Explicit rate-limiter registration. QobuzHttpClient (the Lidarr-native path) takes
         // IUniversalAdaptiveRateLimiter as an OPTIONAL ctor parameter — without an explicit
