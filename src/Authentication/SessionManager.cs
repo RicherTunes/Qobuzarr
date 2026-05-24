@@ -6,6 +6,7 @@ using NLog;
 using Lidarr.Plugin.Qobuzarr.Models.Authentication;
 using Lidarr.Plugin.Qobuzarr.Services.Interfaces;
 using Lidarr.Plugin.Common.Services.Authentication;
+using Lidarr.Plugin.Common.Hosting;
 
 namespace Lidarr.Plugin.Qobuzarr.Authentication
 {
@@ -246,16 +247,21 @@ namespace Lidarr.Plugin.Qobuzarr.Authentication
 
         /// <summary>
         /// Resolves the default cross-platform session file location.
+        /// Uses <see cref="PluginConfigRoots.Resolve"/> which honors the
+        /// <c>LIDARR_PLUGIN_CONFIG</c> override, Docker <c>/config</c>,
+        /// Windows <c>%AppData%</c>, XDG and HOME chains — fixing the
+        /// Docker empty-HOME bug where the old hand-rolled fallback produced
+        /// a relative path that resolved against <c>/app/bin/</c>.
         /// </summary>
         public static string GetDefaultSessionFilePath()
         {
-            var appData = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
-            if (string.IsNullOrWhiteSpace(appData))
-            {
-                appData = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
-            }
-
-            return Path.Combine(appData, "ArrPlugins", DefaultStorageFolder, DefaultSessionFileName);
+            // PluginConfigRoots.Resolve("Qobuzarr") already appends the plugin name as the
+            // leaf (e.g. /config/Qobuzarr on Docker).  Appending DefaultSessionFileName
+            // directly gives us /config/Qobuzarr/session.json, matching the intended layout.
+            // DefaultStorageFolder ("Qobuzarr") is kept as a named constant for tests that
+            // verify it, but is not re-combined here since Resolve already includes it.
+            var configRoot = PluginConfigRoots.Resolve("Qobuzarr");
+            return Path.Combine(configRoot, DefaultSessionFileName);
         }
 
         public void Dispose()

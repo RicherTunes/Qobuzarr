@@ -451,13 +451,18 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
                 CleanupTimingQueue(_predictionTimes, MaxHistorySize);
                 CleanupTimingQueue(_trainingTimes, MaxHistorySize);
 
-                // Log periodic summary
+                // Log periodic summary only when there is meaningful data to report.
+                // Suppresses the every-30-second zero-valued spam on idle instances.
                 var summary = GetPerformanceSummary();
-                _logger.Debug("ML Performance Summary - Accuracy: {0:F1}%, Cache Hit Rate: {1:F1}%, API Reduction: {2:F1}%, Avg Prediction: {3:F2}ms",
-                    summary.CurrentAccuracy * 100,
-                    summary.CacheHitRatio * 100,
-                    summary.ApiCallReductionPercentage,
-                    summary.PredictionMetrics.Average);
+                if (summary.PredictionMetrics.Average > 0 || summary.CurrentAccuracy > 0
+                    || summary.CacheHitRatio > 0 || summary.ApiCallReductionPercentage > 0)
+                {
+                    _logger.Debug("ML Performance Summary - Accuracy: {0:F1}%, Cache Hit Rate: {1:F1}%, API Reduction: {2:F1}%, Avg Prediction: {3:F2}ms",
+                        summary.CurrentAccuracy * 100,
+                        summary.CacheHitRatio * 100,
+                        summary.ApiCallReductionPercentage,
+                        summary.PredictionMetrics.Average);
+                }
             }
             catch (Exception ex)
             {
