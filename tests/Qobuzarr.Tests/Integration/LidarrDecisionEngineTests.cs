@@ -315,9 +315,9 @@ namespace Qobuzarr.Tests.Integration
             var qobuzAlbum = CreateQobuzDeluxeAlbum();
             var releases = ConvertAlbumToReleases(qobuzAlbum);
 
-            // Act & Assert
-            var mp3Release = releases.FirstOrDefault(r => r.Guid.EndsWith("-5"));  // MP3320 = 5
-            var flacRelease = releases.FirstOrDefault(r => r.Guid.EndsWith("-6")); // FLACLossless = 6
+            // Act & Assert — new Common-grammar GUID: qobuz:album:{id}:quality={q}
+            var mp3Release = releases.FirstOrDefault(r => r.Guid.Contains(":quality=5"));   // MP3320 = 5
+            var flacRelease = releases.FirstOrDefault(r => r.Guid.Contains(":quality=6"));  // FLACLossless = 6
 
             mp3Release.Should().NotBeNull("Should have MP3 release");
             flacRelease.Should().NotBeNull("Should have FLAC release");
@@ -325,9 +325,9 @@ namespace Qobuzarr.Tests.Integration
             mp3Release.Guid.Should().NotBe(flacRelease.Guid,
                 "Different qualities should have different GUIDs");
 
-            // Both should reference same Qobuz album but different quality
-            mp3Release.Guid.Should().StartWith("qobuz-");
-            flacRelease.Guid.Should().StartWith("qobuz-");
+            // Both should use new Common-grammar prefix
+            mp3Release.Guid.Should().StartWith("qobuz:album:");
+            flacRelease.Guid.Should().StartWith("qobuz:album:");
         }
 
         #endregion
