@@ -552,7 +552,7 @@ namespace Lidarr.Plugin.Qobuzarr.API
             {
                 if (streamingInfo.IsQualityFallbackOnly())
                 {
-                    _logger.Info("Track {0}: Requested format {1} not available; using fallback format {2} ({3})",
+                    _logger.Debug("Track {0}: Requested format {1} not available; using fallback format {2} ({3})",
                         trackId,
                         formatId,
                         streamingInfo.FormatId,

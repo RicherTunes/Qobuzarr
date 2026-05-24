@@ -56,15 +56,15 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
             // Log ML configuration status
             if (_useMLPredictions)
             {
-                _logger?.Info("SmartQueryStrategy initialized with ML Pattern Learning Engine ENABLED");
+                _logger?.Debug("SmartQueryStrategy initialized with ML Pattern Learning Engine ENABLED");
             }
             else if (patternLearningEngine != null)
             {
-                _logger?.Info("SmartQueryStrategy initialized with ML Pattern Learning Engine available but DISABLED (useMLPredictions=false)");
+                _logger?.Debug("SmartQueryStrategy initialized with ML Pattern Learning Engine available but DISABLED (useMLPredictions=false)");
             }
             else
             {
-                _logger?.Info("SmartQueryStrategy initialized with rule-based optimization only (no ML engine)");
+                _logger?.Debug("SmartQueryStrategy initialized with rule-based optimization only (no ML engine)");
             }
         }
 

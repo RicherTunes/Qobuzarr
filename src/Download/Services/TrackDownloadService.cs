@@ -116,6 +116,14 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Services
             _downloadSummary.RecordAlbumResult(downloadItem.Artist, downloadItem.Title, successfulTracks, skippedTracks, failedTracks, totalTracks, bytesDownloaded);
             LogAlbumDownloadSummary(downloadItem.Artist, downloadItem.Title, album, successfulTracks, skippedTracks, failedTracks, totalTracks, bytesDownloaded);
 
+            // Per-album quality-fallback summary (replaces per-track Info spam from GetStreamingInfoAsync)
+            if (downloadItem.QualityFallbackCount > 0)
+            {
+                _logger.Info("Quality fallback used for {0}/{1} tracks ({2})",
+                    downloadItem.QualityFallbackCount, totalTracks,
+                    downloadItem.QualityFallbackExample ?? "fallback quality");
+            }
+
             if (_queueService.ActiveDownloadCount == 0)
             {
                 var summaryReport = _downloadSummary.GenerateReport();
