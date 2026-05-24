@@ -47,6 +47,21 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
         private readonly IQobuzApiClient _apiClient;
         private readonly StreamingIndexerMixin _mixin;
 
+        /// <summary>
+        /// Per-process latch for the "Failed to wire auth service / credentials
+        /// provider to API client" warning. The constructor's catch block
+        /// previously emitted this warning + full stack trace on EVERY indexer
+        /// construction, but Lidarr re-constructs the indexer many times per
+        /// session (schema fetch, Test click, settings save, search). When the
+        /// underlying failure is persistent (e.g. the pre-Common-v1.9.2
+        /// DataProtection bug on Lidarr Docker), the log fills with dozens of
+        /// identical stack traces. This latch ensures the warning fires at most
+        /// once per process — the operator gets one informative line instead of
+        /// a wall of noise. The first failure carries the full exception
+        /// (stack trace + context); subsequent failures silently no-op.
+        /// </summary>
+        private static int _wireFailureWarningLatch; // 0 = not yet warned, 1 = warned
+
         // Cached instances for context sharing
         private QobuzRequestGenerator? _requestGenerator;
         private QobuzParser? _parser;
@@ -102,7 +117,20 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
             }
             catch (Exception ex)
             {
-                _logger.Warn(ex, "Non-fatal: Failed to wire auth service/credentials provider to API client");
+                // Warn-once latch: see _wireFailureWarningLatch docstring. Lidarr
+                // reconstructs the indexer many times per session (schema fetch,
+                // Test click, settings save, search), and a persistent root cause
+                // (e.g. pre-v1.9.2 DataProtection bug on Lidarr Docker) would
+                // replay this same warning + full stack trace each time. One
+                // informative line is enough.
+                if (System.Threading.Interlocked.CompareExchange(ref _wireFailureWarningLatch, 1, 0) == 0)
+                {
+                    _logger.Warn(ex, "Non-fatal: Failed to wire auth service/credentials provider to API client (this warning will not repeat for this process)");
+                }
+                else
+                {
+                    _logger.Debug(ex, "Non-fatal: indexer wire-up failed again (warn-once already fired this process)");
+                }
             }
         }
 

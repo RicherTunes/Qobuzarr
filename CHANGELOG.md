@@ -5,6 +5,20 @@ All notable changes to Qobuzarr will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.2] - 2026-05-23
+
+### Log noise fix — "Failed to wire auth service" warn-once
+
+User report: the `Non-fatal: Failed to wire auth service/credentials provider to API client` warning fired on every indexer construction — Lidarr re-constructs the indexer many times per session (schema fetch, Test click, settings save, search), so the log filled with dozens of identical stack traces when the underlying failure was persistent (e.g. the pre-Common-v1.9.2 DataProtection bug on Lidarr Docker).
+
+**Fix**: `QobuzIndexer.cs:48` adds a static `_wireFailureWarningLatch`; the catch block at the end of the constructor now uses `Interlocked.CompareExchange` to ensure the warning is emitted at most once per process. The first failure carries the full exception (stack trace + context); subsequent failures log at `Debug` level instead of `Warn`, so they're available for diagnostics without spamming the operator's log.
+
+### Common library bump
+
+Bumps `ext/Lidarr.Plugin.Common` from v1.9.3 to **v1.9.4** — closes the four deferred adversarial-review findings (F4 probe hardening + system-path refusal, F5 chain walks through unwritable candidates, F7 Windows Roaming preference, F8 `DegradationDetected` event + `LogDegradationOnce` helper). See [Common v1.9.4 changelog](https://github.com/RicherTunes/Lidarr.Plugin.Common/blob/main/CHANGELOG.md#194---2026-05-23).
+
+[Full diff](https://github.com/RicherTunes/qobuzarr/compare/v0.5.1...v0.5.2)
+
 ## [0.5.1] - 2026-05-23
 
 ### Critical fix — Lidarr Docker startup failure
