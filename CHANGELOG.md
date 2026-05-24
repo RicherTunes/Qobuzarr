@@ -5,6 +5,21 @@ All notable changes to Qobuzarr will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.3] - 2026-05-23
+
+### Fixed
+- `SessionManager` PluginConfigRoots fix — storage path now resolves correctly under Docker/hotio (eliminates the `/app/bin/.config` write failure).
+- `MLPerformanceMetrics` log-gate adopted via `WarnOnce`; eliminates log spam on repeated ML prediction calls.
+- `IndexerMLManager` now implements `IDisposable` and caps concurrent predictions to prevent unbounded thread growth.
+
+### Changed
+- `WarnOnce` log-gating helper adopted from Common — eliminates static `HashSet` guards in wireup warn-then-debug paths.
+
+### Dependencies
+- Common submodule bumped to v1.9.5.
+
+[Full diff](https://github.com/RicherTunes/Qobuzarr/compare/v0.5.2...v0.5.3)
+
 ## [v-next] - GUID Identity Change for Album Editions
 
 ### Changed
