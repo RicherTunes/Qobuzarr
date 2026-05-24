@@ -70,6 +70,17 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Services
                     outputPath = settings.DownloadPath;
                 }
 
+                // Defense-in-depth path containment check (matches apple PR #130 hardening).
+                // SanitizeFileName already strips most traversal vectors, but a future change
+                // (or a vector we missed) could let `..` segments through. Canonical-form
+                // comparison via Common's PathTraversalGuard is the safety net:
+                // OS-aware case-sensitivity, sibling-prefix protection, equals-root edge case.
+                if (!Lidarr.Plugin.Common.HostBridge.PathTraversalGuard.IsPathWithinRoot(outputPath, settings.DownloadPath))
+                {
+                    throw new InvalidOperationException(
+                        $"Qobuzarr: refusing to build output path '{outputPath}' — resolves outside the configured DownloadPath '{settings.DownloadPath}'.");
+                }
+
                 _logger.Debug("Built output path: {0}", outputPath);
                 return outputPath;
             }
