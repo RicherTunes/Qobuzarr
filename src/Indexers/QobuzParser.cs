@@ -229,13 +229,16 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
                 return null;
             }
 
-            // CRITICAL: Include quality AND edition/version in GUID to differentiate releases.
-            // Without the version, "Album (Standard)" and "Album (Deluxe Edition)" sharing the
-            // same Qobuz ID would collide, causing Lidarr to silently drop one edition.
-            // Backward-compatible: albums without a Version produce the same GUID as before.
+            // Common-grammar GUID: qobuz:album:{id}[:edition={edition}]:quality={q}
+            // PrefixedReleaseGuidParser reads parts[2] as the album ID and ignores extra
+            // colon-segments, so quality and edition are preserved but don't break parsing.
+            //
+            // The legacy dash format ("qobuz-{id}-{quality}") is no longer emitted here.
+            // QobuzDownloadClient.ExtractAlbumIdFromRelease accepts BOTH formats so in-flight
+            // downloads from pre-migration releases continue to work.
             var normalizedEdition = TitleNormalizer.NormalizeEditionForGuid(album.Version);
-            var versionSuffix = normalizedEdition.Length == 0 ? "" : $"-{normalizedEdition}";
-            var releaseGuid = $"qobuz-{album.Id}{versionSuffix}-{(int)quality}";
+            var editionSegment = normalizedEdition.Length == 0 ? "" : $":edition={normalizedEdition}";
+            var releaseGuid = $"qobuz:album:{album.Id}{editionSegment}:quality={(int)quality}";
 
             var release = new ReleaseInfo
             {
@@ -435,8 +438,9 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
 
         private string GenerateDownloadUrl(QobuzAlbum album, QobuzAudioQuality quality)
         {
-            // Include quality in download URL so download client knows which quality to fetch
-            return $"qobuz://album/{album.Id}/{(int)quality}";
+            // Use query-parameter form so the album ID segment is unambiguous when parsed.
+            // AlbumIdExtractor.ExtractAlbumId reads "qobuz://album/{id}" and stops at '?'.
+            return $"qobuz://album/{album.Id}?quality={(int)quality}";
         }
 
         private long CalculateSizeForQuality(QobuzAlbum album, QobuzAudioQuality quality)
