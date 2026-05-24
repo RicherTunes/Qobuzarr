@@ -8,6 +8,7 @@ using Lidarr.Plugin.Qobuzarr.Constants;
 using Lidarr.Plugin.Qobuzarr.Models;
 using Lidarr.Plugin.Qobuzarr.Models.Authentication;
 using Lidarr.Plugin.Qobuzarr.Services;
+using Lidarr.Plugin.Common.Services.Diagnostics;
 using Lidarr.Plugin.Common.Services.Performance;
 
 namespace Lidarr.Plugin.Qobuzarr.API
@@ -49,16 +50,14 @@ namespace Lidarr.Plugin.Qobuzarr.API
             }
             catch (Exception ex)
             {
-                // Record error response
-                var errorResponse = new HttpResponseMessage(System.Net.HttpStatusCode.InternalServerError);
-                if (ex.Message.Contains("429") || ex.Message.Contains("rate limit", StringComparison.OrdinalIgnoreCase))
+                // Record error response using HttpExceptionClassifier for reliable status detection
+                var classification = HttpExceptionClassifier.Classify(ex);
+                HttpResponseMessage errorResponse = classification.Category switch
                 {
-                    errorResponse = new HttpResponseMessage(System.Net.HttpStatusCode.TooManyRequests);
-                }
-                else if (ex.Message.Contains("401") || ex.Message.Contains("unauthorized", StringComparison.OrdinalIgnoreCase))
-                {
-                    errorResponse = new HttpResponseMessage(System.Net.HttpStatusCode.Unauthorized);
-                }
+                    HttpFailureCategory.RateLimit => new HttpResponseMessage(System.Net.HttpStatusCode.TooManyRequests),
+                    HttpFailureCategory.Auth => new HttpResponseMessage(System.Net.HttpStatusCode.Unauthorized),
+                    _ => new HttpResponseMessage(System.Net.HttpStatusCode.InternalServerError)
+                };
 
                 _adaptiveRateLimiter.RecordResponse(QobuzarrConstants.ServiceName, endpoint, errorResponse);
                 throw;
@@ -82,12 +81,14 @@ namespace Lidarr.Plugin.Qobuzarr.API
             }
             catch (Exception ex)
             {
-                // Record error response
-                var errorResponse = new HttpResponseMessage(System.Net.HttpStatusCode.InternalServerError);
-                if (ex.Message.Contains("429") || ex.Message.Contains("rate limit", StringComparison.OrdinalIgnoreCase))
+                // Record error response using HttpExceptionClassifier for reliable status detection
+                var classification = HttpExceptionClassifier.Classify(ex);
+                HttpResponseMessage errorResponse = classification.Category switch
                 {
-                    errorResponse = new HttpResponseMessage(System.Net.HttpStatusCode.TooManyRequests);
-                }
+                    HttpFailureCategory.RateLimit => new HttpResponseMessage(System.Net.HttpStatusCode.TooManyRequests),
+                    HttpFailureCategory.Auth => new HttpResponseMessage(System.Net.HttpStatusCode.Unauthorized),
+                    _ => new HttpResponseMessage(System.Net.HttpStatusCode.InternalServerError)
+                };
 
                 _adaptiveRateLimiter.RecordResponse(QobuzarrConstants.ServiceName, endpoint, errorResponse);
                 throw;
