@@ -313,7 +313,7 @@ namespace Qobuzarr.Tests.Unit.Download.Services
 
             // Assert
             _sut.TryGetDownload("test-id", out var retrievedItem).Should().BeTrue();
-            retrievedItem.Status.Should().Be(DownloadItemStatus.Downloading);
+            retrievedItem.GetHostStatus().Should().Be(DownloadItemStatus.Downloading);
             retrievedItem.Message.Should().Be("Now downloading");
         }
 
@@ -383,18 +383,19 @@ namespace Qobuzarr.Tests.Unit.Download.Services
             DownloadItemStatus status = DownloadItemStatus.Queued,
             long totalSize = 1000)
         {
-            return new QobuzDownloadItem
+            var item = new QobuzDownloadItem
             {
                 DownloadId = downloadId,
                 Title = title,
                 Artist = "Test Artist",
-                Status = status,
-                Progress = 0,
                 TotalSize = totalSize,
                 StartedAt = DateTime.UtcNow,
                 OutputPath = outputPath,
                 CancellationTokenSource = new System.Threading.CancellationTokenSource()
             };
+            item.SetHostStatus(status);
+            item.SetProgress(0);
+            return item;
         }
     }
 }

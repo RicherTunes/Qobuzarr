@@ -304,9 +304,9 @@ namespace Qobuzarr.Tests
             {
                 DownloadId = downloadId,
                 Title = "Test Album",
-                Status = DownloadItemStatus.Downloading,
                 CancellationTokenSource = cts
             };
+            downloadItem.SetHostStatus(DownloadItemStatus.Downloading);
 
             _mockQueueService.Setup(x => x.TryGetDownload(downloadId, out downloadItem))
                 .Returns(true);
@@ -316,7 +316,7 @@ namespace Qobuzarr.Tests
 
             // Assert - Line 95: downloadItem.Cancel();
             result.Should().BeTrue();
-            downloadItem.Status.Should().Be(DownloadItemStatus.Failed);
+            downloadItem.GetHostStatus().Should().Be(DownloadItemStatus.Failed);
             downloadItem.Message.Should().Be("Download cancelled by user");
             cts.IsCancellationRequested.Should().BeTrue();
         }
@@ -335,9 +335,9 @@ namespace Qobuzarr.Tests
             var downloadItem = new QobuzDownloadItem
             {
                 DownloadId = downloadId,
-                Status = DownloadItemStatus.Downloading,
                 CancellationTokenSource = new System.Threading.CancellationTokenSource()
             };
+            downloadItem.SetHostStatus(DownloadItemStatus.Downloading);
 
             downloadItem.Dispose();
 
