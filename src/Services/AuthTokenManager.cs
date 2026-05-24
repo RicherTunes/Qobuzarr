@@ -2,6 +2,7 @@ using System;
 using System.Threading;
 using System.Threading.Tasks;
 using NLog;
+using Lidarr.Plugin.Common.Observability;
 using Lidarr.Plugin.Common.Services.Diagnostics;
 
 namespace Lidarr.Plugin.Qobuzarr.Services
@@ -262,9 +263,10 @@ namespace Lidarr.Plugin.Qobuzarr.Services
 
             var refreshStartTime = DateTime.UtcNow;
 
+            using var _scope = PluginLogContext.Push("Qobuzarr", "AuthRefresh");
             try
             {
-                _logger.Debug("🔄 TOKEN REFRESH: Starting refresh process");
+                _logger.Debug($"{PluginLogContext.Current?.LinePrefix()}TOKEN REFRESH: Starting refresh process");
 
                 var authResult = await _authService.AuthenticateAsync(cancellationToken);
 
