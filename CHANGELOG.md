@@ -5,6 +5,22 @@ All notable changes to Qobuzarr will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.1] - 2026-05-23
+
+### Critical fix — Lidarr Docker startup failure
+
+Bumps `ext/Lidarr.Plugin.Common` from v1.9.1 to **v1.9.3** — picks up Common's fix for the Lidarr Docker `UnauthorizedAccessException: Access to the path '/app/bin/.config' is denied` bug that would have hit any user storing Qobuz session tokens via `FileTokenStore<QobuzSession>` (in `QobuzAuthenticationService`) on hotio/linuxserver images. Qobuzarr code is unchanged for this release.
+
+What v1.9.3 brings:
+- DataProtection key-dir candidate chain (`XDG_DATA_HOME` → ... → `Path.GetTempPath()`), never returns a relative path.
+- Graceful degradation to `NullTokenProtector` with distinct `lpc:plain:v1:` envelope prefix.
+- Public `TokenProtectorFactory.IsDegradedToPlaintext` + `LastDiagnostics`.
+- `LP_COMMON_REQUIRE_PROTECTOR=true` opt-in for hard-failure mode.
+
+See [Lidarr.Plugin.Common v1.9.3 changelog](https://github.com/RicherTunes/Lidarr.Plugin.Common/blob/main/CHANGELOG.md#193---2026-05-23).
+
+[Full diff](https://github.com/RicherTunes/qobuzarr/compare/v0.5.0...v0.5.1)
+
 ## [0.5.0] - 2026-05-23
 
 ### Liveness fix
