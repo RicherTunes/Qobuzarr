@@ -34,6 +34,7 @@ using Lidarr.Plugin.Qobuzarr.Download.Services;
 using Lidarr.Plugin.Qobuzarr.Download.Orchestration;
 using Lidarr.Plugin.Qobuzarr.Constants;
 using Lidarr.Plugin.Qobuzarr.Services.Http;
+using Lidarr.Plugin.Common.HostBridge;
 using Lidarr.Plugin.Common.Utilities;
 using System.Net.Http;
 using System.Net.Http.Headers;
@@ -876,12 +877,27 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Clients
 
         private string? ExtractAlbumIdFromRelease(ReleaseInfo release)
         {
-            var albumId = AlbumIdExtractor.ExtractAlbumId(release);
-            if (albumId == null)
+            // Try Common-grammar parser first (new format: qobuz:album:{id}[...])
+            var fromNewGuid = PrefixedReleaseGuidParser.ExtractAlbumIdFromGuid(release.Guid, "qobuz");
+            if (!string.IsNullOrWhiteSpace(fromNewGuid))
             {
-                _logger.Warn("Could not extract album ID from release: {0}", release.Title);
+                // Also try to resolve from download URL for belt-and-suspenders, but prefer GUID result
+                return fromNewGuid;
             }
-            return albumId;
+
+            // Fall back to AlbumIdExtractor which handles both URL formats and the legacy dash-GUID
+            var albumId = AlbumIdExtractor.ExtractAlbumId(release);
+            if (albumId != null)
+            {
+                // Log at Debug so operators can observe the migration drain in progress
+                _logger.Debug("ExtractAlbumIdFromRelease: resolved '{0}' via legacy fallback path (GUID: {1}, URL: {2}). " +
+                              "This release was queued before the Common-grammar migration. Once it completes, no further legacy lookups will occur for this album.",
+                    albumId, release.Guid ?? "(null)", release.DownloadUrl ?? "(null)");
+                return albumId;
+            }
+
+            _logger.Warn("Could not extract album ID from release: {0}", release.Title);
+            return null;
         }
 
         private void LogAlbumDownloadSummary(string artistName, string albumTitle, QobuzAlbum album,
