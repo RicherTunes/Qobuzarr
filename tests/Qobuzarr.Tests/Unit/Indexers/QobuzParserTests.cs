@@ -191,9 +191,9 @@ namespace Qobuzarr.Tests.Unit.Indexers
             var guids = releases.Select(r => r.Guid).ToList();
             guids.Should().OnlyHaveUniqueItems("Each quality release should have unique GUID");
 
-            // Verify GUID format includes quality ID
-            releases.Should().Contain(r => r.Guid.StartsWith("qobuz-hires123-"),
-                "GUIDs should follow format qobuz-{albumId}-{qualityId}");
+            // Verify GUID format uses Common grammar: qobuz:album:{id}[:extra]
+            releases.Should().Contain(r => r.Guid.StartsWith("qobuz:album:hires123:"),
+                "GUIDs should follow Common grammar format qobuz:album:{albumId}:{extra}");
         }
 
         /// <summary>
@@ -242,17 +242,19 @@ namespace Qobuzarr.Tests.Unit.Indexers
             // Act
             var releases = ParseAlbum(album);
 
-            // Assert - Pick a specific quality release by GUID suffix
+            // Assert - Pick a specific quality release by new Common-grammar GUID
             var flacRelease = releases.FirstOrDefault(r =>
-                r.Guid.EndsWith($"-{(int)QobuzAudioQuality.FLACLossless}"));
+                r.Guid.Contains($":quality={(int)QobuzAudioQuality.FLACLossless}"));
 
             flacRelease.Should().NotBeNull("Should have a FLAC lossless release");
-            flacRelease.Guid.Should().Be($"qobuz-fields123-{(int)QobuzAudioQuality.FLACLossless}");
+            // New GUID grammar: qobuz:album:{id}:quality={q}
+            flacRelease.Guid.Should().Be($"qobuz:album:fields123:quality={(int)QobuzAudioQuality.FLACLossless}");
             flacRelease.Artist.Should().Be("Field Artist");
             flacRelease.Album.Should().Be("Field Test Album");
             flacRelease.PublishDate.Date.Should().Be(new DateTime(2023, 6, 15).Date);
             flacRelease.Indexer.Should().Be("Qobuzarr");
-            flacRelease.DownloadUrl.Should().StartWith("qobuz://album/fields123/");
+            // New URL grammar: qobuz://album/{id}?quality={q}
+            flacRelease.DownloadUrl.Should().StartWith("qobuz://album/fields123?quality=");
             flacRelease.Size.Should().BeGreaterThan(0, "Size should be calculated");
 
             // Title should contain quality markers
