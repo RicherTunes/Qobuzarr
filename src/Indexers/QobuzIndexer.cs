@@ -367,6 +367,14 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
                 {
                     disposableEngine.Dispose();
                 }
+
+                // Dispose the ML manager to release its metrics dictionary.
+                // Use IsValueCreated to avoid forcing lazy evaluation during shutdown.
+                if (_mlManager?.IsValueCreated == true && _mlManager.Value is IDisposable disposableMlManager)
+                {
+                    disposableMlManager.Dispose();
+                }
+
                 _disposed = true;
             }
         }

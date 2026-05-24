@@ -12,8 +12,14 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers.Core
     /// Manages ML optimization and performance tracking for the Qobuz indexer.
     /// Extracted from QobuzIndexer god class to improve maintainability.
     /// </summary>
-    public class IndexerMLManager : IIndexerMLManager
+    public class IndexerMLManager : IIndexerMLManager, IDisposable
     {
+        // Maximum number of per-URL metric slots retained before the oldest is evicted.
+        // Simple "clear when over cap" strategy: each slot is a cheap POCO (no timers),
+        // so a full clear on overflow is O(n) but negligibly cheap at n=64 and prevents
+        // unbounded growth across unique query URLs seen in long-running instances.
+        private const int MetricsCapacity = 64;
+
         private readonly ISecureMLModelLoader _secureModelLoader;
         private readonly QobuzIndexerSettings _settings;
         private readonly Logger _logger;
@@ -21,6 +27,7 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers.Core
         // ML Performance tracking
         private readonly Dictionary<string, MLPerformanceMetrics> _performanceMetrics = new();
         private readonly object _metricsLock = new object();
+        private bool _disposed = false;
 
         public IndexerMLManager(
             ISecureMLModelLoader secureModelLoader,
@@ -106,6 +113,14 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers.Core
                     var key = GetMetricsKey(queryUrl);
                     if (!_performanceMetrics.ContainsKey(key))
                     {
+                        // Evict all entries when the cap is reached to prevent unbounded growth.
+                        // Each entry is a cheap POCO with no disposable resources.
+                        if (_performanceMetrics.Count >= MetricsCapacity)
+                        {
+                            _logger.Debug("IndexerMLManager metrics cap ({0}) reached; clearing all entries", MetricsCapacity);
+                            _performanceMetrics.Clear();
+                        }
+
                         _performanceMetrics[key] = new MLPerformanceMetrics();
                     }
                     _performanceMetrics[key].EstimatedBaselineCalls = baselineCalls;
@@ -295,6 +310,21 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers.Core
                 _logger.Error(ex, "Error generating ML diagnostic report");
                 return new { error = ex.Message };
             }
+        }
+
+        public void Dispose()
+        {
+            if (_disposed) return;
+            _disposed = true;
+
+            lock (_metricsLock)
+            {
+                // The inner MLPerformanceMetrics is a plain POCO (no IDisposable),
+                // so we just clear to release references.
+                _performanceMetrics.Clear();
+            }
+
+            GC.SuppressFinalize(this);
         }
 
         private IPatternLearningEngine TryLoadPersonalModel(Logger logger)
