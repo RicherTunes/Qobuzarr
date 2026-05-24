@@ -87,6 +87,19 @@ At least one asset name must contain `net8.0.zip`.
 
 For Qobuzarr this is satisfied by `<AssemblyName>Lidarr.Plugin.Qobuzarr</AssemblyName>` in `Qobuzarr.csproj`. Don't drop that line "to clean up" — it's load-bearing.
 
+## Common helpers in use
+
+- `PluginConfigRoots.Resolve("Qobuzarr")` — `src/Authentication/SessionManager.cs:263`
+- `BackendHealthCache` — `src/API/Http/QobuzHttpClient.cs:31` (fail-fast gate in `ExecuteAsync`), `src/API/Http/QobuzHttpClient.cs:104`
+- `AuthFailureGate` — `src/Integration/QobuzarrStreamingPlugin.cs:36` (singleton registration), `src/Integration/Bridge/BridgeQobuzApiClient.cs:35`
+- `HttpExceptionClassifier` — `src/API/AdaptiveQobuzApiClient.cs:54`, `src/Services/AuthTokenManager.cs:376`
+- `PluginLogContext` — `src/Indexers/QobuzIndexer.cs:189` (Search scope), `src/Indexers/QobuzIndexer.cs:265` (Test scope), `src/Services/AuthTokenManager.cs:266` (AuthRefresh scope)
+- `WarnOnce` — `src/Indexers/QobuzIndexer.cs:58` (wire-warn gate)
+- `Scrub` — `src/Download/Services/AudioFileDownloader.cs:73` (`Scrub.Url`), `src/API/Signing/QobuzRequestSigner.cs:64` (`Scrub.Secret`)
+- `PrefixedReleaseGuidParser` — `src/Indexers/QobuzParser.cs:233`
+
+See `ext/Lidarr.Plugin.Common/CHANGELOG.md` for the full catalog.
+
 ## Build Commands
 
 **IMPORTANT**: Always use the analyzer suppression flags to avoid StyleCop errors from Lidarr source code.
