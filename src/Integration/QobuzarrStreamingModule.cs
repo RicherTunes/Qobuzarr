@@ -26,4 +26,17 @@ public sealed class QobuzarrStreamingModule : StreamingPluginModule
     {
         return ["Email", "Password", "DownloadPath"];
     }
+
+    /// <inheritdoc />
+    /// <remarks>
+    /// Disposes process-static plugin resources whose lifetimes are tied to the
+    /// plugin's AssemblyLoadContext. Base disposes the host gate timer; this
+    /// override additionally disposes the SharedSystemHttpClient socket pool
+    /// (Wave 8B audit finding: leaked across plugin reload cycles).
+    /// </remarks>
+    public override void Dispose()
+    {
+        base.Dispose();
+        QobuzarrModule.Dispose();
+    }
 }
