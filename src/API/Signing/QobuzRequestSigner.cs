@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using NLog;
+using Lidarr.Plugin.Common.Observability;
 using Lidarr.Plugin.Common.Services.Http;
 using Lidarr.Plugin.Qobuzarr.Utilities;
 
@@ -60,7 +61,7 @@ namespace Lidarr.Plugin.Qobuzarr.API.Signing
                 _logger.Debug("Added signature for track/getFileUrl: track_id={0}, format_id={1}, app_id={2}",
                     trackId,
                     formatId,
-                    appId);
+                    Scrub.Secret(appId));
             }
             else if (RequiresSigning(endpoint))
             {

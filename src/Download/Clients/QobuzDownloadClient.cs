@@ -35,6 +35,7 @@ using Lidarr.Plugin.Qobuzarr.Download.Orchestration;
 using Lidarr.Plugin.Qobuzarr.Constants;
 using Lidarr.Plugin.Qobuzarr.Services.Http;
 using Lidarr.Plugin.Common.HostBridge;
+using Lidarr.Plugin.Common.Observability;
 using Lidarr.Plugin.Common.Utilities;
 using System.Net.Http;
 using System.Net.Http.Headers;
@@ -118,13 +119,14 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Clients
 
         public override async Task<string> Download(RemoteAlbum remoteAlbum, IIndexer indexer)
         {
+            var albumTitle = remoteAlbum.Albums?.FirstOrDefault()?.Title ?? "Unknown Album";
+            using var _scope = PluginLogContext.Push("Qobuzarr", "Download");
             try
             {
                 // Update concurrency settings
                 UpdateConcurrencySettings();
 
-                var albumTitle = remoteAlbum.Albums?.FirstOrDefault()?.Title ?? "Unknown Album";
-                _logger.Info("📥 Adding to download queue: {0} - {1}", remoteAlbum.Artist, albumTitle);
+                _logger.Info($"{PluginLogContext.Current?.LinePrefix()}Adding to download queue: {{0}} - {{1}}", remoteAlbum.Artist, albumTitle);
 
                 // Parse album ID from the release
                 var albumId = ExtractAlbumIdFromRelease(remoteAlbum.Release);
@@ -299,9 +301,10 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Clients
 
         protected override void Test(List<ValidationFailure> failures)
         {
+            using var _scope = PluginLogContext.Push("Qobuzarr", "Test");
             try
             {
-                _logger.Info("Testing Qobuz download client connection...");
+                _logger.Info($"{PluginLogContext.Current?.LinePrefix()}Testing Qobuz download client connection...");
 
                 // Get effective settings (supports test subclasses)
                 var settings = GetEffectiveSettings();
@@ -657,7 +660,7 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Clients
                 outputPath = Path.Combine(downloadItem.OutputPath, filename);
 
                 _logger.Info("🎵 Downloading track: {0} to {1}", track.Title, outputPath);
-                _logger.Debug("🔗 Got streaming URL for track {0}", track.Id);
+                _logger.Debug("🔗 Got streaming URL for track {0}: {1}", track.Id, Scrub.Url(streamUrl));
 
                 // 2. Create output directory
                 Directory.CreateDirectory(Path.GetDirectoryName(outputPath));

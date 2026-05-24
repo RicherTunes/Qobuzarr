@@ -7,6 +7,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using NzbDrone.Common.Http;
 using Lidarr.Plugin.Qobuzarr.Abstractions;
+using Lidarr.Plugin.Common.Observability;
 using Lidarr.Plugin.Common.Utilities;
 using Lidarr.Plugin.Qobuzarr.Configuration;
 using Lidarr.Plugin.Qobuzarr.Services.Http;
@@ -69,7 +70,7 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Services
 
                     if (attempt > 1)
                     {
-                        _logger.Debug("Download retry attempt {0}/{1} for: {2}", attempt, MaxRetries, streamUrl);
+                        _logger.Debug("Download retry attempt {0}/{1} for: {2}", attempt, MaxRetries, Scrub.Url(streamUrl));
                         // Exponential backoff for retries
                         var delay = Math.Min(RetryDelayMs * (int)Math.Pow(2, attempt - 1), MaxRetryBackoffMs);
                         await Task.Delay(delay, cancellationToken).ConfigureAwait(false);
@@ -165,14 +166,14 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Services
                     }
                     else
                     {
-                        _logger.Error(ex, "Failed to download audio file from: {0} (final attempt {1}/{2})", streamUrl, attempt, MaxRetries);
+                        _logger.Error(ex, "Failed to download audio file from: {0} (final attempt {1}/{2})", Scrub.Url(streamUrl), attempt, MaxRetries);
                         throw;
                     }
                 }
             }
 
             // If we get here, all retries failed
-            _logger.Error(lastException, "Failed to download audio file after {0} attempts: {1}", MaxRetries, streamUrl);
+            _logger.Error(lastException, "Failed to download audio file after {0} attempts: {1}", MaxRetries, Scrub.Url(streamUrl));
             throw lastException ?? new InvalidOperationException("Download failed after all retries");
         }
 

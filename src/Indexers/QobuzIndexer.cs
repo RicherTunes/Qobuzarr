@@ -18,6 +18,7 @@ using Lidarr.Plugin.Qobuzarr.Security;
 using Lidarr.Plugin.Qobuzarr.Indexers.Core;
 using Lidarr.Plugin.Common.Base;
 using Lidarr.Plugin.Common.Diagnostics;
+using Lidarr.Plugin.Common.Observability;
 using Lidarr.Plugin.Qobuzarr.Download;
 using NzbDrone.Core.Download;
 using Lidarr.Plugin.Common.Services;
@@ -185,7 +186,10 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
             Func<IIndexerRequestGenerator, IndexerPageableRequestChain> pageableRequestChainSelector,
             bool isRecent = false)
         {
+            using var _scope = PluginLogContext.Push("Qobuzarr", "Search", provider: "qobuz:api");
             var releases = new List<ReleaseInfo>();
+
+            _logger.Debug($"{PluginLogContext.Current?.LinePrefix()}FetchReleases started");
 
             try
             {
@@ -246,7 +250,7 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
                     }
                 }
 
-                _logger.Info("🎵 Retrieved {0} releases from Qobuz", releases.Count);
+                _logger.Info($"{PluginLogContext.Current?.LinePrefix()}Retrieved {{0}} releases from Qobuz", releases.Count);
                 return releases;
             }
             catch (Exception ex)
@@ -258,8 +262,10 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
 
         protected override async Task Test(List<ValidationFailure> failures)
         {
+            using var _scope = PluginLogContext.Push("Qobuzarr", "Test");
             try
             {
+                _logger.Debug($"{PluginLogContext.Current?.LinePrefix()}Indexer test started");
                 // Test authentication via delegated manager
                 var (authSuccess, authError) = await _authManager.Value.TestAuthenticationAsync().ConfigureAwait(false);
                 if (!authSuccess)
