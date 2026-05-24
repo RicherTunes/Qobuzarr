@@ -284,60 +284,10 @@ namespace Lidarr.Plugin.Qobuzarr.API.Http
                 return "unknown";
             }
 
-            return RedactSensitiveQueryValues(url);
-        }
-
-        private static string RedactSensitiveQueryValues(string url)
-        {
-            try
-            {
-                if (!Uri.TryCreate(url, UriKind.Absolute, out var uri) || string.IsNullOrEmpty(uri.Query))
-                {
-                    return url;
-                }
-
-                var query = uri.Query.TrimStart('?');
-                if (string.IsNullOrWhiteSpace(query))
-                {
-                    return url;
-                }
-
-                var parts = query.Split('&', StringSplitOptions.RemoveEmptyEntries);
-                for (var i = 0; i < parts.Length; i++)
-                {
-                    var part = parts[i];
-                    var eq = part.IndexOf('=');
-                    if (eq <= 0) continue;
-
-                    var rawKey = part.Substring(0, eq);
-                    var rawValue = part.Substring(eq + 1);
-
-                    var key = Uri.UnescapeDataString(rawKey);
-                    if (!IsSensitiveQueryKey(key)) continue;
-
-                    parts[i] = $"{rawKey}=[redacted]";
-                }
-
-                var builder = new UriBuilder(uri)
-                {
-                    Query = string.Join("&", parts)
-                };
-
-                return builder.Uri.ToString();
-            }
-            catch
-            {
-                return url;
-            }
-        }
-
-        private static bool IsSensitiveQueryKey(string key)
-        {
-            // Delegate to the canonical detector in Lidarr.Plugin.Common.Observability.LogRedactor.
-            // Qobuz-specific keys (user_auth_token, app_secret, request_sig, auth_token) are all
-            // covered by LogRedactor.IsSensitiveParameter via its "auth"/"token"/"secret"/"sig"
-            // exact and contains rules.
-            return LogRedactor.IsSensitiveParameter(key?.Trim());
+            // Wave 17F: unified on Common.Scrub.Url which delegates to LogRedactor.IsSensitiveParameter
+            // for both exact-match and contains-rule recognition. The sentinel changes from
+            // [redacted] to *** (Common's convention across observability surfaces).
+            return Scrub.Url(url);
         }
     }
 }
