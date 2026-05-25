@@ -52,6 +52,7 @@ namespace Lidarr.Plugin.Qobuzarr.Authentication
 
         private readonly ICached<QobuzSession> _sessionCache;
         private readonly FileTokenStore<QobuzSession> _persistentStore;
+        private readonly string _sessionFilePath;
         private readonly object _persistLock = new object();
 
         public QobuzAuthenticationService(IHttpClient httpClient,
@@ -60,6 +61,25 @@ namespace Lidarr.Plugin.Qobuzarr.Authentication
                                         ICacheManager cacheManager,
                                         Logger logger,
                                         ICredentialValidator credentialValidator = null)
+            : this(httpClient, configService, localizationService, cacheManager, logger, credentialValidator, sessionFilePath: null)
+        {
+        }
+
+        /// <summary>
+        /// Test-only constructor: overrides the persistent session file path so each test
+        /// instance can isolate its on-disk state. Production callers should use the public
+        /// constructor (which defaults to <see cref="SessionManager.GetDefaultSessionFilePath"/>).
+        /// Fixes the race between <c>QobuzAuthenticationServiceCovTests</c> and
+        /// <c>QobuzAuthenticationServiceTests</c> sharing the default file path — see CLAUDE.md
+        /// "Known Flaky Tests" entry.
+        /// </summary>
+        internal QobuzAuthenticationService(IHttpClient httpClient,
+                                        IConfigService configService,
+                                        ILocalizationService localizationService,
+                                        ICacheManager cacheManager,
+                                        Logger logger,
+                                        ICredentialValidator credentialValidator,
+                                        string sessionFilePath)
         {
             _httpClient = httpClient;
             _configService = configService;
@@ -68,12 +88,13 @@ namespace Lidarr.Plugin.Qobuzarr.Authentication
             _logger = logger;
             _credentialValidator = credentialValidator ?? new CredentialValidator(logger);
             _sessionCache = _cacheManager.GetCache<QobuzSession>(GetType());
+            _sessionFilePath = sessionFilePath ?? SessionManager.GetDefaultSessionFilePath();
 
             // Cross-platform encrypted at-rest persistence via the common library.
             // Uses DPAPI on Windows, Keychain on macOS, Secret Service / DataProtection on Linux.
             try
             {
-                _persistentStore = new FileTokenStore<QobuzSession>(SessionManager.GetDefaultSessionFilePath());
+                _persistentStore = new FileTokenStore<QobuzSession>(_sessionFilePath);
             }
             catch (Exception ex)
             {
@@ -568,7 +589,9 @@ namespace Lidarr.Plugin.Qobuzarr.Authentication
         // SessionManager, and any QobuzApiClient fallback) coordinate state.
         public StreamingTokenManager<QobuzSession, QobuzCredentials> CreateTokenManager()
         {
-            var store = new FileTokenStore<QobuzSession>(SessionManager.GetDefaultSessionFilePath());
+            // Reuse the same session-file path as _persistentStore so all consumers stay coherent
+            // (test seam + production default both flow through _sessionFilePath).
+            var store = new FileTokenStore<QobuzSession>(_sessionFilePath);
             var options = new StreamingTokenManagerOptions<QobuzSession>
             {
                 DefaultSessionLifetime = TimeSpan.FromHours(24),

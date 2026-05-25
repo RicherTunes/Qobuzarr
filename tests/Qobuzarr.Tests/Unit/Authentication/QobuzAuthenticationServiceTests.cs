@@ -14,22 +14,37 @@ using Qobuzarr.Tests.TestData;
 
 namespace Qobuzarr.Tests.Unit.Authentication
 {
-    // Serialized with QobuzAuthenticationServiceCovTests via [Collection] — both classes
-    // share QobuzAuthenticationService's file-backed _persistentStore default path.
-    // See Collections/AuthenticationTestCollection.cs for the full explanation.
+    // Each test instance gets its OWN session file path via the internal constructor
+    // (test seam added May 2026 to fix the known-flaky race documented in CLAUDE.md —
+    // two test classes used to share QobuzAuthenticationService's default _persistentStore
+    // path). [Collection] is retained as belt-and-suspenders, but per-instance file isolation
+    // is now the primary defense.
     [Xunit.Collection(Qobuzarr.Tests.Collections.AuthenticationTestCollection.Name)]
     public class QobuzAuthenticationServiceTests : TestFixtureBase
     {
         private readonly QobuzAuthenticationService _authService;
+        private readonly string _sessionFilePath;
 
         public QobuzAuthenticationServiceTests()
         {
+            _sessionFilePath = System.IO.Path.Combine(
+                System.IO.Path.GetTempPath(),
+                $"qobuzarr-test-{Guid.NewGuid():N}.session.json");
             _authService = new QobuzAuthenticationService(
                 MockHttpClient.Object,
                 MockConfigService.Object,
                 MockLocalizationService.Object,
-                MockCacheManager,  // No longer needs .Object since it's NSubstitute
-                MockLogger.Object);
+                MockCacheManager,
+                MockLogger.Object,
+                credentialValidator: null,
+                sessionFilePath: _sessionFilePath);
+        }
+
+        public override void Dispose()
+        {
+            try { if (System.IO.File.Exists(_sessionFilePath)) System.IO.File.Delete(_sessionFilePath); }
+            catch { /* test cleanup is best-effort */ }
+            base.Dispose();
         }
 
         [Fact]
@@ -202,13 +217,6 @@ namespace Qobuzarr.Tests.Unit.Authentication
 
             // Assert
             result.Should().BeEmpty();
-        }
-
-
-        public override void Dispose()
-        {
-            // _authService?.Dispose(); // Class doesn't implement IDisposable
-            base.Dispose();
         }
     }
 }

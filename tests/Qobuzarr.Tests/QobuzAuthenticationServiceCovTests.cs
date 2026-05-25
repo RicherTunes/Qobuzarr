@@ -19,22 +19,36 @@ namespace Qobuzarr.Tests
     /// Coverage tests for QobuzAuthenticationService focusing on uncovered code paths.
     /// Tests: token provider methods, credential validation, authentication flows, and edge cases.
     /// </summary>
-    // Serialized with QobuzAuthenticationServiceTests via [Collection] — both classes
-    // share QobuzAuthenticationService's file-backed _persistentStore default path.
-    // See Collections/AuthenticationTestCollection.cs for the full explanation.
+    // Each test instance gets its OWN session file path via the internal constructor
+    // (test seam added May 2026 to fix the known-flaky race documented in CLAUDE.md —
+    // two test classes used to share QobuzAuthenticationService's default _persistentStore
+    // path). [Collection] is retained as belt-and-suspenders, but per-instance file isolation
+    // is now the primary defense.
     [Xunit.Collection(Qobuzarr.Tests.Collections.AuthenticationTestCollection.Name)]
     public class QobuzAuthenticationServiceCovTests : TestFixtureBase
     {
         private readonly QobuzAuthenticationService _authService;
+        private readonly string _sessionFilePath;
 
         public QobuzAuthenticationServiceCovTests()
         {
+            _sessionFilePath = System.IO.Path.Combine(
+                System.IO.Path.GetTempPath(),
+                $"qobuzarr-test-{Guid.NewGuid():N}.session.json");
             _authService = CreateAuthService();
+        }
+
+        public override void Dispose()
+        {
+            try { if (System.IO.File.Exists(_sessionFilePath)) System.IO.File.Delete(_sessionFilePath); }
+            catch { /* test cleanup is best-effort */ }
+            base.Dispose();
         }
 
         /// <summary>
         /// Creates a QobuzAuthenticationService with a permissive mock ICredentialValidator
         /// that passes all credentials through, allowing tests to focus on downstream behavior.
+        /// Uses the internal test-seam constructor with a per-instance session file path.
         /// </summary>
         private QobuzAuthenticationService CreateAuthService()
         {
@@ -49,7 +63,8 @@ namespace Qobuzarr.Tests
                 MockLocalizationService.Object,
                 MockCacheManager,
                 MockLogger.Object,
-                mockValidator.Object);
+                mockValidator.Object,
+                sessionFilePath: _sessionFilePath);
         }
 
         #region GetAccessTokenAsync Tests (Source lines 170-177)
