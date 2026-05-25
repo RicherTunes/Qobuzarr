@@ -17,6 +17,7 @@ using Lidarr.Plugin.Qobuzarr.API.Http;
 using Lidarr.Plugin.Qobuzarr.Services.Interfaces;
 using Lidarr.Plugin.Qobuzarr.API.Signing;
 using Lidarr.Plugin.Qobuzarr.API.Caching;
+using Lidarr.Plugin.Common.Observability;
 using Lidarr.Plugin.Common.Services.Caching;
 using Lidarr.Plugin.Common.Services.Http;
 using Lidarr.Plugin.Common.Utilities;
@@ -287,8 +288,12 @@ namespace Lidarr.Plugin.Qobuzarr.API
                 {
                     allParameters["app_id"] = currentSession.AppId;
                     allParameters["user_auth_token"] = currentSession.AuthToken;
-                    _logger.Trace("🔐 Added authentication: app_id={0}, token=***{1}",
-                        currentSession.AppId, currentSession.AuthToken?.Substring(Math.Max(0, currentSession.AuthToken.Length - 4)) ?? "null");
+                    // SECURITY (Wave-22): canonical Scrub.Secret leading-3 mask instead of trailing-4.
+                    // Trailing chars enabled "is this leaked log fragment from THE token?" enumeration
+                    // attacks; leading chars are meaningfully redacted by the Scrub helper.
+                    _logger.Trace("🔐 Added authentication: app_id={0}, token={1}",
+                        Scrub.Secret(currentSession.AppId, leadingVisible: 2),
+                        Scrub.Secret(currentSession.AuthToken));
                 }
 
                 // Add custom parameters (builder handles URL encoding)
