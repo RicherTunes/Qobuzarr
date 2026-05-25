@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Dependencies
+- `ext/Lidarr.Plugin.Common` bumped to **v1.16.0** (`936556e`) — picks up `SlidingWindowAuthFailureHandler` (K-of-N-in-W sliding-window circuit semantics, sibling of `DefaultAuthFailureHandler`) and the rest of the wave-22 Common surface.
+- `ext-common-sha.txt` aligned with the submodule pin: `f90ecef` → `936556e`. Closes the stale-pointer drift surfaced by the Wave-22 adversarial review.
+
+### Fixed (security — log scrubbing)
+- `QobuzAuthenticationService.ExtractAppSecretFromBundle` previously logged the raw `seed`, `info`, and `extras` strings at Debug level. Those three values concatenate (with a 44-char trim + base64 decode) into the appSecret — anyone capturing Debug logs could reconstruct the shared secret offline. Now logs lengths + the (non-secret) production timezone only.
+- `QobuzAuthenticationService` `App ID` logged at Info on every credential refresh is now routed through `Scrub.Secret(leadingVisible:2)` so the value isn't durably captured in normal-runtime logs.
+- `QobuzAuthenticationService` bundle URL gains `Scrub.Url` for consistency with the rest of the repo.
+- `QobuzApiClient` Trace log for outbound signed requests used a trailing-4 mask on the `AuthToken` (`token=***{last4}`). Trailing chars enable enumeration-attack surface; switched to the canonical `Scrub.Secret` leading-3 mask used everywhere else. AppId in the same line now uses `Scrub.Secret(leadingVisible:2)`.
+
+### Build / cleanup
+- `.gitignore` extended with `*.net8.0.zip`, `package-release/`, `release-notes.md`, `qobuzarr-warnings*.log`, and `build_errors.txt` so build artifacts no longer pollute the working tree.
+
 ### Changed
 - `QobuzarrStreamingModule` migrated from direct `QobuzarrModule.Dispose()` call in its `Dispose()` to the canonical `PluginLifecycle.RegisterShutdown` + `PluginLifecycle.Shutdown()` pattern used by apple, tidalarr, and brainarr. `SharedSystemHttpClient` socket-pool teardown is now registered as a named shutdown delegate (`"QobuzarrSharedSystemHttpClient"`) in `RegisterCustomServices`, invoked via `PluginLifecycle.Shutdown` on plugin unload. CAS-guarded against re-registration on reload cycles. Behavioral guarantee is identical (same teardown runs on unload); change closes parity-matrix axis #4 (PluginLifecycle adoption).
 
