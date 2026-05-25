@@ -48,7 +48,7 @@ jobs:
         echo "Setting up Lidarr assemblies from plugins branch (Docker)..."
         set -e
         mkdir -p ext/Lidarr/_output/net8.0
-        IMAGE="ghcr.io/hotio/lidarr:pr-plugins"
+        IMAGE="ghcr.io/hotio/lidarr:pr-plugins-3.1.2.4913"
         echo "Pulling $IMAGE (with retry)"
         n=0
         until [ "$n" -ge 3 ]; do

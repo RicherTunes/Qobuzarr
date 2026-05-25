@@ -87,7 +87,7 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p ext/Lidarr/_output/net8.0
-          IMAGE="ghcr.io/hotio/lidarr:pr-plugins"
+          IMAGE="ghcr.io/hotio/lidarr:pr-plugins-3.1.2.4913"
           echo "Pulling $IMAGE..."
           docker pull "$IMAGE" || { echo "Docker pull failed"; exit 1; }
           cid=$(docker create "$IMAGE")
@@ -193,7 +193,7 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p ext/Lidarr/_output/net8.0
-          IMAGE="ghcr.io/hotio/lidarr:pr-plugins"
+          IMAGE="ghcr.io/hotio/lidarr:pr-plugins-3.1.2.4913"
           docker pull "$IMAGE" || { echo "Docker pull failed"; exit 1; }
           cid=$(docker create "$IMAGE")
           docker cp "$cid:/app" ext/Lidarr/_extracted || docker cp "$cid:/opt/lidarr" ext/Lidarr/_extracted
