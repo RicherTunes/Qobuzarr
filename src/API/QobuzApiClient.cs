@@ -352,9 +352,14 @@ namespace Lidarr.Plugin.Qobuzarr.API
                 .QueryParams(allParameters);
 
             // Log the final URL being called (without auth token for security)
-            var safeParams = allParameters.Where(kv => kv.Key != "user_auth_token")
-                                         .Select(kv => $"{kv.Key}={kv.Value}");
-            _logger.Debug("🚀 Final API call: {0}?{1}&user_auth_token=***", url, string.Join("&", safeParams));
+            // SECURITY (Wave-23): mask appSecret-derivative signing params in the Debug log.
+            // request_sig is a function of appSecret + endpoint + params + ts — logging it
+            // at Debug enables offline correlation/timing analysis if logs leak. user_auth_token
+            // is the obvious one but request_sig was previously missed.
+            var safeParams = allParameters
+                .Where(kv => kv.Key != "user_auth_token" && kv.Key != "request_sig")
+                .Select(kv => $"{kv.Key}={kv.Value}");
+            _logger.Debug("🚀 Final API call: {0}?{1}&user_auth_token=***&request_sig=***", url, string.Join("&", safeParams));
 
             var key = new CacheKey(endpoint, allParameters);
             var policy = ResolveCachePolicy(endpoint);
