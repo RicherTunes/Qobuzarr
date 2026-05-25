@@ -1,6 +1,7 @@
 using System;
 using System.Threading;
 using System.Threading.Tasks;
+using Lidarr.Plugin.Common.Services.Resilience;
 using NLog;
 using Lidarr.Plugin.Qobuzarr.Models.Authentication;
 using Lidarr.Plugin.Qobuzarr.Authentication;
@@ -323,60 +324,53 @@ namespace Lidarr.Plugin.Qobuzarr.Authentication
 
                 OnRefreshStarted($"Session expires at {currentSession.ExpiresAt}");
 
-                QobuzSession? newSession = null;
-                Exception? lastException = null;
-                var delay = _initialRetryDelay;
-
-                for (int attempt = 1; attempt <= _maxRetryAttempts; attempt++)
+                // Wave 18H: adopt Common's RetryPolicyFactory for exponential backoff
+                // with jitter. Replaces the hand-rolled `for (attempt...)` loop.
+                // The policy throws RetryExhaustedException after maxRetries; we unwrap
+                // the inner exception to preserve the original failure type for callers
+                // (QobuzAuthenticationException is the documented bubble-up type).
+                var policy = RetryPolicyFactory.Create(new RetryPolicyOptions
                 {
-                    try
+                    MaxRetries = _maxRetryAttempts,
+                    InitialDelay = _initialRetryDelay,
+                    UseJitter = true,
+                    ShouldRetry = ex => !(ex is OperationCanceledException),
+                });
+
+                try
+                {
+                    var newSession = await policy.ExecuteAsync<QobuzSession>(async ct =>
                     {
-                        _logger.Debug("Token refresh attempt {0}/{1}", attempt, _maxRetryAttempts);
-
-                        newSession = await _authService.AuthenticateAsync(originalCredentials).ConfigureAwait(false);
-
-                        if (newSession != null && newSession.IsValid())
-                        {
-                            Interlocked.Increment(ref _successfulRefreshes);
-                            _lastSuccessfulRefresh = DateTime.UtcNow;
-                            _consecutiveFailures = 0;
-
-                            _logger.Info("✅ Token refresh successful on attempt {0}", attempt);
-                            OnRefreshCompleted(newSession, false);
-
-                            return newSession;
-                        }
-                        else
-                        {
+                        var s = await _authService.AuthenticateAsync(originalCredentials).ConfigureAwait(false);
+                        if (s == null || !s.IsValid())
                             throw new QobuzAuthenticationException("Authentication returned invalid session");
-                        }
-                    }
-                    catch (Exception ex) when (attempt < _maxRetryAttempts)
-                    {
-                        lastException = ex;
-                        _logger.Warn("Token refresh attempt {0} failed: {1}", attempt, ex.Message);
+                        return s;
+                    }, "qobuz-token-refresh", cancellationToken).ConfigureAwait(false);
 
-                        if (cancellationToken.IsCancellationRequested)
-                        {
-                            break;
-                        }
+                    Interlocked.Increment(ref _successfulRefreshes);
+                    _lastSuccessfulRefresh = DateTime.UtcNow;
+                    _consecutiveFailures = 0;
 
-                        // Exponential backoff
-                        await Task.Delay(delay, cancellationToken).ConfigureAwait(false);
-                        delay = TimeSpan.FromMilliseconds(delay.TotalMilliseconds * _backoffMultiplier);
-                    }
+                    _logger.Info("✅ Token refresh successful");
+                    OnRefreshCompleted(newSession, false);
+
+                    return newSession;
                 }
+                catch (Exception ex)
+                {
+                    Interlocked.Increment(ref _failedRefreshes);
+                    _consecutiveFailures++;
 
-                // All attempts failed
-                Interlocked.Increment(ref _failedRefreshes);
-                _consecutiveFailures++;
+                    // Unwrap RetryExhaustedException to preserve the original failure type
+                    var finalException = (ex is RetryExhaustedException rex && rex.InnerException != null)
+                        ? rex.InnerException
+                        : ex;
+                    OnRefreshFailed(finalException, false);
 
-                var finalException = lastException ?? new QobuzAuthenticationException("Token refresh failed - unknown error");
-                OnRefreshFailed(finalException, false);
+                    _logger.Error("❌ Token refresh failed after {0} attempts: {1}", _maxRetryAttempts, finalException.Message);
 
-                _logger.Error("❌ Token refresh failed after {0} attempts", _maxRetryAttempts);
-
-                return null;
+                    return null;
+                }
             }
             finally
             {
