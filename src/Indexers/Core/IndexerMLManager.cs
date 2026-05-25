@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using NLog;
+using Lidarr.Plugin.Common.Collections;
 using Lidarr.Plugin.Qobuzarr.Constants;
 using Lidarr.Plugin.Qobuzarr.Security;
 using Lidarr.Plugin.Qobuzarr.Indexers;
@@ -14,10 +15,14 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers.Core
     /// </summary>
     public class IndexerMLManager : IIndexerMLManager, IDisposable
     {
-        // Maximum number of per-URL metric slots retained before the oldest is evicted.
-        // Simple "clear when over cap" strategy: each slot is a cheap POCO (no timers),
-        // so a full clear on overflow is O(n) but negligibly cheap at n=64 and prevents
-        // unbounded growth across unique query URLs seen in long-running instances.
+        // Maximum number of per-URL metric slots retained before the dictionary
+        // clears on overflow. Each slot is a cheap POCO (no timers), so a full
+        // clear on overflow is O(n) but negligibly cheap at n=64.
+        // Wave 18D-T5: cap enforcement moved from hand-rolled
+        // `if (Count >= cap) Clear()` to Common's BoundedConcurrentDictionary.
+        // The dictionary is thread-safe internally, but we keep _metricsLock for
+        // the compound check-then-update at call sites (the in-place mutation of
+        // MLPerformanceMetrics properties is not atomic on its own).
         private const int MetricsCapacity = 64;
 
         private readonly ISecureMLModelLoader _secureModelLoader;
@@ -25,7 +30,7 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers.Core
         private readonly Logger _logger;
 
         // ML Performance tracking
-        private readonly Dictionary<string, MLPerformanceMetrics> _performanceMetrics = new();
+        private readonly BoundedConcurrentDictionary<string, MLPerformanceMetrics> _performanceMetrics = new(MetricsCapacity);
         private readonly object _metricsLock = new object();
         private bool _disposed = false;
 
@@ -113,14 +118,8 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers.Core
                     var key = GetMetricsKey(queryUrl);
                     if (!_performanceMetrics.ContainsKey(key))
                     {
-                        // Evict all entries when the cap is reached to prevent unbounded growth.
-                        // Each entry is a cheap POCO with no disposable resources.
-                        if (_performanceMetrics.Count >= MetricsCapacity)
-                        {
-                            _logger.Debug("IndexerMLManager metrics cap ({0}) reached; clearing all entries", MetricsCapacity);
-                            _performanceMetrics.Clear();
-                        }
-
+                        // BoundedConcurrentDictionary handles overflow internally via
+                        // clear-on-cap-reached. No need to check Count or call Clear here.
                         _performanceMetrics[key] = new MLPerformanceMetrics();
                     }
                     _performanceMetrics[key].EstimatedBaselineCalls = baselineCalls;
