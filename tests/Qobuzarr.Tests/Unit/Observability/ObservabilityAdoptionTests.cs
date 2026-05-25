@@ -129,8 +129,12 @@ namespace Qobuzarr.Tests.Unit.Observability
             "https://streaming.qobuz.com/file?format_id=27&user_auth_token=MYTOKEN123",
             "https://streaming.qobuz.com/file?format_id=27&user_auth_token=***")]
         [InlineData(
+            // Common v1.13.0+: Scrub.Url delegates to LogRedactor.IsSensitiveParameter which
+            // recognizes substrings: secret, password, token, auth, credential, key, apikey.
+            // `app_id` is the public client identifier (not a secret — `app_secret` is); keep.
+            // `api_key` matches "key" → redact.
             "https://api.qobuz.com/track/getFileUrl?track_id=42&app_id=abc123&api_key=SECRET",
-            "https://api.qobuz.com/track/getFileUrl?track_id=42&app_id=***&api_key=***")]
+            "https://api.qobuz.com/track/getFileUrl?track_id=42&app_id=abc123&api_key=***")]
         [InlineData(
             "https://api.qobuz.com/album/get?album_id=123",
             "https://api.qobuz.com/album/get?album_id=123")]  // no sensitive params — unchanged
