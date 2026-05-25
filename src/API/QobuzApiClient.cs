@@ -460,12 +460,13 @@ namespace Lidarr.Plugin.Qobuzarr.API
                 // on an API without validators. Stale-if-error and terminal eviction continue to provide
                 // resilience for the past-duration / 5xx / 404 paths.
                 // Source: Phase 5e common refinement motivated by qobuzarr Phase 3b adoption feedback.
-                return CachePolicy.Default
-                    .With(duration: duration)
-                    .WithExecutor(
-                        hotHitMode: HotCacheHitMode.EnabledForFreshEntries,
-                        staleIfErrorTtl: duration,
-                        evictOnTerminalStatus: true);
+                // Wave 17K: merged into a single .With(...) call. The previous .With(duration).WithExecutor(...)
+                // chain was preserved across the Wave 19 deprecation but Common v1.14.0 removes WithExecutor.
+                return CachePolicy.Default.With(
+                    duration: duration,
+                    hotHitMode: HotCacheHitMode.EnabledForFreshEntries,
+                    staleIfErrorTtl: duration,
+                    evictOnTerminalStatus: true);
             }
 
             return CachePolicy.Disabled;
