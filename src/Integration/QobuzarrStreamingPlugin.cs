@@ -33,7 +33,16 @@ public sealed class QobuzarrStreamingPlugin : StreamingPlugin<QobuzarrStreamingM
         // AuthFailureGate — singleton wrapping the IAuthFailureHandler registered above.
         // Prevents Lidarr's search loop from hammering api.qobuz.com when credentials are known bad.
         // Mirrors the Tidalarr/AppleMusicarr pattern.
-        services.AddSingleton<AuthFailureGate>();
+        //
+        // Wave-23: explicit ctor args (probe interval 60s, TimeProvider.System, logger) to match
+        // apple+tidal. Previously the registration used the parameterless default-ctor route
+        // which left probe-interval implicit (whatever Common's default was) — parity audit
+        // flagged the divergence.
+        services.AddSingleton(sp => new AuthFailureGate(
+            sp.GetRequiredService<IAuthFailureHandler>(),
+            TimeProvider.System,
+            TimeSpan.FromSeconds(60),
+            sp.GetService<ILogger<AuthFailureGate>>()));
 
         // Explicit rate-limiter registration. QobuzHttpClient (the Lidarr-native path) takes
         // IUniversalAdaptiveRateLimiter as an OPTIONAL ctor parameter — without an explicit
