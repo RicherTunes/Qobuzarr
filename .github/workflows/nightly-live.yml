@@ -83,7 +83,7 @@ jobs:
       - name: Extract Lidarr assemblies from Docker
         run: |
           set -euo pipefail
-          IMAGE="ghcr.io/hotio/lidarr:pr-plugins"
+          IMAGE="ghcr.io/hotio/lidarr:pr-plugins-3.1.2.4913"
           echo "Pulling $IMAGE..."
           n=0
           until [ "$n" -ge 3 ]; do

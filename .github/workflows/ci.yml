@@ -314,7 +314,7 @@ jobs:
           echo "        Install Docker or populate ext/Lidarr/_output/net8.0 via a trusted cache."
           exit 1
         fi
-        IMAGE="ghcr.io/hotio/lidarr:pr-plugins"
+        IMAGE="ghcr.io/hotio/lidarr:pr-plugins-3.1.2.4913"
         echo "Pulling $IMAGE (with retry)"
         n=0
         until [ "$n" -ge 3 ]; do
@@ -336,7 +336,7 @@ jobs:
         # Guard: ensure plugins-branch API is present
         if ! strings ext/Lidarr/_output/net8.0/Lidarr.Core.dll | grep -q "IDownloadProtocol"; then
           echo "[ERROR] Assemblies do not expose IDownloadProtocol (plugins branch API)."
-          echo "        Ensure image 'ghcr.io/hotio/lidarr:pr-plugins' is accessible."
+          echo "        Ensure image 'ghcr.io/hotio/lidarr:pr-plugins-3.1.2.4913' is accessible."
           exit 1
 
         fi
@@ -493,7 +493,7 @@ jobs:
         set +e
         docker --version || DOCKER_MISSING=1
         if [ -z "$DOCKER_MISSING" ]; then
-          IMAGE="ghcr.io/hotio/lidarr:pr-plugins"
+          IMAGE="ghcr.io/hotio/lidarr:pr-plugins-3.1.2.4913"
           echo "Pulling $IMAGE (with retry)"
           n=0
           until [ "$n" -ge 3 ]; do
