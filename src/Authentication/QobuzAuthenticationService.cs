@@ -359,7 +359,13 @@ namespace Lidarr.Plugin.Qobuzarr.Authentication
 
             if (!loginResponse.IsSuccess)
             {
-                throw new InvalidOperationException($"Authentication failed: {loginResponse.Message}");
+                // SECURITY (Wave-23): don't interpolate `loginResponse.Message` into the
+                // exception — the upstream API response is attacker-controllable and the
+                // exception text flows into Lidarr's error log + UI surface. Log the raw
+                // message at Debug for diagnosis and throw a generic auth-failed exception.
+                _logger.Debug("Qobuz login response indicated failure (message length: {0})", loginResponse.Message?.Length ?? 0);
+                throw new InvalidOperationException(
+                    "Authentication failed. Verify your Email + Password (or User ID + Auth Token) are correct and not stale. See Debug logs for the raw API response length.");
             }
 
             var subscription = loginResponse.User?.Subscription?.ToSubscription();
@@ -717,9 +723,17 @@ namespace Lidarr.Plugin.Qobuzarr.Authentication
         {
             try
             {
-                // Step 1: Find seed and timezone pattern (QobuzApiSharp's exact regex)
+                // Step 1: Find seed and timezone pattern (QobuzApiSharp's exact regex).
+                // SECURITY (Wave-23): explicit 5s timeout on regex against attacker-controlled
+                // bundle content. The pattern itself is linear (no nested quantifiers) so genuine
+                // ReDoS is unlikely, but defense-in-depth — a malicious bundle response should
+                // never hold the auth thread indefinitely.
                 const string seedAndTimezonePattern = "\\):[a-z]\\.initialSeed\\(\"(?<seed>.*?)\",window\\.utimezone\\.(?<timezone>[a-z]+)\\)";
-                var seedAndTimezoneMatch = System.Text.RegularExpressions.Regex.Match(bundleContent, seedAndTimezonePattern);
+                var seedAndTimezoneMatch = System.Text.RegularExpressions.Regex.Match(
+                    bundleContent,
+                    seedAndTimezonePattern,
+                    System.Text.RegularExpressions.RegexOptions.CultureInvariant,
+                    TimeSpan.FromSeconds(5));
 
                 if (!seedAndTimezoneMatch.Success)
                 {
@@ -734,9 +748,14 @@ namespace Lidarr.Plugin.Qobuzarr.Authentication
                 // Log lengths + the (non-secret) timezone only. Wave-22 adversarial fix.
                 _logger.Debug($"Found seed (len={seed.Length}), timezone: {productionTimezone}");
 
-                // Step 2: Find info and extras for the production timezone
+                // Step 2: Find info and extras for the production timezone.
+                // SECURITY (Wave-23): explicit 5s timeout — same rationale as the seed regex above.
                 var infoAndExtrasPattern = "name:\"[^\"]*/" + productionTimezone + "\",info:\"(?<info>[^\"]*)\",extras:\"(?<extras>[^\"]*)\"";
-                var infoAndExtrasMatch = System.Text.RegularExpressions.Regex.Match(bundleContent, infoAndExtrasPattern, System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+                var infoAndExtrasMatch = System.Text.RegularExpressions.Regex.Match(
+                    bundleContent,
+                    infoAndExtrasPattern,
+                    System.Text.RegularExpressions.RegexOptions.IgnoreCase | System.Text.RegularExpressions.RegexOptions.CultureInvariant,
+                    TimeSpan.FromSeconds(5));
 
                 if (!infoAndExtrasMatch.Success)
                 {
