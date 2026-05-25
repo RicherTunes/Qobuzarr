@@ -339,3 +339,4 @@ release-notes.md
 # Build/scan log artifacts (incidental output, not committable history)
 qobuzarr-warnings*.log
 build_errors.txt
+verify-local*.log
