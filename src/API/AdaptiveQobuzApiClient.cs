@@ -33,6 +33,19 @@ namespace Lidarr.Plugin.Qobuzarr.API
             _logger = logger;
         }
 
+        private void RecordResponseFromException(string endpoint, Exception ex)
+        {
+            var classification = HttpExceptionClassifier.Classify(ex);
+            var statusCode = classification.Category switch
+            {
+                HttpFailureCategory.RateLimit => System.Net.HttpStatusCode.TooManyRequests,
+                HttpFailureCategory.Auth => System.Net.HttpStatusCode.Unauthorized,
+                _ => System.Net.HttpStatusCode.InternalServerError,
+            };
+            using var response = new HttpResponseMessage(statusCode);
+            _adaptiveRateLimiter.RecordResponse(QobuzarrConstants.ServiceName, endpoint, response);
+        }
+
         public async Task<T> GetAsync<T>(string endpoint, Dictionary<string, string>? parameters = null) where T : class
         {
             // Apply adaptive rate limiting before making the request
@@ -50,16 +63,7 @@ namespace Lidarr.Plugin.Qobuzarr.API
             }
             catch (Exception ex)
             {
-                // Record error response using HttpExceptionClassifier for reliable status detection
-                var classification = HttpExceptionClassifier.Classify(ex);
-                HttpResponseMessage errorResponse = classification.Category switch
-                {
-                    HttpFailureCategory.RateLimit => new HttpResponseMessage(System.Net.HttpStatusCode.TooManyRequests),
-                    HttpFailureCategory.Auth => new HttpResponseMessage(System.Net.HttpStatusCode.Unauthorized),
-                    _ => new HttpResponseMessage(System.Net.HttpStatusCode.InternalServerError)
-                };
-
-                _adaptiveRateLimiter.RecordResponse(QobuzarrConstants.ServiceName, endpoint, errorResponse);
+                RecordResponseFromException(endpoint, ex);
                 throw;
             }
         }
@@ -81,16 +85,7 @@ namespace Lidarr.Plugin.Qobuzarr.API
             }
             catch (Exception ex)
             {
-                // Record error response using HttpExceptionClassifier for reliable status detection
-                var classification = HttpExceptionClassifier.Classify(ex);
-                HttpResponseMessage errorResponse = classification.Category switch
-                {
-                    HttpFailureCategory.RateLimit => new HttpResponseMessage(System.Net.HttpStatusCode.TooManyRequests),
-                    HttpFailureCategory.Auth => new HttpResponseMessage(System.Net.HttpStatusCode.Unauthorized),
-                    _ => new HttpResponseMessage(System.Net.HttpStatusCode.InternalServerError)
-                };
-
-                _adaptiveRateLimiter.RecordResponse(QobuzarrConstants.ServiceName, endpoint, errorResponse);
+                RecordResponseFromException(endpoint, ex);
                 throw;
             }
         }
@@ -152,11 +147,9 @@ namespace Lidarr.Plugin.Qobuzarr.API
 
                 return result;
             }
-            catch (Exception)
+            catch (Exception ex)
             {
-                // Record error response for rate limiter
-                var errorResponse = new HttpResponseMessage(System.Net.HttpStatusCode.InternalServerError);
-                _adaptiveRateLimiter.RecordResponse(QobuzarrConstants.ServiceName, endpoint, errorResponse);
+                RecordResponseFromException(endpoint, ex);
                 throw;
             }
         }
@@ -179,10 +172,9 @@ namespace Lidarr.Plugin.Qobuzarr.API
 
                 return result;
             }
-            catch (Exception)
+            catch (Exception ex)
             {
-                var errorResponse = new HttpResponseMessage(System.Net.HttpStatusCode.InternalServerError);
-                _adaptiveRateLimiter.RecordResponse(QobuzarrConstants.ServiceName, endpoint, errorResponse);
+                RecordResponseFromException(endpoint, ex);
                 throw;
             }
         }
