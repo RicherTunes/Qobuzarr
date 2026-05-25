@@ -18,6 +18,7 @@ using Lidarr.Plugin.Qobuzarr.Security;
 using Lidarr.Plugin.Qobuzarr.Utilities;
 using Lidarr.Plugin.Qobuzarr.Services.Interfaces;
 using Lidarr.Plugin.Common.Interfaces;
+using Lidarr.Plugin.Common.Observability;
 using Lidarr.Plugin.Common.Services.Authentication;
 using CommonInterfaces = Lidarr.Plugin.Common.Interfaces;
 
@@ -671,7 +672,7 @@ namespace Lidarr.Plugin.Qobuzarr.Authentication
                 var bundleSuffix = bundleMatch.Groups["bundleJS"].Value;
                 var bundleUrl = "https://play.qobuz.com" + bundleSuffix;
 
-                _logger.Debug($"Found bundle.js URL: {bundleUrl}");
+                _logger.Debug($"Found bundle.js URL: {Scrub.Url(bundleUrl)}");
 
                 // Step 3: Fetch bundle.js
                 var bundleContent = await WebPlayerHttpClient.GetStringAsync(bundleUrl)
@@ -699,7 +700,7 @@ namespace Lidarr.Plugin.Qobuzarr.Authentication
                     throw new InvalidOperationException("Failed to extract app_secret from bundle.js");
                 }
 
-                _logger.Info($"Successfully extracted dynamic credentials: App ID {appId}");
+                _logger.Info($"Successfully extracted dynamic credentials: App ID {Scrub.Secret(appId, leadingVisible: 2)}");
                 return (appId, appSecret);
             }
             catch (Exception ex)
@@ -728,7 +729,10 @@ namespace Lidarr.Plugin.Qobuzarr.Authentication
                 var seed = seedAndTimezoneMatch.Groups[1].Value;
                 var productionTimezone = System.Globalization.CultureInfo.InvariantCulture.TextInfo.ToTitleCase(seedAndTimezoneMatch.Groups[2].Value);
 
-                _logger.Debug($"Found seed: {seed}, timezone: {productionTimezone}");
+                // SECURITY: seed/info/extras concatenate (with trim+base64) into the appSecret.
+                // Logging them raw at Debug lets anyone capturing logs reconstruct the secret offline.
+                // Log lengths + the (non-secret) timezone only. Wave-22 adversarial fix.
+                _logger.Debug($"Found seed (len={seed.Length}), timezone: {productionTimezone}");
 
                 // Step 2: Find info and extras for the production timezone
                 var infoAndExtrasPattern = "name:\"[^\"]*/" + productionTimezone + "\",info:\"(?<info>[^\"]*)\",extras:\"(?<extras>[^\"]*)\"";
@@ -742,7 +746,7 @@ namespace Lidarr.Plugin.Qobuzarr.Authentication
                 var info = infoAndExtrasMatch.Groups[1].Value;
                 var extras = infoAndExtrasMatch.Groups[2].Value;
 
-                _logger.Debug($"Found info: {info}, extras: {extras}");
+                _logger.Debug($"Found info (len={info.Length}), extras (len={extras.Length})");
 
                 // Step 3: Concatenate seed, info, and extras
                 var base64EncodedAppSecret = seed + info + extras;
