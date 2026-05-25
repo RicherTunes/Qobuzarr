@@ -10,6 +10,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - `QobuzarrStreamingModule` migrated from direct `QobuzarrModule.Dispose()` call in its `Dispose()` to the canonical `PluginLifecycle.RegisterShutdown` + `PluginLifecycle.Shutdown()` pattern used by apple, tidalarr, and brainarr. `SharedSystemHttpClient` socket-pool teardown is now registered as a named shutdown delegate (`"QobuzarrSharedSystemHttpClient"`) in `RegisterCustomServices`, invoked via `PluginLifecycle.Shutdown` on plugin unload. CAS-guarded against re-registration on reload cycles. Behavioral guarantee is identical (same teardown runs on unload); change closes parity-matrix axis #4 (PluginLifecycle adoption).
 
+### Documentation
+- CLAUDE.md `## Common helpers in use` section pins `FileTokenStore<QobuzSession>` + `StreamingTokenManager<QobuzSession, QobuzCredentials>` (`src/Authentication/SessionManager.cs:86-90`) as the canonical evidence for the parity-matrix axis #21 (JsonFileStore / token persistence). The audit's prior "qobuz uses custom JSON I/O for sessions (~80 LOC)" finding was a stale snapshot — the wave-8B `SecureSessionManager` rip-out already migrated to Common's encrypted token-store stack with platform-appropriate protector (DPAPI on Windows, Keychain on macOS, Secret Service / DataProtection fallback on Linux). Other JSON I/O in qobuz (CacheSerializer, ML training data, download metadata) is intentionally specialized and not a `JsonFileStore<TKey, TValue>` use case.
+
 ## [0.5.6] - 2026-05-24
 
 ### Changed

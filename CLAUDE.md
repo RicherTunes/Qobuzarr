@@ -90,6 +90,7 @@ For Qobuzarr this is satisfied by `<AssemblyName>Lidarr.Plugin.Qobuzarr</Assembl
 ## Common helpers in use
 
 - `PluginConfigRoots.Resolve("Qobuzarr")` — `src/Authentication/SessionManager.cs:263`
+- `FileTokenStore<QobuzSession>` + `StreamingTokenManager<QobuzSession, QobuzCredentials>` — `src/Authentication/SessionManager.cs:86-90`. Common's canonical token-store stack with at-rest encryption (DPAPI on Windows, Keychain on macOS, Secret Service / DataProtection fallback on Linux). Session envelope persisted to `PluginConfigRoots.Resolve("Qobuzarr")/session.json`. The audit-mismatch axis "Qobuz uses custom JSON I/O for sessions" was a stale finding — the wave-8B `SecureSessionManager` rip-out already migrated to Common; this CLAUDE entry pins the evidence.
 - `BackendHealthCache` — `src/API/Http/QobuzHttpClient.cs:31` (fail-fast gate in `ExecuteAsync`), `src/API/Http/QobuzHttpClient.cs:104`
 - `AuthFailureGate` — `src/Integration/QobuzarrStreamingPlugin.cs:36` (singleton registration), `src/Integration/Bridge/BridgeQobuzApiClient.cs:35`
 - `HttpExceptionClassifier` — `src/API/AdaptiveQobuzApiClient.cs:54`, `src/Services/AuthTokenManager.cs:376`
