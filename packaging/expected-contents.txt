@@ -6,11 +6,18 @@
 # Format: [REQUIRED] files that MUST be present; [FORBIDDEN] files that MUST NOT be present.
 
 [REQUIRED]
+# Qobuzarr's ILRepack internalizes Lidarr.Plugin.Abstractions into the merged DLL
+# (see .github/workflows/release.yml line 143 — Abstractions.dll is FORBIDDEN as a
+# sidecar). This is the OPPOSITE of AppleMusicarr's choice (which ships Abstractions
+# as a sidecar per Common v1.13.0's PluginPack.psm1 contract). Both are valid: the
+# host loads each plugin in its own ALC so type-identity conflicts don't arise.
 Lidarr.Plugin.Qobuzarr.dll
-Lidarr.Plugin.Abstractions.dll
 plugin.json
 
 [FORBIDDEN]
+# Merged-in assembly -- shipping as sidecar would duplicate types already in the main DLL.
+Lidarr.Plugin.Abstractions.dll
+Lidarr.Plugin.Common.dll
 # Host-provided contract assemblies -- including these causes type-identity conflicts
 FluentValidation.dll
 Microsoft.Extensions.DependencyInjection.Abstractions.dll
