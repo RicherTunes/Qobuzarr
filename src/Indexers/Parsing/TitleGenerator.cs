@@ -2,6 +2,7 @@ using System;
 using System.Linq;
 using System.Text.RegularExpressions;
 using NLog;
+using Lidarr.Plugin.Common.HostBridge;
 using Lidarr.Plugin.Qobuzarr.Models;
 using Lidarr.Plugin.Qobuzarr.Security;
 
@@ -78,12 +79,19 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers.Parsing
             // Use clean album title if we extracted edition, otherwise original
             var titleToUse = string.IsNullOrWhiteSpace(editionStr) ? albumTitle : cleanAlbumTitle;
 
-            // Build canonical format: Artist - Album (Year) [Edition] [Explicit] [LIVE] [FORMAT] [WEB]
-            var yearStr = year > 0 ? $" ({year})" : "";
-            var explicitStr = album.ParentalWarning ? " [Explicit]" : "";
-            var liveIndicator = IsLiveAlbum(albumTitle) ? " [LIVE]" : "";
-
-            var title = $"{artist} - {titleToUse}{yearStr}{editionStr}{explicitStr}{liveIndicator} [{formatStr}] [WEB]";
+            // Build canonical format via AlbumReleaseInfoBuilder
+            var (_, _, title) = new AlbumReleaseInfoBuilder()
+                .WithArtist(artist)
+                .WithAlbum(titleToUse)
+                .WithYear(year > 0 ? year : (int?)null)
+                .WithEditionMarker(NormalizeEditionForBuilder(editionStr))
+                .WithExplicitMarker(album.ParentalWarning)
+                .WithLiveMarker(IsLiveAlbum(albumTitle))
+                .WithFormatMarker(formatStr)
+                .WithReleaseGroup("WEB")
+                .WithScheme("qobuz")
+                .WithAlbumId(album.Id?.ToString() ?? "0")
+                .Build();
             _logger.Trace("Generated title: '{0}'", title);
             return title;
         }
@@ -239,6 +247,14 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers.Parsing
 
             var liveTerms = new[] { " live", "(live)", "[live]", "live at", "live in", "concert", "unplugged" };
             return liveTerms.Any(term => albumTitle.Contains(term, StringComparison.OrdinalIgnoreCase));
+        }
+
+        private static string? NormalizeEditionForBuilder(string editionStr)
+        {
+            // editionStr is built locally as " [SanitizedVersion]" (with leading space + brackets) for direct
+            // string concatenation. The builder expects the raw edition value and adds the brackets itself.
+            if (string.IsNullOrWhiteSpace(editionStr)) return null;
+            return editionStr.Trim().TrimStart('[').TrimEnd(']').Trim();
         }
     }
 }

@@ -75,25 +75,9 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Services
         /// </summary>
         private static string? ExtractAlbumIdFromDownloadUrl(string downloadUrl)
         {
-            var afterScheme = downloadUrl.Substring(QobuzSchemePrefix.Length); // "{id}?quality=..." or "{id}/{quality}"
-
-            // Strip query string (new format: qobuz://album/{id}?quality={q})
-            var queryIdx = afterScheme.IndexOf('?');
-            if (queryIdx >= 0)
-            {
-                var idPart = afterScheme.Substring(0, queryIdx);
-                return string.IsNullOrWhiteSpace(idPart) ? null : idPart;
-            }
-
-            // Legacy path-segment quality (qobuz://album/{id}/{quality}): strip last segment
-            var lastSlashIndex = afterScheme.LastIndexOf('/');
-            if (lastSlashIndex > 0)
-            {
-                return afterScheme.Substring(0, lastSlashIndex);
-            }
-
-            // No slash, no query string: entire remainder is the album ID
-            return string.IsNullOrWhiteSpace(afterScheme) ? null : afterScheme;
+            return AlbumDownloadUri.TryExtractAlbumId(downloadUrl, QobuzScheme, out var id)
+                ? id
+                : null;
         }
 
         /// <summary>
