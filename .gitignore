@@ -330,3 +330,12 @@ methods.tmp
 
 # Keep .claude/ (agent configs) and CLAUDE.md
 !.claude/
+
+# Release artifacts (Wave-22 cleanup) — these are built by scripts/release CI, never committed
+*.net8.0.zip
+package-release/
+release-notes.md
+
+# Build/scan log artifacts (incidental output, not committable history)
+qobuzarr-warnings*.log
+build_errors.txt
