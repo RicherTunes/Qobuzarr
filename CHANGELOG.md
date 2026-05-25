@@ -5,6 +5,11 @@ All notable changes to Qobuzarr will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Changed
+- `QobuzarrStreamingModule` migrated from direct `QobuzarrModule.Dispose()` call in its `Dispose()` to the canonical `PluginLifecycle.RegisterShutdown` + `PluginLifecycle.Shutdown()` pattern used by apple, tidalarr, and brainarr. `SharedSystemHttpClient` socket-pool teardown is now registered as a named shutdown delegate (`"QobuzarrSharedSystemHttpClient"`) in `RegisterCustomServices`, invoked via `PluginLifecycle.Shutdown` on plugin unload. CAS-guarded against re-registration on reload cycles. Behavioral guarantee is identical (same teardown runs on unload); change closes parity-matrix axis #4 (PluginLifecycle adoption).
+
 ## [0.5.6] - 2026-05-24
 
 ### Changed
