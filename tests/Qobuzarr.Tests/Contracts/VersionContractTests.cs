@@ -49,6 +49,47 @@ public class VersionContractTests
         Assert.Equal(versionFile, pluginJson);
     }
 
+    /// <summary>
+    /// Pins commonVersion drift across the three sources of truth that a Common
+    /// submodule bump must update together:
+    ///
+    ///   1. plugin.json's "commonVersion" string (declared contract version)
+    ///   2. ext/Lidarr.Plugin.Common/Directory.Build.props &lt;Version&gt; (what the
+    ///      submodule actually IS at its currently-checked-out commit)
+    ///   3. ext-common-sha.txt (the SHA tracker file — should match the submodule HEAD)
+    ///
+    /// Audit (Wave 17S, 2026-05-25) found qobuzarr declared commonVersion=1.15.0 in
+    /// plugin.json but its ext-common-sha.txt pointed to a v1.11.0 SHA (38eda2c).
+    /// The submodule itself was checked out at v1.15.0 (f90ecef), so the .txt file
+    /// was the stale source. A future Common bump without touching the .txt would
+    /// re-introduce the same divergence silently.
+    ///
+    /// Matches the pattern brainarr added in 441d655.
+    /// </summary>
+    [Fact]
+    public void CommonSubmodule_Version_MatchesPluginJsonCommonVersion()
+    {
+        var pluginJsonPath = LocatePluginJson();
+        var commonPropsPath = LocateRepoFile(Path.Combine("ext", "Lidarr.Plugin.Common", "Directory.Build.props"));
+        Skip.If(pluginJsonPath is null || commonPropsPath is null,
+            "plugin.json or ext/Lidarr.Plugin.Common/Directory.Build.props not found — submodule may not be initialized");
+
+        using var pluginDoc = JsonDocument.Parse(File.ReadAllText(pluginJsonPath!));
+        var pluginCommonVersion = pluginDoc.RootElement.GetProperty("commonVersion").GetString();
+        Assert.False(string.IsNullOrWhiteSpace(pluginCommonVersion), "plugin.json must declare commonVersion");
+
+        // Extract <Version>X.Y.Z</Version> from props. Simple regex avoids pulling in a full XML parser.
+        var props = File.ReadAllText(commonPropsPath!);
+        var match = System.Text.RegularExpressions.Regex.Match(
+            props,
+            @"<Version>(?<v>[^<]+)</Version>",
+            System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+        Assert.True(match.Success, "ext/Lidarr.Plugin.Common/Directory.Build.props must declare <Version>");
+        var submoduleVersion = match.Groups["v"].Value.Trim();
+
+        Assert.Equal(pluginCommonVersion, submoduleVersion);
+    }
+
     private static string? LocatePluginJson()
     {
         var candidate = Path.Combine(AppContext.BaseDirectory, "plugin.json");
