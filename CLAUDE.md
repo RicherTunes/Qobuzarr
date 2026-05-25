@@ -97,6 +97,7 @@ For Qobuzarr this is satisfied by `<AssemblyName>Lidarr.Plugin.Qobuzarr</Assembl
 - `WarnOnce` — `src/Indexers/QobuzIndexer.cs:58` (wire-warn gate)
 - `Scrub` — `src/Download/Services/AudioFileDownloader.cs:73` (`Scrub.Url`), `src/API/Signing/QobuzRequestSigner.cs:64` (`Scrub.Secret`)
 - `PrefixedReleaseGuidParser` — `src/Indexers/QobuzParser.cs:233`
+- `BoundedConcurrentDictionary<TKey, TValue>` — available (Common v1.15.0+ exposes `ContainsKey`, `Values`, indexer setter, and `IEnumerable<KeyValuePair>` alongside the original v1.10.0 TryAdd/TryGetValue/AddOrUpdate/GetOrAdd surface). No qobuz call sites yet — `QobuzHttpClient._hostGates` (`src/API/Http/QobuzHttpClient.cs:40`) is domain-bounded by host count (1-2 hosts in practice) so adoption isn't required; revisit if user-controlled keys grow unboundedly.
 
 See `ext/Lidarr.Plugin.Common/CHANGELOG.md` for the full catalog.
 
