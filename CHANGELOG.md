@@ -8,8 +8,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Dependencies
-- `ext/Lidarr.Plugin.Common` bumped to **v1.16.0** (`936556e`) — picks up `SlidingWindowAuthFailureHandler` (K-of-N-in-W sliding-window circuit semantics, sibling of `DefaultAuthFailureHandler`) and the rest of the wave-22 Common surface.
-- `ext-common-sha.txt` aligned with the submodule pin: `f90ecef` → `936556e`. Closes the stale-pointer drift surfaced by the Wave-22 adversarial review.
+- `ext/Lidarr.Plugin.Common` bumped to **v1.17.0** (`639d573`) Wave-23 — picks up the Wave-21 parity helpers. Qobuzarr doesn't consume these today (custom GUID grammar + own path-traversal logic), but the bump keeps the ecosystem lockstep.
+- `ext-common-sha.txt` aligned to `639d573` (was `f90ecef`, then `936556e` after Wave-22).
+- `plugin.json` `commonVersion`: 1.16.0 → 1.17.0.
 
 ### Fixed (security — log scrubbing)
 - `QobuzAuthenticationService.ExtractAppSecretFromBundle` previously logged the raw `seed`, `info`, and `extras` strings at Debug level. Those three values concatenate (with a 44-char trim + base64 decode) into the appSecret — anyone capturing Debug logs could reconstruct the shared secret offline. Now logs lengths + the (non-secret) production timezone only.
@@ -21,10 +22,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `.gitignore` extended with `*.net8.0.zip`, `package-release/`, `release-notes.md`, `qobuzarr-warnings*.log`, and `build_errors.txt` so build artifacts no longer pollute the working tree.
 
 ### Changed
+- Wave 18K: TitleGenerator delegates title format to Common.AlbumReleaseInfoBuilder (Edition/Explicit/Live/Format brackets).
+- Wave 18L: AlbumIdExtractor URL parser delegates to Common.AlbumDownloadUri.TryExtractAlbumId. Legacy GUID parser unchanged.
+- Refactor: AdaptiveQobuzApiClient — unified 4 catch blocks via RecordResponseFromException; streaming methods now correctly classify auth/ratelimit (previously always recorded InternalServerError).
+- Fix: AudioFileDownloader uses 'is WebException' instead of GetType().Name == "WebException" (type-safe).
 - `QobuzarrStreamingModule` migrated from direct `QobuzarrModule.Dispose()` call in its `Dispose()` to the canonical `PluginLifecycle.RegisterShutdown` + `PluginLifecycle.Shutdown()` pattern used by apple, tidalarr, and brainarr. `SharedSystemHttpClient` socket-pool teardown is now registered as a named shutdown delegate (`"QobuzarrSharedSystemHttpClient"`) in `RegisterCustomServices`, invoked via `PluginLifecycle.Shutdown` on plugin unload. CAS-guarded against re-registration on reload cycles. Behavioral guarantee is identical (same teardown runs on unload); change closes parity-matrix axis #4 (PluginLifecycle adoption).
 
 ### Documentation
 - CLAUDE.md `## Common helpers in use` section pins `FileTokenStore<QobuzSession>` + `StreamingTokenManager<QobuzSession, QobuzCredentials>` (`src/Authentication/SessionManager.cs:86-90`) as the canonical evidence for the parity-matrix axis #21 (JsonFileStore / token persistence). The audit's prior "qobuz uses custom JSON I/O for sessions (~80 LOC)" finding was a stale snapshot — the wave-8B `SecureSessionManager` rip-out already migrated to Common's encrypted token-store stack with platform-appropriate protector (DPAPI on Windows, Keychain on macOS, Secret Service / DataProtection fallback on Linux). Other JSON I/O in qobuz (CacheSerializer, ML training data, download metadata) is intentionally specialized and not a `JsonFileStore<TKey, TValue>` use case.
+
+### Fixed (security — Wave-23)
+- `QobuzAuthenticationService.ExtractAppSecretFromBundle`: explicit 5-second timeouts on both regex calls (`seedAndTimezonePattern` + `infoAndExtrasPattern`). Defense-in-depth against attacker-controlled bundle content — patterns are linear (no nested quantifiers, not classic ReDoS) but a malicious bundle response should never hold the auth thread indefinitely.
+- `QobuzApiClient`: `request_sig` (appSecret-derivative signature) was logged at Debug in the "Final API call" line. Now excluded from `safeParams` and masked as `***` alongside `user_auth_token`. Offline log-correlation / timing-analysis surface removed.
+- `QobuzAuthenticationService`: replaced `throw new InvalidOperationException($"Authentication failed: {loginResponse.Message}")` with a fixed actionable message. The upstream API's response message was attacker-controllable and flowed into Lidarr's error log + UI via `ex.Message`; raw message length is now logged at Debug for diagnosis without exposing the value.
+
+### Changed (parity — Wave-23)
+- `QobuzarrStreamingPlugin.cs`: `AuthFailureGate` registration switched from default-ctor `AddSingleton<AuthFailureGate>()` to explicit ctor (probe interval 60s, `TimeProvider.System`, logger) matching apple+tidal. Previously the probe interval was implicit; now it's documented at the registration site.
+
+### Changed (CI — Wave-23)
+- 8 workflow files (`ci.yml`, `governance.yml`, `nightly-live.yml`, `nightly.yml`, `release.yml`, `test-and-coverage.yml`): Docker image pin `ghcr.io/hotio/lidarr:pr-plugins` → `pr-plugins-3.1.2.4913` matching apple+brainarr.
+
+### Changed (test naming — Wave-23)
+- `QobuzarrPluginComplianceTests` renamed to `QobuzarrAssemblyComplianceTests` (file + class). Wave-22 deleted the legacy Obsolete `QobuzarrPlugin` class (commit 2473ad1); the test class name was a false-positive grep hit on a dead symbol. Test content is unchanged — it asserts the plugin ASSEMBLY meets Lidarr compliance, not the deleted Plugin stub.
 
 ## [0.5.6] - 2026-05-24
 

@@ -15,13 +15,13 @@ namespace Qobuzarr.Tests.Compliance;
 /// </summary>
 [Trait("Category", "Compliance")]
 [Trait("Category", "Plugin")]
-public class QobuzarrPluginComplianceTests : IDisposable
+public class QobuzarrAssemblyComplianceTests : IDisposable
 {
     private readonly Assembly _pluginAssembly;
     private readonly JObject? _pluginManifest;
     private readonly string? _sourceCodePath;
 
-    public QobuzarrPluginComplianceTests()
+    public QobuzarrAssemblyComplianceTests()
     {
         _pluginAssembly = typeof(QobuzIndexer).Assembly;
 

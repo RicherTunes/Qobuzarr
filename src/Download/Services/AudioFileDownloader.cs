@@ -315,7 +315,7 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Services
             }
 
             // Check for WebException which often indicates network issues
-            if (ex.GetType().Name == "WebException")
+            if (ex is System.Net.WebException)
                 return true;
 
             return false;
