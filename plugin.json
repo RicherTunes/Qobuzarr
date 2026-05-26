@@ -12,5 +12,9 @@
   "minHostVersion": "2.14.2.4786",
   "targetFramework": "net8.0",
   "main": "Lidarr.Plugin.Qobuzarr.dll",
-  "rootNamespace": "Lidarr.Plugin.Qobuzarr"
+  "rootNamespace": "Lidarr.Plugin.Qobuzarr",
+  "owner": "RicherTunes",
+  "repository": "https://github.com/RicherTunes/qobuzarr",
+  "supportUri": "https://github.com/RicherTunes/qobuzarr/issues",
+  "changelogUri": "https://github.com/RicherTunes/qobuzarr/blob/main/CHANGELOG.md"
 }
