@@ -8,8 +8,7 @@ namespace Lidarr.Plugin.Qobuzarr.Utilities
     {
         public static string ToSafeFileName(this string value)
         {
-            if (string.IsNullOrWhiteSpace(value)) return "Unknown";
-            return Lidarr.Plugin.Common.Utilities.FileNameSanitizer.SanitizeFileName(value);
+            return Lidarr.Plugin.Common.Security.Sanitize.FileNameSegment(value);
         }
 
         public static string SafeSubstring(this string value, int startIndex, int length)
