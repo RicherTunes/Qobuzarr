@@ -41,7 +41,8 @@ namespace Lidarr.Plugin.Qobuzarr.Core
             string outputPath,
             int preferredQuality,
             IProgress<double>? progress = null,
-            CancellationToken cancellationToken = default)
+            CancellationToken cancellationToken = default,
+            bool allowQualityFallback = true)
         {
             try
             {
@@ -51,6 +52,11 @@ namespace Lidarr.Plugin.Qobuzarr.Core
                 _logger.Debug("Attempting download with quality fallback for track {0}, preferred quality {1}", track.Id, preferredQuality);
 
                 var (selectedQuality, streamInfo) = await _apiService.GetBestAvailableStreamAsync(track.Id, preferredQuality);
+
+                // Enforce strict-quality policy BEFORE we commit any bytes to disk —
+                // if the user has Quality Fallback disabled and the API returned a
+                // different quality than requested, fail fast with a clear error.
+                QobuzQualityPolicyEnforcer.Enforce(selectedQuality, preferredQuality, allowQualityFallback);
 
                 if (selectedQuality != preferredQuality)
                 {
