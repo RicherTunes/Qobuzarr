@@ -9,7 +9,7 @@
   "license": "GPL-3.0",
   "tags": ["music", "qobuz", "hi-res", "lossless"],
   "commonVersion": "1.18.0-dev",
-  "minHostVersion": "2.14.2.4786",
+  "minHostVersion": "3.0.0.4855",
   "targetFramework": "net8.0",
   "main": "Lidarr.Plugin.Qobuzarr.dll",
   "rootNamespace": "Lidarr.Plugin.Qobuzarr",
