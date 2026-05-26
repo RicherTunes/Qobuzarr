@@ -471,7 +471,16 @@ namespace Qobuzarr.Tests
         [Fact]
         public async Task AuthenticateWithEmailAsync_LoginFailed_ThrowsInvalidOperationException()
         {
-            // Source line 323: throw new InvalidOperationException($"Authentication failed: {loginResponse.Message}");
+            // Wave-23 security fix (commit 45e240b): the upstream API's response message
+            // (`loginResponse.Message`) is no longer interpolated into the exception text.
+            // Source previously read:
+            //   throw new InvalidOperationException($"Authentication failed: {loginResponse.Message}");
+            // — which echoed attacker-controllable response content into Lidarr's error
+            // log + UI surface. Replaced with a fixed actionable message; the raw response
+            // message length is logged at Debug for diagnosis.
+            //
+            // This test now asserts the SAFE contract: exception is thrown + message does
+            // NOT contain the upstream response value.
             var credentials = new QobuzCredentials
             {
                 Email = "test@example.com",
@@ -480,13 +489,14 @@ namespace Qobuzarr.Tests
                 AppSecret = "test_app_secret"
             };
 
+            const string upstreamSentinel = "Invalid credentials";
             var loginResponse = new QobuzLoginResponse
             {
                 User = null,
                 UserAuthToken = null,
                 Status = "error",
                 Code = 401,
-                Message = "Invalid credentials"
+                Message = upstreamSentinel
             };
 
             var httpResponse = new HttpResponse(
@@ -501,7 +511,13 @@ namespace Qobuzarr.Tests
             var exception = await Assert.ThrowsAsync<InvalidOperationException>(
                 async () => await _authService.AuthenticateAsync(credentials));
 
-            exception.Message.Should().Be("Authentication failed: Invalid credentials");
+            // Safe-contract assertions (Wave-23 #36): message contains the generic
+            // category prefix + does NOT echo the upstream value.
+            exception.Message.Should().StartWith("Authentication failed");
+            exception.Message.Should().NotContain(upstreamSentinel,
+                "Wave-23 security fix: upstream loginResponse.Message must NOT be interpolated " +
+                "into the exception text — it's attacker-controllable and flows into Lidarr's " +
+                "error log + UI surface.");
         }
 
         #endregion
