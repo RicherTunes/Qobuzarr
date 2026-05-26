@@ -1,5 +1,6 @@
 using Xunit;
 using FluentAssertions;
+using Lidarr.Plugin.Common.Security;
 using Lidarr.Plugin.Common.Testing;
 using Lidarr.Plugin.Spotifyarr.Settings;
 
@@ -23,7 +24,7 @@ namespace Lidarr.Plugin.Spotifyarr.Tests
         {
             // Use shared library utilities for consistent testing
             var testAlbum = MockFactories.CreateMockAlbumWithTracks(10);
-            var safeName = FileNameSanitizer.SanitizeFileName(testAlbum.Title);
+            var safeName = Sanitize.FileNameSegment(testAlbum.Title);
             
             safeName.Should().NotBeNullOrEmpty();
             safeName.Should().NotContain('/');
