@@ -6,6 +6,12 @@ using Lidarr.Plugin.Common.Utilities;
 using Xunit;
 using Xunit.Abstractions;
 
+// These tests pin the contract of the deprecated FileNameSanitizer for in-flight
+// regression protection — the test SUBJECT is the obsolete API itself. Suppressing
+// the obsolete-usage warning file-wide is the standard pattern for "this test
+// exercises an obsolete type on purpose."
+#pragma warning disable CS0618
+
 namespace Qobuzarr.Tests.Unit.Search
 {
     /// <summary>
@@ -68,8 +74,20 @@ namespace Qobuzarr.Tests.Unit.Search
             // Act
             var sanitizedPath = FileNameSanitizer.SanitizePath(input);
 
-            // Assert
-            sanitizedPath.Should().NotContain("..");
+            // Assert — verify the SECURITY OUTCOME, not a specific string-form implementation.
+            // FileNameSanitizer's path-traversal guard evolved (Common Phase-1 fix): pure-dot
+            // segments are now neutralized to "_.." rather than stripped, so a substring
+            // `Contains("..")` no longer captures the intent. The semantic guarantee is:
+            // (a) no segment is a pure-dot sequence (".", "..", "...") that Path.GetFullPath
+            // would resolve as a parent-tree reference, (b) no home-dir shortcut (~), and
+            // (c) no leading separator that would make the path absolute against an unintended
+            // root. Form-agnostic checks below capture all three.
+            var segments = sanitizedPath.Split(new[] { '/', '\\' }, System.StringSplitOptions.RemoveEmptyEntries);
+            foreach (var segment in segments)
+            {
+                segment.Should().NotMatchRegex(@"^\.+$",
+                    because: "pure-dot segments resolve as parent-tree references via Path.GetFullPath");
+            }
             sanitizedPath.Should().NotContain("~");
             sanitizedPath.Should().NotStartWith("/");
             sanitizedPath.Should().NotStartWith("\\");
