@@ -6,6 +6,7 @@ using Lidarr.Plugin.Common.Base;
 using Lidarr.Plugin.Common.Models;
 using Lidarr.Plugin.Common.Services.Http;
 using Lidarr.Plugin.Common.Services.Quality;
+using Lidarr.Plugin.Common.Security;
 using Lidarr.Plugin.Common.Services.Performance;
 using Lidarr.Plugin.Common.Testing;
 using Lidarr.Plugin.Common.Utilities;
@@ -152,9 +153,9 @@ namespace Lidarr.Plugin.Common.Examples
         public string CreateSafeFilePath(StreamingTrack track)
         {
             // Use shared file name sanitizer
-            var artistName = FileNameSanitizer.SanitizeFileName(track.Artist?.Name ?? "Unknown Artist");
-            var albumTitle = FileNameSanitizer.SanitizeFileName(track.Album?.Title ?? "Unknown Album");
-            var trackTitle = FileNameSanitizer.SanitizeFileName(track.Title ?? "Unknown Track");
+            var artistName = Sanitize.FileNameSegment(track.Artist?.Name, "Unknown Artist");
+            var albumTitle = Sanitize.FileNameSegment(track.Album?.Title, "Unknown Album");
+            var trackTitle = Sanitize.FileNameSegment(track.Title, "Unknown Track");
 
             // Build path safely
             var fileName = $"{track.TrackNumber:D2} - {trackTitle}.flac";
