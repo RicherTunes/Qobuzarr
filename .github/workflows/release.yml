@@ -25,7 +25,7 @@ jobs:
       main_csproj: Qobuzarr.csproj
       lidarr_path_msbuild_prop: LidarrPath
       dll_search_dirs: 'bin'
-      minimum_lidarr_version: '2.13.2.4685'
+      minimum_lidarr_version: '3.0.0.4855'
       include_cosign: true
       include_sbom: true
       version: ${{ inputs.version || '' }}
