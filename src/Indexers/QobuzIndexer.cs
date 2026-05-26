@@ -20,6 +20,7 @@ using Lidarr.Plugin.Qobuzarr.Security;
 using Lidarr.Plugin.Qobuzarr.Indexers.Core;
 using Lidarr.Plugin.Common.Base;
 using Lidarr.Plugin.Common.Diagnostics;
+using Lidarr.Plugin.Common.Services.Diagnostics;
 using Lidarr.Plugin.Common.Observability;
 using Lidarr.Plugin.Common.Services.Bridge;
 using Lidarr.Plugin.Qobuzarr.Download;
@@ -317,14 +318,13 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
             }
             catch (Exception ex)
             {
-                // Record auth-class outcomes so subsequent calls short-circuit.
                 RecordAuthOutcomeFromException(_apiClient.Gate, ex);
                 _logger.Error(ex, "❌ Indexer test failed");
-                // Wave 74 UX: include exception type so users can tell network from
-                // auth from rate-limit errors at a glance.
-                failures.Add(new ValidationFailure(
-                    "Test",
-                    $"Test failed ({ex.GetType().Name}): {ex.Message}. Full details in Lidarr logs."));
+                var classification = HttpExceptionClassifier.Classify(ex);
+                string failureField = classification.Category == HttpFailureCategory.Auth
+                    ? "Authentication"
+                    : "Test";
+                failures.Add(new ValidationFailure(failureField, classification.Hint));
             }
         }
 

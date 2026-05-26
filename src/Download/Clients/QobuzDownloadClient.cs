@@ -21,6 +21,7 @@ using NzbDrone.Core.Localization;
 using NzbDrone.Core.Parser.Model;
 using NzbDrone.Core.RemotePathMappings;
 using NLog;
+using Lidarr.Plugin.Common.Services.Diagnostics;
 using Lidarr.Plugin.Qobuzarr.Abstractions;
 using Lidarr.Plugin.Qobuzarr.Indexers;
 using Lidarr.Plugin.Qobuzarr.API;
@@ -370,12 +371,13 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Clients
             }
             catch (Exception ex)
             {
-                // Record auth-class outcomes so subsequent calls short-circuit.
                 RecordAuthOutcomeFromException(_apiClient.Gate, ex);
                 _logger.Error(ex, "Qobuz download client test failed");
-                failures.Add(new ValidationFailure(
-                    "",
-                    $"Connection test failed ({ex.GetType().Name}): {ex.Message}. Full details in Lidarr logs."));
+                var classification = HttpExceptionClassifier.Classify(ex);
+                string failureField = classification.Category == HttpFailureCategory.Auth
+                    ? "Authentication"
+                    : "Test";
+                failures.Add(new ValidationFailure(failureField, classification.Hint));
             }
         }
 
