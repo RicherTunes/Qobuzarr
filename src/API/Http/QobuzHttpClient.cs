@@ -1,6 +1,5 @@
 using System;
 using System.Diagnostics;
-using System.Linq;
 using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
@@ -9,6 +8,7 @@ using NzbDrone.Common.Http;
 using Lidarr.Plugin.Qobuzarr.Configuration;
 using Lidarr.Plugin.Qobuzarr.Services;
 using Lidarr.Plugin.Qobuzarr.Utilities;
+using Lidarr.Plugin.Common.Services.Http;
 using Lidarr.Plugin.Common.Services.Performance;
 using Lidarr.Plugin.Common.Observability;
 using Lidarr.Plugin.Qobuzarr.Constants;
@@ -174,7 +174,7 @@ namespace Lidarr.Plugin.Qobuzarr.API.Http
                         }
 
                         // Compute delay from Retry-After or exponential backoff with jitter
-                        var delay = GetRetryAfterDelay(response) ??
+                        var delay = HttpResponseHelpers.ParseRetryAfter(response?.Headers) ??
                                     TimeSpan.FromSeconds(Math.Min(30, Math.Pow(2, attempt))) + GetJitter();
 
                         // Respect retry budget
@@ -243,31 +243,6 @@ namespace Lidarr.Plugin.Qobuzarr.API.Http
             // in ExecuteAsync to ensure there's a single, consistent backoff policy.
             var response = await _httpClient.ExecuteAsync(request).ConfigureAwait(false);
             return response;
-        }
-
-        private static TimeSpan? GetRetryAfterDelay(HttpResponse response)
-        {
-            try
-            {
-                var retryAfterHeader = response.Headers.GetValues("Retry-After")?.FirstOrDefault();
-                if (string.IsNullOrWhiteSpace(retryAfterHeader)) return null;
-
-                if (int.TryParse(retryAfterHeader, out var seconds))
-                {
-                    return TimeSpan.FromSeconds(Math.Max(0, seconds));
-                }
-
-                if (DateTimeOffset.TryParse(retryAfterHeader, out var when))
-                {
-                    var delta = when - DateTimeOffset.UtcNow;
-                    if (delta > TimeSpan.Zero) return delta;
-                }
-            }
-            catch
-            {
-                // ignore parse issues
-            }
-            return null;
         }
 
         private static TimeSpan GetJitter()
