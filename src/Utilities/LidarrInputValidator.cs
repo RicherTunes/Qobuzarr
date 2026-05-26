@@ -146,7 +146,7 @@ namespace Lidarr.Plugin.Qobuzarr.Utilities
         /// <returns>Sanitized file name</returns>
         public static string SanitizeFileName(string fileName)
         {
-            return Lidarr.Plugin.Common.Utilities.FileNameSanitizer.SanitizeFileName(fileName);
+            return Lidarr.Plugin.Common.Security.Sanitize.FileNameSegment(fileName);
         }
 
         /// <summary>
