@@ -3,10 +3,10 @@
 // </copyright>
 
 using System;
-using System.Diagnostics;
 using System.Threading;
 using System.Threading.Tasks;
 using Lidarr.Plugin.Common.Abstractions.Diagnostics;
+using Lidarr.Plugin.Common.Diagnostics;
 using Codes = Lidarr.Plugin.Common.Abstractions.Diagnostics.DiagnosticErrorCodes;
 
 namespace Lidarr.Plugin.Qobuzarr.Diagnostics;
@@ -57,43 +57,42 @@ internal static class QobuzHealthDiagnostics
         Func<Task<(bool Success, string? Error)>> testAuth,
         CancellationToken cancellationToken = default)
     {
-        var sw = Stopwatch.StartNew();
-        try
-        {
-            var (success, error) = await testAuth().ConfigureAwait(false);
-            sw.Stop();
+        // Qobuz's probe returns a (Success, Error) tuple rather than a bare bool.
+        // We adapt it: the error string from the API is captured in a mutable slot
+        // so it can be read back after the probe resolves and used as the
+        // unhealthy message override — the tuple error is provider-supplied whereas
+        // HealthCheckHelper's unhealthyMessage must be known before the probe runs.
+        string? apiError = null;
+        bool? probeSuccess = null;
+        var result = await HealthCheckHelper.CheckAuthAsync(
+            probe: async _ =>
+            {
+                var (success, error) = await testAuth().ConfigureAwait(false);
+                apiError = error;
+                probeSuccess = success;
+                return success;
+            },
+            provider: ProviderName,
+            authMethod: AuthMethodName,
+            diagnosticType: DiagnosticTypes.AuthValidate,
+            capability: Capabilities.LosslessDownload,
+            cancellationToken: cancellationToken).ConfigureAwait(false);
 
-            return success
-                ? DiagnosticHealthResult.Healthy(
-                    responseTime: sw.Elapsed,
-                    provider: ProviderName,
-                    authMethod: AuthMethodName,
-                    diagnosticType: DiagnosticTypes.AuthValidate,
-                    capability: Capabilities.LosslessDownload)
-                : DiagnosticHealthResult.Unhealthy(
-                    error ?? "Authentication failed",
-                    responseTime: sw.Elapsed,
-                    provider: ProviderName,
-                    authMethod: AuthMethodName,
-                    diagnosticType: DiagnosticTypes.AuthValidate,
-                    capability: Capabilities.LosslessDownload,
-                    errorCode: ErrorCodes.AuthFailed);
-        }
-        catch (OperationCanceledException)
+        // If probe returned false and the API supplied a specific error message,
+        // replace the generic "Authentication failed" status with it.
+        if (probeSuccess == false && apiError is not null)
         {
-            throw;
+            result = DiagnosticHealthResult.Unhealthy(
+                apiError,
+                responseTime: result.ResponseTime,
+                provider: result.Provider,
+                authMethod: result.AuthMethod,
+                diagnosticType: result.DiagnosticType,
+                capability: result.Capability,
+                errorCode: result.ErrorCode);
         }
-        catch (Exception ex)
-        {
-            sw.Stop();
-            return DiagnosticHealthResult.Unhealthy(
-                ex.Message,
-                responseTime: sw.Elapsed,
-                provider: ProviderName,
-                authMethod: AuthMethodName,
-                diagnosticType: DiagnosticTypes.AuthValidate,
-                errorCode: ErrorCodes.ConnectionFailed);
-        }
+
+        return result;
     }
 
     /// <summary>
