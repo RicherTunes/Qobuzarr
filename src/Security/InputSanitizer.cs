@@ -8,7 +8,6 @@ using System.Text.RegularExpressions;
 using System.Net;
 using LimitConstants = Lidarr.Plugin.Qobuzarr.Constants.QobuzarrConstants;
 using LPCSanitize = Lidarr.Plugin.Common.Security.Sanitize;
-using LPCFileNameSanitizer = Lidarr.Plugin.Common.Utilities.FileNameSanitizer;
 
 namespace Lidarr.Plugin.Qobuzarr.Security
 {
@@ -440,8 +439,11 @@ namespace Lidarr.Plugin.Qobuzarr.Security
             if (string.IsNullOrWhiteSpace(fileName))
                 return "unknown_file";
 
-            // Delegate to the shared library's sanitizer for consistent cross-platform rules
-            var sanitized = LPCFileNameSanitizer.SanitizeFileName(fileName);
+            // Delegate to Common's Sanitize.FileNameSegment (the security-correct successor
+            // to the legacy FileNameSanitizer.SanitizeFileName — both preserve the
+            // "unknown_file" fallback / replace-with-space semantics, but FileNameSegment
+            // also fixes the dot-corruption bug present in older FileNameSanitizer versions).
+            var sanitized = LPCSanitize.FileNameSegment(fileName, "unknown_file");
 
             if (string.IsNullOrWhiteSpace(sanitized))
                 return "unknown_file";
