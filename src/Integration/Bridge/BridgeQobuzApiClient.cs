@@ -64,6 +64,9 @@ public sealed class BridgeQobuzApiClient : IQobuzApiClient, IDisposable
     }
 
     /// <inheritdoc />
+    public AuthFailureGate? Gate => _authFailureGate;
+
+    /// <inheritdoc />
     public bool HasValidSession()
     {
         return _session is not null && _session.IsValid();

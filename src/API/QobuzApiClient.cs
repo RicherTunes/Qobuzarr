@@ -113,6 +113,15 @@ namespace Lidarr.Plugin.Qobuzarr.API
             public bool HasValidSession() => false;
         }
 
+        /// <inheritdoc />
+        /// <remarks>
+        /// The Lidarr-native <see cref="QobuzApiClient"/> does not hold an
+        /// <see cref="Lidarr.Plugin.Common.Services.Bridge.AuthFailureGate"/>; the gate lives on
+        /// <c>BridgeQobuzApiClient</c> (bridge context only). Returns null so callers can safely
+        /// null-check without needing to know which implementation they hold.
+        /// </remarks>
+        public Lidarr.Plugin.Common.Services.Bridge.AuthFailureGate? Gate => null;
+
         /// <summary>
         /// Set the authentication service for session renewal
         /// </summary>

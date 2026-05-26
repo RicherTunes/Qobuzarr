@@ -4,6 +4,7 @@ using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
 using NLog;
+using Lidarr.Plugin.Common.Services.Bridge;
 using Lidarr.Plugin.Qobuzarr.Constants;
 using Lidarr.Plugin.Qobuzarr.Models;
 using Lidarr.Plugin.Qobuzarr.Models.Authentication;
@@ -89,6 +90,10 @@ namespace Lidarr.Plugin.Qobuzarr.API
                 throw;
             }
         }
+
+        /// <inheritdoc />
+        /// <remarks>Delegated to the inner client; the gate (if any) lives there.</remarks>
+        public AuthFailureGate? Gate => _innerClient.Gate;
 
         public void SetSession(QobuzSession session)
         {

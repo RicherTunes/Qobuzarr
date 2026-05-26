@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+using Lidarr.Plugin.Common.Services.Bridge;
 using Lidarr.Plugin.Qobuzarr.Models;
 using Lidarr.Plugin.Qobuzarr.Models.Authentication;
 
@@ -12,6 +13,14 @@ namespace Lidarr.Plugin.Qobuzarr.API
     /// </summary>
     public interface IQobuzApiClient
     {
+        /// <summary>
+        /// The <see cref="AuthFailureGate"/> that records 401/403 failures on this client.
+        /// Returns null for implementations that do not carry a gate (e.g. the Lidarr-native
+        /// <c>QobuzApiClient</c>). The gate is present on <c>BridgeQobuzApiClient</c> instances
+        /// which route all HTTP traffic through it.
+        /// Callers must null-check; the static gate helpers treat a null gate as "always healthy".
+        /// </summary>
+        AuthFailureGate? Gate { get; }
         /// <summary>
         /// Executes a GET request to the specified Qobuz API endpoint.
         /// Includes automatic rate limiting, caching, and retry logic.

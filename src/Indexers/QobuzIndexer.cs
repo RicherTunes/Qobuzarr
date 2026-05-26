@@ -1,6 +1,8 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Net;
+using System.Net.Http;
 using System.Threading.Tasks;
 using FluentValidation.Results;
 using NLog;
@@ -19,6 +21,7 @@ using Lidarr.Plugin.Qobuzarr.Indexers.Core;
 using Lidarr.Plugin.Common.Base;
 using Lidarr.Plugin.Common.Diagnostics;
 using Lidarr.Plugin.Common.Observability;
+using Lidarr.Plugin.Common.Services.Bridge;
 using Lidarr.Plugin.Qobuzarr.Download;
 using NzbDrone.Core.Download;
 using Lidarr.Plugin.Common.Services;
@@ -191,6 +194,16 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
 
             _logger.Debug($"{PluginLogContext.Current?.LinePrefix()}FetchReleases started");
 
+            // AuthFailureGate pre-flight: when auth is latched bad, return empty immediately
+            // rather than forwarding every Lidarr search-loop call to the Qobuz API. This
+            // prevents the IP-ban amplification scenario (Lidarr drives fan-out searches;
+            // each returns 401; each counts toward rate-limit / ban threshold).
+            if (IsAuthShortCircuited(_apiClient.Gate))
+            {
+                _logger.Debug($"{PluginLogContext.Current?.LinePrefix()}FetchReleases short-circuited: auth latched bad");
+                return releases;
+            }
+
             try
             {
                 // Ensure authentication via delegated manager
@@ -266,6 +279,19 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
             try
             {
                 _logger.Debug($"{PluginLogContext.Current?.LinePrefix()}Indexer test started");
+
+                // AuthFailureGate pre-flight: if the gate is latched bad and no probe slot is
+                // available, surface an actionable "re-credential" failure instead of attempting
+                // a network call that will fail immediately (and amplify Qobuz 401 traffic).
+                if (IsAuthShortCircuited(_apiClient.Gate))
+                {
+                    failures.Add(new ValidationFailure(
+                        "Authentication",
+                        "Qobuz authentication is latched bad (an auth failure was observed recently). " +
+                        "Re-enter credentials and click Test again — the gate will auto-recover once a request succeeds."));
+                    return;
+                }
+
                 // Test authentication via delegated manager
                 var (authSuccess, authError) = await _authManager.Value.TestAuthenticationAsync().ConfigureAwait(false);
                 if (!authSuccess)
@@ -291,6 +317,8 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
             }
             catch (Exception ex)
             {
+                // Record auth-class outcomes so subsequent calls short-circuit.
+                RecordAuthOutcomeFromException(_apiClient.Gate, ex);
                 _logger.Error(ex, "❌ Indexer test failed");
                 // Wave 74 UX: include exception type so users can tell network from
                 // auth from rate-limit errors at a glance.
@@ -359,6 +387,76 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
                     message = $"Authentication test failed: {ex.Message}"
                 };
             }
+        }
+
+        #endregion
+
+        #region AuthFailureGate helpers
+        // ------------------------------------------------------------------ //
+        // Mirror the pattern in AppleMusicLidarrDownloadClient / AppleMusicIndexerAdapter.
+        // Static for testability (callers can pin the contract without constructing a full indexer).
+        // The gate is obtained from _apiClient.Gate; BridgeQobuzApiClient returns the singleton
+        // gate; QobuzApiClient (Lidarr-native path) returns null (always-healthy fast-path).
+        // ------------------------------------------------------------------ //
+
+        /// <summary>
+        /// Returns true when the gate is latched bad AND no probe slot is available.
+        /// A null gate is always considered healthy (safe default when no gate is wired).
+        /// </summary>
+        public static bool IsAuthShortCircuited(AuthFailureGate? gate)
+        {
+            if (gate is null) return false;
+            if (gate.IsHealthy) return false;
+            return !gate.TryAcquireProbeSlot();
+        }
+
+        /// <summary>
+        /// If <paramref name="ex"/> looks like a Qobuz auth failure (HTTP 401/403 or
+        /// <see cref="Exceptions.QobuzApiException"/> with a 401/403 status), records
+        /// a failure with <paramref name="gate"/>'s handler so the gate latches and subsequent
+        /// calls short-circuit without touching the network.
+        ///
+        /// <para>SYNC-OVER-ASYNC (Category A): wraps <c>HandleFailureAsync</c> in
+        /// <c>Task.Run</c> to avoid deadlocking on ASP.NET-style single-threaded
+        /// <see cref="System.Threading.SynchronizationContext"/>s.</para>
+        /// </summary>
+        public static void RecordAuthOutcomeFromException(AuthFailureGate? gate, Exception ex)
+        {
+            if (gate is null) return;
+            if (!LooksLikeAuthFailure(ex)) return;
+
+            var failure = new Lidarr.Plugin.Abstractions.Contracts.AuthFailure
+            {
+                ErrorCode = (ex as HttpRequestException)?.StatusCode?.ToString()
+                            ?? (ex as Exceptions.QobuzApiException)?.StatusCode?.ToString(),
+                Message = ex.Message,
+            };
+            // SYNC-OVER-ASYNC (Category A): thread-pool hop avoids host-context deadlock.
+            Task.Run(() => gate.Handler.HandleFailureAsync(failure).AsTask())
+                .GetAwaiter().GetResult();
+        }
+
+        /// <summary>
+        /// Returns true when <paramref name="ex"/> is recognisable as a Qobuz
+        /// authentication failure:
+        /// <list type="bullet">
+        ///   <item>HTTP 401 Unauthorized or 403 Forbidden (HttpRequestException)</item>
+        ///   <item><see cref="Exceptions.QobuzApiException"/> with StatusCode 401 or 403</item>
+        /// </list>
+        /// </summary>
+        public static bool LooksLikeAuthFailure(Exception ex)
+        {
+            if (ex is HttpRequestException hre &&
+                hre.StatusCode is HttpStatusCode.Unauthorized or HttpStatusCode.Forbidden)
+            {
+                return true;
+            }
+            if (ex is Exceptions.QobuzApiException qae &&
+                qae.StatusCode is HttpStatusCode.Unauthorized or HttpStatusCode.Forbidden)
+            {
+                return true;
+            }
+            return false;
         }
 
         #endregion

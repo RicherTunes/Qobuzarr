@@ -85,6 +85,9 @@ public class QobuzIndexerAdapterTests
 
         public Task<QobuzStreamResponse> GetStreamingInfoAsync(string trackId, int formatId, CancellationToken cancellationToken = default)
             => Task.FromResult(new QobuzStreamResponse());
+
+        // Gate is not wired in the bridge-less test fake; callers treat null as "always healthy".
+        public Lidarr.Plugin.Common.Services.Bridge.AuthFailureGate? Gate => null;
     }
 
     // ----------------------------------------------------------------
