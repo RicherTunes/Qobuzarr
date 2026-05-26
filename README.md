@@ -1,7 +1,7 @@
 # Qobuzarr - High-Performance Lidarr Plugin for Qobuz
 
 [![Production Ready](https://img.shields.io/badge/Status-Production%20Ready-brightgreen)](https://github.com/RicherTunes/qobuzarr)
-[![.NET 6.0](https://img.shields.io/badge/.NET-6.0-blue)](https://dotnet.microsoft.com/download/dotnet/6.0)
+[![.NET 8.0](https://img.shields.io/badge/.NET-8.0-blue)](https://dotnet.microsoft.com/download/dotnet/8.0)
 [![Lidarr 2.13+](https://img.shields.io/badge/Lidarr-2.13%2B-orange)](https://lidarr.audio/)
 [![License: GPL v3](https://img.shields.io/badge/License-GPL%20v3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
 
@@ -35,9 +35,13 @@
 ## 📦 Installation
 
 ### Prerequisites
-- Lidarr v2.13.0 or higher
-- .NET 6.0 Runtime
+- Lidarr v2.13.0 or higher (plugins branch — `pr-plugins-3.x`)
+- .NET 8.0 SDK (the plugin targets `net8.0`; the host runs .NET 8)
 - Qobuz subscription (Studio Premier recommended for Hi-Res)
+
+> **Install via the Lidarr UI** (recommended): Settings → Plugins → paste
+> `https://github.com/RicherTunes/qobuzarr` → Install, then restart Lidarr.
+> The manual ZIP method below is for offline/air-gapped installs.
 
 ### Plugin Installation
 
