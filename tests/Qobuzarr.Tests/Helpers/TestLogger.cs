@@ -1,63 +1,26 @@
 using System.Collections.Generic;
 using NLog;
-using NLog.Config;
-using NLog.Targets;
+using Lidarr.Plugin.Common.TestKit.Helpers;
 
 namespace Qobuzarr.Tests.Helpers
 {
     /// <summary>
-    /// Test helper that provides a real NLog Logger instance configured for testing.
-    /// Captures log output to an in-memory target for assertion verification.
+    /// Thin shim preserving the original <c>Qobuzarr.Tests.Helpers.TestLogger</c> API.
+    /// All implementation is delegated to <see cref="NLogTestLogger"/> in
+    /// <c>Lidarr.Plugin.Common.TestKit</c>.
     /// </summary>
     public static class TestLogger
     {
-        private static Logger _testLogger;
-        private static readonly object _lock = new object();
-
-        /// <summary>
-        /// Gets a real NLog Logger instance configured with a MemoryTarget for test verification.
-        /// </summary>
+        /// <inheritdoc cref="NLogTestLogger.Create"/>
         public static Logger Create(string name = "TestLogger")
-        {
-            lock (_lock)
-            {
-                if (_testLogger == null)
-                {
-                    var config = new LoggingConfiguration();
+            => NLogTestLogger.Create(name);
 
-                    var memoryTarget = new MemoryTarget("testMemory")
-                    {
-                        Layout = "${level:uppercase=true}: ${message} ${exception:format=tostring}"
-                    };
-
-                    config.AddTarget(memoryTarget);
-                    config.AddRuleForAllLevels(memoryTarget);
-
-                    LogManager.Configuration = config;
-                    _testLogger = LogManager.GetLogger(name);
-                }
-
-                return _testLogger;
-            }
-        }
-
-        /// <summary>
-        /// Gets logged messages from the memory target for test assertions.
-        /// Only works with loggers created via Create() method.
-        /// </summary>
+        /// <inheritdoc cref="NLogTestLogger.GetLoggedMessages"/>
         public static IList<string> GetLoggedMessages()
-        {
-            var memoryTarget = LogManager.Configuration?.FindTargetByName<MemoryTarget>("testMemory");
-            return memoryTarget?.Logs ?? new List<string>();
-        }
+            => NLogTestLogger.GetLoggedMessages();
 
-        /// <summary>
-        /// Clears all logged messages from the memory target.
-        /// </summary>
+        /// <inheritdoc cref="NLogTestLogger.ClearLoggedMessages"/>
         public static void ClearLoggedMessages()
-        {
-            var memoryTarget = LogManager.Configuration?.FindTargetByName<MemoryTarget>("testMemory");
-            memoryTarget?.Logs.Clear();
-        }
+            => NLogTestLogger.ClearLoggedMessages();
     }
 }
