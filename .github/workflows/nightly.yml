@@ -11,7 +11,7 @@ permissions:
 
 env:
   DOTNET_VERSION: 8.0.x
-  MINIMUM_LIDARR_VERSION: 2.13.2.4685
+  MINIMUM_LIDARR_VERSION: 3.0.0.4855
   # Single source of truth for CI test filtering
   # Excludes: LiveIntegration (needs live Lidarr), Integration (needs assemblies),
   #           Performance (benchmarks), Quarantined (known issues)
