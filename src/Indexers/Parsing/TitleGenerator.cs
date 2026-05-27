@@ -104,7 +104,7 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers.Parsing
             version = SanitizeForHyphenFormat(version);
 
             // Handle missing year gracefully
-            var yearStr = year > 1900 ? year.ToString() : DateTime.Now.Year.ToString();
+            var yearStr = year > 1900 ? year.ToString() : DateTime.UtcNow.Year.ToString();
 
             // Primary format: Artist-Album-Version-Source-Year
             // This matches the regex at Parser.cs:73 for version extraction
