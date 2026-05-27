@@ -57,7 +57,7 @@ namespace Lidarr.Plugin.Qobuzarr.API
                 var result = await _innerClient.GetAsync<T>(endpoint, parameters).ConfigureAwait(false);
 
                 // Record successful response
-                var successResponse = new HttpResponseMessage(System.Net.HttpStatusCode.OK);
+                using var successResponse = new HttpResponseMessage(System.Net.HttpStatusCode.OK);
                 _adaptiveRateLimiter.RecordResponse(QobuzarrConstants.ServiceName, endpoint, successResponse);
 
                 return result;
@@ -79,7 +79,7 @@ namespace Lidarr.Plugin.Qobuzarr.API
                 var result = await _innerClient.PostAsync<T>(endpoint, data).ConfigureAwait(false);
 
                 // Record successful response
-                var successResponse = new HttpResponseMessage(System.Net.HttpStatusCode.OK);
+                using var successResponse = new HttpResponseMessage(System.Net.HttpStatusCode.OK);
                 _adaptiveRateLimiter.RecordResponse(QobuzarrConstants.ServiceName, endpoint, successResponse);
 
                 return result;
@@ -147,7 +147,7 @@ namespace Lidarr.Plugin.Qobuzarr.API
                 var result = await _innerClient.GetStreamingUrlAsync(trackId, formatId, cancellationToken).ConfigureAwait(false);
 
                 // Record successful response for rate limiter
-                var successResponse = new HttpResponseMessage(System.Net.HttpStatusCode.OK);
+                using var successResponse = new HttpResponseMessage(System.Net.HttpStatusCode.OK);
                 _adaptiveRateLimiter.RecordResponse(QobuzarrConstants.ServiceName, endpoint, successResponse);
 
                 return result;
@@ -172,7 +172,7 @@ namespace Lidarr.Plugin.Qobuzarr.API
             {
                 var result = await _innerClient.GetStreamingInfoAsync(trackId, formatId, cancellationToken).ConfigureAwait(false);
 
-                var successResponse = new HttpResponseMessage(System.Net.HttpStatusCode.OK);
+                using var successResponse = new HttpResponseMessage(System.Net.HttpStatusCode.OK);
                 _adaptiveRateLimiter.RecordResponse(QobuzarrConstants.ServiceName, endpoint, successResponse);
 
                 return result;

@@ -127,7 +127,7 @@ namespace Lidarr.Plugin.Qobuzarr.Services
             int maxConcurrency = 3)
         {
             var results = new Dictionary<string, bool>();
-            var semaphore = new SemaphoreSlim(maxConcurrency, maxConcurrency);
+            using var semaphore = new SemaphoreSlim(maxConcurrency, maxConcurrency);
 
             var tasks = albumIds.Select(async albumId =>
             {
