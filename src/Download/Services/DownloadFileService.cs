@@ -248,7 +248,7 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Services
                 }
 
                 // If directory exists, append timestamp to make it unique
-                var timestamp = DateTime.Now.ToString("yyyyMMdd_HHmmss");
+                var timestamp = DateTime.UtcNow.ToString("yyyyMMdd_HHmmss");
                 var uniqueName = $"{albumName}_{timestamp}";
                 var uniquePath = Path.Combine(basePath, uniqueName);
 

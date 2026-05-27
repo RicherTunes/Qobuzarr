@@ -568,7 +568,7 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
                 score += 10;
 
             // Recent releases bonus
-            if (release.PublishDate != default && release.PublishDate.Year >= DateTime.Now.Year - 2)
+            if (release.PublishDate != default && release.PublishDate.Year >= DateTime.UtcNow.Year - 2)
                 score += 5;
 
             return score;
