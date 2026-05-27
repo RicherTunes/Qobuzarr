@@ -196,11 +196,11 @@ dotnet test --filter Category=Integration
 
 ## 📝 Documentation
 
-- [Configuration Guide](docs/CONFIGURATION-GUIDE.md) - Detailed setup instructions
-- [API Reference](docs/API-REFERENCE.md) - Plugin API documentation
-- [Development Guide](docs/DEVELOPMENT.md) - Contributing guidelines
 - [Architecture](docs/ARCHITECTURE.md) - System design details
-- [Troubleshooting](docs/TROUBLESHOOTING.md) - Common issues and solutions
+- [Docker Guide](docs/DOCKER-GUIDE.md) - Container setup and testing
+- [Testing](docs/TESTING.md) - Test suite and coverage
+- [Logging Scopes](docs/LOGGING_SCOPES.md) - Structured logging reference
+- [Tech Debt Tracker](docs/TECH-DEBT-TRACKER.md) - Known debt and resolution status
 
 ## 🤝 Contributing
 
@@ -247,7 +247,7 @@ dotnet test
 
 **🆘 Troubleshooting:**
 - If you see "Skipping project... because it was not found" warnings, this is normal before running setup
-- For complete setup help, see [GETTING_STARTED.md](GETTING_STARTED.md)
+- For complete setup help, see [CLAUDE.md](CLAUDE.md) (build commands and architecture)
 
 ## 📄 License
 
