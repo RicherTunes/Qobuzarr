@@ -323,6 +323,12 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Clients
             {
                 _logger.Info($"{PluginLogContext.Current?.LinePrefix()}Testing Qobuz download client connection...");
 
+                var settings = GetEffectiveSettings();
+                var builder = new Lidarr.Plugin.Common.Utilities.TestValidationBuilder()
+                    .RequireNonEmpty("DownloadPath", settings.DownloadPath, "Download path is required.");
+                builder.ApplyTo(failures);
+                if (builder.HasFailures) return;
+
                 // AuthFailureGate pre-flight: if the gate is latched bad and no probe slot is
                 // available, surface an actionable failure instead of attempting a network call.
                 if (IsAuthShortCircuited(_apiClient.Gate))
@@ -333,9 +339,6 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Clients
                         "Re-enter credentials and click Test again — the gate will auto-recover once a request succeeds."));
                     return;
                 }
-
-                // Get effective settings (supports test subclasses)
-                var settings = GetEffectiveSettings();
 
                 // Note: Authentication is handled by the indexer - we don't test it here
                 // This matches TrevTV's approach where the download client trusts the indexer's auth
