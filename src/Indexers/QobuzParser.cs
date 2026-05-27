@@ -491,7 +491,7 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
 
         private string GenerateInfoUrl(QobuzAlbum album)
         {
-            return $"https://www.qobuz.com/album/{album.Slug ?? album.Id}";
+            return $"https://www.qobuz.com/album/{Uri.EscapeDataString(album.Slug ?? album.Id ?? string.Empty)}";
         }
 
 
