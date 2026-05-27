@@ -78,7 +78,7 @@ namespace Lidarr.Plugin.Qobuzarr.Services
             }
 
             // Need to refresh or get new token
-            await _refreshSemaphore.WaitAsync(cancellationToken);
+            await _refreshSemaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
             try
             {
                 // Double-check after acquiring lock
@@ -89,7 +89,7 @@ namespace Lidarr.Plugin.Qobuzarr.Services
 
                 _logger.Debug("🔐 TOKEN REFRESH: {0}", forceRefresh ? "Forced refresh" : "Token expired/invalid");
 
-                await RefreshTokenInternalAsync(cancellationToken);
+                await RefreshTokenInternalAsync(cancellationToken).ConfigureAwait(false);
 
                 if (string.IsNullOrEmpty(_currentToken))
                 {
@@ -122,8 +122,8 @@ namespace Lidarr.Plugin.Qobuzarr.Services
             {
                 try
                 {
-                    var token = await GetValidTokenAsync(attempt > 1, cancellationToken);
-                    return await operation(token, cancellationToken);
+                    var token = await GetValidTokenAsync(attempt > 1, cancellationToken).ConfigureAwait(false);
+                    return await operation(token, cancellationToken).ConfigureAwait(false);
                 }
                 catch (AuthenticationException authEx) when (attempt < maxAttempts)
                 {
@@ -167,10 +167,10 @@ namespace Lidarr.Plugin.Qobuzarr.Services
         {
             _logger.Info("🔐 INITIALIZING: Getting initial authentication token");
 
-            await _refreshSemaphore.WaitAsync(cancellationToken);
+            await _refreshSemaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
             try
             {
-                await RefreshTokenInternalAsync(cancellationToken);
+                await RefreshTokenInternalAsync(cancellationToken).ConfigureAwait(false);
 
                 if (string.IsNullOrEmpty(_currentToken))
                 {
@@ -256,7 +256,7 @@ namespace Lidarr.Plugin.Qobuzarr.Services
                 // owner exits.
                 while (_isRefreshing && !cancellationToken.IsCancellationRequested)
                 {
-                    await Task.Delay(500, cancellationToken);
+                    await Task.Delay(500, cancellationToken).ConfigureAwait(false);
                 }
                 return;
             }
@@ -268,7 +268,7 @@ namespace Lidarr.Plugin.Qobuzarr.Services
             {
                 _logger.Debug($"{PluginLogContext.Current?.LinePrefix()}TOKEN REFRESH: Starting refresh process");
 
-                var authResult = await _authService.AuthenticateAsync(cancellationToken);
+                var authResult = await _authService.AuthenticateAsync(cancellationToken).ConfigureAwait(false);
 
                 if (authResult == null || string.IsNullOrEmpty(authResult.Token))
                 {
@@ -350,7 +350,7 @@ namespace Lidarr.Plugin.Qobuzarr.Services
 
                     try
                     {
-                        await GetValidTokenAsync(false, cts.Token);
+                        await GetValidTokenAsync(false, cts.Token).ConfigureAwait(false);
                     }
                     catch (Exception ex)
                     {

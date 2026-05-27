@@ -286,10 +286,10 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
         // Async method implementations for interface compatibility
         public async System.Threading.Tasks.Task TrainAsync(IEnumerable<QueryPattern> patterns)
         {
-            await _baselineModel.TrainAsync(patterns);
+            await _baselineModel.TrainAsync(patterns).ConfigureAwait(false);
             if (_personalModel != null)
             {
-                await _personalModel.TrainAsync(patterns);
+                await _personalModel.TrainAsync(patterns).ConfigureAwait(false);
             }
         }
 
@@ -305,16 +305,16 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
                 Confidence = (float)confidence,
                 RecommendedQueries = strategies,
                 Features = ExtractCombinedFeatures(artist, album)
-            });
+            }).ConfigureAwait(false);
         }
 
         public async System.Threading.Tasks.Task<ModelMetrics> EvaluateModelAsync()
         {
-            var baselineMetrics = await _baselineModel.EvaluateModelAsync();
+            var baselineMetrics = await _baselineModel.EvaluateModelAsync().ConfigureAwait(false);
 
             if (_personalModel != null)
             {
-                var personalMetrics = await _personalModel.EvaluateModelAsync();
+                var personalMetrics = await _personalModel.EvaluateModelAsync().ConfigureAwait(false);
 
                 // Return combined metrics
                 return new ModelMetrics
@@ -334,7 +334,7 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
         {
             RecordResult(actualResult.Artist, actualResult.Album,
                 actualResult.SuccessfulComplexity, actualResult.WasSuccessful);
-            await System.Threading.Tasks.Task.CompletedTask;
+            await System.Threading.Tasks.Task.CompletedTask.ConfigureAwait(false);
         }
 
         private float[] ExtractCombinedFeatures(string artist, string album)
