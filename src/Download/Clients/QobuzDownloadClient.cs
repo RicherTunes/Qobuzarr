@@ -324,7 +324,7 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Clients
                 _logger.Info($"{PluginLogContext.Current?.LinePrefix()}Testing Qobuz download client connection...");
 
                 var settings = GetEffectiveSettings();
-                var builder = new Lidarr.Plugin.Common.Utilities.TestValidationBuilder()
+                var builder = new Lidarr.Plugin.Common.Validation.TestValidationBuilder()
                     .RequireNonEmpty("DownloadPath", settings.DownloadPath, "Download path is required.");
                 builder.ApplyTo(failures);
                 if (builder.HasFailures) return;

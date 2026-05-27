@@ -225,19 +225,15 @@ namespace Lidarr.Plugin.Qobuzarr.Services
             _logger.Info("Updating concurrency limits - Downloads: {0} -> {1}, Searches: {2} -> {3}",
                 _maxConcurrentDownloads, effectiveDownloads, _maxConcurrentSearches, effectiveSearches);
 
-            // Replace semaphores with new ones having updated limits
-            var oldDownloadSemaphore = _downloadSemaphore;
-            var oldSearchSemaphore = _searchSemaphore;
-
             _maxConcurrentDownloads = effectiveDownloads;
             _maxConcurrentSearches = effectiveSearches;
 
+            // Replace semaphores — do NOT dispose the old ones because AcquireDownloadSlotAsync
+            // callers may still hold a reference mid-WaitAsync/Release. GC collects them when
+            // no references remain. If this method gains production callers, migrate to
+            // SwappableSemaphore (see AdaptiveConcurrencyManager).
             _downloadSemaphore = new SemaphoreSlim(effectiveDownloads, effectiveDownloads);
             _searchSemaphore = new SemaphoreSlim(effectiveSearches, effectiveSearches);
-
-            // Dispose old semaphores
-            oldDownloadSemaphore?.Dispose();
-            oldSearchSemaphore?.Dispose();
         }
 
         /// <summary>

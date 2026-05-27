@@ -35,8 +35,9 @@ namespace Lidarr.Plugin.Qobuzarr.Services
         private volatile int _consecutiveFailures = 0;
         private DateTime _lastAdjustment = DateTime.UtcNow;
 
-        // Shared semaphore for concurrency control
-        private SemaphoreSlim _sharedSemaphore;
+        // Shared semaphore for concurrency control — SwappableSemaphore ensures callers
+        // holding a reference survive a concurrency adjustment without ObjectDisposedException.
+        private readonly Utilities.SwappableSemaphore _gate;
 
         // Configuration
         private readonly int _minConcurrency;
@@ -126,8 +127,7 @@ namespace Lidarr.Plugin.Qobuzarr.Services
             // Ensure we don't exceed max concurrency
             _currentConcurrency = Math.Min(_currentConcurrency, _maxConcurrency);
 
-            // Initialize shared semaphore
-            _sharedSemaphore = new SemaphoreSlim(_currentConcurrency, _currentConcurrency);
+            _gate = new Utilities.SwappableSemaphore(_currentConcurrency);
 
             _logger.Info("AdaptiveConcurrencyManager initialized: min={0}, max={1}, initial={2}, targetLatency={3}ms",
                 _minConcurrency, _maxConcurrency, _currentConcurrency, _targetLatency);
@@ -184,7 +184,7 @@ namespace Lidarr.Plugin.Qobuzarr.Services
         /// </summary>
         public SemaphoreSlim GetConcurrencySemaphore()
         {
-            return _sharedSemaphore;
+            return _gate.Acquire();
         }
 
         /// <summary>
@@ -195,8 +195,8 @@ namespace Lidarr.Plugin.Qobuzarr.Services
             SemaphoreSlim semaphore = null,
             CancellationToken cancellationToken = default)
         {
-            var localSemaphore = semaphore ?? GetConcurrencySemaphore();
-            var shouldDispose = semaphore != null; // Only dispose if caller provided their own
+            var usesGate = semaphore == null;
+            var localSemaphore = semaphore ?? _gate.Acquire();
 
             try
             {
@@ -204,7 +204,7 @@ namespace Lidarr.Plugin.Qobuzarr.Services
 
                 var stopwatch = Stopwatch.StartNew();
                 Exception? operationError = null;
-                T result = default(T)!; // Will be set before return
+                T result = default(T)!;
                 bool success = false;
 
                 try
@@ -227,10 +227,10 @@ namespace Lidarr.Plugin.Qobuzarr.Services
             finally
             {
                 localSemaphore.Release();
-                if (shouldDispose)
-                {
-                    localSemaphore.Dispose();
-                }
+                if (usesGate)
+                    _gate.Return(localSemaphore);
+                else
+                    semaphore?.Dispose();
             }
         }
 
@@ -312,22 +312,7 @@ namespace Lidarr.Plugin.Qobuzarr.Services
                 _consecutiveSuccesses = 0;
                 _consecutiveFailures = 0;
 
-                // Update the shared semaphore with new limit
-                var oldSemaphore = _sharedSemaphore;
-                _sharedSemaphore = new SemaphoreSlim(newConcurrency, newConcurrency);
-
-                // Dispose old semaphore in a background task to avoid blocking
-                Task.Run(() =>
-                {
-                    try
-                    {
-                        oldSemaphore?.Dispose();
-                    }
-                    catch (Exception ex)
-                    {
-                        _logger.Debug("Error disposing old semaphore during concurrency adjustment: {0}", ex.Message);
-                    }
-                });
+                _gate.Swap(newConcurrency);
 
                 _logger.Info("Concurrency adjusted: {0} → {1} (decision: {2}, avg latency: {3:F1}ms, success rate: {4:P1})",
                     oldConcurrency, newConcurrency, decision, AverageLatency, SuccessRate);

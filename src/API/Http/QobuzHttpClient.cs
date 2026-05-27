@@ -36,12 +36,13 @@ namespace Lidarr.Plugin.Qobuzarr.API.Http
         // Stable provider key for all Qobuz API calls into the BackendHealthCache.
         private const string BackendProvider = "qobuz:api";
 
-        // Per-host concurrency gates
-        private static readonly System.Collections.Concurrent.ConcurrentDictionary<string, SemaphoreSlim> _hostGates = new();
+        // Per-host concurrency gates — Lazy ensures the factory runs exactly once per key
+        private static readonly System.Collections.Concurrent.ConcurrentDictionary<string, Lazy<SemaphoreSlim>> _hostGates = new();
         private static SemaphoreSlim GetHostGate(string? host, int maxConcurrencyPerHost)
         {
             host ??= "__unknown__";
-            return _hostGates.GetOrAdd(host, _ => new SemaphoreSlim(maxConcurrencyPerHost, maxConcurrencyPerHost));
+            return _hostGates.GetOrAdd(host, _ => new Lazy<SemaphoreSlim>(
+                () => new SemaphoreSlim(maxConcurrencyPerHost, maxConcurrencyPerHost))).Value;
         }
 
         public QobuzHttpClient(
