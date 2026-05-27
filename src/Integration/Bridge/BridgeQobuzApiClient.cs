@@ -112,12 +112,9 @@ public sealed class BridgeQobuzApiClient : IQobuzApiClient, IDisposable
 
         _logger.LogDebug("Bridge POST {Endpoint}", endpoint);
 
-        HttpContent? content = null;
-        if (data is not null)
-        {
-            var json = JsonConvert.SerializeObject(data);
-            content = new StringContent(json, System.Text.Encoding.UTF8, "application/json");
-        }
+        using HttpContent? content = data is not null
+            ? new StringContent(JsonConvert.SerializeObject(data), System.Text.Encoding.UTF8, "application/json")
+            : null;
 
         using var cts = new CancellationTokenSource(ApiRequestTimeout);
         using var response = await _httpClient.PostAsync(url, content, cts.Token).ConfigureAwait(false);
