@@ -361,7 +361,7 @@ namespace Lidarr.Plugin.Qobuzarr.Services
             }
             catch (Exception ex)
             {
-                _logger.Error(ex, "Error in background token refresh check");
+                try { _logger.Error(ex, "Error in background token refresh check"); } catch { }
             }
         }
 

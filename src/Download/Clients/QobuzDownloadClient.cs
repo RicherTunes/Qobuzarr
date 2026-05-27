@@ -300,8 +300,10 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Clients
             {
                 // Fallback: build a simple path that matches test expectations
                 var album = remoteAlbum?.Albums?.FirstOrDefault();
-                var artist = remoteAlbum?.Artist?.Name ?? "Unknown Artist";
-                var title = album?.Title ?? "Unknown Album";
+                var artist = Lidarr.Plugin.Common.HostBridge.PathTraversalGuard.SanitizeSegment(
+                    remoteAlbum?.Artist?.Name ?? "Unknown Artist");
+                var title = Lidarr.Plugin.Common.HostBridge.PathTraversalGuard.SanitizeSegment(
+                    album?.Title ?? "Unknown Album");
                 try
                 {
                     built = System.IO.Path.Combine("Qobuz", artist, title);
