@@ -617,7 +617,7 @@ namespace Lidarr.Plugin.Qobuzarr.API
                 ["track_id"] = trackId
             };
 
-            return await GetAsync<QobuzTrack>("track/get", parameters);
+            return await GetAsync<QobuzTrack>("track/get", parameters).ConfigureAwait(false);
         }
 
         /// <summary>
@@ -633,7 +633,7 @@ namespace Lidarr.Plugin.Qobuzarr.API
                 ["extra"] = "tracks"
             };
 
-            return await GetAsync<QobuzPlaylist>("playlist/get", parameters);
+            return await GetAsync<QobuzPlaylist>("playlist/get", parameters).ConfigureAwait(false);
         }
 
         /// <summary>
@@ -647,7 +647,7 @@ namespace Lidarr.Plugin.Qobuzarr.API
 
             while (true)
             {
-                var playlist = await GetPlaylistAsync(playlistId, pageSize, offset, cancellationToken);
+                var playlist = await GetPlaylistAsync(playlistId, pageSize, offset, cancellationToken).ConfigureAwait(false);
 
                 if (playlist?.Tracks?.Items == null || playlist.Tracks.Items.Count == 0)
                     break;
@@ -680,7 +680,7 @@ namespace Lidarr.Plugin.Qobuzarr.API
                 ["limit"] = limit.ToString()
             };
 
-            return await GetAsync<QobuzPlaylistSearchResponse>("playlist/search", parameters);
+            return await GetAsync<QobuzPlaylistSearchResponse>("playlist/search", parameters).ConfigureAwait(false);
         }
 
         /// <summary>
@@ -693,7 +693,7 @@ namespace Lidarr.Plugin.Qobuzarr.API
                 ["label_id"] = labelId
             };
 
-            return await GetAsync<QobuzLabel>("label/get", parameters);
+            return await GetAsync<QobuzLabel>("label/get", parameters).ConfigureAwait(false);
         }
 
         /// <summary>
@@ -715,7 +715,7 @@ namespace Lidarr.Plugin.Qobuzarr.API
                     ["offset"] = offset.ToString()
                 };
 
-                var response = await GetAsync<QobuzAlbumSearchResponse>("label/getAlbums", parameters);
+                var response = await GetAsync<QobuzAlbumSearchResponse>("label/getAlbums", parameters).ConfigureAwait(false);
 
                 if (response?.Albums?.Items == null || response.Albums.Items.Count == 0)
                     break;
@@ -741,7 +741,7 @@ namespace Lidarr.Plugin.Qobuzarr.API
                 ["artist_id"] = artistId
             };
 
-            return await GetAsync<QobuzArtist>("artist/get", parameters);
+            return await GetAsync<QobuzArtist>("artist/get", parameters).ConfigureAwait(false);
         }
 
         /// <summary>
@@ -763,7 +763,7 @@ namespace Lidarr.Plugin.Qobuzarr.API
                     ["offset"] = offset.ToString()
                 };
 
-                var response = await GetAsync<QobuzAlbumSearchResponse>("artist/getAlbums", parameters);
+                var response = await GetAsync<QobuzAlbumSearchResponse>("artist/getAlbums", parameters).ConfigureAwait(false);
 
                 if (response?.Albums?.Items == null || response.Albums.Items.Count == 0)
                     break;
@@ -790,7 +790,7 @@ namespace Lidarr.Plugin.Qobuzarr.API
                 ["limit"] = limit.ToString()
             };
 
-            return await GetAsync<QobuzLabelSearchResponse>("label/search", parameters);
+            return await GetAsync<QobuzLabelSearchResponse>("label/search", parameters).ConfigureAwait(false);
         }
 
         private class QobuzErrorResponse
