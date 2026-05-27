@@ -11,6 +11,12 @@ namespace Lidarr.Plugin.Qobuzarr.Models
     /// </summary>
     public class QobuzDownloadMetadata
     {
+        private static readonly JsonSerializerOptions CamelCaseJsonOptions = new()
+        {
+            WriteIndented = true,
+            PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+        };
+
         [JsonPropertyName("version")]
         public string Version { get; set; } = "1.0";
 
@@ -56,13 +62,7 @@ namespace Lidarr.Plugin.Qobuzarr.Models
                 Directory.CreateDirectory(metadataDir);
             }
 
-            var options = new JsonSerializerOptions
-            {
-                WriteIndented = true,
-                PropertyNamingPolicy = JsonNamingPolicy.CamelCase
-            };
-
-            var json = JsonSerializer.Serialize(this, options);
+            var json = JsonSerializer.Serialize(this, CamelCaseJsonOptions);
             await System.IO.File.WriteAllTextAsync(metadataPath, json);
         }
 
@@ -78,11 +78,7 @@ namespace Lidarr.Plugin.Qobuzarr.Models
             try
             {
                 var json = await System.IO.File.ReadAllTextAsync(metadataPath);
-                var options = new JsonSerializerOptions
-                {
-                    PropertyNamingPolicy = JsonNamingPolicy.CamelCase
-                };
-                return JsonSerializer.Deserialize<QobuzDownloadMetadata>(json, options);
+                return JsonSerializer.Deserialize<QobuzDownloadMetadata>(json, CamelCaseJsonOptions);
             }
             catch
             {
