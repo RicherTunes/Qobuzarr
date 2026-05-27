@@ -63,7 +63,7 @@ namespace Lidarr.Plugin.Qobuzarr.Services
 
             try
             {
-                var response = await _httpClient.GetJsonAsync<QobuzPlaylistSearchResponse>(url);
+                var response = await _httpClient.GetJsonAsync<QobuzPlaylistSearchResponse>(url).ConfigureAwait(false);
                 return response?.Playlists?.Items ?? new List<QobuzPlaylist>();
             }
             catch (HttpRequestException ex)
@@ -99,7 +99,7 @@ namespace Lidarr.Plugin.Qobuzarr.Services
 
             try
             {
-                var playlist = await _httpClient.GetJsonAsync<QobuzPlaylist>(url);
+                var playlist = await _httpClient.GetJsonAsync<QobuzPlaylist>(url).ConfigureAwait(false);
                 if (playlist == null)
                 {
                     throw new QobuzSearchException($"Playlist {playlistId} not found", null, SearchType.Playlist);
@@ -141,7 +141,7 @@ namespace Lidarr.Plugin.Qobuzarr.Services
 
                 try
                 {
-                    var playlist = await _httpClient.GetJsonAsync<QobuzPlaylist>(url);
+                    var playlist = await _httpClient.GetJsonAsync<QobuzPlaylist>(url).ConfigureAwait(false);
 
                     if (playlist?.Tracks?.Items == null || playlist.Tracks.Items.Count == 0)
                         break;
@@ -193,7 +193,7 @@ namespace Lidarr.Plugin.Qobuzarr.Services
 
             try
             {
-                var response = await _httpClient.GetJsonAsync<QobuzLabelSearchResponse>(url);
+                var response = await _httpClient.GetJsonAsync<QobuzLabelSearchResponse>(url).ConfigureAwait(false);
                 return response?.Labels?.Items ?? new List<QobuzLabel>();
             }
             catch (HttpRequestException ex)
@@ -229,7 +229,7 @@ namespace Lidarr.Plugin.Qobuzarr.Services
 
             try
             {
-                return await _httpClient.GetJsonAsync<QobuzLabel>(url);
+                return await _httpClient.GetJsonAsync<QobuzLabel>(url).ConfigureAwait(false);
             }
             catch (Exception ex)
             {
@@ -261,7 +261,7 @@ namespace Lidarr.Plugin.Qobuzarr.Services
 
                 try
                 {
-                    var response = await _httpClient.GetJsonAsync<QobuzAlbumSearchResponse>(url);
+                    var response = await _httpClient.GetJsonAsync<QobuzAlbumSearchResponse>(url).ConfigureAwait(false);
 
                     if (response?.Albums?.Items == null || response.Albums.Items.Count == 0)
                         break;
@@ -299,7 +299,7 @@ namespace Lidarr.Plugin.Qobuzarr.Services
 
             try
             {
-                return await _httpClient.GetJsonAsync<QobuzArtist>(url);
+                return await _httpClient.GetJsonAsync<QobuzArtist>(url).ConfigureAwait(false);
             }
             catch (Exception ex)
             {
@@ -331,7 +331,7 @@ namespace Lidarr.Plugin.Qobuzarr.Services
 
                 try
                 {
-                    var response = await _httpClient.GetJsonAsync<QobuzAlbumSearchResponse>(url);
+                    var response = await _httpClient.GetJsonAsync<QobuzAlbumSearchResponse>(url).ConfigureAwait(false);
 
                     if (response?.Albums?.Items == null || response.Albums.Items.Count == 0)
                         break;
@@ -374,7 +374,7 @@ namespace Lidarr.Plugin.Qobuzarr.Services
 
             try
             {
-                var response = await _httpClient.GetJsonAsync<QobuzSearchResponse>(url);
+                var response = await _httpClient.GetJsonAsync<QobuzSearchResponse>(url).ConfigureAwait(false);
                 return response?.Albums?.Items ?? new List<QobuzAlbum>();
             }
             catch (Exception ex)
@@ -405,7 +405,7 @@ namespace Lidarr.Plugin.Qobuzarr.Services
 
             try
             {
-                var response = await _httpClient.GetJsonAsync<QobuzSearchResponse>(url);
+                var response = await _httpClient.GetJsonAsync<QobuzSearchResponse>(url).ConfigureAwait(false);
                 return response?.Tracks?.Items ?? new List<QobuzTrack>();
             }
             catch (Exception ex)
@@ -436,7 +436,7 @@ namespace Lidarr.Plugin.Qobuzarr.Services
 
             try
             {
-                var response = await _httpClient.GetJsonAsync<QobuzArtistSearchResponse>(url);
+                var response = await _httpClient.GetJsonAsync<QobuzArtistSearchResponse>(url).ConfigureAwait(false);
                 return response?.Artists?.Items ?? new List<QobuzArtist>();
             }
             catch (Exception ex)
@@ -464,7 +464,7 @@ namespace Lidarr.Plugin.Qobuzarr.Services
 
             try
             {
-                return await _httpClient.GetJsonAsync<QobuzAlbum>(url);
+                return await _httpClient.GetJsonAsync<QobuzAlbum>(url).ConfigureAwait(false);
             }
             catch (Exception ex)
             {
@@ -478,7 +478,7 @@ namespace Lidarr.Plugin.Qobuzarr.Services
         /// </summary>
         public async Task<List<QobuzTrack>> GetAlbumTracksAsync(string albumId)
         {
-            var album = await GetAlbumAsync(albumId);
+            var album = await GetAlbumAsync(albumId).ConfigureAwait(false);
             return album?.TracksContainer?.Items ?? new List<QobuzTrack>();
         }
 

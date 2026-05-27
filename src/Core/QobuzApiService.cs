@@ -37,32 +37,32 @@ namespace Lidarr.Plugin.Qobuzarr.Core
 
         public async Task<QobuzStreamInfo?> GetStreamUrlAsync(string trackId, int formatId)
         {
-            return await _streamUrlService.GetStreamInfoAsync(trackId, formatId);
+            return await _streamUrlService.GetStreamInfoAsync(trackId, formatId).ConfigureAwait(false);
         }
 
         public async Task<QobuzAlbum?> GetAlbumAsync(string albumId)
         {
-            return await _searchService.GetAlbumAsync(albumId);
+            return await _searchService.GetAlbumAsync(albumId).ConfigureAwait(false);
         }
 
         public async Task<List<QobuzTrack>> GetAlbumTracksAsync(string albumId)
         {
-            return await _searchService.GetAlbumTracksAsync(albumId);
+            return await _searchService.GetAlbumTracksAsync(albumId).ConfigureAwait(false);
         }
 
         public async Task<List<QobuzAlbum>> SearchAlbumsAsync(string query, int limit = 20)
         {
-            return await _searchService.SearchAlbumsAsync(query, limit);
+            return await _searchService.SearchAlbumsAsync(query, limit).ConfigureAwait(false);
         }
 
         public async Task<List<QobuzTrack>> SearchTracksAsync(string query, int limit = 20)
         {
-            return await _searchService.SearchTracksAsync(query, limit);
+            return await _searchService.SearchTracksAsync(query, limit).ConfigureAwait(false);
         }
 
         public async Task<List<QobuzArtist>> SearchArtistsAsync(string query, int limit = 20)
         {
-            return await _searchService.SearchArtistsAsync(query, limit);
+            return await _searchService.SearchArtistsAsync(query, limit).ConfigureAwait(false);
         }
 
         /// <summary>
@@ -70,7 +70,7 @@ namespace Lidarr.Plugin.Qobuzarr.Core
         /// </summary>
         public async Task<List<QobuzPlaylist>> SearchPlaylistsAsync(string query, int limit = 20)
         {
-            return await _searchService.SearchPlaylistsAsync(query, limit);
+            return await _searchService.SearchPlaylistsAsync(query, limit).ConfigureAwait(false);
         }
 
         /// <summary>
@@ -78,7 +78,7 @@ namespace Lidarr.Plugin.Qobuzarr.Core
         /// </summary>
         public async Task<QobuzPlaylist> GetPlaylistAsync(string playlistId)
         {
-            return await _searchService.GetPlaylistAsync(playlistId);
+            return await _searchService.GetPlaylistAsync(playlistId).ConfigureAwait(false);
         }
 
         /// <summary>
@@ -86,7 +86,7 @@ namespace Lidarr.Plugin.Qobuzarr.Core
         /// </summary>
         public async Task<List<QobuzTrack>> GetPlaylistTracksAsync(string playlistId)
         {
-            return await _searchService.GetPlaylistTracksAsync(playlistId);
+            return await _searchService.GetPlaylistTracksAsync(playlistId).ConfigureAwait(false);
         }
 
         /// <summary>
@@ -94,7 +94,7 @@ namespace Lidarr.Plugin.Qobuzarr.Core
         /// </summary>
         public async Task<List<QobuzLabel>> SearchLabelsAsync(string query, int limit = 20)
         {
-            return await _searchService.SearchLabelsAsync(query, limit);
+            return await _searchService.SearchLabelsAsync(query, limit).ConfigureAwait(false);
         }
 
         /// <summary>
@@ -102,7 +102,7 @@ namespace Lidarr.Plugin.Qobuzarr.Core
         /// </summary>
         public async Task<QobuzLabel> GetLabelAsync(string labelId)
         {
-            return await _searchService.GetLabelAsync(labelId);
+            return await _searchService.GetLabelAsync(labelId).ConfigureAwait(false);
         }
 
         /// <summary>
@@ -110,7 +110,7 @@ namespace Lidarr.Plugin.Qobuzarr.Core
         /// </summary>
         public async Task<List<QobuzAlbum>> GetLabelAlbumsAsync(string labelId)
         {
-            return await _searchService.GetLabelAlbumsAsync(labelId);
+            return await _searchService.GetLabelAlbumsAsync(labelId).ConfigureAwait(false);
         }
 
         /// <summary>
@@ -118,7 +118,7 @@ namespace Lidarr.Plugin.Qobuzarr.Core
         /// </summary>
         public async Task<QobuzArtist> GetArtistAsync(string artistId)
         {
-            return await _searchService.GetArtistAsync(artistId);
+            return await _searchService.GetArtistAsync(artistId).ConfigureAwait(false);
         }
 
         /// <summary>
@@ -126,7 +126,7 @@ namespace Lidarr.Plugin.Qobuzarr.Core
         /// </summary>
         public async Task<List<QobuzAlbum>> GetArtistAlbumsAsync(string artistId)
         {
-            return await _searchService.GetArtistAlbumsAsync(artistId);
+            return await _searchService.GetArtistAlbumsAsync(artistId).ConfigureAwait(false);
         }
 
         // Implementation moved to QobuzStreamUrlService
@@ -136,7 +136,7 @@ namespace Lidarr.Plugin.Qobuzarr.Core
         /// </summary>
         public async Task<List<int>> GetAvailableQualitiesAsync(string trackId)
         {
-            var result = await _qualityManager.DetectAvailableQualitiesAsync(trackId);
+            var result = await _qualityManager.DetectAvailableQualitiesAsync(trackId).ConfigureAwait(false);
             return result.AvailableQualities?.Select(q => q.Id).ToList() ?? new List<int>();
         }
 
@@ -149,7 +149,7 @@ namespace Lidarr.Plugin.Qobuzarr.Core
             var quality = Models.QobuzQuality.FromId(preferredQuality);
 
             // Call new consolidated API
-            var result = await _qualityManager.SelectBestQualityAsync(trackId, quality);
+            var result = await _qualityManager.SelectBestQualityAsync(trackId, quality).ConfigureAwait(false);
 
             // Handle failure case
             if (!result.Success)
@@ -175,7 +175,7 @@ namespace Lidarr.Plugin.Qobuzarr.Core
         /// </summary>
         public async Task<bool> ValidateAlbumDownloadabilityAsync(string albumId, int preferredQuality = 27)
         {
-            return await _validationService.ValidateAlbumDownloadabilityAsync(albumId, preferredQuality);
+            return await _validationService.ValidateAlbumDownloadabilityAsync(albumId, preferredQuality).ConfigureAwait(false);
         }
 
         /// <summary>
@@ -183,7 +183,7 @@ namespace Lidarr.Plugin.Qobuzarr.Core
         /// </summary>
         public async Task<Dictionary<string, bool>> BatchValidateAlbumsAsync(List<string> albumIds, int preferredQuality = 27, int maxConcurrency = 3)
         {
-            return await _validationService.BatchValidateAlbumsAsync(albumIds, preferredQuality, maxConcurrency);
+            return await _validationService.BatchValidateAlbumsAsync(albumIds, preferredQuality, maxConcurrency).ConfigureAwait(false);
         }
 
         /// <summary>

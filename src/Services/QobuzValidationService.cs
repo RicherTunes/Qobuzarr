@@ -57,7 +57,7 @@ namespace Lidarr.Plugin.Qobuzarr.Services
                 _logger.Debug("Validating downloadability for album {0}", albumId);
 
                 // Get album details first
-                var album = await _searchService.GetAlbumAsync(albumId);
+                var album = await _searchService.GetAlbumAsync(albumId).ConfigureAwait(false);
                 if (album == null)
                 {
                     _logger.Debug("Album {0} not found, not downloadable", albumId);
@@ -66,7 +66,7 @@ namespace Lidarr.Plugin.Qobuzarr.Services
                 }
 
                 // Get tracks for the album
-                var tracks = await _searchService.GetAlbumTracksAsync(albumId);
+                var tracks = await _searchService.GetAlbumTracksAsync(albumId).ConfigureAwait(false);
                 if (tracks == null || tracks.Count == 0)
                 {
                     _logger.Debug("Album {0} has no tracks, not downloadable", albumId);
@@ -87,7 +87,7 @@ namespace Lidarr.Plugin.Qobuzarr.Services
                     try
                     {
                         // Try to get stream URL for this track with quality fallback
-                        var qualityResult = await _qualityManager.SelectBestQualityAsync(track.Id, Models.QobuzQuality.FromId(preferredQuality));
+                        var qualityResult = await _qualityManager.SelectBestQualityAsync(track.Id, Models.QobuzQuality.FromId(preferredQuality)).ConfigureAwait(false);
 
                         if (qualityResult.Success && !string.IsNullOrWhiteSpace(qualityResult.StreamInfo?.Url))
                         {
@@ -131,10 +131,10 @@ namespace Lidarr.Plugin.Qobuzarr.Services
 
             var tasks = albumIds.Select(async albumId =>
             {
-                await semaphore.WaitAsync();
+                await semaphore.WaitAsync().ConfigureAwait(false);
                 try
                 {
-                    var isDownloadable = await ValidateAlbumDownloadabilityAsync(albumId, preferredQuality);
+                    var isDownloadable = await ValidateAlbumDownloadabilityAsync(albumId, preferredQuality).ConfigureAwait(false);
                     lock (results)
                     {
                         results[albumId] = isDownloadable;
@@ -146,7 +146,7 @@ namespace Lidarr.Plugin.Qobuzarr.Services
                 }
             });
 
-            await Task.WhenAll(tasks);
+            await Task.WhenAll(tasks).ConfigureAwait(false);
             _logger.Info("Batch validation completed: {0} albums, {1} downloadable",
                 albumIds.Count, results.Values.Count(x => x));
 
@@ -160,7 +160,7 @@ namespace Lidarr.Plugin.Qobuzarr.Services
         {
             try
             {
-                var qualityResult = await _qualityManager.SelectBestQualityAsync(trackId, Models.QobuzQuality.FromId(preferredQuality));
+                var qualityResult = await _qualityManager.SelectBestQualityAsync(trackId, Models.QobuzQuality.FromId(preferredQuality)).ConfigureAwait(false);
                 return qualityResult.Success && !string.IsNullOrWhiteSpace(qualityResult.StreamInfo?.Url);
             }
             catch (Exception ex)

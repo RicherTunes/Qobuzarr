@@ -45,7 +45,7 @@ namespace Lidarr.Plugin.Qobuzarr.Download
             {
                 // Small batch - process normally
                 _logger.Debug("Processing {0} albums in single batch", totalAlbums);
-                return await ProcessAlbumsAsync(albumList, processFunc, progress, cancellationToken);
+                return await ProcessAlbumsAsync(albumList, processFunc, progress, cancellationToken).ConfigureAwait(false);
             }
 
             // Large batch - use memory-efficient streaming
@@ -59,7 +59,7 @@ namespace Lidarr.Plugin.Qobuzarr.Download
             foreach (var batch in albumList.Chunk(_batchSize))
             {
                 batchNumber++;
-                await CheckMemoryPressureAsync();
+                await CheckMemoryPressureAsync().ConfigureAwait(false);
 
                 _logger.Debug("Processing batch {0}/{1} ({2} albums)",
                     batchNumber,
@@ -72,7 +72,7 @@ namespace Lidarr.Plugin.Qobuzarr.Download
                         batch,
                         processFunc,
                         null, // Use main progress reporter
-                        cancellationToken);
+                        cancellationToken).ConfigureAwait(false);
 
                     results.AddRange(batchResults);
                     processedCount += batch.Length;
@@ -129,7 +129,7 @@ namespace Lidarr.Plugin.Qobuzarr.Download
                 foreach (var track in trackList)
                 {
                     cancellationToken.ThrowIfCancellationRequested();
-                    var result = await processFunc(track);
+                    var result = await processFunc(track).ConfigureAwait(false);
                     results.Add(result);
                 }
                 return results;
@@ -144,7 +144,7 @@ namespace Lidarr.Plugin.Qobuzarr.Download
             foreach (var batch in trackList.Chunk(_batchSize))
             {
                 batchNumber++;
-                await CheckMemoryPressureAsync();
+                await CheckMemoryPressureAsync().ConfigureAwait(false);
 
                 _logger.Debug("Processing track batch {0}/{1} ({2} tracks)",
                     batchNumber,
@@ -154,7 +154,7 @@ namespace Lidarr.Plugin.Qobuzarr.Download
                 foreach (var track in batch)
                 {
                     cancellationToken.ThrowIfCancellationRequested();
-                    var result = await processFunc(track);
+                    var result = await processFunc(track).ConfigureAwait(false);
                     results.Add(result);
                 }
 
@@ -217,10 +217,10 @@ namespace Lidarr.Plugin.Qobuzarr.Download
                 var processedCount = 0;
                 foreach (var trackBatch in tracks.Chunk(tracksPerBatch))
                 {
-                    await CheckMemoryPressureAsync();
+                    await CheckMemoryPressureAsync().ConfigureAwait(false);
 
                     var tasks = trackBatch.Select(track => processFunc(track)).ToArray();
-                    await Task.WhenAll(tasks);
+                    await Task.WhenAll(tasks).ConfigureAwait(false);
 
                     processedCount += trackBatch.Length;
                     _logger.Debug(" ↳ Progress: {0}/{1} tracks", processedCount, totalTracks);
@@ -232,7 +232,7 @@ namespace Lidarr.Plugin.Qobuzarr.Download
             {
                 // Small album - process all tracks at once
                 var tasks = tracks.Select(track => processFunc(track)).ToArray();
-                await Task.WhenAll(tasks);
+                await Task.WhenAll(tasks).ConfigureAwait(false);
             }
         }
 
@@ -241,7 +241,7 @@ namespace Lidarr.Plugin.Qobuzarr.Download
         /// </summary>
         private async Task CheckMemoryPressureAsync()
         {
-            await _memoryThrottle.WaitAsync();
+            await _memoryThrottle.WaitAsync().ConfigureAwait(false);
             try
             {
                 var currentMemory = GC.GetTotalMemory(false);
@@ -254,10 +254,10 @@ namespace Lidarr.Plugin.Qobuzarr.Download
                     _logger.Info(" ↳ Suggesting garbage collection...");
 
                     // Suggest GC without blocking
-                    await SuggestGarbageCollectionAsync();
+                    await SuggestGarbageCollectionAsync().ConfigureAwait(false);
 
                     // Give GC time to work if needed
-                    await Task.Delay(500);
+                    await Task.Delay(500).ConfigureAwait(false);
 
                     var newMemoryMB = GC.GetTotalMemory(false) / 1048576;
                     _logger.Info(" ↳ Current memory: {0} MB", newMemoryMB);
@@ -266,7 +266,7 @@ namespace Lidarr.Plugin.Qobuzarr.Download
                     if (newMemoryMB > _maxMemoryMB * 0.9)
                     {
                         _logger.Info(" ↳ Waiting for memory to stabilize...");
-                        await Task.Delay(1500);
+                        await Task.Delay(1500).ConfigureAwait(false);
                     }
                 }
             }
@@ -309,7 +309,7 @@ namespace Lidarr.Plugin.Qobuzarr.Download
 
                 try
                 {
-                    var result = await processFunc(album);
+                    var result = await processFunc(album).ConfigureAwait(false);
                     results.Add(result);
                 }
                 catch (Exception ex)

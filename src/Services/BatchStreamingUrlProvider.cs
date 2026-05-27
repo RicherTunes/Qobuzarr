@@ -107,7 +107,7 @@ namespace Lidarr.Plugin.Qobuzarr.Services
                                  (trackCount + batchSize - 1) / batchSize,
                                  batch.Count);
 
-                    var batchResults = await ProcessBatchAsync(batch, preferredQuality, cancellationToken);
+                    var batchResults = await ProcessBatchAsync(batch, preferredQuality, cancellationToken).ConfigureAwait(false);
 
                     // Merge batch results
                     foreach (var kvp in batchResults)
@@ -156,11 +156,11 @@ namespace Lidarr.Plugin.Qobuzarr.Services
             // Create tasks for parallel processing with semaphore control
             var tasks = batch.Select(async track =>
             {
-                await _semaphore.WaitAsync(cancellationToken);
+                await _semaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
 
                 try
                 {
-                    var result = await GetSingleStreamingUrlWithRetryAsync(track, preferredQuality, cancellationToken);
+                    var result = await GetSingleStreamingUrlWithRetryAsync(track, preferredQuality, cancellationToken).ConfigureAwait(false);
                     return new { TrackId = track.Id, Result = result };
                 }
                 finally
@@ -170,7 +170,7 @@ namespace Lidarr.Plugin.Qobuzarr.Services
             });
 
             // Execute all tasks in parallel and collect results
-            var completedTasks = await Task.WhenAll(tasks);
+            var completedTasks = await Task.WhenAll(tasks).ConfigureAwait(false);
 
             foreach (var taskResult in completedTasks)
             {
@@ -201,7 +201,7 @@ namespace Lidarr.Plugin.Qobuzarr.Services
             {
                 try
                 {
-                    var result = await GetSingleStreamingUrlAsync(track, preferredQuality, cancellationToken);
+                    var result = await GetSingleStreamingUrlAsync(track, preferredQuality, cancellationToken).ConfigureAwait(false);
 
                     if (result.IsSuccess)
                     {
@@ -219,7 +219,7 @@ namespace Lidarr.Plugin.Qobuzarr.Services
                         _logger.Debug("Preferred quality {0} unavailable for track {1}, trying fallbacks",
                                      preferredQuality, track.Id);
 
-                        var fallbackResult = await TryFallbackQualitiesAsync(track, preferredQuality, cancellationToken);
+                        var fallbackResult = await TryFallbackQualitiesAsync(track, preferredQuality, cancellationToken).ConfigureAwait(false);
                         if (fallbackResult.IsSuccess)
                             return fallbackResult;
                     }
@@ -242,7 +242,7 @@ namespace Lidarr.Plugin.Qobuzarr.Services
                         _logger.Debug("Streaming URL request failed for track {0}, retrying in {1}ms (attempt {2}/{3}): {4}",
                                      track.Id, delay.TotalMilliseconds, attempt + 1, MAX_RETRY_ATTEMPTS, ex.Message);
 
-                        await Task.Delay(delay, cancellationToken);
+                        await Task.Delay(delay, cancellationToken).ConfigureAwait(false);
                     }
                 }
             }
@@ -275,7 +275,7 @@ namespace Lidarr.Plugin.Qobuzarr.Services
             using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
             timeoutCts.CancelAfter(TimeSpan.FromMilliseconds(DEFAULT_TIMEOUT_MS));
 
-            var response = await _apiClient.GetAsync<QobuzStreamResponse>("/track/getFileUrl", parameters);
+            var response = await _apiClient.GetAsync<QobuzStreamResponse>("/track/getFileUrl", parameters).ConfigureAwait(false);
 
             if (response?.IsSuccess != true)
             {
@@ -343,7 +343,7 @@ namespace Lidarr.Plugin.Qobuzarr.Services
             {
                 _logger.Debug("Trying fallback quality {0} for track {1}", quality, track.Id);
 
-                var result = await GetSingleStreamingUrlAsync(track, quality, cancellationToken);
+                var result = await GetSingleStreamingUrlAsync(track, quality, cancellationToken).ConfigureAwait(false);
                 if (result.IsSuccess)
                 {
                     _logger.Debug("Successfully acquired streaming URL using fallback quality {0} for track {1}",
