@@ -59,8 +59,8 @@ public sealed class BridgeQobuzApiClient : IQobuzApiClient, IDisposable
     {
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         _authFailureGate = authFailureGate ?? throw new ArgumentNullException(nameof(authFailureGate));
-        _httpClient = new HttpClient { Timeout = TimeSpan.FromSeconds(30) };
-        _ownsHttpClient = true;
+        _httpClient = Lidarr.Plugin.Qobuzarr.Services.Http.SharedSystemHttpClient.Instance;
+        _ownsHttpClient = false;
     }
 
     /// <inheritdoc />
