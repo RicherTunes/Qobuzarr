@@ -258,7 +258,7 @@ namespace Lidarr.Plugin.Qobuzarr.Authentication
                 _logger.Warn("RefreshTokenAsync called but requires original credentials for Qobuz - falling back to session refresh");
                 return currentToken; // Return existing token as we can't refresh without credentials
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is not OutOfMemoryException and not StackOverflowException)
             {
                 _logger.Error(ex, "Failed to refresh token");
                 return null;
