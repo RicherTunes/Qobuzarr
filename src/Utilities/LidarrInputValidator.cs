@@ -16,7 +16,7 @@ namespace Lidarr.Plugin.Qobuzarr.Utilities
         private static partial Regex SafePathRegex();
         private static readonly HashSet<string> DangerousExtensions = new(StringComparer.OrdinalIgnoreCase)
         {
-            ".exe", ".bat", ".cmd", ".ps1", ".vbs", ".scr", ".com", ".pif"
+            ".exe", ".bat", ".cmd", ".ps1", ".vbs", ".scr", ".pif"
         };
 
         /// <summary>
