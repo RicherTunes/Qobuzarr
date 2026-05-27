@@ -146,7 +146,7 @@ namespace Lidarr.Plugin.Qobuzarr.API.Http
                             _performanceMonitor?.RecordApiCall(request.Url.ToString(), stopwatch.Elapsed, false);
                             if (_adaptiveRateLimiter != null)
                             {
-                                var msgOk = new HttpResponseMessage(response.StatusCode);
+                                using var msgOk = new HttpResponseMessage(response.StatusCode);
                                 _adaptiveRateLimiter.RecordResponse(QobuzarrConstants.ServiceName, endpoint, msgOk);
                             }
                             // Successful response: clear any previous down-state for this host.
@@ -162,7 +162,7 @@ namespace Lidarr.Plugin.Qobuzarr.API.Http
                             stopwatch.Stop();
                             if (_adaptiveRateLimiter != null)
                             {
-                                var msgFail = new HttpResponseMessage(response.StatusCode);
+                                using var msgFail = new HttpResponseMessage(response.StatusCode);
                                 _adaptiveRateLimiter.RecordResponse(QobuzarrConstants.ServiceName, endpoint, msgFail);
                             }
                             if (lastHttpException != null)
@@ -185,7 +185,7 @@ namespace Lidarr.Plugin.Qobuzarr.API.Http
                             stopwatch.Stop();
                             if (_adaptiveRateLimiter != null)
                             {
-                                var msgBudget = new HttpResponseMessage(response.StatusCode);
+                                using var msgBudget = new HttpResponseMessage(response.StatusCode);
                                 _adaptiveRateLimiter.RecordResponse(QobuzarrConstants.ServiceName, endpoint, msgBudget);
                             }
                             return response;
@@ -207,7 +207,7 @@ namespace Lidarr.Plugin.Qobuzarr.API.Http
                 _logger.Error(ex, "HTTP request failed for URL {0}", safeUrl);
                 if (_adaptiveRateLimiter != null)
                 {
-                    var msg = new HttpResponseMessage(System.Net.HttpStatusCode.InternalServerError);
+                    using var msg = new HttpResponseMessage(System.Net.HttpStatusCode.InternalServerError);
                     _adaptiveRateLimiter.RecordResponse(QobuzarrConstants.ServiceName, endpoint, msg);
                 }
                 // Record connection-class failures (SocketException, DNS failure, connection refused)
