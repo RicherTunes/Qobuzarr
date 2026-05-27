@@ -29,6 +29,7 @@ namespace Lidarr.Plugin.Qobuzarr.Integration.Bridge;
 public sealed class BridgeQobuzApiClient : IQobuzApiClient, IDisposable
 {
     private const string BaseUrl = "https://www.qobuz.com/api.json/0.2";
+    private static readonly TimeSpan ApiRequestTimeout = TimeSpan.FromSeconds(30);
 
     private readonly HttpClient _httpClient;
     private readonly ILogger<BridgeQobuzApiClient> _logger;
@@ -96,7 +97,8 @@ public sealed class BridgeQobuzApiClient : IQobuzApiClient, IDisposable
 
         _logger.LogDebug("Bridge GET {Endpoint}", endpoint);
 
-        using var response = await _httpClient.GetAsync(url).ConfigureAwait(false);
+        using var cts = new CancellationTokenSource(ApiRequestTimeout);
+        using var response = await _httpClient.GetAsync(url, cts.Token).ConfigureAwait(false);
         return await DeserializeResponseAsync<T>(response, endpoint).ConfigureAwait(false);
     }
 
@@ -117,7 +119,8 @@ public sealed class BridgeQobuzApiClient : IQobuzApiClient, IDisposable
             content = new StringContent(json, System.Text.Encoding.UTF8, "application/json");
         }
 
-        using var response = await _httpClient.PostAsync(url, content).ConfigureAwait(false);
+        using var cts = new CancellationTokenSource(ApiRequestTimeout);
+        using var response = await _httpClient.PostAsync(url, content, cts.Token).ConfigureAwait(false);
         return await DeserializeResponseAsync<T>(response, endpoint).ConfigureAwait(false);
     }
 
