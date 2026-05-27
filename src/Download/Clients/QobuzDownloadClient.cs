@@ -340,7 +340,16 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Clients
                 // Note: Authentication is handled by the indexer - we don't test it here
                 // This matches TrevTV's approach where the download client trusts the indexer's auth
 
-                // Test download path accessibility using file service
+                // Syntactic pre-check: catch traversal, relative paths, invalid chars
+                // before hitting the filesystem (actionable error messages).
+                var pathValidation = Lidarr.Plugin.Common.Services.Validation.DownloadPathValidator.Validate(settings.DownloadPath);
+                if (!pathValidation.IsValid)
+                {
+                    failures.Add(new ValidationFailure("DownloadPath", pathValidation.Message));
+                    return;
+                }
+
+                // Filesystem accessibility check
                 if (!string.IsNullOrWhiteSpace(settings.DownloadPath))
                 {
                     if (!_fileService.ValidateDownloadPath(settings.DownloadPath))
