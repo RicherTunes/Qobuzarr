@@ -16,7 +16,7 @@ namespace Lidarr.Plugin.Qobuzarr.Utilities
         private static partial Regex SafePathRegex();
         private static readonly HashSet<string> DangerousExtensions = new(StringComparer.OrdinalIgnoreCase)
         {
-            ".exe", ".bat", ".cmd", ".ps1", ".vbs", ".scr", ".pif"
+            ".exe", ".bat", ".cmd", ".ps1", ".vbs", ".scr", ".com", ".pif"
         };
 
         /// <summary>
@@ -92,8 +92,14 @@ namespace Lidarr.Plugin.Qobuzarr.Utilities
                 return false;
             }
 
-            // Check for dangerous file extensions
-            return !DangerousExtensions.Any(ext => input.EndsWith(ext, StringComparison.OrdinalIgnoreCase));
+            // Check for dangerous file extensions (skip for email-like inputs —
+            // "user@example.com" is a domain, not a DOS executable).
+            if (!input.Contains('@'))
+            {
+                return !DangerousExtensions.Any(ext => input.EndsWith(ext, StringComparison.OrdinalIgnoreCase));
+            }
+
+            return true;
         }
 
         /// <summary>
