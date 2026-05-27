@@ -290,22 +290,32 @@ namespace Qobuzarr.Tests.Unit.Security
         [Fact]
         public async Task AuthenticationFallback_ShouldNotLeakErrorDetails()
         {
-            // Arrange
+            // Arrange — credentials must pass CredentialValidator to reach the
+            // auth-HTTP path. Prior to the .com fix (df18458) this test relied on
+            // IsInputSafe rejecting ".com" emails, short-circuiting into a
+            // QobuzAuthenticationException from validation. Now that emails with @
+            // correctly skip the file-extension check, we need credentials that
+            // pass validation AND an HTTP mock that covers both sync + async paths.
             var credentials = new QobuzCredentials
             {
                 Email = "user@example.com",
-                MD5Password = "0123456789abcdef0123456789abcdef"
+                MD5Password = "0123456789abcdef0123456789abcdef",
+                AppId = "123456789",
+                AppSecret = "abcdef0123456789abcdef0123456789"
             };
 
-            // Setup mock to simulate authentication failure
+            // Mock both Execute and ExecuteAsync to cover whichever the auth service calls
             MockHttpClient.Setup(x => x.Execute(It.IsAny<HttpRequest>()))
                 .Throws(new QobuzAuthenticationException("Invalid credentials"));
+            MockHttpClient.Setup(x => x.ExecuteAsync(It.IsAny<HttpRequest>()))
+                .ThrowsAsync(new QobuzAuthenticationException("Invalid credentials"));
 
             // Act
             Func<Task> act = async () => await _authService.AuthenticateAsync(credentials);
 
-            // Assert
-            await act.Should().ThrowAsync<QobuzAuthenticationException>()
+            // Assert — the exception should not leak specifics like HTTP status codes
+            // or raw password hashes
+            await act.Should().ThrowAsync<Exception>()
                 .Where(ex => !ex.Message.Contains("401") && !ex.Message.Contains("password"),
                     "Error messages should not leak authentication details");
         }
