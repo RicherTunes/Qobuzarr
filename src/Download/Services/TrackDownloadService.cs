@@ -29,6 +29,7 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Services
         private readonly IConcurrencyManager _concurrencyManager;
         private readonly IDownloadSummary _downloadSummary;
         private readonly IDownloadQueueService _queueService;
+        private readonly ILyricsEnricher? _lyricsEnricher;
         private readonly Logger _logger;
 
         public TrackDownloadService(
@@ -36,13 +37,15 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Services
             IConcurrencyManager concurrencyManager,
             IDownloadSummary downloadSummary,
             IDownloadQueueService queueService,
-            Logger logger)
+            Logger logger,
+            ILyricsEnricher? lyricsEnricher = null)
         {
             _apiClient = apiClient ?? throw new ArgumentNullException(nameof(apiClient));
             _concurrencyManager = concurrencyManager ?? throw new ArgumentNullException(nameof(concurrencyManager));
             _downloadSummary = downloadSummary ?? throw new ArgumentNullException(nameof(downloadSummary));
             _queueService = queueService ?? throw new ArgumentNullException(nameof(queueService));
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+            _lyricsEnricher = lyricsEnricher;
         }
 
         public async Task DownloadAlbumAsync(QobuzDownloadItem downloadItem, QobuzAlbum album, QobuzDownloadSettings settings, CancellationToken cancellationToken)
@@ -205,6 +208,18 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Services
 
                 // 4. Apply tags
                 await ApplyMetadataTagsAsync(outputPath, track, album).ConfigureAwait(false);
+
+                // 5. Best-effort lyrics fetch (non-fatal — download succeeds regardless)
+                if (_lyricsEnricher is not null)
+                {
+                    await _lyricsEnricher.TryEnrichAsync(
+                        outputPath,
+                        album.GetArtistName() ?? "Unknown",
+                        track.Title ?? "Unknown",
+                        album.GetFullTitle() ?? "",
+                        track.DurationSeconds,
+                        cancellationToken).ConfigureAwait(false);
+                }
 
                 _logger.Info("Downloaded: {0} ({1:F1} MB)", track.Title, bytesWritten / 1024.0 / 1024.0);
             }
