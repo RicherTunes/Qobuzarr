@@ -269,7 +269,12 @@ This project is licensed under the GNU General Public License v3.0 - see [LICENS
 
 ## ⚠️ Disclaimer
 
-This plugin is not affiliated with or endorsed by Qobuz. Use of this plugin requires a valid Qobuz subscription and compliance with Qobuz's Terms of Service.
+Qobuzarr is an independent, open-source project developed by RicherTunes for **educational and research purposes** — to study plugin architecture, streaming APIs, and the Lidarr ecosystem.
+
+- **Not affiliated with, authorized, or endorsed by Qobuz.** "Qobuz" and related marks are trademarks of their respective owners; used here descriptively only.
+- Intended for **personal use with your own valid Qobuz subscription**. You are solely responsible for complying with Qobuz's Terms of Service and all laws applicable in your jurisdiction.
+- Provided **"as is", without warranty of any kind; use at your own risk** (see [LICENSE](LICENSE)). The authors accept no liability for misuse or for any consequences of use.
+- Do not use this software to infringe copyright or to access or redistribute content you are not licensed to use.
 
 ---
 
