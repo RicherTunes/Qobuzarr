@@ -124,14 +124,15 @@ namespace Lidarr.Plugin.Qobuzarr.Services
         public async Task<Dictionary<string, bool>> BatchValidateAlbumsAsync(
             List<string> albumIds,
             int preferredQuality = 27,
-            int maxConcurrency = 3)
+            int maxConcurrency = 3,
+            CancellationToken cancellationToken = default)
         {
             var results = new Dictionary<string, bool>();
             using var semaphore = new SemaphoreSlim(maxConcurrency, maxConcurrency);
 
             var tasks = albumIds.Select(async albumId =>
             {
-                await semaphore.WaitAsync().ConfigureAwait(false);
+                await semaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
                 try
                 {
                     var isDownloadable = await ValidateAlbumDownloadabilityAsync(albumId, preferredQuality).ConfigureAwait(false);

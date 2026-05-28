@@ -37,7 +37,7 @@ namespace Lidarr.Plugin.Qobuzarr.Download
             IProgress<BatchProgress> progress = null,
             CancellationToken cancellationToken = default)
         {
-            var albumList = albums.ToList();
+            var albumList = albums as IList<QobuzAlbum> ?? albums.ToList();
             var totalAlbums = albumList.Count;
             var results = new List<T>();
 
@@ -118,7 +118,7 @@ namespace Lidarr.Plugin.Qobuzarr.Download
             IProgress<BatchProgress> progress = null,
             CancellationToken cancellationToken = default)
         {
-            var trackList = tracks.ToList();
+            var trackList = tracks as IList<QobuzTrack> ?? tracks.ToList();
             var totalTracks = trackList.Count;
             var results = new List<T>();
 
@@ -301,7 +301,7 @@ namespace Lidarr.Plugin.Qobuzarr.Download
             CancellationToken cancellationToken)
         {
             var results = new List<T>();
-            var albumList = albums.ToList();
+            var albumList = albums as IList<QobuzAlbum> ?? albums.ToList();
 
             foreach (var album in albumList)
             {
