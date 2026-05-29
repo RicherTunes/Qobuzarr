@@ -146,33 +146,6 @@ namespace Lidarr.Plugin.Qobuzarr.Security
         }
 
         /// <summary>
-        /// Masks sensitive parameters for safe logging.
-        /// </summary>
-        /// <param name="parameters">Parameters to mask</param>
-        /// <returns>Dictionary with sensitive values masked</returns>
-        public static Dictionary<string, string> MaskSensitiveParameters(Dictionary<string, string> parameters)
-        {
-            if (parameters == null)
-                return new Dictionary<string, string>();
-
-            var maskedParams = new Dictionary<string, string>();
-
-            foreach (var param in parameters)
-            {
-                if (IsSensitiveParameter(param.Key))
-                {
-                    maskedParams[param.Key] = MaskValue(param.Value);
-                }
-                else
-                {
-                    maskedParams[param.Key] = param.Value;
-                }
-            }
-
-            return maskedParams;
-        }
-
-        /// <summary>
         /// Creates a secure copy of parameters with sensitive data removed.
         /// </summary>
         /// <param name="parameters">Source parameters</param>
@@ -242,17 +215,6 @@ namespace Lidarr.Plugin.Qobuzarr.Security
                    lowerValue.Contains("union select") ||
                    lowerValue.Contains("<script") ||
                    lowerValue.Contains("javascript:");
-        }
-
-        private static string MaskValue(string value)
-        {
-            if (string.IsNullOrWhiteSpace(value))
-                return "[empty]";
-
-            if (value.Length <= 4)
-                return new string('*', value.Length);
-
-            return $"{value.Substring(0, 2)}{"*".PadLeft(value.Length - 4, '*')}{value.Substring(value.Length - 2)}";
         }
     }
 }
