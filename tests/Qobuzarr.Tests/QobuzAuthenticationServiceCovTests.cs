@@ -5,7 +5,9 @@ using System.Net.Http;
 using System.Threading.Tasks;
 using FluentAssertions;
 using Moq;
+using NSubstitute;
 using Newtonsoft.Json;
+using NzbDrone.Common.Cache;
 using NzbDrone.Common.Http;
 using Xunit;
 using Lidarr.Plugin.Qobuzarr.Authentication;
@@ -65,6 +67,46 @@ namespace Qobuzarr.Tests
                 MockLogger.Object,
                 mockValidator.Object,
                 sessionFilePath: _sessionFilePath);
+        }
+
+        // Regression guard for the v0.5.10 host crash: QobuzAuthenticationService must NOT
+        // route its plugin-private QobuzSession cache through the host's singleton
+        // CacheManager. Doing so (cacheManager.GetCache<QobuzSession>(GetType())) stores the
+        // cache under a string key shared across every AssemblyLoadContext that loads the
+        // plugin; if the assembly is loaded under two ALCs (duplicate /config/plugins folder
+        // or newer-host probing), the host casts a Cached<QobuzSession> from one ALC to
+        // ICached<QobuzSession> from another and throws InvalidCastException at startup,
+        // crash-looping Lidarr. The session cache must be plugin-local.
+        [Fact]
+        public void Constructor_DoesNotRouteSessionCacheThroughHostCacheManager()
+        {
+            var cacheManager = Substitute.For<ICacheManager>();
+            var mockValidator = new Mock<ICredentialValidator>();
+            mockValidator.Setup(x => x.ValidateCredentials(It.IsAny<QobuzCredentials>()))
+                .Returns(new CredentialValidationResult());
+            var path = System.IO.Path.Combine(
+                System.IO.Path.GetTempPath(), $"qobuzarr-alc-{Guid.NewGuid():N}.session.json");
+
+            try
+            {
+                var service = new QobuzAuthenticationService(
+                    MockHttpClient.Object,
+                    MockConfigService.Object,
+                    MockLocalizationService.Object,
+                    cacheManager,
+                    MockLogger.Object,
+                    mockValidator.Object,
+                    sessionFilePath: path);
+
+                service.Should().NotBeNull();
+                // The host cache manager must never be asked for a plugin-typed cache.
+                cacheManager.DidNotReceiveWithAnyArgs().GetCache<QobuzSession>(default);
+            }
+            finally
+            {
+                try { if (System.IO.File.Exists(path)) System.IO.File.Delete(path); }
+                catch { /* best-effort cleanup */ }
+            }
         }
 
         #region GetAccessTokenAsync Tests (Source lines 170-177)

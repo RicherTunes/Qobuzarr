@@ -36,7 +36,6 @@ namespace Lidarr.Plugin.Qobuzarr.Authentication
         private readonly IHttpClient _httpClient;
         private readonly IConfigService _configService;
         private readonly ILocalizationService _localizationService;
-        private readonly ICacheManager _cacheManager;
         private readonly Logger _logger;
         private readonly ICredentialValidator _credentialValidator;
 
@@ -85,10 +84,22 @@ namespace Lidarr.Plugin.Qobuzarr.Authentication
             _httpClient = httpClient;
             _configService = configService;
             _localizationService = localizationService;
-            _cacheManager = cacheManager;
             _logger = logger;
             _credentialValidator = credentialValidator ?? new CredentialValidator(logger);
-            _sessionCache = _cacheManager.GetCache<QobuzSession>(GetType());
+            // Plugin-local session cache — deliberately NOT the host's shared CacheManager.
+            // CacheManager.GetCache<QobuzSession>(GetType()) stores a Cached<QobuzSession>
+            // in a host singleton dictionary keyed by the string Type.FullName, shared by
+            // EVERY AssemblyLoadContext that loads this plugin assembly. If the plugin is
+            // loaded under two ALCs (e.g. a duplicate /config/plugins/<owner>/<name> folder,
+            // or newer-host plugin probing), the host casts an entry created in ALC #1 to
+            // ICached<QobuzSession> from ALC #2 — same type name, different identity — which
+            // throws InvalidCastException inside CacheManager.GetCache at startup and
+            // crash-loops Lidarr (the service is constructed by EventAggregator at boot).
+            // A per-instance Cached<T> keeps Cached/ICached/QobuzSession identities within a
+            // single ALC, so no cross-ALC cast can occur. FileTokenStore<QobuzSession> below
+            // remains the cross-restart / cross-instance source of truth.
+            // (cacheManager is still accepted for DI + test signature stability.)
+            _sessionCache = new Cached<QobuzSession>();
             _sessionFilePath = sessionFilePath ?? SessionManager.GetDefaultSessionFilePath();
 
             // Cross-platform encrypted at-rest persistence via the common library.
