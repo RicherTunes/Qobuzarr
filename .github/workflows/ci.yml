@@ -134,7 +134,10 @@ jobs:
         fetch-depth: 0
         submodules: false
 
-    # Skip submodule init in Validate; fast/full jobs handle it with proper token
+    # Common is a PUBLIC submodule — init it (no token needed) so the lint scripts below
+    # (ext/Lidarr.Plugin.Common/scripts/*.ps1) are present in this job.
+    - name: Init Common submodule (lint scripts)
+      run: git submodule update --init --depth=1 ext/Lidarr.Plugin.Common
 
     - name: Security Scan (git-leaks)
       uses: gitleaks/gitleaks-action@v2
