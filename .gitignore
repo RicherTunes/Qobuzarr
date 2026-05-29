@@ -340,3 +340,15 @@ release-notes.md
 qobuzarr-warnings*.log
 build_errors.txt
 verify-local*.log
+
+# --- Pre-publication secret hardening (never commit credentials/keys/tokens) ---
+*.pem
+*.p8
+*.p12
+*.pfx
+*.key
+session.json
+*.session.json
+pkce_state.json
+.aeskey
+*.trx
