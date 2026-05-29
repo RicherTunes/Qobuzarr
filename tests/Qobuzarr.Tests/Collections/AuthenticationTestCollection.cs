@@ -19,6 +19,11 @@ namespace Qobuzarr.Tests.Collections;
 /// force sequential execution and mask the race. The underlying isolation
 /// (inject an in-memory store per test) is tracked as separate tech debt —
 /// see CLAUDE.md "Flaky Tests Policy".
+///
+/// Also serializes the global-NLog-MemoryTarget consumers
+/// (<c>QobuzAppSecretLogScrubTests</c> + <c>E2EHermeticGateTests</c>), which both call
+/// <c>TestLogger.ClearLoggedMessages()/GetLoggedMessages()</c>; running them in parallel let one
+/// class's Clear wipe the other's captured log lines, flaking the scrub-test assertions.
 /// </summary>
 [CollectionDefinition(Name)]
 public sealed class AuthenticationTestCollection
