@@ -352,3 +352,7 @@ session.json
 pkce_state.json
 .aeskey
 *.trx
+
+# Claude Code per-developer local settings (never commit)
+.claude/settings.local.json
+settings.local.json
