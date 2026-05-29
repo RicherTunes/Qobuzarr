@@ -218,11 +218,16 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
                 var requestGenerator = GetRequestGenerator();
                 var requestChain = pageableRequestChainSelector(requestGenerator);
 
+                var attempted = 0;
+                var succeeded = 0;
+                Exception? lastError = null;
+
                 // Process each request in the chain
                 foreach (var tier in requestChain.GetAllTiers())
                 {
                     foreach (var request in tier)
                     {
+                        attempted++;
                         try
                         {
                             // Rate limiting is handled centrally by the HTTP layer's adaptive limiter.
@@ -256,12 +261,26 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
                                 // Log ML optimization metrics via delegated manager
                                 _mlManager.Value.LogMLPerformanceSummary();
                             }
+
+                            succeeded++;
                         }
                         catch (Exception ex)
                         {
+                            lastError = ex;
                             _logger.Error(ex, "Error processing request: {0}", request.HttpRequest?.Url?.ToString() ?? "Unknown");
                         }
                     }
+                }
+
+                // If EVERY attempted request threw, surface the failure instead of a misleading
+                // empty result so Lidarr can distinguish "no matches" from "all requests failed".
+                // (A request that parses to zero releases does not throw, so genuine empty results
+                // are unaffected.) The outer catch rethrows it to Lidarr.
+                if (attempted > 0 && succeeded == 0 && lastError != null)
+                {
+                    throw new InvalidOperationException(
+                        $"All {attempted} Qobuz search request(s) failed; surfacing the error instead of an empty result.",
+                        lastError);
                 }
 
                 _logger.Info($"{PluginLogContext.Current?.LinePrefix()}Retrieved {{0}} releases from Qobuz", releases.Count);
