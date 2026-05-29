@@ -163,6 +163,12 @@
   <!-- Prefer prebuilt assemblies prepared by CI at ext/Lidarr/_output/net8.0; fallback to source-built output if present -->
   <PropertyGroup>
     <LidarrAssembliesPath>ext\Lidarr\_output\net8.0</LidarrAssembliesPath>
+    <!-- Common's reusable release-plugin.yml extracts host assemblies to
+         ext/Lidarr-docker/_output/net8.0 (it does NOT populate ext/Lidarr/_output).
+         Without this fallback the ILRepack step (PluginPackaging.targets uses
+         $(LidarrAssembliesPath) as its library path) cannot resolve Lidarr.Core.
+         Mirrors Tidalarr.csproj. -->
+    <LidarrAssembliesPath Condition="!Exists('$(LidarrAssembliesPath)\\Lidarr.dll') and Exists('ext\\Lidarr-docker\\_output\\net8.0\\Lidarr.dll')">ext\Lidarr-docker\_output\net8.0</LidarrAssembliesPath>
     <LidarrAssembliesPath Condition="!Exists('$(LidarrAssembliesPath)\\Lidarr.dll') and Exists('ext\\Lidarr-source\\_output\\net8.0\\$(RuntimeIdentifier)\\Lidarr.dll')">ext\Lidarr-source\_output\net8.0\$(RuntimeIdentifier)</LidarrAssembliesPath>
     <LidarrAssembliesPath Condition="!Exists('$(LidarrAssembliesPath)\\Lidarr.dll') and Exists('ext\\Lidarr-source\\_output\\net8.0\\Lidarr.dll')">ext\Lidarr-source\_output\net8.0</LidarrAssembliesPath>
   </PropertyGroup>
