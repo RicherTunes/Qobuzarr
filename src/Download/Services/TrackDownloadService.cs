@@ -283,8 +283,13 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Services
             long totalWritten = existing;
             int read;
 
-            // Explicit scope ensures fileStream is closed before File.Move
-            await using (var fileStream = new FileStream(partialPath, FileMode.Append, FileAccess.Write, FileShare.None, 131072, useAsync: true))
+            // Explicit scope ensures fileStream is closed before File.Move.
+            // Append ONLY when genuinely resuming (HTTP 206). For a fresh download (server returned
+            // 200, ignoring the Range), use Create so the file is truncated even if the stale
+            // ".partial" delete above failed (it is swallowed) — otherwise the full fresh body was
+            // appended onto stale bytes, silently corrupting the audio file.
+            var partialFileMode = isPartial ? FileMode.Append : FileMode.Create;
+            await using (var fileStream = new FileStream(partialPath, partialFileMode, FileAccess.Write, FileShare.None, 131072, useAsync: true))
             {
                 read = await responseStream.ReadAsync(buffer.AsMemory(0, buffer.Length), cancellationToken).ConfigureAwait(false);
                 if (read <= 0)
