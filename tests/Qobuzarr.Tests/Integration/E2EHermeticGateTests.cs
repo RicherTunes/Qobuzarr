@@ -30,6 +30,11 @@ namespace Qobuzarr.Tests.Integration
     [Trait("Category", "Integration")]
     [Trait("Category", "E2E")]
     [Trait("Area", "E2E/Hermetic")]
+    // Shares the global NLog MemoryTarget (via TestLogger) with QobuzAppSecretLogScrubTests.
+    // Both call ClearLoggedMessages()/GetLoggedMessages(); running them in parallel let one class's
+    // Clear wipe the other's captured lines (flaky scrub-test assertions). Same serialization
+    // collection forces sequential execution.
+    [Collection(Qobuzarr.Tests.Collections.AuthenticationTestCollection.Name)]
     public class E2EHermeticGateTests : TestFixtureBase
     {
         private readonly QobuzApiClient _apiClient;
