@@ -394,11 +394,20 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
             return text.Count(c => !char.IsLetterOrDigit(c) && !char.IsWhiteSpace(c));
         }
 
+        // Hoisted to static readonly so the search hot path (PredictComplexity -> ExtractFeatures)
+        // doesn't allocate these term arrays / recompile these regexes on every prediction.
+        private static readonly string[] SpecialEditionTerms = { "remaster", "deluxe", "anniversary", "edition", "expanded", "collector", "special", "bonus" };
+        private static readonly string[] FeaturedArtistPatterns = { " feat.", " feat ", " ft.", " ft ", " & ", " with ", " featuring " };
+        private static readonly string[] CompilationTerms = { "various", "compilation", "v.a.", "various artists", "va" };
+        private static readonly string[] LiveAlbumTerms = { " live", "(live)", "[live]", "concert", "unplugged", "acoustic" };
+        private static readonly string[] EpOrSingleTerms = { " ep", "(ep)", "[ep]", "single", "7\"", "12\"" };
+        private static readonly string[] AmbiguousTerms = { "love", "best", "greatest", "hits", "gold", "collection", "the", "new", "first", "one", "two", "three" };
+        private static readonly System.Text.RegularExpressions.Regex NumberedAlbumRegex = new(@"^[IVX]+$|^\d+$", System.Text.RegularExpressions.RegexOptions.Compiled);
+        private static readonly System.Text.RegularExpressions.Regex YearInTitleRegex = new(@"\b(19|20)\d{2}\b", System.Text.RegularExpressions.RegexOptions.Compiled);
+
         private bool IsSpecialEdition(string album)
         {
-            var specialTerms = new[] { "remaster", "deluxe", "anniversary", "edition",
-                                       "expanded", "collector", "special", "bonus" };
-            return specialTerms.Any(term => album.Contains(term));
+            return SpecialEditionTerms.Any(term => album.Contains(term));
         }
 
         private bool IsCommonAlbumPattern(string album)
@@ -412,7 +421,7 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
                 return true;
 
             // Numbered albums
-            if (System.Text.RegularExpressions.Regex.IsMatch(album, @"^[IVX]+$|^\d+$"))
+            if (NumberedAlbumRegex.IsMatch(album))
                 return true;
 
             return false;
@@ -421,31 +430,27 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
         // New helper methods for enhanced features
         private bool HasFeaturedArtists(string artist)
         {
-            var featPatterns = new[] { " feat.", " feat ", " ft.", " ft ", " & ", " with ", " featuring " };
-            return featPatterns.Any(p => artist.Contains(p, StringComparison.OrdinalIgnoreCase));
+            return FeaturedArtistPatterns.Any(p => artist.Contains(p, StringComparison.OrdinalIgnoreCase));
         }
 
         private bool IsCompilation(string artist)
         {
-            var compilationTerms = new[] { "various", "compilation", "v.a.", "various artists", "va" };
-            return compilationTerms.Any(term => artist.Equals(term, StringComparison.OrdinalIgnoreCase));
+            return CompilationTerms.Any(term => artist.Equals(term, StringComparison.OrdinalIgnoreCase));
         }
 
         private bool HasYearInTitle(string album)
         {
-            return System.Text.RegularExpressions.Regex.IsMatch(album, @"\b(19|20)\d{2}\b");
+            return YearInTitleRegex.IsMatch(album);
         }
 
         private bool IsLiveAlbum(string album)
         {
-            var liveTerms = new[] { " live", "(live)", "[live]", "concert", "unplugged", "acoustic" };
-            return liveTerms.Any(term => album.Contains(term, StringComparison.OrdinalIgnoreCase));
+            return LiveAlbumTerms.Any(term => album.Contains(term, StringComparison.OrdinalIgnoreCase));
         }
 
         private bool IsEPOrSingle(string album)
         {
-            var epTerms = new[] { " ep", "(ep)", "[ep]", "single", "7\"", "12\"" };
-            return epTerms.Any(term => album.Contains(term, StringComparison.OrdinalIgnoreCase));
+            return EpOrSingleTerms.Any(term => album.Contains(term, StringComparison.OrdinalIgnoreCase));
         }
 
         private bool HasNonAsciiChars(string text)
@@ -473,12 +478,8 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
 
         private float CalculateAmbiguityScore(string artist, string album)
         {
-            // Common words that return many results
-            var ambiguousTerms = new[] { "love", "best", "greatest", "hits", "gold", "collection",
-                                         "the", "new", "first", "one", "two", "three" };
-
             var words = (artist + " " + album).Split(' ', StringSplitOptions.RemoveEmptyEntries);
-            var ambiguousCount = words.Count(w => ambiguousTerms.Contains(w, StringComparer.OrdinalIgnoreCase));
+            var ambiguousCount = words.Count(w => AmbiguousTerms.Contains(w, StringComparer.OrdinalIgnoreCase));
 
             return Math.Min(ambiguousCount / 3.0f, 1.0f);
         }
