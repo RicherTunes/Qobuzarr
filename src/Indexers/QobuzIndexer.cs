@@ -475,7 +475,11 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
         {
             if (!_disposed && disposing)
             {
-                if (_patternLearningEngine?.Value is IDisposable disposableEngine)
+                // Use IsValueCreated to avoid FORCING lazy construction of the pattern-learning
+                // engine (CompiledMLQueryOptimizer + MLPerformanceMetrics, which starts a 1-min
+                // Timer) purely to dispose it — e.g. on a Test()-only / schema-render indexer that
+                // never searched. Mirrors the _mlManager guard below.
+                if (_patternLearningEngine?.IsValueCreated == true && _patternLearningEngine.Value is IDisposable disposableEngine)
                 {
                     disposableEngine.Dispose();
                 }
