@@ -1085,11 +1085,7 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Clients
         /// A null gate is always considered healthy (safe default when no gate is wired).
         /// </summary>
         public static bool IsAuthShortCircuited(AuthFailureGate? gate)
-        {
-            if (gate is null) return false;
-            if (gate.IsHealthy) return false;
-            return !gate.TryAcquireProbeSlot();
-        }
+            => gate?.ShouldShortCircuit() ?? false;
 
         /// <summary>
         /// If <paramref name="ex"/> looks like a Qobuz auth failure (HTTP 401/403 or
@@ -1097,25 +1093,19 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Clients
         /// a failure with <paramref name="gate"/>'s handler so the gate latches and subsequent
         /// calls short-circuit without touching the network.
         ///
-        /// <para>SYNC-OVER-ASYNC (Category A): wraps <c>HandleFailureAsync</c> in
-        /// <c>Task.Run</c> to avoid deadlocking on ASP.NET-style single-threaded
-        /// <see cref="System.Threading.SynchronizationContext"/>s.</para>
+        /// <para>Delegates to Common's <see cref="AuthFailureGate.RecordExceptionOutcome"/>,
+        /// which owns the Category-A sync-over-async hop (a host-context deadlock trap) in one
+        /// tested place; this method supplies only Qobuz's service-specific classifier.</para>
         /// </summary>
         public static void RecordAuthOutcomeFromException(AuthFailureGate? gate, Exception ex)
-        {
-            if (gate is null) return;
-            if (!LooksLikeAuthFailure(ex)) return;
-
-            var failure = new Lidarr.Plugin.Abstractions.Contracts.AuthFailure
-            {
-                ErrorCode = (ex as HttpRequestException)?.StatusCode?.ToString()
-                            ?? (ex as Exceptions.QobuzApiException)?.StatusCode?.ToString(),
-                Message = ex.Message,
-            };
-            // SYNC-OVER-ASYNC (Category A): thread-pool hop avoids host-context deadlock.
-            Task.Run(() => gate.Handler.HandleFailureAsync(failure).AsTask())
-                .GetAwaiter().GetResult();
-        }
+            => gate?.RecordExceptionOutcome(ex, e => LooksLikeAuthFailure(e)
+                ? new Lidarr.Plugin.Abstractions.Contracts.AuthFailure
+                {
+                    ErrorCode = (e as HttpRequestException)?.StatusCode?.ToString()
+                                ?? (e as Exceptions.QobuzApiException)?.StatusCode?.ToString(),
+                    Message = e.Message,
+                }
+                : null);
 
         /// <summary>
         /// Returns true when <paramref name="ex"/> is recognisable as a Qobuz
