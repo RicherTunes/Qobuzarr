@@ -206,7 +206,6 @@ namespace Qobuzarr.Tests.Unit.API
         {
             // Arrange
             var endpoint = "/album/search";
-            var parameters = new Dictionary<string, string>();
 
             var httpResponse = HttpTestHelpers.CreateResponse("{}", HttpStatusCode.OK);
 
@@ -215,10 +214,13 @@ namespace Qobuzarr.Tests.Unit.API
 
             _apiClient.SetSession(_testSession);
 
-            // Act - Make multiple rapid requests
+            // Act - Make multiple rapid requests. Use a distinct query per request so each has a
+            // unique cache key: search responses are cached (ShortDuration), so identical requests
+            // would otherwise be coalesced and never reach the rate limiter.
             var tasks = new List<Task>();
             for (int i = 0; i < 5; i++)
             {
+                var parameters = new Dictionary<string, string> { { "query", $"ratelimit-{i}" } };
                 tasks.Add(_apiClient.GetAsync<dynamic>(endpoint, parameters));
             }
 
