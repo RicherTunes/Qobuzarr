@@ -65,4 +65,14 @@ public class QobuzarrEcosystemParityTests : EcosystemParityTestBase
     // now uses Common's shared ILyricsEnricher (inject-or-construct in TrackDownloadService). This
     // guard fails CI if a plugin-local lyrics type is ever re-introduced.
     [Fact] public void Check_UsesCommonLyricsEnricher_Test() => Assert.True(Check_UsesCommonLyricsEnricher().Passed, string.Join("; ", Check_UsesCommonLyricsEnricher().Errors));
+
+    // Diagnostics consolidation (PR #277): qobuz deleted its local DiagnosticTypes/ErrorCodes nested
+    // in *HealthDiagnostics and references Common's canonical Abstractions.Diagnostics types.
+    [Fact] public void Check_UsesCommonDiagnosticTypes_Test() => Assert.True(Check_UsesCommonDiagnosticTypes().Passed, string.Join("; ", Check_UsesCommonDiagnosticTypes().Errors));
+    // qobuz logs downloads ad-hoc (no plugin-local IDownloadTelemetrySink), so this passes — wired
+    // for parity so a future plugin-local sink would fail CI.
+    [Fact] public void Check_UsesCommonDownloadTelemetrySink_Test() => Assert.True(Check_UsesCommonDownloadTelemetrySink().Passed, string.Join("; ", Check_UsesCommonDownloadTelemetrySink().Errors));
+    [Fact] public void Check_DownloadClientUsesPathTraversalGuard_Test() => Assert.True(Check_DownloadClientUsesPathTraversalGuard().Passed, string.Join("; ", Check_DownloadClientUsesPathTraversalGuard().Errors));
+    [Fact] public void Check_FileClassNameParity_Test() => Assert.True(Check_FileClassNameParity().Passed, string.Join("; ", Check_FileClassNameParity().Errors));
+    [Fact] public void Check_ClaudeMdDocumentsCommonHelpers_Test() => Assert.True(Check_ClaudeMdDocumentsCommonHelpers().Passed, string.Join("; ", Check_ClaudeMdDocumentsCommonHelpers().Errors));
 }
