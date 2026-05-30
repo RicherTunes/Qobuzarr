@@ -7,7 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed (runtime — 2026-05-29, found via Dockerized-Lidarr E2E)
+- **Host crash-loop on startup (shipped in v0.5.10).** `QobuzAuthenticationService` routed its plugin-private `QobuzSession` through the host's singleton `CacheManager.GetCache<QobuzSession>()`. That cache is keyed by a string (`Type.FullName`) shared across every `AssemblyLoadContext` that loads the plugin, so when the assembly was loaded under two ALCs (a duplicate `/config/plugins` folder, or newer-host probing) the host cast a `Cached<QobuzSession>` from one ALC to `ICached<QobuzSession>` from another → `InvalidCastException` inside `CacheManager.GetCache`, which crash-loops Lidarr at boot ("Error starting with plugins enabled"). Now uses a **per-instance `new Cached<QobuzSession>()`** so all type identities stay within a single ALC; `FileTokenStore<QobuzSession>` remains the cross-restart source of truth. Distinct from the #485 ALC fix (that was load-time AssemblyRef alignment, which still holds — the merged DLL is unchanged). Regression test added.
+- **All downloads rejected when `DownloadPath` ends in a trailing slash** (e.g. `/downloads/qobuz/`). The shared `PathTraversalGuard.IsPathWithinRoot` containment check produced a double-separator and refused every legitimate output path ("refusing to build output path … resolves outside the configured DownloadPath"). Fixed in Common (`PathTraversalGuard` trims trailing separators) and re-pinned below. Confirmed live: downloads complete to the configured folder.
+
+### CI
+- `packaging-gates`: opt out of the canonical-Abstractions sidecar (`require-canonical-abstractions: false`) — Qobuzarr internalizes Abstractions via ILRepack, so the gate now validates the internalized package it actually ships. See Common #549.
+
 ### Dependencies
+- `ext/Lidarr.Plugin.Common` re-pinned to **`24b43c1`** — picks up the `PathTraversalGuard` trailing-separator fix (#552), the `.NET 8` runtime guardrail `includedFrameworks` probe (#548), and the opt-in canonical-Abstractions packaging gate (#549). `ext-common-sha.txt` updated accordingly.
 - `ext/Lidarr.Plugin.Common` bumped to **v1.17.0** (`639d573`) Wave-23 — picks up the Wave-21 parity helpers. Qobuzarr doesn't consume these today (custom GUID grammar + own path-traversal logic), but the bump keeps the ecosystem lockstep.
 - `ext-common-sha.txt` aligned to `639d573` (was `f90ecef`, then `936556e` after Wave-22).
 - `plugin.json` `commonVersion`: 1.16.0 → 1.17.0.
