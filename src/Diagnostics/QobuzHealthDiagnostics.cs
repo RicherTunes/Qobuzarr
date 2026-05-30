@@ -19,24 +19,10 @@ internal static class QobuzHealthDiagnostics
     private const string ProviderName = "qobuz";
     private const string AuthMethodName = "app-secret";
 
-    /// <summary>
-    /// Delegates to <see cref="Codes"/> for ecosystem-wide parity.
-    /// Local alias kept to minimize downstream churn.
-    /// </summary>
-    public static class ErrorCodes
-    {
-        public const string AuthFailed = Codes.AuthFailed;
-        public const string ConnectionFailed = Codes.ConnectionFailed;
-    }
-
-    /// <summary>
-    /// Well-known diagnostic types emitted by Qobuz diagnostics.
-    /// </summary>
-    public static class DiagnosticTypes
-    {
-        public const string AuthValidate = "auth_validate";
-        public const string Connectivity = "connectivity";
-    }
+    // Diagnostic-type identifiers (DiagnosticTypes.*) and error codes (Codes.* =
+    // DiagnosticErrorCodes) now come from Common — the per-plugin ErrorCodes/DiagnosticTypes
+    // nested classes that re-declared identical values were removed to eliminate cross-plugin
+    // divergence. See Lidarr.Plugin.Common.Abstractions.Diagnostics.{DiagnosticTypes,DiagnosticErrorCodes}.
 
     /// <summary>
     /// Well-known capabilities reported by Qobuz diagnostics.
@@ -118,7 +104,7 @@ internal static class QobuzHealthDiagnostics
                 provider: ProviderName,
                 diagnosticType: DiagnosticTypes.Connectivity,
                 capability: Capabilities.Search,
-                errorCode: ErrorCodes.ConnectionFailed);
+                errorCode: Codes.ConnectionFailed);
     }
 
     /// <summary>
@@ -141,6 +127,6 @@ internal static class QobuzHealthDiagnostics
                 provider: ProviderName,
                 diagnosticType: DiagnosticTypes.Connectivity,
                 capability: Capabilities.LosslessDownload,
-                errorCode: ErrorCodes.ConnectionFailed);
+                errorCode: Codes.ConnectionFailed);
     }
 }

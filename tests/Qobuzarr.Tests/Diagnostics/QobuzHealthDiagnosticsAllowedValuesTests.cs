@@ -21,14 +21,14 @@ public class QobuzHealthDiagnosticsAllowedValuesTests : DiagnosticsAllowedValues
 {
     protected override IReadOnlySet<string> AllowedErrorCodes { get; } = new HashSet<string>(StringComparer.Ordinal)
     {
-        QobuzHealthDiagnostics.ErrorCodes.AuthFailed,
-        QobuzHealthDiagnostics.ErrorCodes.ConnectionFailed,
+        DiagnosticErrorCodes.AuthFailed,
+        DiagnosticErrorCodes.ConnectionFailed,
     };
 
     protected override IReadOnlySet<string> AllowedDiagnosticTypes { get; } = new HashSet<string>(StringComparer.Ordinal)
     {
-        QobuzHealthDiagnostics.DiagnosticTypes.AuthValidate,
-        QobuzHealthDiagnostics.DiagnosticTypes.Connectivity,
+        DiagnosticTypes.AuthValidate,
+        DiagnosticTypes.Connectivity,
     };
 
     protected override IReadOnlySet<string> AllowedCapabilities { get; } = new HashSet<string>(StringComparer.Ordinal)
@@ -84,15 +84,15 @@ public class QobuzHealthDiagnosticsAllowedValuesTests : DiagnosticsAllowedValues
     [Fact]
     public void ErrorCodes_AreNotEmpty()
     {
-        QobuzHealthDiagnostics.ErrorCodes.AuthFailed.Should().NotBeNullOrWhiteSpace();
-        QobuzHealthDiagnostics.ErrorCodes.ConnectionFailed.Should().NotBeNullOrWhiteSpace();
+        DiagnosticErrorCodes.AuthFailed.Should().NotBeNullOrWhiteSpace();
+        DiagnosticErrorCodes.ConnectionFailed.Should().NotBeNullOrWhiteSpace();
     }
 
     [Fact]
     public void DiagnosticTypes_AreNotEmpty()
     {
-        QobuzHealthDiagnostics.DiagnosticTypes.AuthValidate.Should().NotBeNullOrWhiteSpace();
-        QobuzHealthDiagnostics.DiagnosticTypes.Connectivity.Should().NotBeNullOrWhiteSpace();
+        DiagnosticTypes.AuthValidate.Should().NotBeNullOrWhiteSpace();
+        DiagnosticTypes.Connectivity.Should().NotBeNullOrWhiteSpace();
     }
 
     [Fact]
