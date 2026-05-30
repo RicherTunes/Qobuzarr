@@ -3,8 +3,7 @@ using System.Threading;
 using FluentAssertions;
 using Moq;
 using NLog;
-using NLog.Config;
-using NLog.Targets;
+using Lidarr.Plugin.Common.TestKit.Helpers;
 using Lidarr.Plugin.Qobuzarr.Models;
 using Lidarr.Plugin.Qobuzarr.Services;
 using Xunit;
@@ -22,18 +21,16 @@ namespace Qobuzarr.Tests
 
         public DownloadProgressTrackerCovTests()
         {
-            // Configure a minimal NLog logger for tests
-            var config = new LoggingConfiguration();
-            var target = new MemoryTarget("mem") { Layout = "${message}" };
-            config.AddTarget("mem", target);
-            config.LoggingRules.Add(new LoggingRule("*", LogLevel.Debug, target));
-            LogManager.Configuration = config;
-            _logger = LogManager.GetLogger("TestLogger");
+            // Isolated logger — never mutate the process-global LogManager.Configuration
+            // (and never call LogManager.Shutdown() in teardown). Both raced parallel
+            // log-capture tests (e.g. QobuzAppSecretLogScrubTests) that read the shared
+            // "testMemory" target, deterministically wiping their capture. This test never
+            // asserts on captured logs, so a no-op isolated logger suffices.
+            _logger = NLogTestLogger.CreateNullLogger();
         }
 
         public void Dispose()
         {
-            LogManager.Shutdown();
         }
 
         // Helper to create a ProgressTracker via reflection-free means:

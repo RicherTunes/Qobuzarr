@@ -2,6 +2,7 @@ using System;
 using System.Threading;
 using System.Threading.Tasks;
 using Lidarr.Plugin.Qobuzarr.Indexers;
+using Lidarr.Plugin.Common.TestKit.Helpers;
 using NLog;
 using Xunit;
 using Xunit.Abstractions;
@@ -18,17 +19,11 @@ namespace Qobuzarr.Tests.Indexers
         {
             _output = output;
 
-            // Setup NLog for testing
-            var config = new NLog.Config.LoggingConfiguration();
-            var consoleTarget = new NLog.Targets.ConsoleTarget("console")
-            {
-                Layout = "${time} ${level} ${message}"
-            };
-            config.AddTarget(consoleTarget);
-            config.AddRule(LogLevel.Debug, LogLevel.Fatal, consoleTarget);
-            LogManager.Configuration = config;
-
-            _logger = LogManager.GetCurrentClassLogger();
+            // Isolated logger — never mutate the process-global LogManager.Configuration.
+            // Assigning it here raced parallel log-capture tests (e.g. QobuzAppSecretLogScrubTests)
+            // that read the shared "testMemory" target, deterministically wiping their capture.
+            // This test never asserts on captured logs, so a no-op isolated logger suffices.
+            _logger = NLogTestLogger.CreateNullLogger();
             _metrics = new MLPerformanceMetrics(_logger);
         }
 
