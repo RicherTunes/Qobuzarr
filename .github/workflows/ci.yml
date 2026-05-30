@@ -173,8 +173,9 @@ jobs:
     - name: Sync-over-async guard
       shell: pwsh
       run: |
-        $mode = if ('${{ github.event_name }}' -eq 'pull_request') { 'pr' } else { 'ci' }
-        pwsh -File ext/Lidarr.Plugin.Common/scripts/lint-sync-over-async.ps1 -Path . -Mode $mode
+        # lint-sync-over-async.ps1 accepts -Mode interactive|ci only (ValidateSet); the old
+        # `-Mode pr` failed param binding on every pull_request build. CI wants fail-hard → 'ci'.
+        pwsh -File ext/Lidarr.Plugin.Common/scripts/lint-sync-over-async.ps1 -Path . -Mode ci
 
 
     - name: Regression lint - no stale pr-plugins-2 references
