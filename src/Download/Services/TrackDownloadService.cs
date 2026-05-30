@@ -8,6 +8,7 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using Lidarr.Plugin.Qobuzarr.Download;
+using Lidarr.Plugin.Common.Services.Lyrics;
 using NLog;
 using Lidarr.Plugin.Qobuzarr.API;
 using Lidarr.Plugin.Qobuzarr.Download.Clients;
@@ -209,16 +210,34 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Services
                 // 4. Apply tags
                 await ApplyMetadataTagsAsync(outputPath, track, album).ConfigureAwait(false);
 
-                // 5. Best-effort lyrics fetch (non-fatal — download succeeds regardless)
-                if (_lyricsEnricher is not null)
+                // 5. Best-effort synced lyrics (non-fatal). Canonical gating: SaveSyncedLyrics is the
+                //    master toggle; UseLRCLIB gates the LRCLIB fallback (a native source, when one
+                //    exists, is always tried). Uses Common's shared enricher; when one isn't injected
+                //    (production — Common's type is internalized so DryIoc doesn't auto-register it) a
+                //    short-lived instance is constructed per track, mirroring the prior design.
+                if (settings.SaveSyncedLyrics)
                 {
-                    await _lyricsEnricher.TryEnrichAsync(
-                        outputPath,
-                        album.GetArtistName() ?? "Unknown",
-                        track.Title ?? "Unknown",
-                        album.GetFullTitle() ?? "",
-                        track.DurationSeconds,
-                        cancellationToken).ConfigureAwait(false);
+                    var enricher = _lyricsEnricher;
+                    var ownsEnricher = enricher is null;
+                    enricher ??= new LyricsEnricher();
+                    try
+                    {
+                        await enricher.TryEnrichAsync(
+                            outputPath,
+                            album.GetArtistName() ?? "Unknown",
+                            track.Title ?? "Unknown",
+                            album.GetFullTitle() ?? "",
+                            track.DurationSeconds,
+                            allowLrclibFallback: settings.UseLRCLIB,
+                            cancellationToken).ConfigureAwait(false);
+                    }
+                    finally
+                    {
+                        if (ownsEnricher)
+                        {
+                            enricher.Dispose();
+                        }
+                    }
                 }
 
                 _logger.Info("Downloaded: {0} ({1:F1} MB)", track.Title, bytesWritten / 1024.0 / 1024.0);
