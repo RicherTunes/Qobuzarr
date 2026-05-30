@@ -39,6 +39,13 @@ namespace QobuzCLI.Services.Adapters
             _session = authService.GetCachedSession();
         }
 
+        /// <summary>
+        /// CLI adapter has no host-bridge auth-failure gate (that concern lives in the in-process
+        /// bridge clients). Returns null, mirroring <c>QobuzApiClient.Gate</c>. This satisfies the
+        /// <see cref="IQobuzApiClient"/> contract the nightly CLI build enforces.
+        /// </summary>
+        public Lidarr.Plugin.Common.Services.Bridge.AuthFailureGate? Gate => null;
+
         public void SetCredentialsProvider(Func<Task<QobuzCredentials>> credentialsProvider)
         {
             _credentialsProvider = credentialsProvider;
