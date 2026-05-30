@@ -65,6 +65,13 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Clients
         [FieldDefinition(12, Label = "Enable Quality Fallback", Type = FieldType.Checkbox, Section = "Reliability", Advanced = true, HelpText = "When enabled (default), Qobuz can return a lower quality if your requested format is not available for a track (e.g. requested format 27 / Hi-Res 192 but track is only licensed at format 6 / CD). When DISABLED, the download fails with an explicit error naming the requested vs returned quality — useful if you want to ensure HiRes-or-nothing and prefer to retry later.")]
         public bool EnableQualityFallback { get; set; } = true;
 
+        // === METADATA SETTINGS ===
+        [FieldDefinition(13, Label = "Save Synced Lyrics", Type = FieldType.Checkbox, Section = "Metadata", Advanced = true, HelpText = "Save a synced .lrc lyrics file alongside each downloaded track when lyrics are available.")]
+        public bool SaveSyncedLyrics { get; set; } = true;
+
+        [FieldDefinition(14, Label = "Use LRCLIB for Lyrics", Type = FieldType.Checkbox, Section = "Metadata", Advanced = true, HelpText = "Fall back to the public LRCLIB service when synced lyrics aren't otherwise available. Sends artist/track/album names to lrclib.net.")]
+        public bool UseLRCLIB { get; set; }
+
         public NzbDroneValidationResult Validate()
         {
             return new NzbDroneValidationResult(Validator.Validate(this));
