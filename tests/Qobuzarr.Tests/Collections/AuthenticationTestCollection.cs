@@ -19,6 +19,12 @@ namespace Qobuzarr.Tests.Collections;
 /// force sequential execution and mask the race. The underlying isolation
 /// (inject an in-memory store per test) is tracked as separate tech debt —
 /// see CLAUDE.md "Flaky Tests Policy".
+///
+/// This collection also serializes the NLog-capture tests
+/// (<c>QobuzAppSecretLogScrubTests</c>, <c>E2EHermeticGateTests</c>): both capture the
+/// process-global NLog <c>MemoryTarget</c> via <c>TestLogger</c> and one calls
+/// <c>ClearLoggedMessages()</c>, so running them in parallel races (one test's Clear erases
+/// the other's captured logs). Same shared-global-state class of problem, same fix.
 /// </summary>
 [CollectionDefinition(Name)]
 public sealed class AuthenticationTestCollection
