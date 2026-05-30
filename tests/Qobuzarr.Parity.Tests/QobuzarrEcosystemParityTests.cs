@@ -60,4 +60,9 @@ public class QobuzarrEcosystemParityTests : EcosystemParityTestBase
     [Fact] public void Check_PluginManifest_Capabilities_HaveBackingTypes_Test() => Assert.True(Check_PluginManifest_Capabilities_HaveBackingTypes().Passed, string.Join("; ", Check_PluginManifest_Capabilities_HaveBackingTypes().Errors));
     [Fact] public void Check_NoFluentValidation_ErrorsApi_Drift_Test() => Assert.True(Check_NoFluentValidation_ErrorsApi_Drift().Passed, string.Join("; ", Check_NoFluentValidation_ErrorsApi_Drift().Errors));
     [Fact] public void Check_UsesCommonPluginConfigRoots_Test() => Assert.True(Check_UsesCommonPluginConfigRoots().Passed, string.Join("; ", Check_UsesCommonPluginConfigRoots().Errors));
+
+    // Lyrics consolidation (PR #276): qobuz deleted its local LyricsEnricher/ILyricsEnricher and
+    // now uses Common's shared ILyricsEnricher (inject-or-construct in TrackDownloadService). This
+    // guard fails CI if a plugin-local lyrics type is ever re-introduced.
+    [Fact] public void Check_UsesCommonLyricsEnricher_Test() => Assert.True(Check_UsesCommonLyricsEnricher().Passed, string.Join("; ", Check_UsesCommonLyricsEnricher().Errors));
 }
