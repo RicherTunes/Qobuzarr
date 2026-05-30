@@ -30,6 +30,12 @@ namespace Qobuzarr.Tests.Integration
     [Trait("Category", "Integration")]
     [Trait("Category", "E2E")]
     [Trait("Area", "E2E/Hermetic")]
+    // Serialized with the other NLog-capture test (QobuzAppSecretLogScrubTests): both capture the
+    // process-global NLog MemoryTarget via TestLogger, and this class calls ClearLoggedMessages().
+    // Running them in parallel lets one test's Clear erase the other's captured logs mid-assertion
+    // (the recurring NLog flake). Same xUnit collection => sequential execution. The collection is
+    // a fixture-less serialization grouping, so this adds no constructor dependency.
+    [Collection(Qobuzarr.Tests.Collections.AuthenticationTestCollection.Name)]
     public class E2EHermeticGateTests : TestFixtureBase
     {
         private readonly QobuzApiClient _apiClient;
