@@ -659,7 +659,11 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Clients
             }
             else
             {
-                // Download failed according to policy
+                // Album is incomplete (per policy: any track failed or sample/preview-skipped).
+                // Report Failed (NOT Completed) so Lidarr blocklists the release and re-searches
+                // across indexers for a complete source — instead of permanently rejecting the
+                // import via NoMissingOrUnmatchedTracksSpecification ("Has missing tracks") and
+                // silently wasting the good tracks. Parity with Tidalarr's download client.
                 var exception = new AlbumDownloadException(
                     album.Id,
                     album.GetFullTitle(),
@@ -669,7 +673,9 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Clients
                     failedTracks,
                     results);
 
-                downloadItem.SetFailed(exception.Message);
+                var unavailable = totalTracks - successfulTracks;
+                downloadItem.SetFailed(
+                    $"Incomplete: {unavailable} of {totalTracks} track(s) unavailable (sample/restricted/removed) — reported failed so Lidarr can try another source");
                 throw exception;
             }
         }
