@@ -47,27 +47,34 @@ public void BenchmarkQueryOptimization() { }
 ## Runsettings Files
 
 ### `tests/Default.runsettings`
+
 For local development and PR checks. Excludes heavy categories:
+
 - 15-minute session timeout
-- 10-second hang detection
+- 60-second hang detection
 - Excludes: `LiveIntegration`, `Integration`, `Performance`, `Simulations`, `Slow`, `Benchmark`, `Stress`
 
 ### `tests/Full.runsettings`
+
 For nightly runs and manual full-suite execution:
+
 - 60-minute session timeout
-- 60-second hang detection
+- 120-second hang detection
 - Includes coverage collection (Cobertura format)
 - No category filter by itself (CI and most local runs should pass an explicit `--filter`)
 
 ## CI Workflows
 
 ### Fast Unit Tests (PR/Push)
+
 Runs on every PR and push to main branches:
+
 ```bash
 dotnet test --settings tests/Default.runsettings --filter "$CI_TEST_FILTER"
 ```
 
 ### Integration Tests (Manual Workflow)
+
 Run via `workflow_dispatch` at `.github/workflows/integration-tests.yml`:
 
 ```yaml
@@ -75,10 +82,11 @@ workflow_dispatch:
   inputs:
     lidarr_version:
       description: 'Lidarr plugins branch version'
-      default: 'pr-plugins-4'
+      default: 'pr-plugins-3.1.2.4913'
 ```
 
 **How it works:**
+
 1. Extracts Lidarr assemblies from Docker image
 2. Passes assembly path via MSBuild property
 3. Runs tests with `Category=Integration` filter
@@ -94,11 +102,13 @@ The csproj conditionally sets `LidarrAssembliesPath` only when empty, allowing C
 ```
 
 CI overrides with:
+
 ```bash
 dotnet test -p:LidarrAssembliesPath="${GITHUB_WORKSPACE}/ext/lidarr-assemblies" ...
 ```
 
 ### Local Integration Runner (Recommended)
+
 Use `scripts/run-integration-tests.ps1` to mimic the integration workflow locally.
 
 ```powershell
@@ -116,26 +126,31 @@ Use `scripts/run-integration-tests.ps1` to mimic the integration workflow locall
 ```
 
 Notes:
+
 - `-IncludeLive` expects a configured Lidarr instance (artists present); it reads the API key from `.docker/config/config.xml` if not provided.
 - `tests/Default.runsettings` excludes Integration by design; `run-integration-tests.ps1` uses `tests/Full.runsettings`.
 
 ### Nightly Full Suite
-Scheduled workflow that runs `Full.runsettings` with coverage collection.       
+
+Scheduled workflow that runs `Full.runsettings` with coverage collection.
 
 ## Local Development
 
 ### Running Without Lidarr Assemblies
+
 Most unit tests don't require Lidarr assemblies. Use the category filter:
+
 ```bash
 dotnet test --filter "Category!=LiveIntegration&Category!=Integration&Category!=Performance"
 ```
 
 ### Setting Up Lidarr Assemblies Locally
+
 For integration tests, extract assemblies from Docker:
 
 ```bash
 # Extract from plugins branch
-docker create --name lidarr ghcr.io/hotio/lidarr:pr-plugins-4
+docker create --name lidarr ghcr.io/hotio/lidarr:pr-plugins-3.1.2.4913
 docker cp lidarr:/app/bin/. ext/lidarr-assemblies/
 docker rm lidarr
 
@@ -144,6 +159,7 @@ export LidarrAssembliesPath="$(pwd)/ext/lidarr-assemblies"
 ```
 
 ### Live Integration Tests
+
 Require a running Lidarr instance:
 
 ```bash
@@ -165,6 +181,7 @@ dotnet test --filter "Category=LiveIntegration"
 When a test is flaky or blocked by external issues:
 
 1. Add the `Quarantined` trait:
+
    ```csharp
    [Trait("Category", "Quarantined")]
    [Trait("Quarantine", "Issue #123 - Flaky on Windows")]
@@ -183,6 +200,7 @@ When a test is flaky or blocked by external issues:
 ## Known Issues
 
 ### GitHub Actions CI Unavailable
+
 GitHub Actions workflows fail with billing/spending limit errors while repositories are private.
 
 **Workaround:** Test locally using the commands above.
@@ -190,7 +208,9 @@ GitHub Actions workflows fail with billing/spending limit errors while repositor
 **Resolution:** Will be fixed when repositories are made public.
 
 ### Known Build Warnings
+
 Some warnings are expected when building/running tests locally due to host-assembly and legacy binding-redirect behavior:
+
 - `MSB3836` (TagLibSharp binding redirect conflict): caused by an explicit binding redirect conflicting with auto-generated redirects; usually safe to ignore unless it causes runtime load errors.
 - `MSB3277` (assembly version conflicts): expected when referencing extracted Lidarr host assemblies alongside NuGet packages in the test project; generally non-actionable unless it manifests as runtime type identity/load failures.
 
@@ -209,12 +229,14 @@ public void GivenValidCredentials_WhenAuthenticating_ThenReturnsToken()
 ## Coverage
 
 Coverage is collected via Coverlet in `Full.runsettings`:
+
 - Format: Cobertura XML
 - Excludes: Test assemblies, migrations, generated code
 - Output (local): `tests/TestResults/**/coverage.cobertura.xml`
 - Output (CI): `test-results/**/coverage.cobertura.xml` (and `tests/TestResults/**` for compatibility with `run-tests.ps1`)
 
 View coverage locally:
+
 ```bash
 dotnet test --settings tests/Full.runsettings
 # Coverage XML in tests/TestResults/

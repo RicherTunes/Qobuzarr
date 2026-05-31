@@ -1,3 +1,5 @@
+> ⚠️ Historical (flagged 2026-05-31): describes a past state; some details below no longer match the current code.
+
 # Qobuzarr v1.0.0 Release Notes
 
 ## 🎉 First Production Release
@@ -15,18 +17,21 @@ We're excited to announce the first production release of Qobuzarr, a high-perfo
 ### 🚀 Key Features
 
 #### Machine Learning Optimization
+
 - Pre-trained ML model with 100,000+ real album patterns
 - Adaptive query classification (Simple/Medium/Complex)
 - Online learning that improves with usage
 - Conservative fallback for edge cases
 
 #### High-Quality Audio Support
+
 - Lossless FLAC up to 24-bit/192kHz
 - Automatic quality detection and fallback
 - Preview/sample track detection
 - Comprehensive metadata with TagLib-Sharp
 
 #### Enterprise Architecture
+
 - Strategy pattern for metadata and matching
 - Circuit breakers and defensive programming
 - Thread-safe concurrent operations
@@ -59,6 +64,7 @@ We're excited to announce the first production release of Qobuzarr, a high-perfo
 ### 🔐 Configuration
 
 Required settings:
+
 - **Authentication**: Email/password or token-based
 - **App Credentials**: Optional (auto-fetched if not provided)
 - **Audio Quality**: Select preferred quality (defaults to highest available)
@@ -72,12 +78,12 @@ Required settings:
 ### 📝 Known Limitations
 
 - Requires active Qobuz subscription (Studio or Sublime+)
-- Lidarr v2.0.0+ required
-- .NET 6.0 runtime required
+- Lidarr plugins branch (pr-plugins-3.x) with .NET 8 required
+- .NET 8.0 runtime required
 
 ### 🐛 Bug Reports
 
-Please report issues at: https://github.com/richertunes/qobuzarr/issues
+Please report issues at: <https://github.com/richertunes/qobuzarr/issues>
 
 ### 📄 License
 
