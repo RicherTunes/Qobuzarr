@@ -105,10 +105,34 @@ namespace Lidarr.Plugin.Qobuzarr.Download
         /// <summary>
         /// Determines if an album download should be considered successful based on the results.
         /// </summary>
+        /// <remarks>
+        /// An album is successful ONLY when every track ended up on disk
+        /// (<paramref name="successfulTracks"/> == <paramref name="totalTracks"/>). Any deficit —
+        /// whether a track failed outright or was sample/preview-skipped — leaves the album
+        /// incomplete, and Lidarr's NoMissingOrUnmatchedTracksSpecification permanently rejects
+        /// an incomplete release ("Has missing tracks"), so it would never import anyway.
+        ///
+        /// This was a live-confirmed defect: a single unfetchable track (sample stream /
+        /// removed / geo-locked) on a 30-track album left 29 good FLACs marked "successful"
+        /// (96.7% >= the 80% MinimumSuccessRate), Lidarr then permanently rejected the import,
+        /// and nothing retried — the whole album was silently wasted. Reporting failure instead
+        /// lets Lidarr blocklist the release and re-search across indexers (fall back to a
+        /// complete source). This mirrors Tidalarr's download client, which marks the item
+        /// Failed whenever any track failed.
+        ///
+        /// The threshold knobs (<see cref="MinimumSuccessRate"/>, <see cref="TreatPreviewAsFailure"/>)
+        /// are retained for the empty-album edge case and forward compatibility, but they can
+        /// only ever gate a COMPLETE album — they can never rescue an incomplete one.
+        /// </remarks>
         public bool IsAlbumDownloadSuccessful(int totalTracks, int successfulTracks, int skippedTracks)
         {
             if (totalTracks == 0)
                 return !FailOnNoTracksAvailable;
+
+            // Hard gate: an incomplete album is unimportable. If even one track is missing
+            // from disk (failed OR sample/preview-skipped), the album cannot be a success.
+            if (successfulTracks < totalTracks)
+                return false;
 
             var effectiveTotal = totalTracks;
             if (!TreatPreviewAsFailure)

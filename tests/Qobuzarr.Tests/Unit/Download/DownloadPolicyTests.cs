@@ -84,11 +84,17 @@ namespace Qobuzarr.Tests.Unit.Download
         }
 
         [Theory]
-        [InlineData(10, 8, 0, true, false, true)]  // 80% success, no preview
-        [InlineData(10, 7, 0, false, false, false)] // 70% success, below 80% threshold
-        [InlineData(10, 5, 5, true, false, true)]  // 50% success but all others are preview
-        [InlineData(10, 5, 5, false, true, false)] // 50% success, previews count as failure
-        [InlineData(10, 10, 0, true, false, true)] // 100% success
+        // An album is only "successful" when EVERY track ends up on disk. A track that
+        // failed (genuine error) OR was sample/preview-skipped means the album is incomplete,
+        // and Lidarr's NoMissingOrUnmatchedTracksSpecification permanently rejects incomplete
+        // albums (live-confirmed: 29/30 FLACs downloaded -> 0 imported, no retry). So any
+        // incomplete album must report failure so Lidarr can blocklist + try another source
+        // (parity with TidalLidarrDownloadClient: failedTracks > 0 => Failed).
+        [InlineData(10, 8, 0, false, false, true)]  // 2 tracks failed -> incomplete -> FAIL (was wrongly true: 80% >= threshold)
+        [InlineData(10, 7, 0, false, false, false)] // 3 tracks failed -> incomplete -> FAIL
+        [InlineData(10, 5, 5, false, false, true)]  // 5 downloaded + 5 sample-only -> 5 tracks missing -> incomplete -> FAIL (was wrongly true)
+        [InlineData(10, 5, 5, false, true, false)]  // 5 downloaded + 5 sample-only -> incomplete -> FAIL
+        [InlineData(10, 10, 0, true, false, true)]  // 100% on disk -> complete -> SUCCESS
         public void IsAlbumDownloadSuccessful_ShouldReturnCorrectResult(
             int totalTracks,
             int successfulTracks,
@@ -113,9 +119,11 @@ namespace Qobuzarr.Tests.Unit.Download
         }
 
         [Fact]
-        public void IsAlbumDownloadSuccessful_WithCustomThreshold_ShouldUseThreshold()
+        public void IsAlbumDownloadSuccessful_IncompleteAlbumIsNeverSuccessful_RegardlessOfThreshold()
         {
-            // Arrange
+            // Arrange — even a permissive 50% threshold must NOT mark a partial album successful.
+            // A partial album is unimportable by Lidarr (Has missing tracks => Permanent reject),
+            // so the threshold can only ever gate a COMPLETE album, never rescue an incomplete one.
             var policy = new DownloadPolicy
             {
                 MinimumSuccessRate = 0.5, // 50% threshold
@@ -123,9 +131,25 @@ namespace Qobuzarr.Tests.Unit.Download
             };
 
             // Act & Assert
-            policy.IsAlbumDownloadSuccessful(10, 5, 0).Should().BeTrue(); // Exactly 50%
-            policy.IsAlbumDownloadSuccessful(10, 4, 0).Should().BeFalse(); // Below 50%
-            policy.IsAlbumDownloadSuccessful(10, 6, 0).Should().BeTrue(); // Above 50%
+            policy.IsAlbumDownloadSuccessful(10, 5, 0).Should().BeFalse(); // 5/10 on disk -> incomplete -> FAIL (was wrongly true)
+            policy.IsAlbumDownloadSuccessful(10, 4, 0).Should().BeFalse(); // 4/10 on disk -> incomplete -> FAIL
+            policy.IsAlbumDownloadSuccessful(10, 6, 0).Should().BeFalse(); // 6/10 on disk -> incomplete -> FAIL (was wrongly true)
+            policy.IsAlbumDownloadSuccessful(10, 10, 0).Should().BeTrue(); // 10/10 on disk -> complete -> SUCCESS
+        }
+
+        [Fact]
+        public void IsAlbumDownloadSuccessful_PartialAlbum_29Of30_ReportsFailure()
+        {
+            // Live-confirmed bug (root cause of "29/30 FLACs downloaded, 0 imported"):
+            // a single unfetchable track (sample stream / removed / geo-locked) used to leave
+            // the album marked successful (96.7% >= 80% threshold). Lidarr then hits
+            // NoMissingOrUnmatchedTracksSpecification -> [Permanent] Has missing tracks and
+            // permanently rejects the release with no retry/fallback. Reporting failure instead
+            // makes Lidarr blocklist + re-search across indexers (parity with Tidalarr).
+            var policy = new DownloadPolicy(); // default 80% threshold
+
+            policy.IsAlbumDownloadSuccessful(totalTracks: 30, successfulTracks: 29, skippedTracks: 0)
+                .Should().BeFalse("an incomplete album is unimportable by Lidarr and must be reported failed so it can fall back to another source");
         }
 
         [Fact]
@@ -183,9 +207,11 @@ namespace Qobuzarr.Tests.Unit.Download
             };
 
             // Act & Assert
-            // All tracks are preview, none downloaded
-            lenientPolicy.IsAlbumDownloadSuccessful(10, 0, 10).Should().BeTrue(); // Previews don't count against success
-            strictPolicy.IsAlbumDownloadSuccessful(10, 0, 10).Should().BeFalse(); // Previews count as failures
+            // All 10 tracks are sample/preview-only => 0 importable files => the album is
+            // entirely missing from Lidarr's perspective. Both policies must report failure;
+            // a "lenient" threshold cannot rescue an album that has nothing on disk.
+            lenientPolicy.IsAlbumDownloadSuccessful(10, 0, 10).Should().BeFalse(); // 0/10 on disk -> incomplete -> FAIL (was wrongly true)
+            strictPolicy.IsAlbumDownloadSuccessful(10, 0, 10).Should().BeFalse(); // 0/10 on disk -> incomplete -> FAIL
         }
     }
 }
