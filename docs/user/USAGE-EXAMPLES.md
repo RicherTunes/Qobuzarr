@@ -30,7 +30,7 @@ string artist = "Pink Floyd";
 string album = "The Wall";
 var originalQueries = new List<string> { $"{artist} {album}", $"{artist} - {album}", artist };
 
-// Use combined optimization strategies
+// Use combined optimization strategies<!-- TODO(docval): Method 'OptimizeQueriesAsync' not found - actual method is 'BuildOptimizedQueries' (synchronous) as of 2026-05-31 -->
 var optimizedQueries = await smartStrategy.OptimizeQueriesAsync(artist, album, originalQueries);
 
 Console.WriteLine($"Original queries: {originalQueries.Count}");
@@ -44,7 +44,7 @@ Console.WriteLine($"Optimized queries: {optimizedQueries.Count}");
 # Navigate to CLI directory
 cd QobuzCLI/
 
-# Test optimization with default album set
+# Test optimization with default album set<!-- TODO(docval): CLI command 'test-optimizations' not found in code as of 2026-05-31 -->
 dotnet run -- test-optimizations
 
 # Expected output:
@@ -62,7 +62,7 @@ dotnet run -- test-optimizations
 ### Using Artist Context for Optimization
 
 ```csharp
-// Initialize with Lidarr services
+// Initialize with Lidarr services<!-- TODO(docval): Constructor signature has additional optional DI parameters as of 2026-05-31 -->
 var optimizer = new LidarrContextOptimizer(
     artistService: lidarrArtistService,
     albumService: lidarrAlbumService,
@@ -193,7 +193,7 @@ var substringCache = new QobuzSubstringCache(
     logger: logger,
     maxCacheSize: 20000,
     similarityThreshold: 0.85
-);
+);<!-- TODO(docval): Constructor requires additional DI parameters (ICacheStorage, ICacheEvictionStrategy, ICacheStatistics, ISubstringMatcher, ICacheSerializer) as of 2026-05-31 -->
 
 // Example 1: Exact match
 var result = substringCache.FindCachedResults("The Beatles", "Abbey Road");
@@ -275,14 +275,14 @@ if (efficiency < 1.0)
 # Basic testing with default album set
 dotnet run -- test-optimizations
 
-# Test with custom album list
+# Test with custom album list<!-- TODO(docval): CLI command 'test-optimizations' and flags --albums, --verbose, --strategy not found in code as of 2026-05-31 -->
 dotnet run -- test-optimizations \
   --albums "Miles Davis - Kind of Blue,Pink Floyd - The Wall,The Beatles - Abbey Road"
 
-# Verbose testing with detailed analysis
+# Verbose testing with detailed analysis<!-- TODO(docval): CLI command 'test-optimizations' and flag --verbose not found in code as of 2026-05-31 -->
 dotnet run -- test-optimizations --verbose
 
-# Test specific optimization strategies
+# Test specific optimization strategies<!-- TODO(docval): CLI command 'test-optimizations' and flags --strategy not found in code as of 2026-05-31 -->
 dotnet run -- test-optimizations --strategy pattern-cache
 dotnet run -- test-optimizations --strategy substring-cache  
 dotnet run -- test-optimizations --strategy lidarr-context
@@ -292,7 +292,7 @@ dotnet run -- test-optimizations --strategy combined-all
 ### Programmatic Testing
 
 ```csharp
-var testCommand = new TestOptimizationsCommand(qobuzApiClient, logger);
+var testCommand = new TestOptimizationsCommand(qobuzApiClient, logger);<!-- TODO(docval): Class 'TestOptimizationsCommand' not found in code as of 2026-05-31 -->
 
 // Test with custom album set
 var testAlbums = new[]
@@ -442,7 +442,7 @@ public class QobuzModule : Module
 ### Real-Time Performance Tracking
 
 ```csharp
-public class OptimizationMonitor
+public class OptimizationMonitor<!-- TODO(docval): Class 'OptimizationMonitor' not found in code as of 2026-05-31 -->
 {
     private readonly LidarrContextOptimizer _contextOptimizer;
     private readonly QobuzPatternCache _patternCache;
@@ -514,7 +514,7 @@ var substringCache = new QobuzSubstringCache(
     logger,
     maxCacheSize: 50000,  // Very high capacity 
     similarityThreshold: 0.90  // Higher precision
-);
+);<!-- TODO(docval): Constructor requires additional DI parameters as of 2026-05-31 -->
 
 // Example 2: Memory-constrained configuration
 var contextOptimizer = new LidarrContextOptimizer(
@@ -532,7 +532,7 @@ var substringCache = new QobuzSubstringCache(
     logger,
     maxCacheSize: 10000,  // Moderate size
     similarityThreshold: 0.80  // Lower threshold for more matches
-);
+);<!-- TODO(docval): Constructor requires additional DI parameters as of 2026-05-31 -->
 ```
 
 This comprehensive set of examples demonstrates how to effectively use the Query Intelligence optimization system to achieve up to 65.8% API call reduction while maintaining high search quality and performance.
