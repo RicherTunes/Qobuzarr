@@ -24,12 +24,13 @@ Compares the consolidated `QobuzQualityManager` against the original `QobuzQuali
 - **Memory Efficiency**: Memory allocation and GC pressure analysis
 
 **Expected Improvements**:
+
 - 15-25% faster quality detection through optimized algorithms
 - 40-60% reduction in memory allocations via caching
 - Improved throughput for batch operations
 - Lower GC pressure in high-volume scenarios
 
-### 2. API Client Benchmarks (`ApiClientBenchmarks.cs`)
+### 2. API Client Benchmarks (`ApiClientBenchmarks.cs`) <!-- TODO(docval): ApiClientBenchmarks class not found; only PerformanceBenchmarks exists as of 2026-05-31 -->
 
 Measures API client implementations across different optimization levels:
 
@@ -38,6 +39,7 @@ Measures API client implementations across different optimization levels:
 - **Adaptive Client**: Full optimization suite including intelligent caching and rate limiting
 
 **Benchmark Areas**:
+
 - **Search Performance**: Album/track search operations
 - **Data Retrieval**: Individual album and track fetching
 - **High Volume Operations**: Mixed workload simulation
@@ -45,11 +47,12 @@ Measures API client implementations across different optimization levels:
 - **Cache Effectiveness**: Hit/miss ratio analysis
 
 **Expected Results**:
+
 - Cached Client: 60-80% faster for repeated queries
 - Adaptive Client: 30-50% overall performance improvement
 - Better concurrency handling with adaptive rate limiting
 
-### 3. Authentication Benchmarks (`AuthenticationBenchmarks.cs`)
+### 3. Authentication Benchmarks (`AuthenticationBenchmarks.cs`) <!-- TODO(docval): AuthenticationBenchmarks class not found as of 2026-05-31 -->
 
 Evaluates authentication service performance improvements:
 
@@ -60,6 +63,7 @@ Evaluates authentication service performance improvements:
 - **Caching Benefits**: Impact of session and token caching
 
 **Performance Targets**:
+
 - 50-70% faster session validation with caching
 - 40-60% improvement in token refresh operations
 - Reduced authentication overhead in high-volume scenarios
@@ -76,6 +80,7 @@ dotnet add package BenchmarkDotNet --version 0.13.12
 ### Execution
 
 #### Run All Benchmarks
+
 ```bash
 # Build in Release mode (required for accurate benchmarks)
 dotnet build --configuration Release
@@ -86,18 +91,20 @@ dotnet run --configuration Release
 ```
 
 #### Run Specific Benchmarks
+
 ```bash
 # Quality service benchmarks only
 dotnet run --configuration Release -- Quality
 
-# API client benchmarks only  
+# API client benchmarks only <!-- TODO(docval): ApiClientBenchmarks class not found; filter may not work as documented as of 2026-05-31 -->
 dotnet run --configuration Release -- ApiClient
 
-# Authentication benchmarks only
+# Authentication benchmarks only <!-- TODO(docval): AuthenticationBenchmarks class not found; filter may not work as documented as of 2026-05-31 -->
 dotnet run --configuration Release -- Auth
 ```
 
 #### Run with Filters
+
 ```bash
 # Run only quality detection benchmarks
 dotnet run --configuration Release --filter "*QualityDetection*"
@@ -112,6 +119,7 @@ dotnet run --configuration Release --filter "*Concurrent*"
 ### Advanced Options
 
 #### Memory Profiling
+
 ```bash
 # Run with memory diagnoser enabled
 dotnet run --configuration Release -- --memory
@@ -121,6 +129,7 @@ dotnet run --configuration Release -- --exporters json html --memory
 ```
 
 #### Custom Configuration
+
 ```bash
 # Run with custom iteration counts
 dotnet run --configuration Release -- --warmupCount 5 --iterationCount 15
@@ -143,6 +152,7 @@ All benchmarks use consistent configuration for reliable measurements:
 ```
 
 **Settings**:
+
 - **Warmup**: 3 iterations
 - **Measurement**: 10 iterations  
 - **Invocation**: 1 per iteration
@@ -162,12 +172,14 @@ Each benchmark category has specialized configuration:
 ### Key Metrics
 
 #### Performance Metrics
+
 - **Mean**: Average execution time
 - **Median**: 50th percentile execution time
 - **Ratio**: Performance relative to baseline
 - **Gen 0/1/2**: Garbage collection pressure
 
 #### Memory Metrics
+
 - **Allocated**: Memory allocated per operation
 - **Gen 0**: Young generation collections
 - **Gen 1/2**: Older generation collections (indicates memory pressure)
@@ -175,6 +187,7 @@ Each benchmark category has specialized configuration:
 ### Expected Benchmarks Results
 
 #### Quality Service Improvements
+
 ```
 |                    Method |     Mean |    Error |   StdDev | Ratio | Allocated |
 |-------------------------- |---------:|---------:|---------:|------:|----------:|
@@ -183,6 +196,7 @@ Each benchmark category has specialized configuration:
 ```
 
 #### API Client Improvements  
+
 ```
 |                    Method |     Mean |    Error |   StdDev | Ratio | Allocated |
 |-------------------------- |---------:|---------:|---------:|------:|----------:|
@@ -250,6 +264,7 @@ For consistent results:
 ### Common Issues
 
 #### Inconsistent Results
+
 ```bash
 # Ensure stable environment
 dotnet run --configuration Release -- --launchCount 3
@@ -259,6 +274,7 @@ dotnet run --configuration Release -- --warmupCount 10
 ```
 
 #### Memory Issues
+
 ```bash
 # Force garbage collection between benchmarks
 dotnet run --configuration Release -- --gcForce
@@ -268,6 +284,7 @@ dotnet run --configuration Release -- --profiler ETW
 ```
 
 #### Build Issues
+
 ```bash
 # Clean and rebuild
 dotnet clean && dotnet build --configuration Release
@@ -280,7 +297,7 @@ dotnet restore --force
 
 For benchmark issues:
 
-1. Check the BenchmarkDotNet documentation: https://benchmarkdotnet.org/
+1. Check the BenchmarkDotNet documentation: <https://benchmarkdotnet.org/>
 2. Review existing benchmark configurations for reference
 3. Ensure all test dependencies are properly mocked
 4. Verify Release configuration is being used

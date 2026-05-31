@@ -5,6 +5,7 @@ This template shows how to create a new Lidarr streaming service plugin using `L
 ## 🚀 Quick Start (30 minutes to working skeleton)
 
 ### 1. Project Setup
+
 ```bash
 # Clone template or create new project
 dotnet new console -n Lidarr.Plugin.YourService
@@ -17,6 +18,7 @@ dotnet add reference ../Lidarr.Plugin.Common/Lidarr.Plugin.Common.csproj
 ```
 
 ### 2. Create Settings Class (5 minutes)
+
 ```csharp
 public class YourServiceSettings : BaseStreamingSettings, IIndexerSettings
 {
@@ -34,14 +36,15 @@ public class YourServiceSettings : BaseStreamingSettings, IIndexerSettings
 ```
 
 ### 3. Create Indexer (10 minutes)
+
 ```csharp
 public class YourServiceIndexer : HttpIndexerBase<YourServiceSettings>
 {
     public override string Name => "YourService";
     public override string Protocol => nameof(YourServiceDownloadProtocol);
 
-    protected override async Task<IEnumerable<StreamingSearchResult>> 
-        PerformSearchAsync(string searchTerm, StreamingSearchType searchType)
+    protected override async Task<IEnumerable<StreamingSearchResult>>
+        PerformSearchAsync(string searchTerm, StreamingSearchType searchType) <!-- TODO(docval): StreamingSearchType not found in code as of 2026-05-31 -->
     {
         // Only implement service-specific search logic
         // Shared library handles: caching, rate limiting, error handling, retry logic
@@ -50,11 +53,11 @@ public class YourServiceIndexer : HttpIndexerBase<YourServiceSettings>
             .Endpoint("search/albums")
             .Query("q", searchTerm)
             .ApiKey("X-API-Key", Settings.ApiKey)
-            .WithStreamingDefaults()
+            .WithStreamingDefaults() <!-- TODO(docval): WithStreamingDefaults not found in code as of 2026-05-31 -->
             .Build();
 
-        var response = await httpClient.ExecuteWithRetryAsync(request);
-        var apiResponse = await response.Content.ReadAsJsonAsync<YourServiceSearchResponse>();
+        var response = await httpClient.ExecuteWithRetryAsync(request); <!-- TODO(docval): ExecuteWithRetryAsync not found in code as of 2026-05-31 -->
+        var apiResponse = await response.Content.ReadAsJsonAsync<YourServiceSearchResponse>(); <!-- TODO(docval): ReadAsJsonAsync not found in code as of 2026-05-31 -->
         
         return apiResponse.Albums.Select(MapToStreamingSearchResult);
     }
@@ -62,6 +65,7 @@ public class YourServiceIndexer : HttpIndexerBase<YourServiceSettings>
 ```
 
 ### 4. Create Download Client (10 minutes)
+
 ```csharp
 public class YourServiceDownloadClient : DownloadClientBase<YourServiceSettings>
 {
@@ -77,7 +81,7 @@ public class YourServiceDownloadClient : DownloadClientBase<YourServiceSettings>
         var album = await GetAlbumAsync(albumId);
         
         // Use shared library for download orchestration
-        var downloadJob = await DownloadAlbumWithSharedLibrary(album, outputDirectory);
+        var downloadJob = await DownloadAlbumWithSharedLibrary(album, outputDirectory); <!-- TODO(docval): DownloadAlbumWithSharedLibrary not found in code as of 2026-05-31 -->
         
         return downloadJob.Id;
     }
@@ -85,6 +89,7 @@ public class YourServiceDownloadClient : DownloadClientBase<YourServiceSettings>
 ```
 
 ### 5. Create Module (5 minutes)
+
 ```csharp
 public class YourServiceModule : StreamingPluginModule
 {
@@ -107,16 +112,19 @@ public class YourServiceModule : StreamingPluginModule
 ## 📋 Development Roadmap
 
 ### Week 1: Core Implementation
+
 - [ ] **Day 1-2**: Set up project structure and basic skeleton
 - [ ] **Day 3-4**: Implement authentication and API client
 - [ ] **Day 5**: Implement search functionality with shared patterns
 
 ### Week 2: Download & Quality
+
 - [ ] **Day 1-2**: Implement download client using shared orchestration
 - [ ] **Day 3**: Add quality management and mapping
 - [ ] **Day 4-5**: Testing and validation with shared mock factories
 
 ### Week 3: Polish & Release  
+
 - [ ] **Day 1-2**: Add service-specific features and optimizations
 - [ ] **Day 3**: Documentation and user guides
 - [ ] **Day 4-5**: Final testing and release preparation
@@ -128,6 +136,7 @@ public class YourServiceModule : StreamingPluginModule
 ## 🎯 Code Comparison
 
 ### Traditional Plugin Development
+
 ```csharp
 // BEFORE: Everything from scratch (3,500+ LOC)
 
@@ -145,13 +154,14 @@ public class YourServiceIndexer : HttpIndexerBase<YourServiceSettings>
 ```
 
 ### With Shared Library
+
 ```csharp
 // AFTER: Focus on service-specific logic (1,200 LOC total)
 
-public class YourServiceIndexer : BaseStreamingIndexer<YourServiceSettings>  
+public class YourServiceIndexer : BaseStreamingIndexer<YourServiceSettings> <!-- TODO(docval): BaseStreamingIndexer not found in code as of 2026-05-31 -->
 {
-    protected override async Task<IEnumerable<StreamingSearchResult>> 
-        PerformSearchAsync(string searchTerm, StreamingSearchType searchType)
+    protected override async Task<IEnumerable<StreamingSearchResult>>
+        PerformSearchAsync(string searchTerm, StreamingSearchType searchType) <!-- TODO(docval): StreamingSearchType not found in code as of 2026-05-31 -->
     {
         // 50 LOC: Service-specific API call
         // 30 LOC: Response mapping  
@@ -168,15 +178,16 @@ public class YourServiceIndexer : BaseStreamingIndexer<YourServiceSettings>
 ## 🛠 Available Shared Components
 
 ### Utilities (Copy-paste ready)
+
 ```csharp
 // File naming
 var safeName = FileNameSanitizer.SanitizeFileName(trackTitle);
 
 // HTTP with retry
-var response = await httpClient.ExecuteWithRetryAsync(request);
+var response = await httpClient.ExecuteWithRetryAsync(request); <!-- TODO(docval): ExecuteWithRetryAsync not found in code as of 2026-05-31 -->
 
-// Quality comparison  
-var bestQuality = QualityMapper.FindBestMatch(availableQualities, StreamingQualityTier.Lossless);
+// Quality comparison
+var bestQuality = QualityMapper.FindBestMatch(availableQualities, StreamingQualityTier.Lossless); <!-- TODO(docval): QualityMapper not found in code as of 2026-05-31 -->
 
 // Request building
 var request = new StreamingApiRequestBuilder(baseUrl)
@@ -187,24 +198,26 @@ var request = new StreamingApiRequestBuilder(baseUrl)
 ```
 
 ### Base Classes (Inherit and override)
+
 ```csharp
 // Settings
 public class YourSettings : BaseStreamingSettings { /* service-specific fields */ }
 
-// Indexer  
-public class YourIndexer : BaseStreamingIndexer<YourSettings> { /* service-specific search */ }
+// Indexer
+public class YourIndexer : BaseStreamingIndexer<YourSettings> { /* service-specific search */ } <!-- TODO(docval): BaseStreamingIndexer not found in code as of 2026-05-31 -->
 
 // Download Client
-public class YourDownloadClient : BaseStreamingDownloadClient<YourSettings> { /* service-specific download */ }
+public class YourDownloadClient : BaseStreamingDownloadClient<YourSettings> { /* service-specific download */ } <!-- TODO(docval): BaseStreamingDownloadClient not found in code as of 2026-05-31 -->
 
 // Authentication
-public class YourAuth : BaseStreamingAuthenticationService<YourSession, YourCredentials> { /* service-specific auth */ }
+public class YourAuth : BaseStreamingAuthenticationService<YourSession, YourCredentials> { /* service-specific auth */ } <!-- TODO(docval): BaseStreamingAuthenticationService not found in code as of 2026-05-31 -->
 ```
 
 ### Testing Support (Instant test data)
+
 ```csharp
 // Generate realistic test data
-var testAlbum = MockFactories.CreateMockAlbumWithTracks(12);
+var testAlbum = MockFactories.CreateMockAlbumWithTracks(12); <!-- TODO(docval): MockFactories not found in code as of 2026-05-31 -->
 var searchResults = MockFactories.CreateMockSearchResults(10);
 var settings = MockFactories.CreateMockSettings<YourServiceSettings>();
 
@@ -216,18 +229,21 @@ var settings = MockFactories.CreateMockSettings<YourServiceSettings>();
 ## 🎯 Success Metrics
 
 ### Development Speed
+
 - **Day 1**: Working skeleton with basic search
 - **Week 1**: Complete indexer with authentication  
 - **Week 2**: Complete download client with quality selection
 - **Week 3**: Polish, testing, documentation
 
 ### Quality Assurance
+
 - **Shared patterns**: Proven by working Qobuzarr implementation
 - **Built-in testing**: Mock factories and test utilities included
 - **Security**: Parameter masking and validation built-in
 - **Performance**: Caching, retry logic, rate limiting included
 
 ### Ecosystem Benefits
+
 - **Consistent UX**: All plugins behave similarly
 - **Shared maintenance**: Bug fixes benefit entire ecosystem  
 - **Professional quality**: No more hobby-level implementations

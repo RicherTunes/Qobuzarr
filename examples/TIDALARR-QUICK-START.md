@@ -34,14 +34,14 @@ using Lidarr.Plugin.Common.Services.Quality;
 using Lidarr.Plugin.Common.Testing;
 
 // Test file naming (20+ LOC saved)
-var safeName = FileNameSanitizer.SanitizeFileName("Tidal: Hi-Res/MQA Album");
+var safeName = FileNameSanitizer<!-- TODO(docval): FileNameSanitizer not found in Lidarr.Plugin.Common as of 2026-05-31 -->.SanitizeFileName("Tidal: Hi-Res/MQA Album");
 
-// Test quality management (50+ LOC saved)  
+// Test quality management (50+ LOC saved)
 var tidalQualities = new[] { "NORMAL", "HIGH", "LOSSLESS", "MQA" };
-var best = QualityMapper.FindBestMatch(MapToStreamingQualities(tidalQualities), StreamingQualityTier.HiRes);
+var best = QualityMapper<!-- TODO(docval): QualityMapper not found in Lidarr.Plugin.Common as of 2026-05-31 -->.FindBestMatch(MapToStreamingQualities(tidalQualities), StreamingQualityTier<!-- TODO(docval): StreamingQualityTier not found in Lidarr.Plugin.Common as of 2026-05-31 -->.HiRes);
 
 // Test HTTP utilities (80+ LOC saved)
-var request = new StreamingApiRequestBuilder("https://api.tidalhifi.com/v1")
+var request = new StreamingApiRequestBuilder<!-- TODO(docval): StreamingApiRequestBuilder not found in Lidarr.Plugin.Common as of 2026-05-31 -->("https://api.tidalhifi.com/v1")
     .Endpoint("search/albums")
     .Query("query", "Miles Davis")
     .BearerToken("your_token_here")
@@ -66,14 +66,14 @@ dotnet build Lidarr.Plugin.Common --configuration Release
 #### **Day 1-2: TidalSettings Customization**
 ```csharp
 // Based on your requirements, customize:
-public class TidalSettings : BaseStreamingSettings, IIndexerSettings
+public class TidalSettings : BaseStreamingSettings<!-- TODO(docval): verify BaseStreamingSettings exists in Lidarr.Plugin.Common as of 2026-05-31 -->, IIndexerSettings
 {
     // ✅ Inherit: BaseUrl, Email, Password, CountryCode, SearchLimit, etc.
     // ✅ Add: Tidal-specific OAuth, subscription tiers, MQA support
-    
+
     [FieldDefinition(60, Label = "Include MQA")]
     public bool IncludeMqa { get; set; } = true;
-    
+
     [FieldDefinition(61, Label = "Include 360 Reality Audio")]
     public bool Include360Audio { get; set; } = false;
 }
@@ -84,12 +84,12 @@ public class TidalSettings : BaseStreamingSettings, IIndexerSettings
 // Your feedback: "Focus only on Tidal-specific logic" ✅
 public class TidalApiClient
 {
-    private readonly StreamingIndexerMixin _helper;
-    
+    private readonly StreamingIndexerMixin<!-- TODO(docval): StreamingIndexerMixin not found in Lidarr.Plugin.Common as of 2026-05-31 --> _helper;
+
     public async Task<TidalSearchResponse> SearchAlbumsAsync(string query)
     {
         // ✅ READY: Use shared HTTP builder (80+ LOC saved)
-        var request = new StreamingApiRequestBuilder(Settings.BaseUrl)
+        var request = new StreamingApiRequestBuilder<!-- TODO(docval): StreamingApiRequestBuilder not found in Lidarr.Plugin.Common as of 2026-05-31 -->(Settings.BaseUrl)
             .Endpoint("search/albums")
             .Query("query", query)
             .Query("countryCode", Settings.CountryCode)

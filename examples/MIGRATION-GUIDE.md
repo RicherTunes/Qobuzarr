@@ -1,3 +1,5 @@
+> ⚠️ Historical (flagged 2026-05-31): describes a past state; some details below no longer match the current code.
+
 # 🔄 Migration Guide: Adopting Lidarr.Plugin.Common
 
 This guide shows how to migrate existing streaming service plugins to use the shared library, with examples from the Qobuzarr migration.
