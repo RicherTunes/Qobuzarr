@@ -6,8 +6,11 @@ on:
   workflow_run:
     workflows:
       - "CI"
-      - "Nightly Tests"
-      - "CodeQL"
+      - "Nightly"
+      - "CodeQL Security Analysis"
+      - "Packaging Gates"
+      - "Docker E2E"
+      - "Test and Coverage"
     types:
       - completed
 
