@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 using Xunit;
 using Moq;
@@ -498,6 +499,64 @@ namespace Qobuzarr.Tests
 
             // Assert
             result.Should().NotBeNull();
+        }
+
+        /// <summary>
+        /// Regression contract: every <see cref="DownloadClientItem"/> returned by
+        /// <c>GetItems()</c> MUST carry the registered download-client id/name in its
+        /// <c>DownloadClientInfo</c>, NOT a hardcoded 0.
+        ///
+        /// Root cause: GetItems called <c>item.ToDownloadClientItem(0, Name)</c>, so Lidarr's
+        /// CompletedDownloadService → DownloadClientProvider.Get(0) did
+        /// <c>.Single(d =&gt; d.Definition.Id == 0)</c> and threw
+        /// "Sequence contains no matching element", wedging every completed Qobuz download.
+        /// Source: src/Download/Clients/QobuzDownloadClient.cs GetItems().
+        /// </summary>
+        [Fact]
+        public void GetItems_ReturnsItemsCarryingRegisteredClientId_NotZero()
+        {
+            // Arrange: one in-flight item flowing through the queue-service source.
+            var item = new QobuzDownloadItem
+            {
+                DownloadId = "dl-1",
+                Artist = "Daft Punk",
+                Title = "Random Access Memories"
+            };
+            _mockQueueService.Setup(x => x.GetActiveDownloads())
+                .Returns(new List<QobuzDownloadItem> { item });
+
+            var sut = CreateSut();
+            // Mirror how Lidarr registers a download client: a non-zero Definition.Id/Name.
+            sut.Definition = new DownloadClientDefinition { Id = 42, Name = "Qobuzarr" };
+
+            // Act
+            var result = sut.GetItems().ToList();
+
+            // Assert
+            result.Should().NotBeEmpty();
+            result.First().DownloadClientInfo.Should().NotBeNull();
+            result.First().DownloadClientInfo.Id.Should().Be(42,
+                "Lidarr resolves the owning client via DownloadClientProvider.Get(DownloadClientInfo.Id); a hardcoded 0 wedges completed downloads");
+            result.First().DownloadClientInfo.Name.Should().Be("Qobuzarr");
+        }
+
+        /// <summary>
+        /// Pins the converter contract directly: <see cref="QobuzDownloadItem.ToDownloadClientItem"/>
+        /// must propagate the supplied download-client id into <c>DownloadClientInfo.Id</c>.
+        /// Source: src/Download/Clients/QobuzDownloadItem.cs ToDownloadClientItem().
+        /// </summary>
+        [Fact]
+        public void ToDownloadClientItem_PropagatesSuppliedClientId()
+        {
+            // Arrange
+            var item = new QobuzDownloadItem { DownloadId = "dl-2", Artist = "A", Title = "B" };
+
+            // Act
+            var dto = item.ToDownloadClientItem(7, "X");
+
+            // Assert
+            dto.DownloadClientInfo.Id.Should().Be(7);
+            dto.DownloadClientInfo.Name.Should().Be("X");
         }
 
         /// <summary>
