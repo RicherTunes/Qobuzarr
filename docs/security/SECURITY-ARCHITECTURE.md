@@ -1,3 +1,5 @@
+> ⚠️ Partially aspirational (flagged 2026-05-31): some classes/methods/APIs below are design documentation that does not exist in the current code; see inline TODO(docval) markers. Verify against `src/` before relying on any symbol.
+
 # Qobuzarr Security Architecture Guide
 
 ## Overview
@@ -7,21 +9,25 @@ Qobuzarr implements defense-in-depth security architecture to protect user crede
 ## Security Design Principles
 
 ### 1. **Defense-in-Depth**
+
 - Multi-layered security controls at every component level
 - Input validation, output sanitization, and process isolation
 - Fail-safe defaults with explicit security policies
 
 ### 2. **Least Privilege Access**
+
 - Minimal required permissions for each component
 - Isolated credential storage with time-limited access
 - Restricted assembly loading and validation
 
 ### 3. **Secure by Default**
+
 - HTTPS-only communications
 - Automatic credential masking in logs
 - Secure string handling for sensitive data
 
 ### 4. **Zero Trust Architecture**
+
 - All inputs validated regardless of source
 - ML models require signature verification
 - API responses sanitized before processing
@@ -30,11 +36,11 @@ Qobuzarr implements defense-in-depth security architecture to protect user crede
 
 ### Credential Management Layer
 
-**Primary Class**: [`SecureCredentialManager`](../../src/Security/SecureCredentialManager.cs)
+**Primary Class**: [`SecureCredentialManager`](../../src/Security/SecureCredentialManager.cs)<!-- TODO(docval): SecureCredentialManager not found in code as of 2026-05-31; real equivalent is StreamingTokenManager from Common -->
 
 ```csharp
 // Secure credential storage with memory protection
-var credentialManager = new SecureCredentialManager(logger);
+var credentialManager = new SecureCredentialManager(logger);<!-- TODO(docval): SecureCredentialManager not found in code as of 2026-05-31 -->
 
 // Store credentials securely using SecureString
 credentialManager.StoreSecureCredential("qobuz_password", userPassword);
@@ -47,12 +53,14 @@ await credentialManager.UseSecureCredentialAsync("qobuz_password", async passwor
 ```
 
 **Security Features**:
+
 - **SecureString Integration**: Credentials stored using Windows SecureString API
 - **Memory Protection**: Automatic memory clearing after use
 - **Concurrent Access**: Thread-safe credential operations
 - **Validation**: Security policy enforcement for credential format
 
 **Implementation Details**:
+
 - Credentials encrypted in memory using OS-level protection
 - Automatic garbage collection prevention for sensitive strings  
 - Audit logging for all credential operations
@@ -102,6 +110,7 @@ var devEngine = modelLoader.LoadSecureModel("/path/to/model.dll", requireSignatu
    - Runtime behavior validation
 
 **Audit and Monitoring**:
+
 ```csharp
 // Get security statistics for monitoring
 var stats = modelLoader.GetSecurityStats();
@@ -157,7 +166,8 @@ Console.WriteLine($"Security Score: {result.SecurityScore}/100 ({result.Security
 
 ### Input Sanitization Layer
 
-**Primary Classes**: 
+**Primary Classes**:
+
 - [`InputSanitizer`](../../src/Security/InputSanitizer.cs)
 - [`MetadataSanitizer`](../../src/Security/MetadataSanitizer.cs)
 
@@ -170,6 +180,7 @@ var cleanMetadata = MetadataSanitizer.SanitizeTrackMetadata(apiResponse);
 ```
 
 **Sanitization Features**:
+
 - HTML/XML tag removal from user inputs
 - Unicode normalization and validation  
 - File path security for metadata processing
@@ -177,12 +188,12 @@ var cleanMetadata = MetadataSanitizer.SanitizeTrackMetadata(apiResponse);
 
 ### Session Management Security
 
-**Primary Class**: [`SecureSessionManager`](../../src/Security/SecureSessionManager.cs)
+**Primary Class**: [`SecureSessionManager`](../../src/Security/SecureSessionManager.cs)<!-- TODO(docval): SecureSessionManager not found in code as of 2026-05-31; real equivalent is SessionManager from src/Authentication/ -->
 
 Manages Qobuz authentication sessions with security controls:
 
 ```csharp
-var sessionManager = new SecureSessionManager(logger);
+var sessionManager = new SecureSessionManager(logger);<!-- TODO(docval): SecureSessionManager not found in code as of 2026-05-31 -->
 
 // Create secure session with automatic expiration
 var session = await sessionManager.CreateSecureSessionAsync(credentials);
@@ -195,6 +206,7 @@ if (sessionManager.IsSessionValid(session))
 ```
 
 **Session Security Features**:
+
 - Automatic session token rotation
 - Session timeout and expiration management
 - Secure session storage with encryption
@@ -206,14 +218,14 @@ if (sessionManager.IsSessionValid(session))
 
 ```bash
 # Production security settings
-QOBUZARR_REQUIRE_SIGNATURE=true           # Require ML model signatures
+QOBUZARR_REQUIRE_SIGNATURE=true           # TODO(docval): env var not found in code as of 2026-05-31
 QOBUZARR_ADMIN_TOKEN=<secure_admin_token>  # Admin operations token
-QOBUZARR_LOG_SECURITY_EVENTS=true         # Enable security event logging
-QOBUZARR_VALIDATE_CERTIFICATES=true       # Enforce certificate validation
+QOBUZARR_LOG_SECURITY_EVENTS=true         # TODO(docval): env var not found in code as of 2026-05-31
+QOBUZARR_VALIDATE_CERTIFICATES=true       # TODO(docval): env var not found in code as of 2026-05-31
 
 # Development/testing settings (less secure)
-QOBUZARR_DEV_MODE=true                     # Allow unsigned ML models
-QOBUZARR_SKIP_CERT_VALIDATION=false        # Still validate in dev
+QOBUZARR_DEV_MODE=true                     # TODO(docval): env var not found in code as of 2026-05-31
+QOBUZARR_SKIP_CERT_VALIDATION=false        # TODO(docval): env var not found in code as of 2026-05-31
 ```
 
 ### Configuration File Security
@@ -265,7 +277,7 @@ QOBUZARR_SKIP_CERT_VALIDATION=false        # Still validate in dev
 
 ```csharp
 // Example security monitoring integration
-public class SecurityMonitoringService
+public class SecurityMonitoringService<!-- TODO(docval): SecurityMonitoringService not found in code as of 2026-05-31 -->
 {
     public void OnSecurityEvent(SecurityEventType eventType, string message, object context)
     {
@@ -318,7 +330,7 @@ await qobuzApi.SearchAsync(userQuery); // No validation
 var model = secureLoader.LoadSecureModel(modelPath, requireSignature: true);
 
 // ❌ INSECURE: Direct assembly loading
-var assembly = Assembly.LoadFrom(untrustedPath);
+var assembly = Assembly.LoadFrom(untrustedPath);<!-- TODO(docval): Assembly.LoadFrom usage pattern documented but not a security issue in context -->
 ```
 
 ### 4. **Logging Sensitive Data**
@@ -337,18 +349,21 @@ logger.Info("Password: {0}", password); // Never do this
 ### Incident Classification
 
 **Level 1 - Critical Security Incident**
+
 - Active injection attack in progress
 - Credential theft or exposure detected
 - Malicious ML model loading attempt
 - Unauthorized access to admin functions
 
 **Level 2 - Major Security Issue**
+
 - Configuration security violations
 - Failed authentication beyond threshold
 - Suspicious network activity patterns
 - Privacy policy violations
 
 **Level 3 - Minor Security Concern**
+
 - Informational security events
 - Configuration recommendations
 - Performance-related security impacts
