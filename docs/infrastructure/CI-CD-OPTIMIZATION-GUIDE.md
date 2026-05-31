@@ -3,6 +3,7 @@
 ## Overview
 
 This guide provides comprehensive instructions for optimizing the Qobuzarr CI/CD pipeline to achieve:
+
 - **<3 minute build times** (60% improvement)
 - **99.9% deployment reliability**
 - **Comprehensive monitoring and alerting**
@@ -53,6 +54,7 @@ This guide provides comprehensive instructions for optimizing the Qobuzarr CI/CD
 ### Using the Optimized Build Script
 
 #### Features
+
 - **Intelligent Caching**: Caches build artifacts based on source file hashes
 - **Parallel Execution**: Runs restore, build, and tests in parallel
 - **Performance Metrics**: Tracks and reports build performance
@@ -82,10 +84,12 @@ This guide provides comprehensive instructions for optimizing the Qobuzarr CI/CD
 ### Build Performance Metrics
 
 The build script automatically generates metrics in:
+
 - **Windows**: `%TEMP%\qobuzarr-build-cache\build-metrics.json`
 - **Linux/macOS**: `/tmp/qobuzarr-build-cache/build-metrics.json`
 
 Example metrics:
+
 ```json
 {
   "timestamp": "2025-08-20T10:30:00Z",
@@ -144,10 +148,10 @@ The deployment script performs these health checks:
 
 ### Critical Fixes Required
 
-⚠️ **IMPORTANT**: The current workflows have critical issues that need manual fixing:
+⚠️ **IMPORTANT**: The workflows are correctly configured:
 
-1. **Wrong .NET Version**: Change from `6.0.x` to `8.0.x`
-2. **Missing Assembly Override**: Apply TrevTV's version override
+- ✅ **Correct .NET Version**: `DOTNET_VERSION: 8.0.x` is already set in all workflows
+- ✅ **Assembly Override**: Version override is handled in build scripts
 
 ### Manual Workflow Updates
 
@@ -194,6 +198,7 @@ Track these key metrics:
 ### Setting Up Monitoring
 
 1. **Local Metrics Collection**:
+
    ```powershell
    # View build metrics
    Get-Content "$env:TEMP\qobuzarr-build-cache\build-metrics.json" | ConvertFrom-Json
@@ -229,6 +234,7 @@ Configure alerts for:
 
 **Symptoms**: Build exceeds target time
 **Solutions**:
+
 - Enable caching: `--use-cache`
 - Enable parallel builds: `--parallel`
 - Skip tests for development: `--skip-tests`
@@ -238,6 +244,7 @@ Configure alerts for:
 
 **Symptoms**: Post-deployment health check fails, automatic rollback triggered
 **Solutions**:
+
 - Check Lidarr logs for plugin loading errors
 - Verify all required files are in bin/ directory
 - Ensure Lidarr API key is correct
@@ -247,6 +254,7 @@ Configure alerts for:
 
 **Symptoms**: `ReflectionTypeLoadException` in Lidarr logs
 **Solutions**:
+
 - Ensure assembly version override is applied
 - Verify using Lidarr version 2.13.2.4686
 - Check build script includes version override
@@ -255,6 +263,7 @@ Configure alerts for:
 
 **Symptoms**: Always shows cache misses
 **Solutions**:
+
 - Check cache directory permissions
 - Verify hash calculation includes all source files
 - Clear cache and rebuild: `rm -rf /tmp/qobuzarr-build-cache`
