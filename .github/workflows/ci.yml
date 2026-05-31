@@ -441,7 +441,13 @@ jobs:
       env:
         CI_PAT: ${{ secrets.CI_PAT }}
       run: |
-        git config --global url.https://x-access-token:${CI_PAT}@github.com/.insteadOf https://github.com/
+        # Only rewrite to a token URL when CI_PAT is actually set. Common is public now,
+        # so an empty CI_PAT must NOT inject a broken `x-access-token:@github.com` URL
+        # (which prompts for a username and aborts the clone). Without a PAT the public
+        # submodule clones fine over plain https. Mirrors the Parity Lint job's guard.
+        if [ -n "$CI_PAT" ]; then
+          git config --global url.https://x-access-token:${CI_PAT}@github.com/.insteadOf https://github.com/
+        fi
         git submodule sync --recursive
         git submodule update --init --recursive
 
