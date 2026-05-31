@@ -87,6 +87,14 @@ At least one asset name must contain `net8.0.zip`.
 
 For Qobuzarr this is satisfied by `<AssemblyName>Lidarr.Plugin.Qobuzarr</AssemblyName>` in `Qobuzarr.csproj`. Don't drop that line "to clean up" — it's load-bearing.
 
+## Download-client item id contract (CRITICAL)
+
+`GetItems()` MUST report `DownloadClientItem`s whose `DownloadClientInfo.Id` equals **this client's `Definition.Id`** (and `.Name` its `Definition.Name`). Lidarr's `DownloadMonitoringService` → `CompletedDownloadService` → `ProvideImportItemService` → `DownloadClientProvider.Get(DownloadClientInfo.Id)` resolves the owning client by that id; a wrong/zero id makes its `.Single(...)` throw `Sequence contains no matching element`, so **every completed download wedges** at `Couldn't process tracked download` and never reaches import.
+
+Pass `Definition.Id` (not `0`) to `QobuzDownloadItem.ToDownloadClientItem(...)` at all three `GetItems()` call sites (Tidalarr achieves the same via `DownloadClientItemClientInfo.FromDownloadClient(this)`). Pinned by `GetItems_ReturnsItemsCarryingRegisteredClientId_NotZero`.
+
+**Regression history (DO NOT REPEAT):** shipped with `ToDownloadClientItem(0, Name)` — found 2026-05-31 by driving real downloads on the live instance (every qobuz download stuck). Unit tests covered `ToDownloadClientItem` in isolation (it honors whatever id it's given) but never asserted the `GetItems()` call site, and the Docker E2E never ran a real grab→download→import flow. Lesson: test the `GetItems()`→`DownloadClientInfo.Id` contract and a real import flow, not just the converter in isolation.
+
 ## Submodule pin coordination (ext-common-sha.txt)
 
 `ext/Lidarr.Plugin.Common` is a git submodule pinned to a specific Common SHA. Two things must always agree on that SHA:
