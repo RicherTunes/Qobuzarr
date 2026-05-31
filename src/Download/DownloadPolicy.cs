@@ -1,4 +1,5 @@
 using System;
+using Lidarr.Plugin.Common.Services.Download;
 
 namespace Lidarr.Plugin.Qobuzarr.Download
 {
@@ -125,28 +126,13 @@ namespace Lidarr.Plugin.Qobuzarr.Download
         /// only ever gate a COMPLETE album — they can never rescue an incomplete one.
         /// </remarks>
         public bool IsAlbumDownloadSuccessful(int totalTracks, int successfulTracks, int skippedTracks)
-        {
-            if (totalTracks == 0)
-                return !FailOnNoTracksAvailable;
-
-            // Hard gate: an incomplete album is unimportable. If even one track is missing
-            // from disk (failed OR sample/preview-skipped), the album cannot be a success.
-            if (successfulTracks < totalTracks)
-                return false;
-
-            var effectiveTotal = totalTracks;
-            if (!TreatPreviewAsFailure)
-            {
-                // Don't count preview tracks against success rate
-                effectiveTotal -= skippedTracks;
-            }
-
-            if (effectiveTotal == 0)
-                return !FailOnNoTracksAvailable;
-
-            var successRate = (double)successfulTracks / effectiveTotal;
-            return successRate >= MinimumSuccessRate;
-        }
+            => AlbumCompletionPolicy.IsAlbumDownloadSuccessful(
+                totalTracks,
+                successfulTracks,
+                skippedTracks,
+                MinimumSuccessRate,
+                TreatPreviewAsFailure,
+                FailOnNoTracksAvailable);
     }
 
     /// <summary>
