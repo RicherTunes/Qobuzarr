@@ -7,11 +7,13 @@ This guide helps you test the Qobuzarr plugin against your actual Lidarr instanc
 ### 1. Configure Your Environment
 
 Copy the example configuration:
+
 ```bash
 cp tests/Integration/.env.example tests/Integration/.env
 ```
 
 Edit `tests/Integration/.env` with your settings:
+
 ```bash
 # Your Lidarr instance
 LIDARR_URL=http://192.168.1.100:8686
@@ -28,34 +30,40 @@ QOBUZ_PASSWORD=your_password
 ### 2. Run Tests
 
 **Quick Test** (recommended first):
+
 ```powershell
-.\test-integration.ps1 -TestFilter "Critical"
+.\run-live-tests.ps1 -TestFilter "Critical"
 ```
 
 **Full Test with Deployment**:
+
 ```powershell
 .\run-live-tests.ps1 -DockerContainer "your-container-name"
 ```
 
 **Security-Focused Test**:
+
 ```powershell
-.\test-integration.ps1 -TestFilter "Security" -Verbose
+.\run-live-tests.ps1 -TestFilter "Security" -Verbose
 ```
 
 ## Test Categories
 
 ### Critical Tests (Must Pass)
+
 - ✅ Plugin loading and configuration validation
 - ✅ Basic search functionality with known albums
 - ✅ Plugin restart resilience
 - ✅ Security input validation (NEW)
 
 ### High Priority Tests
+
 - ✅ Plugin error handling and resilience
 - ✅ Download queue integration
 - ✅ Authentication security in live environment
 
 ### Medium/Low Priority Tests
+
 - ✅ Performance and resource usage
 - ✅ End-to-end workflow validation
 - ✅ Security documentation validation
@@ -63,12 +71,14 @@ QOBUZ_PASSWORD=your_password
 ## Docker/Unraid Integration
 
 ### Docker Features
+
 - **Automated deployment**: Copies plugin files directly to container
 - **Log monitoring**: Real-time log analysis during tests
 - **Container restart**: Validates plugin resilience
 - **Health checking**: Waits for Lidarr to come back online
 
 ### Unraid Features
+
 - **API integration**: Connects to Unraid management API
 - **Container management**: Start/stop/restart containers
 - **File deployment**: Secure file transfer to Unraid systems
@@ -76,6 +86,7 @@ QOBUZ_PASSWORD=your_password
 ## Test Scenarios
 
 ### 1. Plugin Loading Validation
+
 ```
 ✅ Validates Qobuzarr indexer is loaded and enabled
 ✅ Validates Qobuzarr download client (if configured)
@@ -83,6 +94,7 @@ QOBUZ_PASSWORD=your_password
 ```
 
 ### 2. Search Functionality Testing
+
 ```
 ✅ Gets a wanted album from your Lidarr
 ✅ Triggers search via Lidarr API
@@ -91,6 +103,7 @@ QOBUZ_PASSWORD=your_password
 ```
 
 ### 3. Security Testing (NEW)
+
 ```
 ✅ Tests InputSanitizer email validation
 ✅ Tests search query sanitization (SQL/XSS prevention)
@@ -100,6 +113,7 @@ QOBUZ_PASSWORD=your_password
 ```
 
 ### 4. Download Integration Testing
+
 ```
 ✅ Tests download queue integration
 ✅ Validates download command processing
@@ -107,6 +121,7 @@ QOBUZ_PASSWORD=your_password
 ```
 
 ### 5. Restart Resilience Testing
+
 ```
 ✅ Restarts Lidarr (Docker automation)
 ✅ Waits for service to come back online
@@ -116,6 +131,7 @@ QOBUZ_PASSWORD=your_password
 ## Environment Configuration Options
 
 ### Basic Configuration
+
 ```bash
 # Required
 LIDARR_URL=http://your-lidarr:8686
@@ -126,6 +142,7 @@ DOCKER_CONTAINER_NAME=lidarr
 ```
 
 ### Advanced Configuration
+
 ```bash
 # Unraid integration
 UNRAID_HOST=http://your-unraid:8080
@@ -144,18 +161,20 @@ QOBUZ_PASSWORD=your_password
 ## Usage Examples
 
 ### Developer Workflow
+
 ```powershell
 # 1. Quick test after code changes
-.\test-integration.ps1 -TestFilter "Critical"
+.\run-live-tests.ps1 -TestFilter "Critical"
 
 # 2. Full test before committing
 .\run-live-tests.ps1 -BuildFirst -DeployPlugin
 
 # 3. Security-focused testing
-.\test-integration.ps1 -TestFilter "Security" -Verbose
+.\run-live-tests.ps1 -TestFilter "Security" -Verbose
 ```
 
 ### CI/CD Integration
+
 ```bash
 # In your CI pipeline
 export LIDARR_URL="http://test-lidarr:8686"
@@ -166,29 +185,33 @@ export DOCKER_CONTAINER_NAME="lidarr-test"
 ```
 
 ### Production Validation
+
 ```powershell
 # Test against production Lidarr (read-only)
 $env:LIDARR_URL = "http://production-lidarr:8686"
 $env:LIDARR_API_KEY = "prod_api_key"
 
-.\test-integration.ps1 -SkipBuild -TestFilter "Critical"
+.\run-live-tests.ps1 -SkipBuild -TestFilter "Critical"
 ```
 
 ## Interpreting Test Results
 
 ### ✅ Success Indicators
+
 - All critical tests pass
 - No security exceptions in logs
 - Plugin loads and configures correctly
 - Search operations complete successfully
 
 ### ⚠️ Warning Indicators  
+
 - Some non-critical tests fail (acceptable)
 - Performance slower than expected
 - Log warnings (may be normal)
 - Download tests incomplete (if no suitable releases)
 
 ### ❌ Failure Indicators
+
 - Plugin fails to load
 - Security exceptions detected
 - Critical functionality broken
@@ -199,21 +222,25 @@ $env:LIDARR_API_KEY = "prod_api_key"
 ### Common Issues
 
 **"Cannot connect to Lidarr"**
+
 - Check LIDARR_URL is correct and accessible
 - Verify LIDARR_API_KEY is valid
 - Ensure Lidarr is running and responsive
 
 **"Plugin not found"**
+
 - Ensure plugin is built and deployed
 - Check Lidarr plugins directory
 - Restart Lidarr after deployment
 
 **"Docker commands fail"**
+
 - Verify Docker is installed and running
 - Check container name is correct
 - Ensure Docker daemon is accessible
 
 **"Tests time out"**
+
 - Increase TEST_TIMEOUT_MINUTES
 - Check Lidarr performance and load
 - Verify network connectivity
@@ -221,6 +248,7 @@ $env:LIDARR_API_KEY = "prod_api_key"
 ### Log Analysis
 
 The tests automatically monitor logs and categorize issues:
+
 - **Errors**: Critical issues that need immediate attention
 - **Warnings**: Potential issues worth investigating
 - **Info**: Normal operation confirmations
@@ -228,6 +256,7 @@ The tests automatically monitor logs and categorize issues:
 ### Security Validation
 
 New security tests validate:
+
 - ✅ Input sanitization prevents injection attacks
 - ✅ No credential leaks in logs
 - ✅ Path traversal prevention works
@@ -236,20 +265,26 @@ New security tests validate:
 ## Advanced Features
 
 ### Custom Test Scenarios
+
 You can extend the testing framework by:
+
 1. Adding new test methods to `ComprehensiveLiveTests.cs`
 2. Creating specialized test classes for specific scenarios
 3. Implementing custom validation logic in `LiveLidarrIntegrationFramework.cs`
 
 ### Continuous Integration
+
 The testing framework is designed for CI/CD integration:
+
 - Environment variable configuration
 - Docker automation support
 - Exit codes for build pipeline integration
 - Structured test result reporting
 
 ### Monitoring Integration
+
 Connect with monitoring systems:
+
 - Export test results to metrics systems
 - Integrate with alerting for test failures
 - Track performance trends over time
@@ -266,6 +301,7 @@ Given the new security improvements, pay special attention to:
 ## Next Steps
 
 After running live tests successfully:
+
 1. Monitor production Lidarr logs for any issues
 2. Test manual operations in Lidarr UI
 3. Validate search and download functionality

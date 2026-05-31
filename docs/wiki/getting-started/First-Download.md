@@ -36,12 +36,14 @@ If any of these are not complete, return to the [Installation Guide](Installatio
    - Status should show "Loaded" or "Active"
 
 2. **Check Logs**:
+
    ```bash
    # Look for successful initialization
    grep -i "qobuz" /path/to/lidarr/logs/lidarr.txt
    ```
 
    Expected entries:
+
    ```
    [Info] PluginLoader: Loading plugin Qobuzarr
    [Info] QobuzarrModule: Plugin initialized successfully
@@ -102,11 +104,13 @@ This method tests the full integration workflow.
    - Watch for search activity
 
 2. **Expected Workflow**:
+
    ```
    [Search Started] → [Qobuzarr Search] → [Results Found] → [Download Added] → [Downloading] → [Complete]
    ```
 
 3. **Monitor Logs**:
+
    ```bash
    tail -f /path/to/lidarr/logs/lidarr.txt | grep -i qobuz
    ```
@@ -118,6 +122,7 @@ This method tests the full integration workflow.
    - Progress should update regularly
 
 2. **File System Check**:
+
    ```bash
    # Check if files are being created
    find /download/path -name "*.flac" -o -name "*.mp3" | head -10
@@ -146,6 +151,7 @@ For more control over the testing process.
    - Check file sizes and formats
 
 2. **Expected Results Format**:
+
    ```
    Artist - Album (Year) [FLAC Hi-Res 24-bit/96kHz]
    Size: 850MB | Quality: 7 | Indexer: Qobuzarr
@@ -181,6 +187,7 @@ dotnet run -- auth login
 ```
 
 Expected output:
+
 ```
 Authentication successful
 Session token: abc123...
@@ -207,6 +214,7 @@ dotnet run -- download album 12345 --output ./test-downloads
 ```
 
 Monitor output for:
+
 - Authentication success
 - Album metadata retrieval
 - Track listing
@@ -245,6 +253,7 @@ ffprobe -v quiet -print_format json -show_format "/path/to/downloaded/track.flac
 ```
 
 Expected metadata:
+
 - Artist, Album, Track names
 - Year, Genre
 - Quality information
@@ -280,6 +289,7 @@ soxi "/path/to/downloaded/track.flac"
 ### Common Issues
 
 **No Search Results**
+
 ```bash
 # Check indexer logs
 grep "QobuzIndexer" /path/to/lidarr/logs/lidarr.txt
@@ -291,6 +301,7 @@ grep "QobuzIndexer" /path/to/lidarr/logs/lidarr.txt
 ```
 
 **Authentication Failures**
+
 ```json
 {
   "error": "Authentication failed",
@@ -304,6 +315,7 @@ grep "QobuzIndexer" /path/to/lidarr/logs/lidarr.txt
 ```
 
 **Download Failures**
+
 ```bash
 # Check download client logs
 grep "QobuzDownloadClient" /path/to/lidarr/logs/lidarr.txt
@@ -316,6 +328,7 @@ grep "QobuzDownloadClient" /path/to/lidarr/logs/lidarr.txt
 ```
 
 **Quality Issues**
+
 ```json
 {
   "error": "Quality not available",
@@ -336,6 +349,7 @@ Enable debug logging for troubleshooting:
    - Check logs for detailed information
 
 2. **CLI Debug Mode**:
+
    ```bash
    # Enable verbose logging
    dotnet run -- --verbose search "test album"
@@ -345,13 +359,13 @@ Enable debug logging for troubleshooting:
 
 ```bash
 # Generate system information
-dotnet run -- system-info
+dotnet run -- system-info<!-- TODO(docval): system-info command not found in code as of 2026-05-31 -->
 
 # Test all components
-dotnet run -- health-check
+dotnet run -- health-check<!-- TODO(docval): health-check command not found in code as of 2026-05-31 -->
 
 # Export configuration (sanitized)
-dotnet run -- export-config --sanitize
+dotnet run -- export-config --sanitize<!-- TODO(docval): export-config command not found in code as of 2026-05-31 -->
 ```
 
 ## Success Indicators
@@ -378,6 +392,7 @@ After successful first download:
 ## Celebration! 🎉
 
 Congratulations! You've successfully:
+
 - Installed Qobuzarr
 - Configured authentication
 - Completed your first download

@@ -1,7 +1,7 @@
 # Qobuzarr Wiki - High-Performance Lidarr Plugin for Qobuz
 
 [![Production Ready](https://img.shields.io/badge/Status-Production%20Ready-brightgreen)](https://github.com/RicherTunes/qobuzarr)
-[![.NET 6.0](https://img.shields.io/badge/.NET-6.0-blue)](https://dotnet.microsoft.com/download/dotnet/6.0)
+[![.NET 8.0](https://img.shields.io/badge/.NET-8.0-blue)](https://dotnet.microsoft.com/download/dotnet/8.0)
 [![Lidarr 2.13+](https://img.shields.io/badge/Lidarr-2.13%2B-orange)](https://lidarr.audio/)
 
 Welcome to the comprehensive documentation for **Qobuzarr** - a professional-grade indexer and download client for Qobuz streaming service with advanced ML-powered optimization.
@@ -11,21 +11,25 @@ Welcome to the comprehensive documentation for **Qobuzarr** - a professional-gra
 ## Quick Navigation
 
 ### 🚀 Getting Started
+
 - **[Installation Guide](Installation-Guide.md)** - Step-by-step setup instructions
 - **[Configuration Guide](Configuration-Guide.md)** - Configure the plugin for optimal performance
 - **[First Use](Usage-Examples.md#first-use)** - Complete your first successful download
 
 ### 📖 User Guide
+
 - **[Features Overview](Usage-Examples.md#features)** - Comprehensive feature list with examples
 - **[CLI Usage](CLI-Usage.md)** - Command-line interface reference
 - **[Troubleshooting](Troubleshooting.md)** - Common issues and solutions
 
 ### 👨‍💻 Developer Guide
+
 - **[Architecture Overview](Plugin-Development.md#architecture)** - System design and components
 - **[Building from Source](Plugin-Development.md#building)** - Development environment setup
 - **[Contributing](Plugin-Development.md#contributing)** - How to contribute to the project
 
 ### ⚡ Advanced Topics
+
 - **[ML Optimization](Usage-Examples.md#ml-optimization)** - Machine learning query optimization
 - **[Security Features](Security-Features.md)** - Security architecture and best practices
 - **[Release Notes](Release-Notes.md)** - Version history and updates
@@ -33,6 +37,7 @@ Welcome to the comprehensive documentation for **Qobuzarr** - a professional-gra
 ## Key Features at a Glance
 
 ### 🎵 Core Functionality
+
 - **High-Fidelity Audio**: Lossless FLAC up to 24-bit/192kHz Hi-Res quality
 - **Playlist Support**: Download entire playlists with M3U8 generation
 - **Label Downloads**: Batch download all albums from a record label
@@ -40,12 +45,14 @@ Welcome to the comprehensive documentation for **Qobuzarr** - a professional-gra
 - **Comprehensive Metadata**: Full tagging with TagLib-Sharp
 
 ### 🧠 Advanced Optimization
+
 - **ML-Powered Query Intelligence**: **65.8% API call reduction** using ML.NET ✅ *Production Validated*
 - **Multi-Layer Caching**: **94.7% cache hit rate** with intelligent prefetching ✅ *Production Validated*
 - **Progressive Search**: Multiple fallback strategies for hard-to-find content
 - **Real-time Telemetry**: Serilog-based performance monitoring
 
 ### 🏢 Enterprise Features
+
 - **Plugin-First Architecture**: Clean separation between plugin and CLI
 - **Multiple Auth Methods**: Email/password, token-based, or dynamic extraction
 - **Thread-Safe Operations**: Concurrent downloads with proper synchronization
@@ -74,13 +81,15 @@ Our optimization efforts have delivered measurable results in production environ
 ## ⚠️ Prerequisites
 
 ### System Requirements
+
 - **Qobuz Subscription**: Active subscription (Studio Premier recommended for Hi-Res)
 - **Lidarr Version**: v2.13.0 or higher
-- **.NET Runtime**: .NET 6.0 or higher
+- **.NET Runtime**: .NET 8.0 or higher
 - **Operating System**: Windows, Linux, or macOS
 - **Memory**: 512MB RAM minimum, 2GB recommended for large libraries
 
 ### Important Notes
+
 - This plugin requires compliance with Qobuz's Terms of Service
 - Users must have valid subscriptions and follow all applicable licensing agreements
 - Always backup your Lidarr configuration before installing plugins
@@ -88,14 +97,17 @@ Our optimization efforts have delivered measurable results in production environ
 ## 🚨 Support & Community
 
 ### Getting Help
+
 1. **Documentation First**: Check this wiki for comprehensive guides
 2. **Search Issues**: Look through [existing GitHub issues](https://github.com/RicherTunes/qobuzarr/issues)
 3. **Create Issue**: Report bugs or request features via GitHub Issues
 4. **Community Discussion**: Join conversations in [GitHub Discussions](https://github.com/RicherTunes/qobuzarr/discussions)
-5. **Security Issues**: Email security@richertunes.com for security vulnerabilities
+5. **Security Issues**: Email <security@richertunes.com> for security vulnerabilities
 
 ### Contributing
+
 We welcome contributions! See the **[Contributing Guide](Plugin-Development.md#contributing)** for details on:
+
 - Code contributions
 - Documentation improvements
 - Bug reports and feature requests

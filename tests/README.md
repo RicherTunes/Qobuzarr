@@ -3,21 +3,25 @@
 ## Running Tests
 
 ### Basic Test Execution
+
 ```bash
 dotnet test
 ```
 
 ### With Code Coverage
+
 ```bash
 dotnet test --collect:"XPlat Code Coverage" --settings coverlet.runsettings
 ```
 
 ### Verbose Output
+
 ```bash
 dotnet test --verbosity detailed
 ```
 
 ### Generate Test Report
+
 ```bash
 dotnet test --logger trx --results-directory TestResults
 ```
@@ -26,10 +30,10 @@ dotnet test --logger trx --results-directory TestResults
 
 ```
 tests/
-├── Lidarr.Plugin.Qobuz.Tests/
+├── Qobuzarr.Tests/           # Main test project (Lidarr.Plugin.Qobuzarr.Tests namespace)
 │   ├── Unit/
 │   │   ├── Authentication/    # Authentication service tests
-│   │   ├── API/              # API client tests  
+│   │   ├── API/              # API client tests
 │   │   ├── Models/           # Data model tests
 │   │   └── Download/         # Download client tests
 │   ├── Fixtures/             # Test base classes and utilities
@@ -46,6 +50,7 @@ tests/
 ## Key Test Categories
 
 ### ✅ Authentication Tests (19 tests)
+
 - Email/password authentication flow
 - Token-based authentication  
 - Session management and caching
@@ -53,6 +58,7 @@ tests/
 - MD5 password hashing
 
 ### ✅ Data Model Tests (35+ tests)
+
 - QobuzAlbum serialization and business logic
 - QobuzTrack file naming and metadata
 - QobuzCredentials validation
@@ -60,6 +66,7 @@ tests/
 - Safe filename generation
 
 ### ✅ API Client Tests (15+ tests)
+
 - HTTP request/response handling
 - Rate limiting and backoff
 - Authentication integration
@@ -67,6 +74,7 @@ tests/
 - Error handling and retries
 
 ### ✅ Download Client Tests (20+ tests)
+
 - Download initiation and tracking
 - Progress reporting
 - File management

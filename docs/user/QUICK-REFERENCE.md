@@ -1,10 +1,11 @@
-# Qobuzzarr Quick Reference
+# Qobuzarr Quick Reference
 
-A quick reference guide for developers working with the Qobuzzarr plugin.
+A quick reference guide for developers working with the Qobuzarr plugin.
 
 ## API Endpoints
 
 ### Authentication
+
 ```csharp
 // Email/Password Login
 POST /user/login
@@ -19,6 +20,7 @@ GET /user/login?app_id={appId}&user_auth_token={token}
 ```
 
 ### Search
+
 ```csharp
 // Album Search
 GET /album/search?query={query}&limit={limit}
@@ -31,6 +33,7 @@ GET /track/search?query={query}&limit={limit}
 ```
 
 ### Metadata
+
 ```csharp
 // Get Album Details
 GET /album/get?album_id={albumId}
@@ -53,6 +56,7 @@ GET /track/getFileUrl?track_id={trackId}&format_id={formatId}
 ## Common Patterns
 
 ### Authentication Flow
+
 ```csharp
 // 1. Create credentials
 var credentials = new QobuzCredentials
@@ -69,6 +73,7 @@ _apiClient.SetSession(session);
 ```
 
 ### Search Implementation
+
 ```csharp
 // Basic search
 var results = await _apiClient.GetAsync<QobuzSearchResponse>(
@@ -87,6 +92,7 @@ foreach (var album in results.Albums.Items)
 ```
 
 ### Error Handling
+
 ```csharp
 try
 {
@@ -110,6 +116,7 @@ catch (QobuzApiException ex) when (ex.StatusCode == 429)
 ## Configuration Keys
 
 ### Indexer Settings
+
 ```yaml
 AuthenticationMethod: Email|Token
 Email: user@example.com
@@ -126,6 +133,7 @@ MinimumYear: null
 ```
 
 ### Environment Variables
+
 ```bash
 QOBUZ_APP_ID=your_app_id
 QOBUZ_APP_SECRET=your_secret
@@ -136,6 +144,7 @@ QOBUZ_CACHE_DIR=/path/to/cache
 ## Useful Commands
 
 ### QobuzCLI Testing
+
 ```bash
 # Authenticate
 qobuzcli auth --email user@example.com --password pass
@@ -153,6 +162,7 @@ qobuzcli queue clear
 ```
 
 ### Development
+
 ```bash
 # Build
 dotnet build
@@ -170,6 +180,7 @@ dotnet pack --configuration Release
 ## Logging
 
 ### Log Levels
+
 ```csharp
 _logger.Trace("Detailed trace info");
 _logger.Debug("Debug information");
@@ -179,6 +190,7 @@ _logger.Error(ex, "Error with exception");
 ```
 
 ### Important Log Patterns
+
 ```log
 # Authentication
 [Info] Successfully authenticated with Qobuz API using email/password
@@ -199,6 +211,7 @@ _logger.Error(ex, "Error with exception");
 ## Database Schema
 
 ### Indexer Table
+
 ```sql
 CREATE TABLE Indexers (
     Id INTEGER PRIMARY KEY,
@@ -213,6 +226,7 @@ CREATE TABLE Indexers (
 ```
 
 ### Download Queue (Planned)
+
 ```sql
 CREATE TABLE QobuzDownloadQueue (
     Id INTEGER PRIMARY KEY,
@@ -268,6 +282,6 @@ CREATE TABLE QobuzDownloadQueue (
 
 - [Qobuz API (Unofficial)](https://github.com/Qobuz/api-documentation)
 - [Lidarr Plugin Docs](https://wiki.servarr.com/lidarr/plugins)
-- [.NET 6 Docs](https://docs.microsoft.com/dotnet/core/)
+- [.NET 8 Docs](https://docs.microsoft.com/dotnet/core/)
 - [NLog Documentation](https://nlog-project.org/)
 - [Autofac Documentation](https://autofac.org/)

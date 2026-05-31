@@ -5,6 +5,7 @@ Use this checklist to verify your scripts are working correctly before spending 
 ## ✅ **Pre-Training Validation**
 
 ### **Environment Setup**
+
 ```bash
 # Test basic environment
 python setup_environment.py --gpu-check
@@ -18,6 +19,7 @@ python setup_environment.py --gpu-check
 ```
 
 ### **Script Functionality**
+
 ```bash
 # Test all scripts with mock data (no MusicBrainz needed)
 python test_scripts.py --mock-musicbrainz
@@ -32,6 +34,7 @@ python test_scripts.py --mock-musicbrainz
 ```
 
 ### **MusicBrainz Connection**
+
 ```bash
 # Test connection to your MusicBrainz instance
 curl http://192.168.2.13:5001/ws/2/artist/5b11f4ce-a62d-471e-81fc-a69a8278c7da
@@ -42,6 +45,7 @@ curl http://192.168.2.13:5001/ws/2/artist/5b11f4ce-a62d-471e-81fc-a69a8278c7da
 ## ✅ **Quick Training Test**
 
 ### **Fast Test Run**
+
 ```bash
 # 5-minute test to verify everything works
 python quick_start.py --mb-url http://192.168.2.13:5001/ --fast-mode
@@ -56,6 +60,7 @@ python quick_start.py --mb-url http://192.168.2.13:5001/ --fast-mode
 ### **Validate Generated Files**
 
 **Check dataset quality:**
+
 ```bash
 python -c "
 import json
@@ -74,6 +79,7 @@ with open('training_output/musicbrainz_albums.json') as f:
 ```
 
 **Check model file:**
+
 ```bash
 python -c "
 import torch
@@ -90,6 +96,7 @@ print('Has feature extractor:', 'feature_extractor' in model)
 ```
 
 **Check C# code quality:**
+
 ```bash
 grep -c "class PersonalizedMLQueryOptimizer" training_output/PersonalizedMLQueryOptimizer.cs
 grep -c "IPatternLearningEngine" training_output/PersonalizedMLQueryOptimizer.cs  
@@ -104,6 +111,7 @@ grep -c "PredictComplexity" training_output/PersonalizedMLQueryOptimizer.cs
 ## ✅ **Performance Validation**
 
 ### **Training Speed Check**
+
 | Hardware | Quick Test (500 albums, 5 epochs) | Expected Time |
 |----------|-----------------------------------|---------------|
 | RTX 3090 | GPU training | 2-3 minutes |
@@ -111,6 +119,7 @@ grep -c "PredictComplexity" training_output/PersonalizedMLQueryOptimizer.cs
 | CPU only | CPU training | 8-15 minutes |
 
 ### **Model Quality Check**
+
 ```bash
 # Run validation script
 python validate_model.py \
@@ -127,6 +136,7 @@ python validate_model.py \
 ## ✅ **Integration Validation**
 
 ### **C# Code Compilation Test**
+
 ```bash
 # Copy to source directory (test integration)
 cp training_output/PersonalizedMLQueryOptimizer.cs ../src/Indexers/
@@ -136,6 +146,7 @@ cp training_output/PersonalizedMLQueryOptimizer.cs ../src/Indexers/
 ```
 
 ### **Integration Guide Check**
+
 ```bash
 # Verify integration guide was created
 cat training_output/integration_guide.md
@@ -150,24 +161,28 @@ cat training_output/integration_guide.md
 ## ❌ **Red Flags (Fix Before Full Training)**
 
 ### **Environment Issues**
+
 ❌ GPU not detected (will be very slow)  
 ❌ Missing Python packages  
 ❌ CUDA version mismatch  
 ❌ Insufficient disk space  
 
 ### **Data Issues**
+
 ❌ Less than 100 albums extracted  
 ❌ All albums from same artist/year  
 ❌ MusicBrainz connection errors  
 ❌ Empty or corrupted JSON files  
 
 ### **Training Issues**
+
 ❌ Model accuracy below 65%  
 ❌ Training crashes with out-of-memory  
 ❌ Takes longer than expected (see timing table)  
 ❌ Generated C# code missing key methods  
 
 ### **Integration Issues**
+
 ❌ C# file doesn't compile  
 ❌ Missing IPatternLearningEngine interface  
 ❌ Integration guide incomplete  
@@ -187,24 +202,28 @@ When you see these, you're ready for full training:
 ## 🔧 **Common Fixes**
 
 ### **GPU Not Working**
+
 ```bash
 # Reinstall CUDA-enabled PyTorch
 python setup_environment.py --install-cuda
 ```
 
 ### **Memory Issues**
+
 ```bash
 # Use smaller batches
-python quick_start.py --fast-mode --profile development
+python quick_start.py --fast-mode --profile development <!-- TODO(docval): --profile option declared but not implemented in code as of 2026-05-31 -->
 ```
 
 ### **Poor Accuracy**
+
 ```bash
 # Need more diverse data - try larger profile
-python quick_start.py --profile balanced
+python quick_start.py --profile balanced <!-- TODO(docval): --profile option declared but not implemented in code as of 2026-05-31 -->
 ```
 
 ### **Connection Issues**
+
 ```bash
 # Test MusicBrainz directly
 curl -I http://192.168.2.13:5001/

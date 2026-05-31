@@ -1,4 +1,5 @@
 # 🚀 Shared Library Quick Reference Card
+
 ## Daily Development Guide
 
 > **Keep this handy during development**  
@@ -9,6 +10,7 @@
 ## ⚡ **Essential Commands**
 
 ### **Setup & Build**
+
 ```bash
 # Initial setup
 git submodule update --init --recursive
@@ -23,6 +25,7 @@ cd ../Tidalarr && dotnet build --configuration Release
 ```
 
 ### **Shared Library Development**
+
 ```bash
 # Work on shared library
 cd ext/Lidarr.Plugin.Common
@@ -37,6 +40,7 @@ git commit -m "update: shared library with new features"
 ```
 
 ### **Testing**
+
 ```bash
 # Run all tests
 dotnet test
@@ -56,11 +60,13 @@ dotnet test --collect:"XPlat Code Coverage"
 ### **Adding New Feature to Shared Library**
 
 #### **Step 1: Design Check**
+
 - [ ] ✅ Universal benefit (helps all streaming services)?
 - [ ] ✅ Backwards compatible?
 - [ ] ✅ Additive only (no breaking changes)?
 
 #### **Step 2: Implementation**
+
 ```csharp
 // ✅ GOOD: Optional enhancement
 public static class NewFeatureExtensions
@@ -78,6 +84,7 @@ public static class NewFeatureExtensions
 ```
 
 #### **Step 3: Testing & Documentation**
+
 ```csharp
 // Add tests
 [TestMethod]
@@ -94,6 +101,7 @@ public void NewFeature_WorksWithTidalPattern() { ... }
 ### **Bug Fix Workflow**
 
 #### **Step 1: Reproduce**
+
 ```csharp
 // Create failing test
 [TestMethod]
@@ -106,6 +114,7 @@ public void Bug_ReproducesIssue()
 ```
 
 #### **Step 2: Fix**
+
 ```csharp
 // Fix implementation (maintain backwards compatibility)
 public void SomeMethod()
@@ -116,6 +125,7 @@ public void SomeMethod()
 ```
 
 #### **Step 3: Verify**
+
 ```bash
 # Verify fix works
 dotnet test
@@ -130,6 +140,7 @@ cd ../Tidalarr && dotnet build && dotnet test
 ## 📋 **Code Review Checklist**
 
 ### **For Pull Requests**
+
 - [ ] ✅ Backwards compatibility maintained
 - [ ] ✅ Both Qobuzarr and Tidalarr patterns tested  
 - [ ] ✅ Documentation updated
@@ -140,6 +151,7 @@ cd ../Tidalarr && dotnet build && dotnet test
 - [ ] ✅ Example usage provided
 
 ### **API Design Checklist**
+
 - [ ] ✅ Method names are clear and descriptive
 - [ ] ✅ Parameters have sensible defaults
 - [ ] ✅ Return types are consistent with existing patterns
@@ -153,6 +165,7 @@ cd ../Tidalarr && dotnet build && dotnet test
 ## 🎯 **Implementation Patterns**
 
 ### **Service Integration Template**
+
 ```csharp
 // 1. Settings (inherit from base)
 public class MyServiceSettings : BaseStreamingSettings
@@ -181,20 +194,22 @@ public class MyServiceIndexer : HttpIndexerBase<MyServiceSettings>
 }
 
 // 3. Download Client (inherit from base)
-public class MyServiceDownloadClient : BaseStreamingDownloadClient<MyServiceSettings>
-{
-    protected override string ServiceName => "MyService";
-    
-    protected override async Task<StreamingDownloadResult> DownloadTrackAsync(
-        StreamingTrack track, string outputPath, CancellationToken cancellationToken = default)
-    {
-        var streamUrl = await GetStreamUrlAsync(track.Id);
-        return await base.DownloadFromUrlAsync(streamUrl, outputPath, track, cancellationToken);
-    }
-}
+// TODO(docval): BaseStreamingDownloadClient not found in code as of 2026-05-31 - only exists in examples/
+// public class MyServiceDownloadClient : BaseStreamingDownloadClient<MyServiceSettings>
+// {
+//     protected override string ServiceName => "MyService";
+//
+//     protected override async Task<StreamingDownloadResult> DownloadTrackAsync(
+//         StreamingTrack track, string outputPath, CancellationToken cancellationToken = default)
+//     {
+//         var streamUrl = await GetStreamUrlAsync(track.Id);
+//         return await base.DownloadFromUrlAsync(streamUrl, outputPath, track, cancellationToken);
+//     }
+// }
 ```
 
 ### **Testing Template**
+
 ```csharp
 [TestClass]
 public class MyServiceTests
@@ -235,6 +250,7 @@ public class MyServiceTests
 ### **Build Issues**
 
 #### **"CLI Framework not found"**
+
 ```bash
 # Solution: CLI framework is optional and conditional
 # If you need CLI features:
@@ -245,6 +261,7 @@ dotnet build -p:IncludeCLIFramework=true
 ```
 
 #### **"TagLib namespace not found"**  
+
 ```bash
 # Solution: Ensure TagLibSharp-Lidarr package is restored
 dotnet restore
@@ -252,6 +269,7 @@ dotnet build
 ```
 
 #### **"Assembly version conflicts"**
+
 ```bash
 # Solution: Use consistent Lidarr assembly source
 ./download-lidarr-assemblies.sh --version 2.13.2.4685
@@ -262,6 +280,7 @@ dotnet build
 ### **Runtime Issues**
 
 #### **"Protocol property type mismatch"**
+
 ```csharp
 // ✅ CORRECT (plugins branch compatible)
 public override string Protocol => nameof(MyServiceDownloadProtocol);
@@ -271,6 +290,7 @@ public override string Protocol => nameof(MyServiceDownloadProtocol);
 ```
 
 #### **"Dependency injection failures"**
+
 ```csharp
 // ✅ CORRECT: Register services properly
 services.AddSingleton<IMyService, MyService>();
@@ -284,6 +304,7 @@ services.AddSingleton<IMyService, MyService>();
 ## 📈 **Quality Gates**
 
 ### **Before Committing**
+
 ```bash
 # 1. Build check
 dotnet build --configuration Release
@@ -300,6 +321,7 @@ dotnet run --project benchmarks
 ```
 
 ### **Before Pull Request**
+
 - [ ] ✅ Feature branch up to date with main
 - [ ] ✅ All tests pass locally
 - [ ] ✅ Documentation updated
@@ -307,6 +329,7 @@ dotnet run --project benchmarks
 - [ ] ✅ Both teams can review (add reviewers)
 
 ### **Before Release**
+
 - [ ] ✅ Version number incremented
 - [ ] ✅ CHANGELOG.md updated
 - [ ] ✅ Both consumer projects tested
@@ -318,16 +341,19 @@ dotnet run --project benchmarks
 ## 🔗 **Quick Links**
 
 ### **Repository Links**
+
 - [Lidarr.Plugin.Common](https://github.com/RicherTunes/Lidarr.Plugin.Common) - Shared library
-- [Qobuzarr](https://github.com/RicherTunes/Qobuzarr) - Qobuz plugin  
-- [Tidalarr](https://github.com/TidalAuthor/Tidalarr) - Tidal plugin
+- [Qobuzarr](https://github.com/RicherTunes/Qobuzarr) - Qobuz plugin
+- [Tidalarr](https://github.com/TidalAuthor/Tidalarr) - Tidal plugin <!-- TODO(docval): Tidalarr repo not found as active consumer as of 2026-05-31 - only exists in examples/ -->
 
 ### **Documentation**
+
 - [`SHARED-LIBRARY-COLLABORATION-GUIDE.md`](./SHARED-LIBRARY-COLLABORATION-GUIDE.md) - Full collaboration standards
 - [`SHARED-LIBRARY-TECHNICAL-REFERENCE.md`](./SHARED-LIBRARY-TECHNICAL-REFERENCE.md) - Technical implementation guide
 - [`README.md`](../ext/Lidarr.Plugin.Common/README.md) - Library usage guide
 
 ### **Communication**
+
 - **Issues**: Use GitHub Issues with appropriate labels
 - **Discussions**: GitHub Discussions for architecture decisions
 - **Reviews**: Tag both teams for cross-plugin impact
@@ -338,6 +364,7 @@ dotnet run --project benchmarks
 ## 💡 **Pro Tips**
 
 ### **Development Efficiency**
+
 ```bash
 # Alias for quick cross-plugin testing
 alias test-both="cd ../Qobuzarr && dotnet build && cd ../Tidalarr && dotnet build && cd -"
@@ -350,6 +377,7 @@ alias status-all="git status && cd ext/Lidarr.Plugin.Common && git status && cd 
 ```
 
 ### **Code Quality**
+
 ```csharp
 // Use shared utilities instead of reimplementing
 var sanitized = FileNameSanitizer.SanitizeFileName(userInput); // ✅
@@ -364,6 +392,7 @@ var request = new StreamingApiRequestBuilder(baseUrl) // ✅ Use builder pattern
 ```
 
 ### **Performance**  
+
 ```csharp
 // Use shared caching
 var result = await _cache.GetOrSetAsync(key, factory, ttl); // ✅

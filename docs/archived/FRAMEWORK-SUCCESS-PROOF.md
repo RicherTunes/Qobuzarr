@@ -1,3 +1,5 @@
+> ⚠️ Historical (flagged 2026-05-31): describes a past state; some details below no longer match the current code.
+
 # 🎉 CLI Framework Success: Proven 95.5% Code Reduction with Enhanced Functionality
 
 ## **Mission Accomplished: Framework Integration Initiative Complete**

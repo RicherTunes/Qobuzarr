@@ -129,6 +129,7 @@ graph LR
     subgraph "API Layer"
         QAC[QobuzApiClient]
         QHC[QobuzHttpClient]
+        %% QobuzAuthenticationManager not found in codebase as of 2026-05-31 (uses ISessionManager instead)
         QAM[QobuzAuthenticationManager]
         QRS[QobuzRequestSigner]
         QRC[QobuzResponseCache]
@@ -164,6 +165,7 @@ graph LR
     subgraph "Services"
         QSS[QobuzSearchService]
         QVS[QobuzValidationService]
+        %% HybridMetadataService not found in codebase as of 2026-05-31
         HMS[HybridMetadataService]
         ATM[AdvancedTrackMatcher]
         ARL[AdaptiveRateLimiter]
@@ -329,6 +331,7 @@ sequenceDiagram
 sequenceDiagram
     participant QI as QobuzIndexer
     participant QAC as QobuzApiClient
+    %% NetworkResilienceService not found in codebase as of 2026-05-31 (resilience handled by QobuzHttpClient)
     participant NRS as NetworkResilienceService
     participant ARL as AdaptiveRateLimiter
     participant QobuzAPI as Qobuz API
@@ -363,8 +366,8 @@ sequenceDiagram
 ```mermaid
 graph TB
     subgraph "Runtime"
-        NET6[".NET 6.0"]
-        CSharp["C# 10.0"]
+        NET8[".NET 8.0"]
+        CSharp["C# 12 (latest)"]
     end
     
     subgraph "Lidarr Integration"
@@ -459,7 +462,7 @@ classDiagram
     ITrackMatchingStrategy <|-- MergedTrackMatchingStrategy
     MatchingStrategyCoordinator --> ITrackMatchingStrategy
     
-    %% Factory Pattern Example
+    %% Factory Pattern Example - IQobuzTrackDownloaderFactory, QobuzTrackDownloaderFactory, QobuzTrackDownloader not found in codebase as of 2026-05-31
     class IQobuzTrackDownloaderFactory {
         <<interface>>
         +CreateDownloader(settings) ITrackDownloader
@@ -567,7 +570,7 @@ classDiagram
         +ApplyRateLimit() Task
     }
     
-    %% Authentication management
+    %% Authentication management - QobuzAuthenticationManager not found in codebase as of 2026-05-31 (uses ISessionManager instead)
     class QobuzAuthenticationManager {
         -QobuzSession currentSession
         -DateTime sessionExpiry
@@ -596,6 +599,7 @@ classDiagram
     }
     
     QobuzApiClient --> QobuzHttpClient
+    %% QobuzAuthenticationManager not found in codebase as of 2026-05-31 (uses ISessionManager instead)
     QobuzApiClient --> QobuzAuthenticationManager
     QobuzApiClient --> QobuzRequestSigner
     QobuzApiClient --> QobuzResponseCache
@@ -625,6 +629,7 @@ graph TD
     
     %% API Client Dependencies
     QAC --> QHC[QobuzHttpClient]
+    %% QobuzAuthenticationManager not found in codebase as of 2026-05-31 (uses ISessionManager instead)
     QAC --> QAM[QobuzAuthenticationManager]
     QAC --> QRS[QobuzRequestSigner]
     QAC --> QRC[QobuzResponseCache]
@@ -762,16 +767,19 @@ graph LR
     end
     
     subgraph "Cache TTL Settings"
-        SearchTTL[Search Results: 4 hours]
+        %% Actual DefaultContextCacheTTL is 6 hours (from CacheConfiguration.cs)
+        SearchTTL[Search Results: 6 hours]
         AlbumTTL[Album Data: 24 hours]
         SessionTTL[Sessions: 24 hours]
         MLTTL[ML Patterns: 7 days]
     end
     
     subgraph "Cache Size Limits"
-        MemLimit[Memory: 500MB max]
-        SQLiteLimit[SQLite: 2GB max]
-        FileLimit[Files: 10GB max]
+        %% Actual cache sizes are entry counts; ~60MB based on 2KB per entry estimates. 500MB is SecureMemoryGuard threshold
+        MemLimit[Memory: 500MB threshold]
+        %% SQLite and File limits are not hardcoded in CacheConfiguration
+        SQLiteLimit[SQLite: No hardcoded limit]
+        FileLimit[Files: No hardcoded limit]
     end
     
     HitRate --> SearchTTL
@@ -964,6 +972,7 @@ classDiagram
         +AuditConfiguration() SecurityReport
     }
     
+    %% SecureSessionManager not found in codebase as of 2026-05-31 (session mgmt uses SessionManager from Authentication namespace)
     class SecureSessionManager {
         -Dictionary~string, EncryptedSession~ sessions
         -IKeyManager keyManager
@@ -976,6 +985,7 @@ classDiagram
         +DecryptSessionData(data) object
     }
     
+    %% IModelValidator and IAntiTamperingService not found in codebase as of 2026-05-31
     class SecureMLModelLoader {
         -IModelValidator validator
         -IAntiTamperingService antiTampering
@@ -1099,6 +1109,7 @@ classDiagram
         +ValidateAndSuggestFix() ConfigFix
     }
     
+    %% NetworkResilienceService not found in codebase as of 2026-05-31 - resilience handled by QobuzHttpClient
     class NetworkResilienceService {
         -CircuitBreaker circuitBreaker
         -RetryPolicy retryPolicy
@@ -1112,6 +1123,7 @@ classDiagram
     QobuzException <|-- QobuzAuthenticationException
     QobuzException <|-- ConfigurationException
     
+    %% NetworkResilienceService not found in codebase as of 2026-05-31
     NetworkResilienceService --> QobuzApiException
 ```
 
@@ -1205,6 +1217,7 @@ classDiagram
         +MonitorPerformance() void
     }
     
+    %% AdaptiveBatchDownloadService not found in codebase as of 2026-05-31
     class AdaptiveBatchDownloadService {
         -int optimalBatchSize
         -BatchPerformanceHistory history
@@ -1214,6 +1227,7 @@ classDiagram
         +AdjustBatchSizeBasedOnPerformance() void
     }
     
+    %% PerformanceMonitoringService actual interface is IPerformanceMonitoringService with different methods (RecordApiCall, RecordCacheHit, RecordCacheMiss, LogPerformanceWarning, RecordMLOptimization)
     class PerformanceMonitoringService {
         -MetricsCollector metricsCollector
         -PerformanceTelemetry telemetry

@@ -1,10 +1,14 @@
 # QobuzCLI - Command Line Interface for Qobuzarr
 
+<!-- TODO(docval): Command name examples use "qobuzcli" but actual binary name depends on build/publish configuration -->
 A comprehensive command-line application for testing, debugging, and standalone music downloads using the Qobuzarr plugin core. QobuzCLI provides full access to Qobuz's high-resolution music catalog through an intuitive command interface.
+
+> **Note**: The examples below use `qobuzcli` as the command name. The actual command name depends on how the CLI is built and published (e.g., `dotnet run --` from source, or the published executable name).
 
 ## Overview
 
 QobuzCLI is a production-ready standalone application that:
+
 - **Tests and manages Qobuz authentication** (email/password and user ID/token)
 - **Performs advanced searches** with filtering and export capabilities
 - **Downloads albums, playlists, and labels** with quality fallback and validation
@@ -21,6 +25,7 @@ This CLI is a **thin wrapper** around the Qobuzarr plugin core. All functionalit
 ## Installation
 
 ### From Source
+
 ```bash
 cd QobuzCLI
 dotnet build
@@ -28,6 +33,7 @@ dotnet run -- --help
 ```
 
 ### As Global Tool
+
 ```bash
 # Package and install globally
 dotnet pack
@@ -117,6 +123,7 @@ qobuzcli batch-search --input albums.json --report report.html
 #### Input File Formats
 
 **JSON Format** (Recommended):
+
 ```json
 [
   {
@@ -132,6 +139,7 @@ qobuzcli batch-search --input albums.json --report report.html
 ```
 
 **Text Format**:
+
 ```
 Pink Floyd - The Dark Side of the Moon
 Led Zeppelin - IV
@@ -222,21 +230,21 @@ qobuzcli queue priority --id 1 --priority high
 ```bash
 --limit N           Maximum results (default: 50)
 --type TYPE         Search type: all, album, artist, track
---genre GENRE       Filter by genre
---year-min YEAR     Minimum release year
---year-max YEAR     Maximum release year
---quality QUALITY   Minimum quality: mp3, flac, flac-hires
---include-singles   Include single releases
---fuzzy             Use fuzzy matching
+--genre GENRE       Filter by genre  <!-- TODO(docval): Not found in CLI as of 2026-05-31 -->
+--year-min YEAR     Minimum release year  <!-- TODO(docval): Not found in CLI as of 2026-05-31 -->
+--year-max YEAR     Maximum release year  <!-- TODO(docval): Not found in CLI as of 2026-05-31 -->
+--quality QUALITY   Minimum quality: mp3, flac, flac-hires  <!-- TODO(docval): Not found in CLI as of 2026-05-31 -->
+--include-singles   Include single releases  <!-- TODO(docval): Not found in CLI as of 2026-05-31 -->
+--fuzzy             Use fuzzy matching  <!-- TODO(docval): Not found in CLI as of 2026-05-31 -->
 ```
 
 ### Output Options
 
 ```bash
---output FORMAT     Output format: table, json, csv, xml
---output-file PATH  Save output to file
---quiet             Suppress non-error output
---verbose           Verbose output
+--output FORMAT     Output format: table, json, csv, xml  <!-- TODO(docval): --output option not found in CLI as of 2026-05-31 -->
+--output-file PATH  Save output to file  <!-- TODO(docval): Not found in CLI as of 2026-05-31 -->
+--quiet             Suppress non-error output  <!-- TODO(docval): Not found in CLI as of 2026-05-31 -->
+--verbose           Verbose output  <!-- TODO(docval): Not found in CLI as of 2026-05-31 -->
 ```
 
 ## Examples
@@ -343,6 +351,7 @@ QobuzCLI stores configuration in `~/.qobuz/qobuz-configuration.json`:
 ### Common Issues
 
 **Authentication Fails**
+
 ```bash
 # Check credentials
 qobuzcli config list
@@ -355,6 +364,7 @@ rm ~/.qobuzcli/session.cache
 ```
 
 **Search Returns No Results**
+
 ```bash
 # Try simpler search terms
 qobuzcli search "artist name" --fuzzy
@@ -364,6 +374,7 @@ qobuzcli search "test" --debug --limit 1
 ```
 
 **Rate Limiting**
+
 ```bash
 # Reduce rate limit
 qobuzcli config set --rate-limit 30
@@ -385,6 +396,7 @@ qobuzcli search "test" --debug
 ```
 
 Debug output includes:
+
 - HTTP requests/responses
 - API timing information
 - Cache hit/miss statistics

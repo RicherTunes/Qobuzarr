@@ -12,6 +12,7 @@
 ## 🚀 Key Features
 
 ### Core Functionality
+
 - **High-Fidelity Audio**: Lossless FLAC up to 24-bit/192kHz Hi-Res quality
 - **Playlist Support**: Download entire playlists with M3U8 generation
 - **Label Downloads**: Batch download all albums from a record label
@@ -19,13 +20,15 @@
 - **Comprehensive Metadata**: Full tagging with TagLib-Sharp
 
 ### Advanced Optimization
-- **ML-Powered Query Intelligence**: 65.8% API call reduction using ML.NET ✅ *Production Validated*
+
+- **ML-Powered Query Intelligence**: 49.8% API call reduction using ML.NET ✅ *Production Validated*
 - **Pattern Learning Engine**: Adapts to your music library patterns with A/B testing
 - **Multi-Layer Caching**: 94.7% cache hit rate with intelligent prefetching ✅ *Production Validated*
 - **Progressive Search**: Multiple fallback strategies for hard-to-find content
 - **Real-time Telemetry**: Serilog-based performance monitoring with automatic validation
 
 ### Enterprise Features
+
 - **Plugin-First Architecture**: Clean separation between plugin and CLI
 - **Multiple Auth Methods**: Email/password, token-based, or dynamic extraction
 - **Thread-Safe Operations**: Concurrent downloads with proper synchronization
@@ -35,6 +38,7 @@
 ## 📦 Installation
 
 ### Prerequisites
+
 - Lidarr v2.13.0 or higher (plugins branch — `pr-plugins-3.x`)
 - .NET 8.0 SDK (the plugin targets `net8.0`; the host runs .NET 8)
 - Qobuz subscription (Studio Premier recommended for Hi-Res)
@@ -46,16 +50,19 @@
 ### Plugin Installation
 
 1. **Download the latest release**:
+
    ```bash
    wget https://github.com/RicherTunes/qobuzarr/releases/latest/download/Qobuzarr.zip
    ```
 
 2. **Install to Lidarr**:
+
    ```bash
    unzip Qobuzarr.zip -d /path/to/lidarr/plugins/
    ```
 
 3. **Restart Lidarr**:
+
    ```bash
    systemctl restart lidarr
    ```
@@ -77,6 +84,7 @@ dotnet run -- auth login
 ## ⚙️ Configuration
 
 ### Environment Variables
+
 ```bash
 # Required for API access
 export QOBUZ_APP_ID="your_app_id"
@@ -89,6 +97,7 @@ export QOBUZ_QUALITY="27"  # 5=MP3-320, 6=FLAC-CD, 7=FLAC-Hi-Res, 27=FLAC-Max
 ```
 
 ### Lidarr Settings
+
 1. **Indexer Configuration**:
    - Enable RSS: Yes
    - Enable Search: Yes
@@ -103,20 +112,23 @@ export QOBUZ_QUALITY="27"  # 5=MP3-320, 6=FLAC-CD, 7=FLAC-Hi-Res, 27=FLAC-Max
 ### CLI Commands
 
 ```bash
+# From the QobuzCLI directory, run commands via dotnet
+cd QobuzCLI
+
 # Search for albums
-qobuz search "Miles Davis Kind of Blue"
+dotnet run -- search "Miles Davis Kind of Blue"
 
 # Download an album
-qobuz download album <album_id> --output ./Music
+dotnet run -- download album <album_id> --output ./Music
 
 # Download a playlist
-qobuz download playlist <playlist_id> --output ./Playlists
+dotnet run -- download playlist <playlist_id> --output ./Playlists
 
-# Download all albums from a label
-qobuz download label <label_id> --output ./Labels --max-albums 50
+# Manage download queues
+dotnet run -- queue list
 
-# Batch download from file
-qobuz download --from-file albums.txt --output ./Music
+# View download history
+dotnet run -- history stats
 ```
 
 ### Plugin Usage
@@ -131,6 +143,7 @@ The plugin integrates seamlessly with Lidarr's automated workflow:
 ## 🏗️ Architecture
 
 ### Plugin-First Design
+
 ```
 ┌─────────────────┐    ┌──────────────────────────┐
 │   Lidarr Plugin │    │      QobuzCLI            │
@@ -145,6 +158,7 @@ The plugin integrates seamlessly with Lidarr's automated workflow:
 ```
 
 **Key Principles**:
+
 - All core functionality lives in the plugin
 - CLI is a thin wrapper for testing/standalone use
 - No duplicate implementations
@@ -160,12 +174,14 @@ The plugin integrates seamlessly with Lidarr's automated workflow:
 ## 📊 Performance
 
 ### Optimization Results
-- **65.8% reduction** in API calls through ML optimization
+
+- **49.8% reduction** in API calls through ML optimization
 - **94.7% cache hit rate** with intelligent caching
 - **33.9% baseline failure rate** reduced to **<10%** with progressive search
 - **100,000+ albums** successfully processed in validation
 
 ### Resource Usage
+
 - Memory: ~200MB baseline, ~500MB during batch operations
 - CPU: Minimal usage with async/await patterns
 - Network: Adaptive rate limiting prevents API throttling
@@ -209,6 +225,7 @@ We welcome contributions! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for guid
 ### Development Setup
 
 **Quick Start (Recommended):**
+
 ```bash
 # Clone the repository
 git clone https://github.com/RicherTunes/qobuzarr.git
@@ -222,6 +239,7 @@ chmod +x setup.sh && ./setup.sh
 ```
 
 **Manual Setup:**
+
 ```bash
 # 1. Clone the repository
 git clone https://github.com/RicherTunes/qobuzarr.git
@@ -241,11 +259,13 @@ dotnet test
 ```
 
 **⚠️ Important Notes:**
+
 - The `ext/Lidarr-source/` directory is required for compilation but excluded from git
 - If build fails, ensure Lidarr version compatibility with plugin requirements  
 - Some tests may fail without proper Lidarr assemblies - this is expected during development
 
 **🆘 Troubleshooting:**
+
 - If you see "Skipping project... because it was not found" warnings, this is normal before running setup
 - For complete setup help, see [CLAUDE.md](CLAUDE.md) (build commands and architecture)
 
@@ -278,4 +298,4 @@ Qobuzarr is an independent, open-source project developed by RicherTunes for **e
 
 ---
 
-**Current Version**: v0.0.12 | **Last Updated**: January 2025
+**Current Version**: v0.5.11 | **Last Updated**: January 2025

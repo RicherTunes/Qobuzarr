@@ -6,10 +6,10 @@ This directory contains GitHub-specific configuration files for the Qobuzarr pro
 
 ### Workflows (`.github/workflows/`)
 
-- **`build-and-test.yml`** - Main CI/CD pipeline for building and testing the plugin and CLI
+- **`ci.yml`** - Main CI/CD pipeline for building and testing the plugin and CLI
 - **`release.yml`** - Automated release workflow for creating GitHub releases with artifacts  
-- **`security-scan.yml`** - Comprehensive security scanning including CodeQL, Semgrep, secrets detection
-- **`dependency-check.yml`** - Weekly dependency vulnerability and license compliance checking
+- **`security.yml`** - Comprehensive security scanning including CodeQL, Semgrep, secrets detection
+- **`dependency-review.yml`** - Weekly dependency vulnerability and license compliance checking
 
 ### Issue Templates (`.github/ISSUE_TEMPLATE/`)
 
@@ -38,23 +38,27 @@ This directory contains GitHub-specific configuration files for the Qobuzarr pro
 ## Key Features
 
 ### Security-First Approach
+
 - Multiple security scanning layers (CodeQL, Semgrep, TruffleHog)
 - Automated vulnerability detection for dependencies
 - License compliance checking
 - Security-focused issue templates
 
 ### Comprehensive Quality Gates
+
 - Multi-stage build verification
 - Test coverage requirements  
 - Architecture compliance checks
 - Performance impact assessment
 
 ### Lidarr Plugin Specific
+
 - Templates tailored for Lidarr plugin development
 - Qobuz integration considerations
 - Plugin-CLI architecture validation
 
 ### Developer Experience
+
 - Clear, structured templates
 - Automated dependency management
 - Comprehensive code ownership
@@ -63,6 +67,7 @@ This directory contains GitHub-specific configuration files for the Qobuzarr pro
 ## Usage
 
 These configurations are automatically used by GitHub when:
+
 - Creating issues (issue templates)
 - Opening pull requests (PR template)  
 - Code changes are pushed (workflows)
