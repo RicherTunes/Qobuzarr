@@ -28,12 +28,12 @@ dotnet add package Lidarr.Plugin.Common --version 1.0.0
 ```csharp
 // Use optimized TidalSettings from shared library examples
 // Customize for your Tidal API requirements
-public class TidalSettings : BaseStreamingSettings, IIndexerSettings
+public class TidalSettings : BaseStreamingSettings<!-- TODO(docval): verify BaseStreamingSettings exists in Lidarr.Plugin.Common as of 2026-05-31 -->, IIndexerSettings
 {
     public string TidalAccessToken { get; set; }
     public TidalSubscriptionTier SubscriptionTier { get; set; }
     public bool IncludeMqa { get; set; } = true;
-    
+
     // Inherit: BaseUrl, SearchLimit, ApiRateLimit, CountryCode, etc.
     // Only ~50 LOC vs 200+ LOC traditional implementation
 }
@@ -46,7 +46,7 @@ public class TidalApiClient
 {
     public async Task<TidalSearchResponse> SearchAlbumsAsync(string query)
     {
-        var request = new StreamingApiRequestBuilder("https://api.tidalhifi.com/v1")
+        var request = new StreamingApiRequestBuilder<!-- TODO(docval): StreamingApiRequestBuilder not found in Lidarr.Plugin.Common as of 2026-05-31 -->("https://api.tidalhifi.com/v1")
             .Endpoint("search/albums")
             .Query("query", query)
             .BearerToken(_settings.TidalAccessToken)
@@ -64,20 +64,20 @@ public class TidalApiClient
 #### **Day 6-7: Authentication & Quality (1 day)**
 ```csharp
 // Map Tidal qualities to shared library tiers
-public StreamingQuality MapTidalQuality(string tidalQuality)
+public StreamingQuality<!-- TODO(docval): StreamingQuality not found in Lidarr.Plugin.Common as of 2026-05-31 --> MapTidalQuality(string tidalQuality)
 {
     return tidalQuality?.ToUpperInvariant() switch
     {
-        "NORMAL" => QualityMapper.StandardQualities.Mp3High,
-        "HIGH" => QualityMapper.StandardQualities.FlacCD,
-        "LOSSLESS" => QualityMapper.StandardQualities.FlacCD,
-        "MQA" => QualityMapper.StandardQualities.FlacMax,
-        _ => QualityMapper.FromStringDescriptor(tidalQuality, "Tidal")
+        "NORMAL" => QualityMapper<!-- TODO(docval): QualityMapper not found in Lidarr.Plugin.Common as of 2026-05-31 -->.StandardQualities.Mp3High,
+        "HIGH" => QualityMapper<!-- TODO(docval): QualityMapper not found in Lidarr.Plugin.Common as of 2026-05-31 -->.StandardQualities.FlacCD,
+        "LOSSLESS" => QualityMapper<!-- TODO(docval): QualityMapper not found in Lidarr.Plugin.Common as of 2026-05-31 -->.StandardQualities.FlacCD,
+        "MQA" => QualityMapper<!-- TODO(docval): QualityMapper not found in Lidarr.Plugin.Common as of 2026-05-31 -->.StandardQualities.FlacMax,
+        _ => QualityMapper<!-- TODO(docval): QualityMapper not found in Lidarr.Plugin.Common as of 2026-05-31 -->.FromStringDescriptor(tidalQuality, "Tidal")
     };
 }
 
 // Use shared quality comparison (40+ LOC saved)
-var bestQuality = QualityMapper.FindBestMatch(availableQualities, StreamingQualityTier.HiRes);
+var bestQuality = QualityMapper<!-- TODO(docval): QualityMapper not found in Lidarr.Plugin.Common as of 2026-05-31 -->.FindBestMatch(availableQualities, StreamingQualityTier<!-- TODO(docval): StreamingQualityTier not found in Lidarr.Plugin.Common as of 2026-05-31 -->.HiRes);
 ```
 
 **Week 1 Result**: Working Tidal API integration with shared library foundation (200 LOC vs 800 LOC traditional)
@@ -90,8 +90,8 @@ var bestQuality = QualityMapper.FindBestMatch(availableQualities, StreamingQuali
 ```csharp
 public class TidalRequestGenerator : IIndexerRequestGenerator
 {
-    private readonly StreamingIndexerMixin _helper;
-    
+    private readonly StreamingIndexerMixin<!-- TODO(docval): StreamingIndexerMixin not found in Lidarr.Plugin.Common as of 2026-05-31 --> _helper;
+
     public IndexerPageableRequestChain GetSearchRequests(AlbumSearchCriteria searchCriteria)
     {
         // Use shared validation (20+ LOC saved)

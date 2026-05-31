@@ -1,6 +1,6 @@
-# Qobuzzarr Configuration Guide
+# Qobuzarr Configuration Guide
 
-This guide covers all configuration options for the Qobuzzarr plugin, including initial setup, authentication methods, and advanced settings.
+This guide covers all configuration options for the Qobuzarr plugin, including initial setup, authentication methods, and advanced settings.
 
 ## Table of Contents
 
@@ -14,13 +14,13 @@ This guide covers all configuration options for the Qobuzzarr plugin, including 
 
 ## Prerequisites
 
-Before configuring Qobuzzarr, ensure you have:
+Before configuring Qobuzarr, ensure you have:
 
 1. **Lidarr v2.0+** running on the plugins branch
 2. **Qobuz Account** with active subscription
    - Studio tier: CD quality (FLAC 16-bit/44.1kHz)
    - Sublime tier: Hi-Res quality (up to 24-bit/192kHz)
-3. **.NET 6.0 Runtime** installed
+3. **.NET 8.0 Runtime** installed
 4. **Network Access** to Qobuz API endpoints
 
 ## Installation
@@ -29,7 +29,7 @@ Before configuring Qobuzzarr, ensure you have:
 
 ```bash
 # Using hotio's plugins image
-docker pull ghcr.io/hotio/lidarr:pr-plugins
+docker pull ghcr.io/hotio/lidarr:pr-plugins-3.1.2.4913
 
 # Run with plugin support
 docker run -d \
@@ -47,7 +47,7 @@ docker run -d \
 ### Manual Installation
 
 1. Download the latest release from [GitHub Releases](https://github.com/richertunes/qobuzarr/releases)
-2. Extract `Lidarr.Plugin.Qobuz.dll` to your Lidarr plugins directory:
+2. Extract `Lidarr.Plugin.Qobuzarr.dll` to your Lidarr plugins directory:
    - Linux: `/config/plugins/`
    - Windows: `%ProgramData%\Lidarr\plugins\`
    - macOS: `~/.config/Lidarr/plugins/`
@@ -56,12 +56,12 @@ docker run -d \
 ### Verifying Installation
 
 1. Navigate to **System → Plugins** in Lidarr
-2. Confirm "Qobuzzarr" appears in the plugin list
+2. Confirm "Qobuzarr" appears in the plugin list
 3. Check the plugin status is "Loaded"
 
 ## Authentication Setup
 
-Qobuzzarr supports two authentication methods:
+Qobuzarr supports two authentication methods:
 
 ### Method 1: Email & Password Authentication
 
@@ -218,6 +218,7 @@ Preferred Genre: All Genres
 #### Configuration Examples
 
 **Default (Recommended)**
+
 ```bash
 # Query Intelligence enabled with conservative settings
 QOBUZ_QUERY_INTELLIGENCE="true"      # 49.83% API reduction
@@ -225,6 +226,7 @@ QOBUZ_DEBUG_QUERIES="false"          # Clean logs
 ```
 
 **Debug Mode**
+
 ```bash
 # Enable debug logging to understand classifications
 QOBUZ_QUERY_INTELLIGENCE="true"
@@ -232,6 +234,7 @@ QOBUZ_DEBUG_QUERIES="true"           # Log all complexity decisions
 ```
 
 **Custom Thresholds (Advanced Users Only)**
+
 ```bash
 # More aggressive optimization (may impact quality)
 QOBUZ_SIMPLE_THRESHOLD="2"           # More albums classified as simple
@@ -266,6 +269,7 @@ QOBUZ_MEDIUM_THRESHOLD="3"           # More albums classified as complex
 #### Configuration Examples
 
 **Default (Recommended)**
+
 ```bash
 # Adaptive rate limiting with conservative start
 QOBUZ_ADAPTIVE_RATE_LIMITING="true"   # 93x performance improvement
@@ -274,6 +278,7 @@ QOBUZ_MAX_RATE="500"                  # Safe maximum
 ```
 
 **Aggressive Performance**
+
 ```bash
 # Faster initial rate, higher maximum
 QOBUZ_INITIAL_RATE="120"              # Start faster
@@ -282,6 +287,7 @@ QOBUZ_RATE_INCREASE_FACTOR="1.5"      # Faster scaling
 ```
 
 **Conservative Performance**
+
 ```bash
 # Slower scaling for stability
 QOBUZ_INITIAL_RATE="30"               # Very conservative start
@@ -317,7 +323,7 @@ QOBUZ_RATE_INCREASE_FACTOR="1.1"      # Gradual scaling
 
 ## Quality Profile Mapping
 
-Qobuzzarr automatically maps Qobuz qualities to Lidarr profiles:
+Qobuzarr automatically maps Qobuz qualities to Lidarr profiles:
 
 | Qobuz Format | Format ID | Lidarr Quality | Bitrate/Sample Rate |
 |--------------|-----------|----------------|---------------------|

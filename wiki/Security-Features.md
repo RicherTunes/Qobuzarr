@@ -1,3 +1,5 @@
+> ⚠️ Partially aspirational (flagged 2026-05-31): Some APIs and features described below (e.g., SecureCredentialManager, SecurityMonitoringService) are aspirational design documentation; see inline `<!-- TODO(docval): ... -->` markers for non-existent symbols. Security components that exist in `src/Security/` are accurately described.
+
 # Security Features
 
 Comprehensive overview of Qobuzarr's security architecture, including credential protection, input validation, ML model security, and threat mitigation.
@@ -34,7 +36,7 @@ Qobuzarr implements **defense-in-depth security** with multiple layers of protec
 
 ## 🔐 Credential Security
 
-### SecureCredentialManager
+### SecureCredentialManager<!-- TODO(docval): SecureCredentialManager class not found in codebase as of 2026-05-31; credential management uses Lidarr.Plugin.Common token storage (FileTokenStore, StreamingTokenManager) instead. -->
 
 **Enterprise-grade credential protection** with memory security.
 
@@ -46,7 +48,7 @@ var credentialManager = new SecureCredentialManager(logger);
 credentialManager.StoreSecureCredential(\"qobuz_password\", userPassword);
 
 // Use with automatic cleanup
-await credentialManager.UseSecureCredentialAsync(\"qobuz_password\", async password => 
+await credentialManager.UseSecureCredentialAsync(\"qobuz_password\", async password =>
 {
     return await qobuzApi.AuthenticateAsync(email, password);
     // Password automatically cleared from memory here
@@ -56,12 +58,14 @@ await credentialManager.UseSecureCredentialAsync(\"qobuz_password\", async passw
 **Security Features:**
 
 #### Memory Protection
+
 - **SecureString Integration**: Windows SecureString API for protected memory
 - **Automatic Cleanup**: Zero memory footprint after credential use
 - **GC Prevention**: Prevents garbage collection of sensitive strings
 - **Memory Encryption**: OS-level protection for credential storage
 
 #### Access Control
+
 - **Thread-Safe Operations**: Concurrent credential access patterns
 - **Time-Limited Exposure**: Credentials exposed only during active use
 - **Audit Logging**: All credential operations logged securely
@@ -137,6 +141,7 @@ var devEngine = await modelLoader.LoadSecureModelAsync(\"/models/dev-model.dll\"
 **Security Validation Pipeline:**
 
 #### 1. Path Traversal Protection
+
 ```csharp
 // Prevents malicious path access
 var sanitizedPath = ValidateAndSanitizePath(modelPath);
@@ -144,6 +149,7 @@ var sanitizedPath = ValidateAndSanitizePath(modelPath);
 ```
 
 #### 2. File Integrity Verification
+
 ```csharp
 // Hash-based integrity checking
 var expectedHash = GetExpectedModelHash(modelPath);
@@ -156,6 +162,7 @@ if (!SecureHashEquals(expectedHash, actualHash))
 ```
 
 #### 3. Assembly Signature Validation
+
 ```csharp
 // Strong name and certificate validation
 if (requireSignature && !IsAssemblySigned(assemblyPath))
@@ -165,6 +172,7 @@ if (requireSignature && !IsAssemblySigned(assemblyPath))
 ```
 
 #### 4. Secure Assembly Loading
+
 ```csharp
 // Isolated assembly loading with restricted permissions
 var loadContext = new SecureAssemblyLoadContext(assemblyPath);
@@ -235,7 +243,7 @@ public class InputSanitizer
 
 ### MetadataSanitizer
 
-**Secure processing** of music metadata from external sources.
+**Secure processing** of music metadata from external sources.<!-- TODO(docval): SanitizeTrackMetadata(QobuzTrack track) method not found; actual MetadataSanitizer is static with methods: SanitizeVersion, SanitizeArtistName, SanitizeAlbumTitle, HtmlEncode, IsPotentiallyDangerous. -->
 
 ```csharp
 public class MetadataSanitizer
@@ -278,29 +286,29 @@ public class MetadataSanitizer
 
 ### SecureApiExtensions
 
-**Enhanced API security** for all Qobuz API communications.
+**Enhanced API security** for all Qobuz API communications.<!-- TODO(docval): ExecuteSecureApiCallAsync method not found; actual SecureApiExtensions has: GenerateSecureTrackSignature, GenerateSecureGenericSignature, ValidateRequestSecurity, CreateSecureParameterCopy. -->
 
 ```csharp
 public static class SecureApiExtensions
 {
     public static async Task<TResponse> ExecuteSecureApiCallAsync<TResponse>(
         this IQobuzApiClient client,
-        string endpoint, 
+        string endpoint,
         object parameters = null)
     {
         // 1. Input validation
         ValidateEndpoint(endpoint);
         ValidateParameters(parameters);
-        
+
         // 2. Request signing
         var signedRequest = SignRequest(endpoint, parameters);
-        
-        // 3. Secure HTTP execution  
+
+        // 3. Secure HTTP execution
         var response = await client.ExecuteAsync(signedRequest);
-        
+
         // 4. Response validation
         ValidateResponse(response);
-        
+
         // 5. Safe deserialization
         return DeserializeSecurely<TResponse>(response.Content);
     }
@@ -309,7 +317,7 @@ public static class SecureApiExtensions
 
 ### Rate Limiting Security
 
-**Adaptive rate limiting** with abuse protection.
+**Adaptive rate limiting** with abuse protection.<!-- TODO(docval): AdaptiveRateLimiter actual implementation is a simple 3-line adapter (inherits NamedServiceRateLimiter from common), not the complex TryExecuteAsync/DetectAbusePatternAsync implementation shown here. -->
 
 ```csharp
 public class AdaptiveRateLimiter : IRateLimiter
@@ -318,21 +326,21 @@ public class AdaptiveRateLimiter : IRateLimiter
     public async Task<bool> TryExecuteAsync(Func<Task> action, string category)
     {
         var clientId = GetClientIdentifier();
-        
+
         // Check for abuse patterns
         if (await DetectAbusePatternAsync(clientId, category))
         {
-            _logger.LogWarning(\"Potential API abuse detected for client: {ClientId}\", 
+            _logger.LogWarning(\"Potential API abuse detected for client: {ClientId}\",
                 MaskClientId(clientId));
             return false;
         }
-        
+
         // Apply rate limits
         if (!await _rateLimiter.TryConsumeAsync(category))
         {
             return false;
         }
-        
+
         try
         {
             await action();
@@ -350,7 +358,7 @@ public class AdaptiveRateLimiter : IRateLimiter
 
 ## 🔍 Security Monitoring
 
-### SecurityConfigValidator
+### SecurityConfigValidator<!-- TODO(docval): ValidateConfigurationAsync method not found; actual method is ValidateConfiguration(QobuzIndexerSettings settings) which is synchronous. -->
 
 **Runtime security validation** and monitoring.
 
@@ -360,19 +368,19 @@ public class SecurityConfigValidator
     public async Task<SecurityValidationResult> ValidateConfigurationAsync()
     {
         var results = new List<ValidationResult>();
-        
+
         // Check credential security
         results.Add(await ValidateCredentialSecurityAsync());
-        
+
         // Check ML model signatures
         results.Add(await ValidateMLModelSecurityAsync());
-        
-        // Check network security  
+
+        // Check network security
         results.Add(await ValidateNetworkSecurityAsync());
-        
+
         // Check logging security
         results.Add(await ValidateLoggingSecurityAsync());
-        
+
         return new SecurityValidationResult(results);
     }
     
@@ -395,7 +403,7 @@ public class SecurityConfigValidator
 }
 ```
 
-### Security Event Monitoring
+### Security Event Monitoring<!-- TODO(docval): SecurityMonitoringService class not found in codebase as of 2026-05-31. -->
 
 **Real-time threat detection** and response.
 
@@ -445,7 +453,7 @@ public class SecurityMonitoringService
 
 ## 🔐 Environment Security
 
-### Secure Configuration
+### Secure Configuration<!-- TODO(docval): QOBUZ_* environment variables not found in codebase as of 2026-05-31. -->
 
 **Environment-based security settings** for production deployments.
 
@@ -454,7 +462,7 @@ public class SecurityMonitoringService
 export QOBUZ_REQUIRE_SECURE_CREDENTIALS=true
 export QOBUZ_CREDENTIAL_ENCRYPTION_KEY=base64-key-here
 
-# ML Model Security  
+# ML Model Security
 export QOBUZ_REQUIRE_SIGNED_MODELS=true
 export QOBUZ_TRUSTED_MODEL_PATHS=\"/app/models:/config/models\"
 
@@ -598,4 +606,4 @@ dotnet run --project SecurityScanner -- --target /app/plugins/
 
 ---
 
-*Security is built into every layer of Qobuzarr. For security vulnerabilities or concerns, see our [[Security Policy]] or contact security@richertunes.com*
+*Security is built into every layer of Qobuzarr. For security vulnerabilities or concerns, see our [[Security Policy]] or contact <security@richertunes.com>*

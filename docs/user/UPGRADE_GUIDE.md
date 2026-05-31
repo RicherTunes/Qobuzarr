@@ -16,11 +16,13 @@ This guide covers upgrading Qobuzarr between versions.
 ### Upgrading to v0.1.x from v0.0.x
 
 **New Features:**
+
 - ML-powered Query Intelligence for smarter searches
 - Improved caching (94.7% hit rate)
 - Better error messages
 
 **Settings Changes:**
+
 - New "Enable Query Intelligence" option (enabled by default)
 - New confidence threshold settings
 
@@ -29,11 +31,13 @@ This guide covers upgrading Qobuzarr between versions.
 ### Upgrading from Early Alpha (v0.0.1-v0.0.10)
 
 **Changes:**
+
 - Moved to .NET 8.0 runtime
 - New plugin structure
 - Improved authentication handling
 
 **Action Required:**
+
 1. Remove old plugin files completely
 2. Install fresh from release
 3. Re-enter Qobuz credentials
@@ -41,13 +45,17 @@ This guide covers upgrading Qobuzarr between versions.
 ## Settings Migration
 
 ### Automatic Migration
+
 Most settings migrate automatically. After upgrade:
+
 1. Check Settings > Indexers > Qobuzarr
 2. Verify App ID and App Secret are preserved
 3. Test the connection
 
 ### Manual Migration Required
+
 If upgrading from very old versions:
+
 1. Note current App ID, App Secret, and quality setting
 2. After upgrade, re-enter in plugin settings
 
@@ -62,6 +70,7 @@ When upgrading to versions with Query Intelligence:
 ### Disabling Query Intelligence
 
 If you experience issues:
+
 1. Settings > Indexers > Qobuzarr
 2. Set "Enable Query Intelligence" to No
 3. Save and test
@@ -71,18 +80,21 @@ If you experience issues:
 ### Plugin Not Loading After Upgrade
 
 1. **Verify file extraction:**
+
    ```
-   plugins/Qobuzarr/
+   plugins/RicherTunes/Qobuzarr/
    ├── Lidarr.Plugin.Qobuzarr.dll
    ├── plugin.json
    └── [other dependencies]
    ```
+
 2. Check Lidarr logs at System > Logs
 3. Ensure Lidarr 2.13.0+ is installed
 
 ### "Could not load assembly" Error
 
 Version mismatch with Lidarr:
+
 1. Check required Lidarr version in release notes
 2. Upgrade Lidarr if needed
 3. Or downgrade to compatible Qobuzarr version
@@ -97,8 +109,9 @@ Version mismatch with Lidarr:
 ### Search Quality Degraded
 
 After upgrading to Query Intelligence versions:
+
 1. Let the ML patterns stabilize (24-48 hours)
-2. Check if "Enable Query Intelligence" is on
+2. Check if "Query Optimization" is set to "Query Intelligence" or higher
 3. Try clearing the cache: Settings > General > Clear Cache
 
 ## Rollback Procedure
@@ -107,9 +120,11 @@ If an upgrade causes problems:
 
 1. **Stop Lidarr**
 2. **Remove new files:**
+
    ```bash
-   rm -rf ~/.config/Lidarr/plugins/Qobuzarr/
+   rm -rf ~/.config/Lidarr/plugins/RicherTunes/Qobuzarr/
    ```
+
 3. **Extract previous version** from backup
 4. **Start Lidarr**
 5. **Report issue** with logs on [GitHub](https://github.com/RicherTunes/qobuzarr/issues)

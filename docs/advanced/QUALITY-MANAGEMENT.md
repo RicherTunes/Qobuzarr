@@ -1,9 +1,12 @@
+> ⚠️ Historical (flagged 2026-05-31): describes a past state; some details below no longer match the current code.
+
 # Quality Management Guide
 
-**Version:** 0.0.12+  
+**Version:** 0.0.12+
 **Last Updated:** August 2024
 
 ## Table of Contents
+
 - [Overview](#overview)
 - [Quality Detection System](#quality-detection-system)
 - [Intelligent Sampling](#intelligent-sampling)
@@ -18,6 +21,7 @@
 Qobuzarr's Quality Management system provides intelligent audio quality detection and optimization, reducing API calls by up to 95% while maintaining accurate quality information. The system uses smart sampling, caching, and pattern recognition to minimize API overhead.
 
 ### Key Benefits
+
 - **95% API call reduction** through intelligent quality caching
 - **Sub-50ms quality lookups** for cached content
 - **Automatic quality detection** for new releases
@@ -25,6 +29,7 @@ Qobuzarr's Quality Management system provides intelligent audio quality detectio
 - **Real-time quality monitoring** and alerts
 
 ### Architecture Overview
+
 ```
 ┌─────────────────┐    ┌──────────────────┐    ┌─────────────────┐
 │  Quality Query  │───▶│ Quality Manager  │───▶│  Quality Cache  │
@@ -40,6 +45,7 @@ Qobuzarr's Quality Management system provides intelligent audio quality detectio
 ## Quality Detection System
 
 ### Core Quality Detection
+
 ```csharp
 public interface IQobuzQualityManager
 {
@@ -128,6 +134,7 @@ public class QobuzQualityManager : IQobuzQualityManager
 ```
 
 ### Quality Information Model
+
 ```csharp
 public class QualityInfo
 {
@@ -194,6 +201,7 @@ public enum QualitySource
 ## Intelligent Sampling
 
 ### Sampling Strategy Engine
+
 ```csharp
 public interface IIntelligentSampler
 {
@@ -322,6 +330,7 @@ public enum SamplingType
 ```
 
 ### Artist and Label Quality Profiles
+
 ```csharp
 public class ArtistQualityProfile
 {
@@ -392,6 +401,7 @@ public class QualityProfileBuilder : IQualityProfileBuilder
 ## Quality Manager Interface
 
 ### Advanced Quality Operations
+
 ```csharp
 public class QualityDetectionOptions
 {
@@ -468,6 +478,7 @@ public async Task<List<QualityInfo>> GetBulkQualityAsync(List<string> albumIds,
 ```
 
 ### Quality Prediction System
+
 ```csharp
 public interface IQualityPredictor
 {
@@ -542,6 +553,7 @@ public class QualityPrediction
 ## Configuration Management
 
 ### Quality Configuration
+
 ```json
 {
   "QualityManagement": {
@@ -575,6 +587,7 @@ public class QualityPrediction
 ```
 
 ### Dynamic Configuration Updates
+
 ```csharp
 public class QualityConfigurationService : IQualityConfigurationService
 {
@@ -627,6 +640,7 @@ public class QualityConfigurationService : IQualityConfigurationService
 ## Performance Optimization
 
 ### Caching Strategy
+
 ```csharp
 public class QualityCache : IQualityCache
 {
@@ -706,6 +720,7 @@ public class QualityCache : IQualityCache
 ```
 
 ### Performance Metrics
+
 ```csharp
 public class QualityPerformanceTracker : IQualityPerformanceTracker
 {
@@ -763,6 +778,7 @@ public class QualityPerformanceTracker : IQualityPerformanceTracker
 ## Monitoring and Analytics
 
 ### Quality Analytics Dashboard
+
 ```csharp
 public class QualityAnalyticsDashboard : IQualityAnalyticsDashboard
 {
@@ -870,6 +886,7 @@ public class QualityDashboardData
 ## Advanced Features
 
 ### Predictive Quality Analysis
+
 ```csharp
 public class PredictiveQualityAnalyzer : IPredictiveQualityAnalyzer
 {
@@ -927,6 +944,7 @@ public class PredictiveQualityAnalyzer : IPredictiveQualityAnalyzer
 ```
 
 ### Quality Health Monitor
+
 ```csharp
 public class QualityHealthMonitor : IQualityHealthMonitor
 {

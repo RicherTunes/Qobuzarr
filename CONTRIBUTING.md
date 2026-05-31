@@ -26,6 +26,7 @@ We are committed to providing a welcoming and inspiring community for all. Pleas
 ## Architecture Principles
 
 ### Plugin-First Architecture
+
 **The plugin (`src/`) is the core foundation. The CLI (`QobuzCLI/`) is strictly a test program.**
 
 - All core functionality MUST live in the plugin
@@ -34,6 +35,7 @@ We are committed to providing a welcoming and inspiring community for all. Pleas
 - When adding features, always implement in plugin first
 
 ### No Stub/Placeholder Data Policy
+
 **Never use stub/placeholder/hardcoded data in production code paths.**
 
 - Real API Integration Required: All services must connect to real APIs
@@ -48,6 +50,7 @@ We are committed to providing a welcoming and inspiring community for all. Pleas
    - Clone your fork locally
 
 2. **Set Up Development Environment**
+
    ```bash
    # Clone your fork
    git clone https://github.com/YOUR_USERNAME/qobuzarr.git
@@ -61,6 +64,7 @@ We are committed to providing a welcoming and inspiring community for all. Pleas
    ```
 
 3. **Create a Branch**
+
    ```bash
    # Get latest changes
    git fetch upstream
@@ -89,6 +93,7 @@ Before creating a bug report, please check existing issues to avoid duplicates.
    - Screenshots (if applicable)
 
 **Example:**
+
 ```markdown
 Title: Search fails for albums with special characters
 
@@ -139,7 +144,7 @@ We love feature suggestions! Please:
 
 ### Prerequisites
 
-- .NET 6.0 SDK or later
+- .NET 8.0 SDK or later
 - Visual Studio 2022, VS Code, or Rider
 - Git
 - Docker (optional, for testing)
@@ -165,11 +170,11 @@ docker run -d \
   --name=lidarr-dev \
   -p 8686:8686 \
   -v ./config:/config \
-  -v ./bin/Debug/net6.0:/config/plugins \
+  -v ./bin/Debug/net8.0:/config/plugins \
   ghcr.io/hotio/lidarr:pr-plugins
 
 # Copy plugin after building
-cp bin/Debug/net6.0/Lidarr.Plugin.Qobuz.dll ./config/plugins/
+cp bin/Debug/net8.0/Lidarr.Plugin.Qobuzarr.dll ./config/plugins/
 
 # Restart Lidarr
 docker restart lidarr-dev
@@ -186,6 +191,7 @@ docker restart lidarr-dev
    - Documentation is updated
 
 2. **Commit Guidelines**
+
    ```bash
    # Good commit messages
    git commit -m "feat: Add playlist search support"
@@ -403,6 +409,7 @@ All submissions require review:
 ### Recognition
 
 Contributors are recognized in:
+
 - GitHub contributors page
 - Release notes
 - README acknowledgments
@@ -414,6 +421,7 @@ By contributing, you agree that your contributions will be licensed under the GP
 ## Questions?
 
 Feel free to:
+
 - Open an issue for clarification
 - Ask in Discord
 - Email the maintainers

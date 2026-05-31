@@ -57,15 +57,22 @@ var searchResult = await apiClient.SearchAlbumsAsync(
 
 ### 2. Request Authentication Security
 
-**Primary Classes**: 
-- [`QobuzAuthenticationManager`](../../src/API/Auth/QobuzAuthenticationManager.cs)
-- [`SecureSessionManager`](../../src/Security/SecureSessionManager.cs)
+**Primary Classes**:
+
+- [`QobuzAuthenticationService`](../../src/Authentication/QobuzAuthenticationService.cs)
+- [`SessionManager`](../../src/Authentication/SessionManager.cs)
 
 #### Credential Protection
 
 ```csharp
 // Secure credential storage and usage
-var authManager = new QobuzAuthenticationManager(credentialManager, logger);
+var authManager = new QobuzAuthenticationService(
+    httpClient,
+    configService,
+    localizationService,
+    cacheManager,
+    logger,
+    credentialValidator);
 
 // Email/password authentication with secure handling
 var loginResult = await authManager.AuthenticateAsync(
@@ -85,7 +92,10 @@ var tokenResult = await authManager.AuthenticateWithTokenAsync(
 
 ```csharp
 // Secure session management with automatic expiration
-var sessionManager = new SecureSessionManager(logger);
+var sessionManager = new SessionManager(
+    streamingTokenProvider,
+    logger,
+    authenticationService);
 
 // Create session with security controls
 var session = await sessionManager.CreateSecureSessionAsync(
@@ -174,7 +184,8 @@ public class QobuzRequestSigner
 
 ### 4. Input Validation and Sanitization
 
-**Primary Classes**: 
+**Primary Classes**:
+
 - [`InputSanitizer`](../../src/Security/InputSanitizer.cs)
 - [`MetadataSanitizer`](../../src/Security/MetadataSanitizer.cs)
 
@@ -758,7 +769,7 @@ public class ApiPenetrationTests
 
 ### OWASP API Security Top 10 Compliance
 
-1. **API1:2023 Broken Object Level Authorization** ✅ 
+1. **API1:2023 Broken Object Level Authorization** ✅
    - Implemented through session validation and user context checks
 
 2. **API2:2023 Broken Authentication** ✅

@@ -18,7 +18,8 @@ This guide covers everything you need to know to develop, build, test, and contr
 
 ### Prerequisites
 
-1. **.NET 6.0 SDK** or later
+1. **.NET 8.0 SDK** or later
+
    ```bash
    # Verify installation
    dotnet --version
@@ -36,12 +37,14 @@ This guide covers everything you need to know to develop, build, test, and contr
 ### Initial Setup
 
 1. **Clone the Repository**
+
    ```bash
    git clone https://github.com/richertunes/qobuzarr.git
    cd qobuzarr
    ```
 
 2. **Install Dependencies**
+
    ```bash
    # Restore NuGet packages
    dotnet restore
@@ -51,18 +54,19 @@ This guide covers everything you need to know to develop, build, test, and contr
    ```
 
 3. **Copy Lidarr Dependencies**
+
    ```bash
    # Linux/macOS
-   ./extract-lidarr-assemblies.sh
+   ./scripts/extract-lidarr-assemblies.sh
    
    # Windows
-   .\extract-lidarr-assemblies.ps1
+   .\download-lidarr-assemblies.ps1
    ```
 
 ## Project Structure
 
 ```
-lidarr-plugin-qobuz/
+qobuzarr/
 ├── src/                          # Main source code
 │   ├── API/                      # Qobuz API client implementation
 │   ├── Authentication/           # Authentication services
@@ -93,7 +97,7 @@ lidarr-plugin-qobuz/
 # Debug build (for development)
 dotnet build --configuration Debug
 
-# Output: bin/Debug/net6.0/Lidarr.Plugin.Qobuz.dll
+# Output: bin/Debug/net8.0/Lidarr.Plugin.Qobuzarr.dll
 ```
 
 ### Release Build
@@ -103,7 +107,7 @@ dotnet build --configuration Debug
 dotnet build --configuration Release
 
 # ILRepack will automatically merge dependencies
-# Output: bin/Release/net6.0/Lidarr.Plugin.Qobuz.dll
+# Output: bin/Release/net8.0/Lidarr.Plugin.Qobuzarr.dll
 ```
 
 ### Build Targets
@@ -146,6 +150,7 @@ dotnet test tests/Integration
 The Query Intelligence system has comprehensive test coverage with specific testing procedures:
 
 #### Unit Tests
+
 ```bash
 # Run all Query Intelligence unit tests
 dotnet test --filter "QueryComplexity" --verbosity normal
@@ -162,6 +167,7 @@ dotnet test /p:CollectCoverage=true /p:Include="[*]Lidarr.Plugin.Qobuzarr.Indexe
 ```
 
 #### Integration Testing
+
 ```bash
 # Test Query Intelligence with real data (124 test scenarios)
 dotnet test tests/Qobuzarr.Tests/Unit/Indexers/QueryIntelligenceIntegrationTests.cs
@@ -174,6 +180,7 @@ dotnet test tests/Qobuzarr.Tests/Simulations/QueryIntelligenceSimulationTests.cs
 ```
 
 #### CLI Testing Commands
+
 The QobuzCLI provides specialized Query Intelligence testing:
 
 ```bash
@@ -199,6 +206,7 @@ dotnet run -- search "The Beatles Abbey Road" --debug
 ```
 
 #### Edge Case Testing
+
 Query Intelligence handles many edge cases. Test these scenarios:
 
 ```bash
@@ -220,6 +228,7 @@ dotnet run -- analyze-complexity --artist "Ludwig van Beethoven" --album "Sympho
 ```
 
 #### Performance Validation
+
 Validate Query Intelligence performance improvements:
 
 ```bash
@@ -236,6 +245,7 @@ dotnet run -- test-queries --lidarr-export "path/to/exported/albums.json"
 ```
 
 #### Test Data Generation
+
 Generate test data for Query Intelligence validation:
 
 ```bash
@@ -250,6 +260,7 @@ dotnet run -- validate-test-data --file "test-albums.json"
 ```
 
 #### Continuous Integration Testing
+
 For CI/CD pipelines, use these commands:
 
 ```bash
@@ -285,6 +296,7 @@ dotnet run -- download --album-id 123456
 ### Local Lidarr Setup
 
 1. **Run Lidarr with Plugin Support**
+
    ```bash
    docker run -d \
      --name=lidarr-dev \
@@ -297,11 +309,13 @@ dotnet run -- download --album-id 123456
    ```
 
 2. **Copy Plugin DLL**
+
    ```bash
-   cp bin/Debug/net6.0/Lidarr.Plugin.Qobuz.dll ./plugins/
+   cp bin/Debug/net8.0/Lidarr.Plugin.Qobuzarr.dll ./plugins/
    ```
 
 3. **Restart Lidarr**
+
    ```bash
    docker restart lidarr-dev
    ```
@@ -309,6 +323,7 @@ dotnet run -- download --album-id 123456
 ### Debugging in VS Code
 
 1. Create `.vscode/launch.json`:
+
    ```json
    {
      "version": "0.2.0",
@@ -318,7 +333,7 @@ dotnet run -- download --album-id 123456
          "type": "coreclr",
          "request": "launch",
          "preLaunchTask": "build",
-         "program": "${workspaceFolder}/QobuzCLI/bin/Debug/net6.0/QobuzCLI.dll",
+         "program": "${workspaceFolder}/QobuzCLI/bin/Debug/net8.0/QobuzCLI.dll",
          "args": ["search", "test"],
          "cwd": "${workspaceFolder}/QobuzCLI",
          "console": "internalConsole"
@@ -431,6 +446,7 @@ public NzbDroneValidationResult Validate()
    - _underscore prefix for injected dependencies
 
 2. **Documentation**
+
    ```csharp
    /// <summary>
    /// Searches for albums matching the specified criteria.
@@ -447,6 +463,7 @@ public NzbDroneValidationResult Validate()
    - Avoid `.Result` or `.Wait()`
 
 4. **Error Handling**
+
    ```csharp
    try
    {
@@ -512,12 +529,14 @@ public async Task<ResultType> ExampleMethodAsync(string paramName)
 ### Key Documentation Areas
 
 #### Plugin Core (src/)
+
 - All public interfaces must have comprehensive XML docs
 - Implementation classes should document non-obvious behaviors
 - Model classes should explain their purpose and key properties
 - Service classes should document their responsibilities and dependencies
 
 #### CLI Application (QobuzCLI/)
+
 - Command classes should document their purpose and usage
 - Service interfaces should clearly define their contracts
 - Configuration models should explain all options
@@ -526,12 +545,14 @@ public async Task<ResultType> ExampleMethodAsync(string paramName)
 ### Documentation File Standards
 
 #### In-Code Documentation
+
 - Use `///` XML comments for all public members
 - Include `<summary>`, `<param>`, `<returns>`, and `<exception>` tags
 - Add `<remarks>` for complex behaviors or important context
 - Document thread safety, async patterns, and disposal requirements
 
 #### README and Markdown Files
+
 - Keep README.md current with latest features and installation steps
 - Maintain CHANGELOG.md for all releases
 - Update API documentation when interfaces change
@@ -556,6 +577,7 @@ public async Task<ResultType> ExampleMethodAsync(string paramName)
 ### Version Numbering
 
 Follow Semantic Versioning (SemVer):
+
 - **Major**: Breaking changes
 - **Minor**: New features (backward compatible)
 - **Patch**: Bug fixes
@@ -563,6 +585,7 @@ Follow Semantic Versioning (SemVer):
 ### Release Steps
 
 1. **Update Version**
+
    ```xml
    <!-- In .csproj -->
    <Version>1.1.0</Version>
@@ -576,6 +599,7 @@ Follow Semantic Versioning (SemVer):
    - Update CHANGELOG.md
 
 3. **Create Release Build**
+
    ```bash
    # Clean previous builds
    dotnet clean
@@ -588,6 +612,7 @@ Follow Semantic Versioning (SemVer):
    ```
 
 4. **Create GitHub Release**
+
    ```bash
    # Tag the release
    git tag -a v1.1.0 -m "Release version 1.1.0"
@@ -595,7 +620,7 @@ Follow Semantic Versioning (SemVer):
    ```
 
 5. **Upload Release Assets**
-   - `Lidarr.Plugin.Qobuz.dll`
+   - `Lidarr.Plugin.Qobuzarr.dll`
    - Release notes
    - Installation instructions
 
@@ -620,7 +645,7 @@ jobs:
     - name: Setup .NET
       uses: actions/setup-dotnet@v1
       with:
-        dotnet-version: 6.0.x
+        dotnet-version: 8.0.x
     - name: Restore
       run: dotnet restore
     - name: Build
@@ -634,15 +659,19 @@ jobs:
 ### Common Issues
 
 1. **Missing Lidarr References**
+
    ```
    Error: Could not load file or assembly 'Lidarr.Core'
    ```
-   Solution: Run `extract-lidarr-assemblies.ps1`
+
+   Solution: Run `download-lidarr-assemblies.ps1` or `./scripts/extract-lidarr-assemblies.sh`
 
 2. **ILRepack Failures**
+
    ```
    Error: ILRepack failed with exit code 1
    ```
+
    Solution: Check for conflicting assembly versions
 
 3. **Plugin Not Loading**
@@ -662,5 +691,5 @@ jobs:
 
 - [Lidarr Plugin Development](https://wiki.servarr.com/lidarr/plugins)
 - [Qobuz API Documentation](https://github.com/Qobuz/api-documentation)
-- [.NET 6 Documentation](https://docs.microsoft.com/dotnet/)
+- [.NET 8 Documentation](https://docs.microsoft.com/dotnet/)
 - [C# Coding Conventions](https://docs.microsoft.com/dotnet/csharp/fundamentals/coding-style/coding-conventions)

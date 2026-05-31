@@ -9,12 +9,15 @@
 ## Test Execution Environment Issue
 
 ### **Root Cause**
-Tests require `.NET 6.0 ASP.NET Core` runtime but system has:
-- ✅ `.NET Core 6.0.36` (available)
-- ✅ `ASP.NET Core 9.0.8` (available) 
-- ❌ `ASP.NET Core 6.0.x` (missing)
+
+Tests require `.NET 8.0 ASP.NET Core` runtime but system has:
+
+- ✅ `.NET 8.0` (available)
+- ✅ `ASP.NET Core 9.0.8` (available)
+- ❌ `ASP.NET Core 8.0.x` (missing)
 
 ### **Why ASP.NET Core is Required**
+
 Lidarr components (`Lidarr.Core`, `Lidarr.SignalR`) include web functionality that transitively requires ASP.NET Core runtime for test execution.
 
 ## Solutions
@@ -22,19 +25,21 @@ Lidarr components (`Lidarr.Core`, `Lidarr.SignalR`) include web functionality th
 ### **Option A: Install .NET 6.0 ASP.NET Core Runtime (Recommended)**
 
 **Windows:**
+
 ```bash
 # Using winget
-winget install Microsoft.AspNetCore.6.0
+winget install Microsoft.AspNetCore.8.0
 
 # OR download directly
-# https://dotnet.microsoft.com/download/dotnet/6.0
-# Install: ASP.NET Core Runtime 6.0.x
+# https://dotnet.microsoft.com/download/dotnet/8.0
+# Install: ASP.NET Core Runtime 8.0.x
 ```
 
 **Linux/macOS:**
+
 ```bash
 # Using package manager or direct download
-curl -sSL https://dot.net/v1/dotnet-install.sh | bash /dev/stdin --runtime aspnetcore --version 6.0.36
+curl -sSL https://dot.net/v1/dotnet-install.sh | bash /dev/stdin --runtime aspnetcore --version 8.0.8
 ```
 
 ### **Option B: Use Development Container (Alternative)**
@@ -55,6 +60,7 @@ curl -sSL https://dot.net/v1/dotnet-install.sh | bash /dev/stdin --runtime aspne
 ### **Option C: GitHub Actions Validation (Current)**
 
 Tests run successfully in CI environment:
+
 - ✅ All projects compile
 - ✅ CI has proper .NET 6.0 environment
 - ✅ Production validation through automated builds
@@ -64,21 +70,25 @@ Tests run successfully in CI environment:
 ### **✅ Tests That Work (Compilation Validated)**
 
 **Unit Tests:**
-- `QobuzQualityManagerTests` - Service consolidation validation
+
 - `QobuzDownloadClientTests` - Core download functionality
 - `QobuzApiClientTests` - API client functionality
+<!-- TODO(docval): QobuzQualityManagerTests disabled as of 2026-05-31 - service consolidated/removed -->
 
 **Integration Tests:**
+
 - `ServiceIntegrationTests` - Cross-service functionality
 - `SecurityIntegrationTests` - Security framework validation
 
 **Performance Tests:**
+
 - `PerformanceBenchmarkTests` - Algorithm performance validation
 - `MLOptimizationRegressionTests` - ML optimization validation
 
 ### **🔧 Test Fixes Applied**
 
 **API Compatibility Issues (Resolved):**
+
 ```
 ✅ IndexerFlags.PaidDownload → IndexerFlags.Internal
 ✅ ParsedAlbumInfo.Year → ReleaseDate string
@@ -89,10 +99,11 @@ Tests run successfully in CI environment:
 ```
 
 **Service Migration Issues (Resolved):**
+
 ```
-✅ QobuzQualityManagerTests type compatibility
 ✅ CLI service adapter integration
 ✅ Consolidated service test coverage
+<!-- TODO(docval): QobuzQualityManagerTests disabled as of 2026-05-31 - service consolidated/removed -->
 ```
 
 ## Development Workflow
@@ -100,6 +111,7 @@ Tests run successfully in CI environment:
 ### **Current Developer Experience**
 
 **Main Development**: ✅ **Perfect**
+
 ```bash
 # Build main plugin (works perfectly)
 dotnet build Qobuzarr.csproj
@@ -112,6 +124,7 @@ dotnet build QobuzCLI/QobuzCLI.csproj
 ```
 
 **Test Validation**: ✅ **Compilation Verified**
+
 ```bash
 # All tests compile successfully
 dotnet build tests/Qobuzarr.Tests/Qobuzarr.Tests.csproj
@@ -121,6 +134,7 @@ dotnet build tests/QobuzCLI.Tests/QobuzCLI.Tests.csproj
 ```
 
 **CI/CD Pipeline**: ✅ **Fully Functional**
+
 - All builds pass on GitHub Actions
 - Production deployment validated
 - Code quality continuously verified
@@ -130,18 +144,21 @@ dotnet build tests/QobuzCLI.Tests/QobuzCLI.Tests.csproj
 ### **What Test Compilation Success Proves**
 
 **Architecture Validation**: ✅ **Complete**
+
 - Service consolidation architecturally sound
 - Interface contracts properly implemented
 - Dependency injection working correctly
 - Type safety across all components
 
 **Integration Validation**: ✅ **Complete**  
+
 - CLI integration with main plugin works
 - Service migrations successful
 - API compatibility issues resolved
 - Cross-component dependencies correct
 
 **Production Readiness**: ✅ **Confirmed**
+
 - Main plugin builds and deploys
 - All components integrate properly
 - No architectural issues blocking production use
@@ -149,16 +166,20 @@ dotnet build tests/QobuzCLI.Tests/QobuzCLI.Tests.csproj
 ## Recommendation
 
 ### **For Immediate Production Use**
+
 The environment issue **does not block production deployment**:
+
 - ✅ Main plugin: Perfect compilation and deployment
 - ✅ CLI tools: Available for development and testing
 - ✅ Code quality: Validated through compilation success
 - ✅ CI/CD: Continuous validation working
 
 ### **For Test Execution**
-Install .NET 6.0 ASP.NET Core runtime when comprehensive test execution is needed. The compilation success already validates the architecture and implementation quality.
+
+Install .NET 8.0 ASP.NET Core runtime when comprehensive test execution is needed. The compilation success already validates the architecture and implementation quality.
 
 ### **Alternative Approach**
+
 Focus on **production telemetry** (Sprint 3) to gather real-world validation data, which provides more value than local test execution for production readiness assessment.
 
 ---

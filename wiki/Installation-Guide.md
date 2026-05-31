@@ -5,19 +5,22 @@ This guide provides comprehensive instructions for installing Qobuzarr in variou
 ## 📋 Prerequisites
 
 ### System Requirements
+
 - **Lidarr**: v2.13.0 or higher
-- **.NET Runtime**: 6.0 or higher
+- **.NET Runtime**: 8.0 or higher
 - **Operating System**: Linux, Windows, or macOS
 - **Memory**: Minimum 512MB RAM available
 - **Storage**: 100MB for plugin files, additional space for downloads
 
 ### Qobuz Account Requirements
+
 - **Qobuz Subscription**: Active subscription required
   - **Studio**: CD quality FLAC (16-bit/44.1kHz)
   - **Sublime+**: Hi-Res FLAC (up to 24-bit/192kHz)
 - **Valid Credentials**: Email and password for authentication
 
 ### Network Requirements
+
 - **Internet Connection**: Stable broadband connection
 - **API Access**: Outbound access to `*.qobuz.com`
 - **Ports**: No inbound ports required
@@ -94,10 +97,11 @@ docker restart lidarr-container
 ### Linux Installation
 
 #### Debian/Ubuntu
+
 ```bash
-# Install .NET 6.0 runtime
+# Install .NET 8.0 runtime
 sudo apt update
-sudo apt install -y dotnet-runtime-6.0
+sudo apt install -y dotnet-runtime-8.0
 
 # Create plugins directory
 sudo mkdir -p /var/lib/lidarr/plugins
@@ -116,9 +120,10 @@ sudo systemctl restart lidarr
 ```
 
 #### CentOS/RHEL/Fedora
+
 ```bash
-# Install .NET 6.0 runtime
-sudo dnf install -y dotnet-runtime-6.0
+# Install .NET 8.0 runtime
+sudo dnf install -y dotnet-runtime-8.0
 
 # Create plugins directory
 sudo mkdir -p /var/lib/lidarr/plugins
@@ -136,6 +141,7 @@ sudo systemctl restart lidarr
 ```
 
 #### Arch Linux
+
 ```bash
 # Install .NET runtime
 sudo pacman -S dotnet-runtime
@@ -149,6 +155,7 @@ sudo systemctl restart lidarr
 ### Windows Installation
 
 #### Using PowerShell (Administrator)
+
 ```powershell
 # Download the plugin
 Invoke-WebRequest -Uri "https://github.com/RicherTunes/qobuzarr/releases/latest/download/Qobuzarr.zip" -OutFile "$env:TEMP\Qobuzarr.zip"
@@ -163,6 +170,7 @@ Restart-Service -Name "Lidarr"
 ```
 
 #### Manual Installation
+
 1. Download `Qobuzarr.zip` from [GitHub Releases](https://github.com/RicherTunes/qobuzarr/releases/latest)
 2. Extract the zip file
 3. Copy contents to `%ProgramData%\Lidarr\plugins\`
@@ -205,6 +213,7 @@ chmod +x setup.sh && ./setup.sh
 ```
 
 ### Windows Build
+
 ```powershell
 # Clone and setup
 git clone https://github.com/RicherTunes/qobuzarr.git
@@ -346,6 +355,7 @@ export QOBUZ_LOG_LEVEL=Info
 ### Common Issues
 
 #### Plugin Not Loading
+
 ```bash
 # Check file permissions
 ls -la /config/plugins/
@@ -357,6 +367,7 @@ dotnet --version
 ```
 
 #### Missing Dependencies
+
 ```bash
 # Verify all required files are present
 ls -la /config/plugins/Lidarr.Plugin.Qobuzarr.*
@@ -366,6 +377,7 @@ tail -f /config/logs/lidarr.txt
 ```
 
 #### Permission Errors
+
 ```bash
 # Fix ownership (Linux)
 sudo chown -R lidarr:lidarr /config/plugins/
@@ -382,6 +394,7 @@ Enable debug logging to diagnose issues:
 4. **Check logs**: `/config/logs/lidarr.txt`
 
 Look for these log entries:
+
 ```
 [Info] PluginService: Loading plugin: Qobuzarr
 [Info] QobuzarrPlugin: Plugin initialized successfully

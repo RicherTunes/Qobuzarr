@@ -28,26 +28,27 @@ This comprehensive guide provides working examples for integrating Qobuzarr with
     "email": "your-email@example.com",
     "password": "your-secure-password",
     "searchLimit": 100,
-    "enableMLOptimization": true,
-    "enableSecurityValidation": true,
-    "enableIntelligentQualityDetection": true,
-    "preferredQuality": "HiRes",
-    "enableQualityFallback": true
+    "enableMLOptimization": true,  <!-- TODO(docval): enableMLOptimization not found in QobuzIndexerSettings as of 2026-05-31; use QueryOptimizationMode instead -->
+    "enableSecurityValidation": true,  <!-- TODO(docval): enableSecurityValidation not found in QobuzIndexerSettings as of 2026-05-31 -->
+    "enableIntelligentQualityDetection": true,  <!-- TODO(docval): enableIntelligentQualityDetection not found in QobuzIndexerSettings as of 2026-05-31 -->
+    "preferredQuality": "HiRes",  <!-- TODO(docval): preferredQuality not found in QobuzIndexerSettings as of 2026-05-31; it exists in QobuzDownloadSettings -->
+    "enableQualityFallback": true  <!-- TODO(docval): enableQualityFallback not found in QobuzIndexerSettings as of 2026-05-31; it exists in QobuzDownloadSettings -->
   },
-  "protocol": "usenet",
+  "protocol": "QobuzarrDownloadProtocol",
   "supportsRss": false,
   "supportsSearch": true
 }
 ```
 
 **Environment Variables Setup:**
+
 ```bash
 # .env file for secure credential management
 QOBUZ_EMAIL="your-email@example.com"
 QOBUZ_PASSWORD="your-secure-password"
-QOBUZARR_ML_REQUIRE_SIGNATURES=true
-QOBUZARR_LOG_SECURITY_EVENTS=true
-QOBUZARR_ENABLE_ADAPTIVE_RATE_LIMITING=true
+QOBUZARR_ML_REQUIRE_SIGNATURES=true  <!-- TODO(docval): QOBUZARR_ML_REQUIRE_SIGNATURES not found in code as of 2026-05-31 -->
+QOBUZARR_LOG_SECURITY_EVENTS=true  <!-- TODO(docval): QOBUZARR_LOG_SECURITY_EVENTS not found in code as of 2026-05-31 -->
+QOBUZARR_ENABLE_ADAPTIVE_RATE_LIMITING=true  <!-- TODO(docval): QOBUZARR_ENABLE_ADAPTIVE_RATE_LIMITING not found in code as of 2026-05-31 -->
 ```
 
 ### 2. Docker Compose Integration
@@ -60,7 +61,7 @@ version: '3.8'
 
 services:
   lidarr:
-    image: ghcr.io/hotio/lidarr:pr-plugins
+    image: ghcr.io/hotio/lidarr:pr-plugins-3.1.2.4913
     container_name: lidarr-qobuzarr
     environment:
       - PUID=1000
@@ -75,7 +76,7 @@ services:
       - ./music:/music
       - ./downloads:/downloads
       # Mount Qobuzarr plugin
-      - ./qobuzarr-plugin:/config/plugins/Qobuzarr:ro
+      - ./qobuzarr-plugin:/config/plugins/RicherTunes/Qobuzarr:ro
     ports:
       - "8686:8686"
     restart: unless-stopped
@@ -138,7 +139,7 @@ spec:
     spec:
       containers:
       - name: lidarr
-        image: ghcr.io/hotio/lidarr:pr-plugins
+        image: ghcr.io/hotio/lidarr:pr-plugins-3.1.2.4913
         env:
         - name: QOBUZ_EMAIL
           valueFrom:
@@ -160,7 +161,7 @@ spec:
         - name: music
           mountPath: /music
         - name: qobuzarr-plugin
-          mountPath: /config/plugins/Qobuzarr
+          mountPath: /config/plugins/RicherTunes/Qobuzarr
         resources:
           requests:
             memory: "512Mi"
@@ -1328,9 +1329,9 @@ jobs:
     - name: Download Lidarr assemblies
       run: |
         if [[ "$RUNNER_OS" == "Linux" ]]; then
-          ./download-lidarr-assemblies.sh --version 2.13.2.4685
+          ./download-lidarr-assemblies.sh --version 3.1.2.4913
         else
-          powershell -ExecutionPolicy Bypass -File download-lidarr-assemblies.ps1 -LidarrVersion "2.13.2.4685"
+          powershell -ExecutionPolicy Bypass -File download-lidarr-assemblies.ps1 -LidarrVersion "3.1.2.4913"
         fi
       shell: bash
 
@@ -1420,7 +1421,7 @@ jobs:
         echo "Generated version: $VERSION"
 
     - name: Download Lidarr assemblies
-      run: ./download-lidarr-assemblies.sh --version 2.13.2.4685
+      run: ./download-lidarr-assemblies.sh --version 3.1.2.4913
 
     - name: Build plugin
       run: |
@@ -1433,7 +1434,7 @@ jobs:
     - name: Create plugin package
       run: |
         mkdir -p release
-        cp -r bin/Release/net6.0/* release/
+        cp -r bin/Release/net8.0/* release/
         cp plugin.json release/
         cd release && zip -r ../Qobuzarr-${{ steps.version.outputs.version }}.zip .
 
