@@ -76,4 +76,10 @@ public class QobuzarrEcosystemParityTests : EcosystemParityTestBase
     [Fact] public void Check_DownloadClientUsesPathTraversalGuard_Test() => Assert.True(Check_DownloadClientUsesPathTraversalGuard().Passed, string.Join("; ", Check_DownloadClientUsesPathTraversalGuard().Errors));
     [Fact] public void Check_FileClassNameParity_Test() => Assert.True(Check_FileClassNameParity().Passed, string.Join("; ", Check_FileClassNameParity().Errors));
     [Fact] public void Check_ClaudeMdDocumentsCommonHelpers_Test() => Assert.True(Check_ClaudeMdDocumentsCommonHelpers().Passed, string.Join("; ", Check_ClaudeMdDocumentsCommonHelpers().Errors));
+
+    // Album-completion consolidation: qobuz's DownloadPolicy.IsAlbumDownloadSuccessful now delegates
+    // to Common's AlbumCompletionPolicy, so an incomplete album reports Failed (Lidarr falls back)
+    // instead of partial-Completed. This guard pins the shared rule and fails CI if the pinned Common
+    // ever regresses it.
+    [Fact] public void Check_EnforcesAlbumCompletionPolicy_Test() => Assert.True(Check_EnforcesAlbumCompletionPolicy().Passed, string.Join("; ", Check_EnforcesAlbumCompletionPolicy().Errors));
 }
