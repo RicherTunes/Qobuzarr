@@ -7,12 +7,14 @@ Comprehensive guide for developing extensions and customizations for Qobuzarr, i
 ### Development Prerequisites
 
 **Required Tools:**
+
 - **.NET 8.0 SDK**: Core development framework
 - **Visual Studio Code/2022**: IDE with C# support
 - **Git**: Version control
 - **Lidarr Instance**: For testing (hotio/lidarr:pr-plugins recommended)
 
 **Recommended Tools:**
+
 - **JetBrains Rider**: Advanced C# IDE
 - **Docker**: Container testing environments
 - **Postman**: API testing and validation
@@ -87,7 +89,7 @@ public interface IPatternLearningEngine
 }
 
 // Custom search strategy
-public interface ISmartQueryStrategy
+public interface ISmartQueryStrategy <!-- TODO(docval): ISmartQueryStrategy interface not found in code — SmartQueryStrategy exists as a class, not an interface (as of 2026-05-31) -->
 {
     Task<QueryOptimizationResult> OptimizeQueryAsync(string artist, string album);
     QueryComplexity ClassifyComplexity(string artist, string album);
@@ -99,7 +101,7 @@ public interface ISmartQueryStrategy
 
 ```csharp
 // Custom authentication provider
-public interface IQobuzAuthenticationProvider
+public interface IQobuzAuthenticationProvider <!-- TODO(docval): IQobuzAuthenticationProvider interface not found in code (as of 2026-05-31) -->
 {
     Task<QobuzSession> AuthenticateAsync(QobuzCredentials credentials);
     Task<bool> ValidateSessionAsync(QobuzSession session);
@@ -108,7 +110,7 @@ public interface IQobuzAuthenticationProvider
 }
 
 // Security extensions
-public interface ISecureCredentialProvider
+public interface ISecureCredentialProvider <!-- TODO(docval): ISecureCredentialProvider interface not found in code (as of 2026-05-31) -->
 {
     Task<TCredential> GetCredentialAsync<TCredential>() where TCredential : class;
     Task StoreCredentialAsync<TCredential>(TCredential credential) where TCredential : class;
@@ -120,7 +122,7 @@ public interface ISecureCredentialProvider
 
 ```csharp
 // Custom download strategy
-public interface IDownloadStrategy
+public interface IDownloadStrategy <!-- TODO(docval): IDownloadStrategy interface not found in code (as of 2026-05-31) -->
 {
     Task<TrackDownloadResult> DownloadTrackAsync(QobuzTrack track, DownloadOptions options);
     bool SupportsQuality(QobuzAudioQuality quality);
@@ -142,7 +144,7 @@ Register your plugin services with Qobuzarr's dependency injection container:
 
 ```csharp
 // Plugin entry point
-public class MyCustomPlugin : IQobuzarrPlugin
+public class MyCustomPlugin : IQobuzarrPlugin <!-- TODO(docval): IQobuzarrPlugin interface not found in code (as of 2026-05-31) -->
 {
     public void ConfigureServices(IServiceCollection services)
     {
@@ -399,7 +401,7 @@ public class VaultCredentialProvider : ISecureCredentialProvider
 #### 2. Security Validation Extensions
 
 ```csharp
-public class CustomSecurityValidator : ISecurityValidator
+public class CustomSecurityValidator : ISecurityValidator <!-- TODO(docval): ISecurityValidator interface not found in code (as of 2026-05-31) -->
 {
     public async Task<SecurityValidationResult> ValidateRequestAsync(ApiRequest request)
     {
@@ -446,7 +448,7 @@ public class CustomSecurityValidator : ISecurityValidator
 ### Security Monitoring Extensions
 
 ```csharp
-public class SecurityMonitoringService : ISecurityMonitor
+public class SecurityMonitoringService : ISecurityMonitor <!-- TODO(docval): ISecurityMonitor interface not found in code (as of 2026-05-31) -->
 {
     private readonly IMetricsCollector _metrics;
     private readonly IAlertService _alerts;
@@ -957,17 +959,20 @@ public class ExamplePlugin : IQobuzarrPlugin
 ## 🔗 Resources and Support
 
 ### Documentation
+
 - **[[API Reference]]**: Complete API documentation
 - **[[Architecture Overview]]**: System design details
 - **[[Testing Guide]]**: Testing methodologies
 - **[[Security Features]]**: Security implementation details
 
 ### Community
+
 - **GitHub Repository**: [RicherTunes/qobuzarr](https://github.com/RicherTunes/qobuzarr)
 - **GitHub Discussions**: Community support and feature requests
 - **GitHub Issues**: Bug reports and feature requests
 
 ### Development Tools
+
 - **Plugin Template**: Starter template for new plugins
 - **Testing Framework**: Comprehensive testing utilities
 - **Development Environment**: Docker-based development setup

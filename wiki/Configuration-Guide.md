@@ -14,6 +14,7 @@ The simplest and most reliable authentication method:
    - Select **Qobuzarr** from the list
 
 2. **Configure Basic Authentication**:
+
    ```
    Name: Qobuz
    Authentication Method: Email & Password
@@ -41,6 +42,7 @@ For advanced users or automated deployments:
      - `user.userAuthToken` (long string token)
 
 2. **Configure Token Authentication**:
+
    ```
    Authentication Method: User ID & Token
    User ID: 12345678
@@ -100,6 +102,7 @@ Configure quality filtering to match your preferences:
 | **Preferred Quality** | - | Prioritize specific quality when available |
 
 **Quality Format Mapping**:
+
 ```
 MP3-320    → 320 kbps CBR MP3
 FLAC       → 16-bit/44.1kHz FLAC (CD Quality)
@@ -146,7 +149,7 @@ Example: Set 2000-2023 for modern music only.
 
 | Setting | Environment Variable | Default | Description |
 |---------|---------------------|---------|-------------|
-| **Enable Query Intelligence** | `QOBUZ_QUERY_INTELLIGENCE` | `true` | Master optimization switch |
+| **Enable Query Intelligence** | `QOBUZ_QUERY_INTELLIGENCE` | `true` | Master optimization switch <!-- TODO(docval): QOBUZ_QUERY_INTELLIGENCE env var not found in src/ as of 2026-05-31 --> |
 | **Debug Classifications** | `QOBUZ_DEBUG_QUERIES` | `false` | Log query complexity decisions |
 | **Simple Threshold** | `QOBUZ_SIMPLE_THRESHOLD` | `1` | Classification threshold (experts only) |
 | **Medium Threshold** | `QOBUZ_MEDIUM_THRESHOLD` | `4` | Classification threshold (experts only) |
@@ -154,6 +157,7 @@ Example: Set 2000-2023 for modern music only.
 **Configuration Examples**:
 
 **Default (Recommended)**:
+
 ```bash
 export QOBUZ_QUERY_INTELLIGENCE=true
 export QOBUZ_DEBUG_QUERIES=false
@@ -161,6 +165,7 @@ export QOBUZ_DEBUG_QUERIES=false
 ```
 
 **Debug Mode**:
+
 ```bash
 export QOBUZ_QUERY_INTELLIGENCE=true
 export QOBUZ_DEBUG_QUERIES=true
@@ -168,6 +173,7 @@ export QOBUZ_DEBUG_QUERIES=true
 ```
 
 **Aggressive Optimization**:
+
 ```bash
 export QOBUZ_SIMPLE_THRESHOLD=2
 export QOBUZ_MEDIUM_THRESHOLD=5
@@ -189,6 +195,7 @@ export QOBUZ_MEDIUM_THRESHOLD=5
 **Performance Profiles**:
 
 **Conservative** (Default):
+
 ```bash
 export QOBUZ_INITIAL_RATE=60
 export QOBUZ_MAX_RATE=500
@@ -196,6 +203,7 @@ export QOBUZ_RATE_INCREASE_FACTOR=1.2
 ```
 
 **Aggressive**:
+
 ```bash
 export QOBUZ_INITIAL_RATE=120
 export QOBUZ_MAX_RATE=750
@@ -203,6 +211,7 @@ export QOBUZ_RATE_INCREASE_FACTOR=1.5
 ```
 
 **Ultra-Conservative**:
+
 ```bash
 export QOBUZ_INITIAL_RATE=30
 export QOBUZ_MAX_RATE=300
@@ -220,6 +229,7 @@ export QOBUZ_RATE_INCREASE_FACTOR=1.1
 | **Cache Size Limit** | 100MB | Maximum cache size before eviction |
 
 **Cache Environment Variables**:
+
 ```bash
 # Configure cache location
 export QOBUZ_CACHE_DIR=/fast/storage/qobuz-cache
@@ -251,6 +261,7 @@ export QOBUZ_ARTIST_CACHE_SIZE=25MB
 | **Skip Certificate Validation** | Ignore SSL certificate errors (not recommended) |
 
 **Proxy Configuration Example**:
+
 ```bash
 export HTTP_PROXY=http://proxy.company.com:8080
 export HTTPS_PROXY=https://proxy.company.com:8443
@@ -306,6 +317,7 @@ export QOBUZ_FILE_PATTERN="{Track:00} - {Title}"
 | **Trace** | Very verbose output | Development only |
 
 **Set Log Level**:
+
 ```bash
 export QOBUZ_LOG_LEVEL=Info
 ```
@@ -418,6 +430,7 @@ export QOBUZ_PROMETHEUS_ENABLED=true
 ## 🔐 Environment Variables Reference
 
 ### Authentication
+
 ```bash
 QOBUZ_EMAIL=your@email.com
 QOBUZ_PASSWORD=your_password
@@ -428,6 +441,7 @@ QOBUZ_APP_SECRET=your_secret
 ```
 
 ### Performance
+
 ```bash
 QOBUZ_QUERY_INTELLIGENCE=true
 QOBUZ_ADAPTIVE_RATE_LIMITING=true
@@ -437,6 +451,7 @@ QOBUZ_RATE_INCREASE_FACTOR=1.2
 ```
 
 ### Caching
+
 ```bash
 QOBUZ_CACHE_DIR=/path/to/cache
 QOBUZ_SEARCH_CACHE_SIZE=50MB
@@ -446,6 +461,7 @@ QOBUZ_ALBUM_CACHE_TTL=1h
 ```
 
 ### Debugging
+
 ```bash
 QOBUZ_LOG_LEVEL=Info
 QOBUZ_DEBUG_QUERIES=false
@@ -487,18 +503,21 @@ tar czf qobuzarr-config.tar.gz /config/plugins/
 ### Common Issues
 
 #### Authentication Failures
+
 - Verify credentials are correct
 - Check account status on qobuz.com
 - Test with different authentication method
 - Review network connectivity
 
 #### Poor Search Performance
+
 - Enable Query Intelligence if disabled
 - Check cache configuration
 - Verify network bandwidth
 - Review rate limiting settings
 
 #### No Search Results
+
 - Check quality filters aren't too restrictive
 - Verify genre filters are appropriate
 - Test with broader search terms
