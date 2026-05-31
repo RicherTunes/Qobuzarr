@@ -201,21 +201,30 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Clients
                 var snapshot = Tracker.GetSnapshot();
                 var result = new List<DownloadClientItem>();
 
+                // Stamp every reported item with the registered download-client id/name.
+                // Lidarr's CompletedDownloadService resolves the owning client via
+                // DownloadClientProvider.Get(DownloadClientInfo.Id) -> .Single(d => d.Definition.Id == id).
+                // Hardcoding 0 made Get(0) throw "Sequence contains no matching element",
+                // wedging every completed download. Definition is populated once the client
+                // is registered; fall back to Name for the unregistered (e.g. Test()) path.
+                var clientId = Definition?.Id ?? 0;
+                var clientName = Definition?.Name ?? Name;
+
                 foreach (var item in snapshot)
                 {
-                    result.Add(item.ToDownloadClientItem(0, Name));
+                    result.Add(item.ToDownloadClientItem(clientId, clientName));
                 }
 
                 if (result.Count == 0 && _lastQueuedItem != null)
                 {
-                    result.Add(_lastQueuedItem.ToDownloadClientItem(0, Name));
+                    result.Add(_lastQueuedItem.ToDownloadClientItem(clientId, clientName));
                 }
 
                 // Merge any queue-service items not already captured.
                 var queued = _queueService.GetActiveDownloads() ?? Enumerable.Empty<QobuzDownloadItem>();
                 foreach (var q in queued)
                 {
-                    result.Add(q.ToDownloadClientItem(0, Name));
+                    result.Add(q.ToDownloadClientItem(clientId, clientName));
                 }
 
                 return result;
