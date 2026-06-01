@@ -1,5 +1,6 @@
 using System;
 using System.Linq;
+using Lidarr.Plugin.Common.HostBridge;
 using Lidarr.Plugin.Qobuzarr.Models;
 
 namespace Lidarr.Plugin.Qobuzarr.Indexers.Parsing
@@ -23,18 +24,13 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers.Parsing
         /// <returns>Estimated size in bytes (minimum 1MB)</returns>
         public static long CalculateSize(double durationSeconds, QobuzAudioQuality quality)
         {
-            if (durationSeconds <= 0)
-            {
-                return MinimumSizeBytes;
-            }
-
-            var bitrate = quality.GetEstimatedBitrate();
-
-            // Convert bits per second to bytes per second, then multiply by duration
-            var estimatedSize = (long)(durationSeconds * (bitrate / 8.0));
-
-            // Ensure we don't return 0 size (causes issues in Lidarr)
-            return Math.Max(estimatedSize, MinimumSizeBytes);
+            // bytes = durationSeconds × (bitrate ÷ 8), floored at MinimumSizeBytes. The arithmetic is
+            // Common's shared AlbumSizeEstimator; GetEstimatedBitrate() returns bits-per-second
+            // (Qobuz's own quality ladder). A non-positive duration yields the floor, as before.
+            return AlbumSizeEstimator.EstimateBytesFromBitrate(
+                durationSeconds,
+                quality.GetEstimatedBitrate(),
+                MinimumSizeBytes);
         }
 
         /// <summary>
