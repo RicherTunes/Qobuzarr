@@ -64,9 +64,13 @@ env:
   MINIMUM_LIDARR_VERSION: 3.0.0.4855
   DOTNET_VERSION: 8.0.x
   # Single source of truth for CI test filtering
-  # Excludes: LiveIntegration (needs live Lidarr), Integration (needs assemblies), 
-  #           Performance (benchmarks), Quarantined (known issues)
-  CI_TEST_FILTER: "Category!=LiveIntegration&Category!=Integration&Category!=Performance&Category!=Quarantined"
+  # Excludes: LiveIntegration (needs live Lidarr), Integration (needs assemblies),
+  #           Performance (benchmarks), Quarantined (known issues),
+  #           DockerE2E (needs a booted Lidarr container with the merged plugin
+  #           mounted — covered by the dedicated docker-e2e.yml; the broad
+  #           full-suite sweep extracts assemblies but doesn't mount the plugin,
+  #           so these would spuriously fail there).
+  CI_TEST_FILTER: "Category!=LiveIntegration&Category!=Integration&Category!=Performance&Category!=Quarantined&Category!=DockerE2E"
 
 jobs:
   parity-lint:
