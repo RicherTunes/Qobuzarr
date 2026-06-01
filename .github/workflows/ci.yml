@@ -531,12 +531,13 @@ jobs:
     - name: Restore and build
       run: |
         dotnet restore Qobuzarr.csproj
-        dotnet build Qobuzarr.csproj --configuration Release --no-restore \
+        # -m:1 serializes MSBuild to avoid the concurrent Common.dll copy race (MSB3026). See PR #582/#596.
+        dotnet build Qobuzarr.csproj --configuration Release --no-restore -m:1 \
           -p:RunAnalyzersDuringBuild=false -p:EnableNETAnalyzers=false -p:TreatWarningsAsErrors=false
 
     - name: Pre-build all tests
       run: |
-        find tests -name "*.csproj" -exec echo "Building: {}" \; -exec dotnet build {} --configuration Release --verbosity minimal -p:RunAnalyzersDuringBuild=false -p:EnableNETAnalyzers=false -p:TreatWarningsAsErrors=false \;
+        find tests -name "*.csproj" -exec echo "Building: {}" \; -exec dotnet build {} --configuration Release --verbosity minimal -m:1 -p:RunAnalyzersDuringBuild=false -p:EnableNETAnalyzers=false -p:TreatWarningsAsErrors=false \;
 
     - name: Run full tests with coverage
       run: |
