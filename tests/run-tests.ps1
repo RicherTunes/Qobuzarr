@@ -8,7 +8,13 @@ param(
     [switch]$Full = $false,
     [string]$RunSettings = "",
     [string]$Filter = "",
-    [switch]$Live = $false
+    [switch]$Live = $false,
+    # Per-test-host hang timeout. Bounds a stuck/deadlocked test host (including a
+    # host that finishes every test but never EXITS — e.g. a coverage-instrumented
+    # shutdown deadlock) to a few minutes plus a captured dump, instead of letting it
+    # run all the way to <TestSessionTimeout>. The whole suite's real work is <1 min,
+    # so 5 min is comfortably above any legitimate single-host run. Override via env.
+    [string]$BlameHangTimeout = $(if ($env:QOBUZ_TEST_BLAME_HANG_TIMEOUT) { $env:QOBUZ_TEST_BLAME_HANG_TIMEOUT } else { "300s" })
 )
 
 Write-Host "[TEST] Qobuzzarr Unit Test Runner" -ForegroundColor Cyan
@@ -102,6 +108,14 @@ foreach ($proj in $TestProjects) {
     }
     if ($Live) { $env:ENABLE_LIVE_INTEGRATION_TESTS = "true" }
     if ($Coverage) { $args += @("--collect", "XPlat Code Coverage", "--settings", (Join-Path $PSScriptRoot "coverlet.runsettings")) }
+    # Activate the blame hang collector so a stuck or non-exiting test host is killed
+    # after $BlameHangTimeout (and a dump captured) rather than blocking until the
+    # session timeout. A bare <BlameHangTimeout> in the runsettings <RunConfiguration>
+    # is INERT without one of these flags. This is what turns a 2h abort into a
+    # ~5-min bounded, diagnosable failure.
+    if ($BlameHangTimeout -and -not [string]::IsNullOrWhiteSpace($BlameHangTimeout)) {
+        $args += @("--blame-hang-timeout", $BlameHangTimeout, "--blame-hang-dump-type", "full")
+    }
     $args += @("--verbosity", $(if ($Verbose) { "detailed" } else { "normal" }))
 
     & dotnet @args
