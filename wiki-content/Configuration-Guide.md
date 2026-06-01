@@ -1,3 +1,5 @@
+> ⚠️ Deprecated — this page is superseded by the canonical wiki. See [Configuration Guide](../wiki/Configuration-Guide.md) (or [docs/](../docs/) for deep references).
+
 # Configuration Guide
 
 This guide covers all configuration options for Qobuzarr, helping you optimize the plugin for your needs.
@@ -75,11 +77,13 @@ QOBUZ_QUALITY="27"
 ### Authentication Methods
 
 #### Email/Password (Recommended)
+
 - Simple to set up
 - Automatically refreshes tokens
 - Works with all Qobuz subscription levels
 
 #### Token-based
+
 - More secure for long-running deployments
 - Requires manual token refresh
 - Use for server deployments
@@ -87,6 +91,7 @@ QOBUZ_QUALITY="27"
 ### Network Configuration
 
 #### Proxy Settings
+
 If you need to use a proxy:
 
 ```json
@@ -101,6 +106,7 @@ If you need to use a proxy:
 ```
 
 #### Timeout Settings
+
 | Timeout | Default | Description |
 |---------|---------|-------------|
 | Connection Timeout | 30 seconds | Time to establish connection |
@@ -110,16 +116,19 @@ If you need to use a proxy:
 ## Performance Tuning
 
 ### Cache Settings
+
 - **Response Cache**: Reduces API calls significantly
 - **TTL**: 24 hours (can be adjusted)
 - **Size**: 10,000 entries (good for large libraries)
 
 ### Rate Limiting
+
 - **Default**: Adaptive based on API responses
 - **Maximum**: 60 requests per minute
 - **Burst Limit**: 120 requests during peak times
 
 ### Memory Optimization
+
 - **Baseline Usage**: ~200MB
 - **Peak Usage**: ~500MB during batch operations
 - **Recommendation**: 2GB RAM minimum for large libraries
@@ -127,16 +136,19 @@ If you need to use a proxy:
 ## Security Configuration
 
 ### Credential Security
+
 - **Storage**: Encrypted in Lidarr's database
 - **Transmission**: Always over HTTPS
 - **Logging**: Credentials are never logged
 
 ### API Security
+
 - **HTTPS Only**: All communication encrypted
 - **Certificate Validation**: Enabled by default
 - **Request Signing**: Prevents tampering
 
 ### File Security
+
 - **Path Validation**: Prevents directory traversal
 - **Filename Sanitization**: Removes dangerous characters
 - **Permission Checking**: Validates write permissions
@@ -144,6 +156,7 @@ If you need to use a proxy:
 ## Docker Configuration
 
 ### Docker Compose Example
+
 ```yaml
 services:
   lidarr:
@@ -160,6 +173,7 @@ services:
 ```
 
 ### Environment File (qobuzarr.env)
+
 ```bash
 QOBUZ_APP_ID=your_app_id
 QOBUZ_APP_SECRET=your_app_secret
@@ -173,16 +187,19 @@ QOBUZ_QUALITY=27
 ### Common Issues
 
 **Authentication Failed**
+
 - Verify App ID and Secret are correct
 - Check Qobuz subscription is active
 - Ensure credentials are not expired
 
 **No Search Results**
+
 - Verify indexer is enabled
 - Check quality settings match your subscription
 - Test API connectivity
 
 **Downloads Failing**
+
 - Check download path permissions
 - Verify sufficient disk space
 - Check download client priority
@@ -205,11 +222,13 @@ qobuz download album 12345
 ## Backup and Migration
 
 ### Backup Configuration
+
 1. Export Lidarr settings
 2. Backup plugin configuration files
 3. Document custom settings
 
 ### Migration Guide
+
 1. Export old configuration
 2. Install new version
 3. Import configuration

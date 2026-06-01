@@ -606,4 +606,4 @@ dotnet run --project SecurityScanner -- --target /app/plugins/
 
 ---
 
-*Security is built into every layer of Qobuzarr. For security vulnerabilities or concerns, see our [[Security Policy]] or contact <security@richertunes.com>*
+*Security is built into every layer of Qobuzarr. For security vulnerabilities or concerns, see [SECURITY.md](../SECURITY.md) or contact <security@richertunes.com>*

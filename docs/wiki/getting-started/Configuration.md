@@ -1,3 +1,5 @@
+> ⚠️ Deprecated — this page is superseded by the canonical wiki. See [Configuration Guide](../../../wiki/Configuration-Guide.md) (or [docs/](../../) for deep references).
+
 # Configuration Guide
 
 This guide covers comprehensive configuration of Qobuzarr for optimal performance with your Qobuz subscription and Lidarr setup.

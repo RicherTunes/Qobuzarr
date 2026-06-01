@@ -1,3 +1,5 @@
+> ⚠️ Deprecated — this page is superseded by the canonical wiki. See [Home](../../../wiki/Home.md) (or [docs/](../../) for deep references).
+
 # Features Overview
 
 > **Note:** This guide documents both currently implemented features and planned/aspirational capabilities. Features marked with `<!-- TODO(docval): ... -->` are planned but not yet available in the current release.
