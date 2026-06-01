@@ -23,7 +23,7 @@ Qobuzarr is a comprehensive Lidarr plugin that integrates the Qobuz high-fidelit
 │                           Plugin Infrastructure                               │
 │  ┌──────────────┐  ┌──────────────┐  ┌────────────────────┐                │
 │  │ IIndexer     │  │IDownloadClient│ │ Dependency         │                │
-│  │ Interface    │  │ Interface     │ │ Injection (Autofac)│                │
+│  │ Interface    │  │ Interface     │ │ Injection (Lidarr) │                │
 │  └──────┬───────┘  └──────┬────────┘ └────────┬───────────┘                │
 └─────────┼──────────────────┼───────────────────┼────────────────────────────┘
           │                  │                   │
@@ -114,15 +114,15 @@ This design ensures:
 
 ### 1. Plugin Entry Point
 
-**QobuzarrPlugin.cs**
+**QobuzarrInstalledPlugin.cs / QobuzarrStreamingPlugin.cs** (in `src/Integration/`)
 
-- Main plugin class inheriting from Lidarr's `Plugin` base
+- Plugin entry points registered with Lidarr's plugin system
 - Provides metadata (name, owner, GitHub URL)
 - Entry point for Lidarr's plugin system
 
-**QobuzModule.cs**
+**QobuzarrModule.cs**
 
-- Autofac dependency injection configuration
+- Service registration via Lidarr's built-in DryIoC (AutoAddServices) — no separate DI container
 - Registers all services and components
 - Configures singleton instances for core services
 
@@ -152,6 +152,7 @@ This design ensures:
 
 **Components:**
 
+<!-- TODO(docval): the defensive-services classes below (ServiceIntegrationLayer, DefensiveServiceWrapper<T>, SafeOperationExecutor, SimpleRetryService, DataValidationService, CacheValidationService) were not found in src/ as of 2026-06-01; this describes an earlier/aspirational design. -->
 - `ServiceIntegrationLayer`: Centralized service initialization and dependency management
 - `DefensiveServiceWrapper<T>`: Circuit breaker pattern preventing cascading failures  
 - `SafeOperationExecutor`: Graceful error handling for all operations
@@ -359,7 +360,7 @@ This design ensures:
 
 ### 1. Dependency Injection
 
-- All services registered via Autofac
+- Services registered via Lidarr's built-in DryIoC container (AutoAddServices)
 - Constructor injection used throughout
 - Singleton pattern for stateful services
 - Testability through interfaces
