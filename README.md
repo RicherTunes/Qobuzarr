@@ -222,6 +222,8 @@ For test-environment setup, the Docker E2E harness, and the flaky-test policy, s
 
 ## 📚 Documentation
 
+For a concise map of all documentation trees, see [docs/DOCUMENTATION_MAP.md](docs/DOCUMENTATION_MAP.md) and the [wiki](wiki/Home.md).
+
 ### Wiki (in-repo)
 
 The [wiki/](wiki/) directory contains long-form guides that complement this README:

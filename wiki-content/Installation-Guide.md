@@ -1,3 +1,5 @@
+> ⚠️ Deprecated — this page is superseded by the canonical wiki. See [Installation Guide](../wiki/Installation-Guide.md) (or [docs/](../docs/) for deep references).
+
 # Installation Guide
 
 This guide will walk you through installing and setting up Qobuzarr for use with Lidarr.

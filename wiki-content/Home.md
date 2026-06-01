@@ -1,3 +1,5 @@
+> ⚠️ Deprecated — this page is superseded by the canonical wiki. See [Home](../wiki/Home.md) (or [docs/](../docs/) for deep references).
+
 # Qobuzarr Wiki - High-Performance Lidarr Plugin for Qobuz
 
 [![Production Ready](https://img.shields.io/badge/Status-Production%20Ready-brightgreen)](https://github.com/RicherTunes/qobuzarr)

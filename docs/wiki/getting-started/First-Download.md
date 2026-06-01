@@ -1,3 +1,5 @@
+> ⚠️ Deprecated — this page is superseded by the canonical wiki. See [Installation Guide](../../../wiki/Installation-Guide.md) (or [docs/](../../) for deep references).
+
 # First Download Guide
 
 This guide will walk you through completing your first successful download with Qobuzarr to verify your installation and configuration.

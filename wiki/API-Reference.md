@@ -610,4 +610,4 @@ public static class QobuzarrVersion
 
 ---
 
-*This API reference covers the complete public surface of Qobuzarr v0.0.12. For implementation examples and usage patterns, see the [[Usage Examples]] and [[Plugin Development]] guides.*
+*This API reference covers the complete public surface of Qobuzarr v0.0.12. For implementation examples and usage patterns, see the [[Plugin Development]] guide.*
