@@ -15,8 +15,11 @@
     <TargetPlatform>x64</TargetPlatform>
     <!-- TargetFrameworkVersion intentionally omitted - let csproj decide -->
     <CollectSources>false</CollectSources>
-    <!-- Session limit for full suite (60 minutes) -->
-    <TestSessionTimeout>3600000</TestSessionTimeout>
+    <!-- Session limit for full suite (120 minutes). The exhaustive schedule run
+         (200 real-album + 200 sim scenarios, ~2345+ tests) exceeded the prior 60-min
+         limit and was aborted mid-run ("test run timeout ... exceeded"); raised to fit
+         within the job's timeout-minutes. No per-test hang (BlameHangTimeout caps those). -->
+    <TestSessionTimeout>7200000</TestSessionTimeout>
     <!-- 120s hang timeout for integration tests that may have setup overhead -->
     <BlameHangTimeout>00:02:00</BlameHangTimeout>
   </RunConfiguration>
