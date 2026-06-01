@@ -425,14 +425,15 @@ jobs:
     runs-on: ubuntu-latest
     needs: validate
     if: ${{ github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && inputs.run_mode == 'full') }}
-    timeout-minutes: 150
+    timeout-minutes: 75
     env:
-      # Scheduled/default runs use a bounded scope (40) so the exhaustive suite finishes within
-      # budget — at 200 the Qobuzarr.Tests run exceeded 2h and was aborted by TestSessionTimeout
-      # (0 failures, just too slow). The full 200-scenario stress run stays available on demand
-      # via workflow_dispatch inputs (max_real_albums / max_sim_scenarios).
-      QOBUZ_TEST_MAX_REAL_ALBUMS: ${{ github.event_name == 'workflow_dispatch' && inputs.max_real_albums || '40' }}
-      QOBUZ_TEST_MAX_SIM_SCENARIOS: ${{ github.event_name == 'workflow_dispatch' && inputs.max_sim_scenarios || '40' }}
+      # Full scenario scope. The earlier "200 exceeds 2h" abort was NOT scenario cost — the
+      # suite's real test work is <1 min total; the 2h came from a non-exiting/deadlocked test
+      # host running to a (since-lowered) TestSessionTimeout. With the active blame-hang collector
+      # (run-tests.ps1 --blame-hang-timeout) any such hang is now bounded to minutes, so the full
+      # 200-scenario scope runs comfortably. workflow_dispatch can still override via inputs.
+      QOBUZ_TEST_MAX_REAL_ALBUMS: ${{ github.event_name == 'workflow_dispatch' && inputs.max_real_albums || '200' }}
+      QOBUZ_TEST_MAX_SIM_SCENARIOS: ${{ github.event_name == 'workflow_dispatch' && inputs.max_sim_scenarios || '200' }}
       QOBUZ_TEST_CONCURRENCY: ${{ github.event_name == 'workflow_dispatch' && inputs.concurrency || '50' }}
       QOBUZ_TEST_TIMEOUT_MS: ${{ github.event_name == 'workflow_dispatch' && inputs.timeout_ms || '120000' }}
       ENABLE_LIVE_INTEGRATION_TESTS: ${{ github.event_name == 'workflow_dispatch' && inputs.enable_live && 'true' || 'false' }}
