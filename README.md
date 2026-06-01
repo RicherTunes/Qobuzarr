@@ -16,8 +16,7 @@
 - **High-Fidelity Audio**: Lossless FLAC up to 24-bit/192kHz Hi-Res quality
 - **Playlist Support**: Download entire playlists with M3U8 generation
 - **Label Downloads**: Batch download all albums from a record label
-- **Smart Duplicate Detection**: Prevents re-downloading existing content
-- **Comprehensive Metadata**: Full tagging with TagLib-Sharp
+- **Comprehensive Metadata**: Full tagging with TagLib-Sharp, synced lyrics (.lrc), and LRCLIB fallback
 
 ### Advanced Optimization
 
@@ -140,9 +139,8 @@ dotnet run -- history stats
 The plugin integrates seamlessly with Lidarr's automated workflow:
 
 1. **Automatic Search**: Searches Qobuz when albums are added to Lidarr
-2. **Quality Upgrades**: Automatically upgrades to higher quality when available
-3. **Metadata Sync**: Enriches Lidarr's database with Qobuz metadata
-4. **Smart Retry**: Handles transient failures with exponential backoff
+2. **Quality Fallback**: Automatically falls back to lower quality when the requested format is unavailable
+3. **Full Metadata Tagging**: Tags downloaded files with artist, album, track info, and lyrics
 
 ## 🏗️ Architecture
 
@@ -355,4 +353,4 @@ Qobuzarr is an independent, open-source project developed by RicherTunes for **e
 
 ---
 
-**Current Version**: v0.5.11 | **Last Updated**: January 2025
+**Current Version**: v0.5.11 | **Last Updated**: May 2026
