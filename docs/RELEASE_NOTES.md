@@ -8,7 +8,7 @@ We're excited to announce the first production release of Qobuzarr, a high-perfo
 
 ### ✨ Highlights
 
-- **65.8% API call reduction** through ML-powered query optimization
+- **~49% API call reduction** through ML-powered query optimization
 - **94.7% cache hit rate** with intelligent caching strategies  
 - **100% test coverage** with 687 passing tests
 - **Production-ready architecture** with SOLID principles throughout
@@ -41,7 +41,7 @@ We're excited to announce the first production release of Qobuzarr, a high-perfo
 
 | Metric | Value | Impact |
 |--------|-------|--------|
-| API Calls Saved | 65.8% | Reduced Qobuz server load |
+| API Calls Saved | ~49% | Reduced Qobuz server load |
 | Cache Hit Rate | 94.7% | Near-instant responses |
 | Processing Speed | 4x faster | Improved user experience |
 | Code Reduction | 1,861 lines removed | Better maintainability |

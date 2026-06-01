@@ -2,7 +2,7 @@
 
 [![Production Ready](https://img.shields.io/badge/Status-Production%20Ready-brightgreen)](https://github.com/RicherTunes/qobuzarr)
 [![.NET 8.0](https://img.shields.io/badge/.NET-8.0-blue)](https://dotnet.microsoft.com/download/dotnet/8.0)
-[![Lidarr 2.13+](https://img.shields.io/badge/Lidarr-2.13%2B-orange)](https://lidarr.audio/)
+[![Lidarr 3.0+](https://img.shields.io/badge/Lidarr-3.0%2B-orange)](https://lidarr.audio/)
 [![License: GPL v3](https://img.shields.io/badge/License-GPL%20v3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
 
 **Professional-grade indexer and download client for Qobuz streaming service with advanced ML-powered optimization.**
@@ -38,7 +38,7 @@
 
 ### Prerequisites
 
-- Lidarr v2.13.0 or higher (plugins branch — `pr-plugins-3.x`)
+- Lidarr v3.0.0+ (plugins branch — `pr-plugins-3.x`; minimum host version 3.0.0.4855)
 - .NET 8.0 SDK (the plugin targets `net8.0`; the host runs .NET 8)
 - Qobuz subscription (Studio Premier recommended for Hi-Res)
 

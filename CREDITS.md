@@ -25,7 +25,7 @@ Qobuzarr is built upon the excellent foundational work of TrevTV's original Lida
 
 Building upon TrevTV's foundation, this project adds:
 
-- **ML.NET-powered Query Intelligence** (65.8% API call reduction)
+- **ML.NET-powered Query Intelligence** (~49% API call reduction)
 - **Enterprise-grade reliability patterns** (circuit breakers, defensive programming)
 - **Thread-safe concurrent operations** with proper synchronization
 - **Comprehensive testing framework** (188 test files with real-world validation)

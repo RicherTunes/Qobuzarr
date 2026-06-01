@@ -218,7 +218,7 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for detailed guidelines.
 Once you have everything working:
 
 1. 📖 Read the [Architecture Guide](docs/architecture/ARCHITECTURE.md)
-2. 🧪 Explore the [Testing Guide](docs/development/TESTING-GUIDE.md)
+2. 🧪 Explore the [Testing Guide](docs/development/COMPREHENSIVE-TESTING-GUIDE.md)
 3. 🔧 Check out [Development Guide](docs/development/DEVELOPMENT.md)
 4. 🎯 Pick an issue labeled [`good first issue`](https://github.com/RicherTunes/qobuzarr/labels/good%20first%20issue)
 

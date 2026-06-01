@@ -66,28 +66,33 @@ Qobuzarr is a high-performance Lidarr plugin for Qobuz streaming service with ML
 |----------|-------------|
 | [Wiki](wiki/Home.md) | Comprehensive wiki documentation |
 | [Advanced Topics](advanced/) | Advanced configuration and usage |
-| [Code Samples](samples/) | Example code and configurations |
+| [Metadata Templates](samples/) | Example metadata JSON templates |
 | [Security](security/) | Security best practices |
 
 ## Related Resources
 
 ### Shared Library
+
 Qobuzarr uses the [Lidarr.Plugin.Common](https://github.com/RicherTunes/Lidarr.Plugin.Common) shared library for:
+
 - OAuth 2.0 authentication and token management
 - Streaming API request builders with resilience
 - Download orchestration and metadata tagging
 - Caching and adaptive rate limiting
 
 See the [shared library documentation](https://github.com/RicherTunes/Lidarr.Plugin.Common/tree/main/docs) for:
+
 - [Build Your First Plugin](https://github.com/RicherTunes/Lidarr.Plugin.Common/blob/main/docs/tutorials/BUILD_YOUR_FIRST_PLUGIN.md) - Plugin development tutorial
 - [Key Services Reference](https://github.com/RicherTunes/Lidarr.Plugin.Common/blob/main/docs/reference/KEY_SERVICES.md) - HTTP, auth, caching APIs
 - [Compatibility Matrix](https://github.com/RicherTunes/Lidarr.Plugin.Common/blob/main/docs/COMPATIBILITY.md) - Version compatibility
 
 ### Sister Plugins
+
 - [Tidalarr](https://github.com/RicherTunes/tidalarr) - Tidal streaming plugin (similar architecture)
 - [Brainarr](https://github.com/RicherTunes/brainarr) - AI-powered music recommendations
 
 ### Project Resources
+
 - [README](../README.md) - Project overview
 - [CLAUDE.md](../CLAUDE.md) - Claude Code development guidance
 - [CHANGELOG](../CHANGELOG.md) - Release history

@@ -1,5 +1,7 @@
 # Qobuzarr Architecture Documentation
 
+> **⚠️ Aspirational content notice**: Some diagrams below include components that are aspirational or use placeholder names (e.g. `QobuzAuthenticationManager`, `HybridMetadataService`, `NetworkResilienceService`, `AdaptiveBatchDownloadService`). Inline `%%` comments in Mermaid blocks mark these. Refer to `src/` for the actual implementation.
+
 ## Table of Contents
 
 - [System Overview](#system-overview)
@@ -373,7 +375,7 @@ graph TB
     subgraph "Lidarr Integration"
         LidarrAPI["Lidarr Plugin API"]
         NzbDrone["NzbDrone.Core"]
-        Autofac["Autofac DI"]
+        DryIoc["DryIoc DI"]
     end
     
     subgraph "HTTP & Networking"
@@ -828,7 +830,7 @@ graph TD
     
     %% Performance Monitoring
     subgraph "Performance Monitoring"
-        APIReduction[65.8% API Call Reduction]
+        APIReduction[~49% API Call Reduction]
         CacheHits[94.7% Cache Hit Rate]
         LatencyReduction[45ms Average Response]
         AccuracyGain[33.9% Accuracy Improvement]
@@ -1136,7 +1138,7 @@ graph TB
     subgraph "Performance Optimizations"
         %% Query Optimization
         subgraph "Query Optimization"
-            MLQuery[ML Query Optimization: 65.8% reduction]
+            MLQuery[ML Query Optimization: ~49% reduction]
             QuerySimp[Query Simplification]
             ContextOpt[Context-based Optimization]
             PatternMatch[Pattern Matching]
@@ -1287,7 +1289,7 @@ graph LR
 
 The Qobuzarr architecture represents a sophisticated, performance-oriented design that successfully balances functionality, maintainability, and performance. Key architectural achievements include:
 
-1. **65.8% API call reduction** through ML optimization
+1. **~49% API call reduction** through ML optimization
 2. **94.7% cache hit rate** with intelligent multi-layer caching
 3. **Clean separation of concerns** with plugin-first architecture
 4. **Comprehensive error handling** with graceful degradation
