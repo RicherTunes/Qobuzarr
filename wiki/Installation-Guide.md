@@ -88,7 +88,10 @@ wget https://github.com/RicherTunes/qobuzarr/releases/latest/download/Qobuzarr.z
 
 # Copy to container
 docker cp Qobuzarr.zip lidarr-container:/tmp/
-docker exec lidarr-container unzip /tmp/Qobuzarr.zip -d /config/plugins/
+# Plugin DLLs MUST live under /config/plugins/<Owner>/<Name>/ — Lidarr's loader scans
+# /config/plugins/RicherTunes/Qobuzarr/ for Lidarr.Plugin.*.dll; a flat /config/plugins/ is NOT scanned.
+docker exec lidarr-container mkdir -p /config/plugins/RicherTunes/Qobuzarr
+docker exec lidarr-container unzip /tmp/Qobuzarr.zip -d /config/plugins/RicherTunes/Qobuzarr/
 docker restart lidarr-container
 ```
 

@@ -24,7 +24,7 @@
 - **Pattern Learning Engine**: Adapts to your music library patterns with A/B testing
 - **Multi-Layer Caching**: 94.7% cache hit rate with intelligent prefetching ✅ *Production Validated*
 - **Progressive Search**: Multiple fallback strategies for hard-to-find content
-- **Real-time Telemetry**: Serilog-based performance monitoring with automatic validation
+- **Real-time Telemetry**: NLog-based performance monitoring with automatic validation
 
 ### Enterprise Features
 
