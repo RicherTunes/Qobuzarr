@@ -7,7 +7,10 @@ using Xunit;
 
 namespace Qobuzarr.Tests.Unit.Utilities
 {
-    public class AudioMagicBytesValidatorTests
+    // Pins the download-payload validation contract Qobuzarr's download path relies on.
+    // Consolidated onto Common's DownloadPayloadValidator (Qobuzarr no longer uses the weaker
+    // AudioMagicBytesValidator); these cases prove the migrated behavior, incl. native M4A/ftyp.
+    public class QobuzPayloadValidationTests
     {
         private static readonly byte[] FlacMagic = Encoding.ASCII.GetBytes("fLaC");
         private static readonly byte[] OggMagic = Encoding.ASCII.GetBytes("OggS");
@@ -18,7 +21,7 @@ namespace Qobuzarr.Tests.Unit.Utilities
         [MemberData(nameof(ValidAudioHeaders))]
         public void IsValidAudioMagicBytes_WithKnownHeaders_ShouldReturnTrue(byte[] bytes)
         {
-            AudioMagicBytesValidator.IsValidAudioMagicBytes(bytes).Should().BeTrue();
+            DownloadPayloadValidator.IsValidAudioMagicBytes(bytes).Should().BeTrue();
         }
 
         public static TheoryData<byte[]> ValidAudioHeaders => new()
@@ -28,14 +31,17 @@ namespace Qobuzarr.Tests.Unit.Utilities
             RiffMagic,
             Id3Magic,
             // MPEG frame sync cannot be represented as ASCII; use hex
-            new byte[] { 0xFF, 0xFB, 0x90, 0x64 }
+            new byte[] { 0xFF, 0xFB, 0x90, 0x64 },
+            // MP4/M4A: "ftyp" box at offset 4 — recognized natively by Common's validator
+            // (the case the former Qobuzarr-local m4a workaround existed to handle).
+            new byte[] { 0x00, 0x00, 0x00, 0x18, 0x66, 0x74, 0x79, 0x70, 0x4D, 0x34, 0x41, 0x20 }
         };
 
         [Theory]
         [MemberData(nameof(InvalidHeaders))]
         public void IsValidAudioMagicBytes_WithNonAudioHeaders_ShouldReturnFalse(byte[] bytes)
         {
-            AudioMagicBytesValidator.IsValidAudioMagicBytes(bytes).Should().BeFalse();
+            DownloadPayloadValidator.IsValidAudioMagicBytes(bytes).Should().BeFalse();
         }
 
         public static TheoryData<byte[]> InvalidHeaders => new()
@@ -53,7 +59,7 @@ namespace Qobuzarr.Tests.Unit.Utilities
                 var fileData = new byte[7];
                 FlacMagic.CopyTo(fileData, 0);
                 File.WriteAllBytes(path, fileData);
-                Action act = () => AudioMagicBytesValidator.ValidateAudioMagicBytes(path);
+                Action act = () => DownloadPayloadValidator.ValidateFileOrThrow(path);
                 act.Should().NotThrow();
             }
             finally
@@ -70,7 +76,7 @@ namespace Qobuzarr.Tests.Unit.Utilities
             {
                 // Write only 3 bytes (< 4 required for magic validation)
                 File.WriteAllBytes(path, FlacMagic.AsSpan(0, 3).ToArray());
-                Action act = () => AudioMagicBytesValidator.ValidateAudioMagicBytes(path);
+                Action act = () => DownloadPayloadValidator.ValidateFileOrThrow(path);
                 act.Should().Throw<InvalidOperationException>()
                     .WithMessage("File too small for magic validation*");
             }

@@ -1,3 +1,5 @@
+> ⚠️ Deprecated — this page is superseded by the canonical wiki. See [Home](../../../wiki/Home.md) (or [docs/](../../) for deep references).
+
 # Features Overview
 
 > **Note:** This guide documents both currently implemented features and planned/aspirational capabilities. Features marked with `<!-- TODO(docval): ... -->` are planned but not yet available in the current release.
@@ -133,7 +135,7 @@ Query: "Pink Floyd Dark Side Moon"
 
 ### Query Optimization
 
-**ML-Powered Query Intelligence**: 65.8% reduction in API calls through smart query optimization
+**ML-Powered Query Intelligence**: ~49% reduction in API calls through smart query optimization
 
 **Optimization Features**:
 
@@ -145,7 +147,7 @@ Query: "Pink Floyd Dark Side Moon"
 
 **Performance Impact**:
 
-- **65.8% fewer API calls** through intelligent query optimization
+- **~49% fewer API calls** through intelligent query optimization
 - **45ms average response time** with caching
 - **94.7% cache hit rate** for repeated searches
 
@@ -371,7 +373,7 @@ Query: "Pink Floyd Dark Side Moon"
 
 **Key Performance Indicators**:
 
-- **65.8% API call reduction** (validated)
+- **~49% API call reduction** (validated)
 - **94.7% cache hit rate** (validated)
 - **45ms average response time** (validated)
 - **33.9% → <10% failure rate improvement** (validated)
@@ -570,7 +572,7 @@ qobuz lyrics track <id>
 
 | Metric | Target | Achieved | Status |
 |--------|--------|-----------|--------|
-| API Call Reduction | >50% | 65.8% | ✅ Exceeded |
+| API Call Reduction | >50% | ~49% | ✅ Exceeded |
 | Cache Hit Rate | >90% | 94.7% | ✅ Exceeded |
 | Response Time | <100ms | 45ms | ✅ Exceeded |
 | Memory Usage | <500MB | ~200MB | ✅ Optimized |

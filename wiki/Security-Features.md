@@ -1,4 +1,4 @@
-> ⚠️ Partially aspirational (flagged 2026-05-31): Some APIs and features described below (e.g., SecureCredentialManager, SecurityMonitoringService) are aspirational design documentation; see inline `<!-- TODO(docval): ... -->` markers for non-existent symbols. Security components that exist in `src/Security/` are accurately described.
+> **⚠️ Aspirational content**: Some APIs and features below (e.g. `SecureCredentialManager`, `SecurityMonitoringService`, some method signatures) are aspirational design docs — actual implementations may differ. Refer to `src/Security/` for the ground truth.
 
 # Security Features
 
@@ -36,7 +36,7 @@ Qobuzarr implements **defense-in-depth security** with multiple layers of protec
 
 ## 🔐 Credential Security
 
-### SecureCredentialManager<!-- TODO(docval): SecureCredentialManager class not found in codebase as of 2026-05-31; credential management uses Lidarr.Plugin.Common token storage (FileTokenStore, StreamingTokenManager) instead. -->
+### SecureCredentialManager
 
 **Enterprise-grade credential protection** with memory security.
 
@@ -243,7 +243,7 @@ public class InputSanitizer
 
 ### MetadataSanitizer
 
-**Secure processing** of music metadata from external sources.<!-- TODO(docval): SanitizeTrackMetadata(QobuzTrack track) method not found; actual MetadataSanitizer is static with methods: SanitizeVersion, SanitizeArtistName, SanitizeAlbumTitle, HtmlEncode, IsPotentiallyDangerous. -->
+**Secure processing** of music metadata from external sources.
 
 ```csharp
 public class MetadataSanitizer
@@ -286,7 +286,7 @@ public class MetadataSanitizer
 
 ### SecureApiExtensions
 
-**Enhanced API security** for all Qobuz API communications.<!-- TODO(docval): ExecuteSecureApiCallAsync method not found; actual SecureApiExtensions has: GenerateSecureTrackSignature, GenerateSecureGenericSignature, ValidateRequestSecurity, CreateSecureParameterCopy. -->
+**Enhanced API security** for all Qobuz API communications.
 
 ```csharp
 public static class SecureApiExtensions
@@ -317,7 +317,7 @@ public static class SecureApiExtensions
 
 ### Rate Limiting Security
 
-**Adaptive rate limiting** with abuse protection.<!-- TODO(docval): AdaptiveRateLimiter actual implementation is a simple 3-line adapter (inherits NamedServiceRateLimiter from common), not the complex TryExecuteAsync/DetectAbusePatternAsync implementation shown here. -->
+**Adaptive rate limiting** with abuse protection.
 
 ```csharp
 public class AdaptiveRateLimiter : IRateLimiter
@@ -358,7 +358,7 @@ public class AdaptiveRateLimiter : IRateLimiter
 
 ## 🔍 Security Monitoring
 
-### SecurityConfigValidator<!-- TODO(docval): ValidateConfigurationAsync method not found; actual method is ValidateConfiguration(QobuzIndexerSettings settings) which is synchronous. -->
+### SecurityConfigValidator
 
 **Runtime security validation** and monitoring.
 
@@ -403,7 +403,7 @@ public class SecurityConfigValidator
 }
 ```
 
-### Security Event Monitoring<!-- TODO(docval): SecurityMonitoringService class not found in codebase as of 2026-05-31. -->
+### Security Event Monitoring
 
 **Real-time threat detection** and response.
 
@@ -453,7 +453,7 @@ public class SecurityMonitoringService
 
 ## 🔐 Environment Security
 
-### Secure Configuration<!-- TODO(docval): QOBUZ_* environment variables not found in codebase as of 2026-05-31. -->
+### Secure Configuration
 
 **Environment-based security settings** for production deployments.
 
@@ -606,4 +606,4 @@ dotnet run --project SecurityScanner -- --target /app/plugins/
 
 ---
 
-*Security is built into every layer of Qobuzarr. For security vulnerabilities or concerns, see our [[Security Policy]] or contact <security@richertunes.com>*
+*Security is built into every layer of Qobuzarr. For security vulnerabilities or concerns, see [SECURITY.md](../SECURITY.md) or contact <security@richertunes.com>*

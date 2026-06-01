@@ -1,6 +1,6 @@
 # Plugin Development Guide
 
-Comprehensive guide for developing extensions and customizations for Qobuzarr, including ML models, security extensions, and custom integrations.
+> **⚠️ Aspirational extension points**: The interfaces and extension patterns below (e.g. `IQobuzAuthenticationProvider`, `ISecureCredentialProvider`, `IDownloadStrategy`, `IQobuzarrPlugin`, `ISecurityValidator`, `ISecurityMonitor`) are design documentation for planned extension points — they do not yet exist in the codebase. The existing `ISmartQueryStrategy` exists as a class (`SmartQueryStrategy`), not an interface. Use the current `src/` code as the ground truth for implemented APIs.
 
 ## 🚀 Getting Started
 
@@ -11,7 +11,7 @@ Comprehensive guide for developing extensions and customizations for Qobuzarr, i
 - **.NET 8.0 SDK**: Core development framework
 - **Visual Studio Code/2022**: IDE with C# support
 - **Git**: Version control
-- **Lidarr Instance**: For testing (hotio/lidarr:pr-plugins recommended)
+- **Lidarr Instance**: For testing (`ghcr.io/hotio/lidarr:pr-plugins-3.1.2.4913` recommended)
 
 **Recommended Tools:**
 
@@ -89,7 +89,7 @@ public interface IPatternLearningEngine
 }
 
 // Custom search strategy
-public interface ISmartQueryStrategy <!-- TODO(docval): ISmartQueryStrategy interface not found in code — SmartQueryStrategy exists as a class, not an interface (as of 2026-05-31) -->
+public interface ISmartQueryStrategy
 {
     Task<QueryOptimizationResult> OptimizeQueryAsync(string artist, string album);
     QueryComplexity ClassifyComplexity(string artist, string album);
@@ -101,7 +101,7 @@ public interface ISmartQueryStrategy <!-- TODO(docval): ISmartQueryStrategy inte
 
 ```csharp
 // Custom authentication provider
-public interface IQobuzAuthenticationProvider <!-- TODO(docval): IQobuzAuthenticationProvider interface not found in code (as of 2026-05-31) -->
+public interface IQobuzAuthenticationProvider
 {
     Task<QobuzSession> AuthenticateAsync(QobuzCredentials credentials);
     Task<bool> ValidateSessionAsync(QobuzSession session);
@@ -110,7 +110,7 @@ public interface IQobuzAuthenticationProvider <!-- TODO(docval): IQobuzAuthentic
 }
 
 // Security extensions
-public interface ISecureCredentialProvider <!-- TODO(docval): ISecureCredentialProvider interface not found in code (as of 2026-05-31) -->
+public interface ISecureCredentialProvider
 {
     Task<TCredential> GetCredentialAsync<TCredential>() where TCredential : class;
     Task StoreCredentialAsync<TCredential>(TCredential credential) where TCredential : class;
@@ -122,7 +122,7 @@ public interface ISecureCredentialProvider <!-- TODO(docval): ISecureCredentialP
 
 ```csharp
 // Custom download strategy
-public interface IDownloadStrategy <!-- TODO(docval): IDownloadStrategy interface not found in code (as of 2026-05-31) -->
+public interface IDownloadStrategy
 {
     Task<TrackDownloadResult> DownloadTrackAsync(QobuzTrack track, DownloadOptions options);
     bool SupportsQuality(QobuzAudioQuality quality);
@@ -144,7 +144,7 @@ Register your plugin services with Qobuzarr's dependency injection container:
 
 ```csharp
 // Plugin entry point
-public class MyCustomPlugin : IQobuzarrPlugin <!-- TODO(docval): IQobuzarrPlugin interface not found in code (as of 2026-05-31) -->
+public class MyCustomPlugin : IQobuzarrPlugin
 {
     public void ConfigureServices(IServiceCollection services)
     {
@@ -401,7 +401,7 @@ public class VaultCredentialProvider : ISecureCredentialProvider
 #### 2. Security Validation Extensions
 
 ```csharp
-public class CustomSecurityValidator : ISecurityValidator <!-- TODO(docval): ISecurityValidator interface not found in code (as of 2026-05-31) -->
+public class CustomSecurityValidator : ISecurityValidator
 {
     public async Task<SecurityValidationResult> ValidateRequestAsync(ApiRequest request)
     {
@@ -448,7 +448,7 @@ public class CustomSecurityValidator : ISecurityValidator <!-- TODO(docval): ISe
 ### Security Monitoring Extensions
 
 ```csharp
-public class SecurityMonitoringService : ISecurityMonitor <!-- TODO(docval): ISecurityMonitor interface not found in code (as of 2026-05-31) -->
+public class SecurityMonitoringService : ISecurityMonitor
 {
     private readonly IMetricsCollector _metrics;
     private readonly IAlertService _alerts;
@@ -792,7 +792,7 @@ dotnet pack --configuration Release --output ./packages
 
 # Create deployment package
 mkdir -p deploy/MyCustomPlugin
-cp bin/Release/net6.0/*.dll deploy/MyCustomPlugin/
+cp bin/Release/net8.0/*.dll deploy/MyCustomPlugin/
 cp plugin.json deploy/MyCustomPlugin/
 tar czf MyCustomPlugin.tar.gz -C deploy MyCustomPlugin/
 ```
@@ -874,7 +874,7 @@ jobs:
     
     services:
       lidarr:
-        image: ghcr.io/hotio/lidarr:pr-plugins
+        image: ghcr.io/hotio/lidarr:pr-plugins-3.1.2.4913
         ports:
           - 8686:8686
     
@@ -961,8 +961,6 @@ public class ExamplePlugin : IQobuzarrPlugin
 ### Documentation
 
 - **[[API Reference]]**: Complete API documentation
-- **[[Architecture Overview]]**: System design details
-- **[[Testing Guide]]**: Testing methodologies
 - **[[Security Features]]**: Security implementation details
 
 ### Community
@@ -979,4 +977,4 @@ public class ExamplePlugin : IQobuzarrPlugin
 
 ---
 
-*Ready to build your first plugin? Start with our [[Plugin Template]] or explore existing extensions in the repository.*
+*Ready to build your first plugin? Explore the extension points above and the existing code in the repository.*

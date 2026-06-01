@@ -1,3 +1,5 @@
+> ⚠️ Deprecated — this page is superseded by the canonical wiki. See [Configuration Guide](../../../wiki/Configuration-Guide.md) (or [docs/](../../) for deep references).
+
 # Configuration Guide
 
 This guide covers comprehensive configuration of Qobuzarr for optimal performance with your Qobuz subscription and Lidarr setup.
@@ -138,7 +140,7 @@ export QOBUZ_PASSWORD="your_password"
 
 - **Conservative**: Basic optimization, maximum compatibility
 - **Balanced**: Good balance of performance and accuracy
-- **High**: Maximum optimization (65.8% API call reduction)
+- **High**: Maximum optimization (~49% API call reduction)
 
 ## Download Client Configuration
 

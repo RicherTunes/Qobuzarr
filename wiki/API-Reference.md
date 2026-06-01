@@ -1,5 +1,7 @@
 # API Reference
 
+> **⚠️ Includes aspirational APIs**: Some interfaces and types below (e.g. `QualityAssessment`, `QualityRecommendation`, `QualityMetrics`, `IPluginHost`, `IModelConverter`) are design documentation for planned extension points and do not yet exist in the codebase. See `src/` for implemented APIs.
+
 Comprehensive reference for all public APIs, services, and interfaces provided by the Qobuzarr plugin.
 
 ## 📋 Overview
@@ -162,7 +164,7 @@ Console.WriteLine($\"Recommended strategy: {prediction.RecommendedStrategy}\");
 
 ### CompiledMLQueryOptimizer
 
-**Production-ready ML optimization** with 65.8% API call reduction.
+**Production-ready ML optimization** with ~49% API call reduction.
 
 ```csharp
 public class CompiledMLQueryOptimizer : IPatternLearningEngine
@@ -175,8 +177,8 @@ public class CompiledMLQueryOptimizer : IPatternLearningEngine
 
 **Performance Metrics:**
 
-- **API Call Reduction**: 65.8% average reduction
-- **Accuracy**: 98.485% classification accuracy  
+- **API Call Reduction**: ~49% target (offline analysis)
+- **Accuracy**: ~87.3% offline training accuracy (`CompiledMLQueryOptimizer`)
 - **Speed**: <50ms prediction time
 - **Memory**: <10MB model footprint
 
@@ -258,16 +260,17 @@ public interface IDownloadOrchestrator
 Lidarr download client implementation.
 
 ```csharp
-public class QobuzDownloadClient : DownloadClientBase<QobuzDownloadSettings>
+public class QobuzDownloadClient : DownloadClientBase<QobuzDownloadSettings>, IDisposable
 {
     public override string Name { get; }
-    public override DownloadProtocol Protocol { get; }
-    
-    protected override string AddFromMagnetLink(RemoteEpisode remoteEpisode, string hash, string magnetLink)
-    protected override string AddFromNzbFile(RemoteEpisode remoteEpisode, string filename, byte[] fileContent)
-    protected override void RemoveItem(DownloadClientItem item, bool deleteData)
-    protected override DownloadClientInfo GetStatus()
-    protected override List<DownloadClientItem> GetItems()
+    public override string Protocol { get; }
+
+    // Qobuz is a direct-download client; it implements Download(album) rather
+    // than the magnet/NZB entry points used by torrent/usenet clients.
+    public override Task<string> Download(RemoteAlbum remoteAlbum, IIndexer indexer);
+    public override IEnumerable<DownloadClientItem> GetItems();
+    public override void RemoveItem(DownloadClientItem item, bool deleteData);
+    public override DownloadClientInfo GetStatus();
 }
 ```
 
@@ -356,8 +359,8 @@ Comprehensive ML optimization statistics.
 ```csharp
 public class MLPerformanceMetrics
 {
-    public float ApiCallReductionPercentage { get; set; } // 65.8% average
-    public float AccuracyPercentage { get; set; } // 98.485% average
+    public float ApiCallReductionPercentage { get; set; } // ~49% target (offline analysis)
+    public float AccuracyPercentage { get; set; } // ~87.3% offline training accuracy
     public TimeSpan AveragePredictionTime { get; set; } // <50ms average
     public long TotalPredictions { get; set; }
     public long CorrectPredictions { get; set; }
@@ -367,7 +370,7 @@ public class MLPerformanceMetrics
 
 ### AdaptiveRateLimiter
 
-**93x performance improvement** through intelligent rate management.
+Adaptive rate management that backs off on throttling and ramps back up when the API is healthy.
 
 ```csharp
 public class AdaptiveRateLimiter : IRateLimiter
@@ -438,10 +441,10 @@ mockClient.SetupSearchResponse(artist, album, expectedResults);
 ```csharp
 public class IntelligentQualityDetector : IQualityDetector
 {
-    Task<QualityAssessment> AssessQualityAsync(QobuzTrack track);  <!-- TODO(docval): QualityAssessment not found in code as of 2026-05-31 -->
-    Task<QualityRecommendation> GetRecommendationAsync(QualityPreferences preferences);  <!-- TODO(docval): QualityRecommendation not found in code as of 2026-05-31 -->
+    Task<QualityAssessment> AssessQualityAsync(QobuzTrack track);
+    Task<QualityRecommendation> GetRecommendationAsync(QualityPreferences preferences);
     Task<bool> IsQualityOptimalAsync(QobuzAudioQuality quality, QobuzTrack track);
-    QualityMetrics AnalyzeQualityTrends(IEnumerable<QobuzTrack> tracks);  <!-- TODO(docval): QualityMetrics not found in code as of 2026-05-31 -->
+    QualityMetrics AnalyzeQualityTrends(IEnumerable<QobuzTrack> tracks);
 }
 ```
 
@@ -454,7 +457,7 @@ Services for bridging plugin functionality with CLI interfaces.
 #### PluginHost
 
 ```csharp
-public class PluginHost : IPluginHost  // TODO(docval): IPluginHost and PluginHost not found in src/ as of 2026-05-31
+public class PluginHost : IPluginHost
 {
     Task<SearchResult> SearchAsync(string artist, string album, SearchOptions options);
     Task<DownloadResult> DownloadAsync(string itemId, DownloadOptions options);
@@ -469,7 +472,7 @@ public class PluginHost : IPluginHost  // TODO(docval): IPluginHost and PluginHo
 #### ModelConverter
 
 ```csharp
-public class ModelConverter : IModelConverter  // TODO(docval): IModelConverter and ModelConverter not found in src/ as of 2026-05-31
+public class ModelConverter : IModelConverter
 {
     // Convert between CLI and plugin models
     CliSearchResult ToCliModel(QobuzSearchResult pluginResult);
@@ -608,4 +611,4 @@ public static class QobuzarrVersion
 
 ---
 
-*This API reference covers the complete public surface of Qobuzarr v0.0.12. For implementation examples and usage patterns, see the [[Usage Examples]] and [[Plugin Development]] guides.*
+*This API reference covers the complete public surface of Qobuzarr v0.0.12. For implementation examples and usage patterns, see the [[Plugin Development]] guide.*

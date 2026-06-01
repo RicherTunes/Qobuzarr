@@ -345,7 +345,7 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Services
 
             File.Move(partialPath, filePath, overwrite: true);
 
-            Lidarr.Plugin.Common.Utilities.AudioMagicBytesValidator.ValidateAudioMagicBytes(filePath);
+            Lidarr.Plugin.Common.Utilities.DownloadPayloadValidator.ValidateFileOrThrow(filePath);
 
             if (!Lidarr.Plugin.Common.Utilities.ValidationUtilities.ValidateDownloadedFile(filePath))
             {

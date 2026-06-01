@@ -2,7 +2,7 @@
 
 [![Production Ready](https://img.shields.io/badge/Status-Production%20Ready-brightgreen)](https://github.com/RicherTunes/qobuzarr)
 [![.NET 8.0](https://img.shields.io/badge/.NET-8.0-blue)](https://dotnet.microsoft.com/download/dotnet/8.0)
-[![Lidarr 2.13+](https://img.shields.io/badge/Lidarr-2.13%2B-orange)](https://lidarr.audio/)
+[![Lidarr 3.0+](https://img.shields.io/badge/Lidarr-3.0%2B-orange)](https://lidarr.audio/)
 [![License: GPL v3](https://img.shields.io/badge/License-GPL%20v3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
 
 **Professional-grade indexer and download client for Qobuz streaming service with advanced ML-powered optimization.**
@@ -20,11 +20,11 @@
 
 ### Advanced Optimization
 
-- **ML-Powered Query Intelligence**: 49.8% API call reduction using ML.NET ✅ *Production Validated*
+- **ML-Powered Query Intelligence**: up to ~49.8% fewer API calls (ML.NET) — target from offline query-pattern analysis
 - **Pattern Learning Engine**: Adapts to your music library patterns with A/B testing
-- **Multi-Layer Caching**: 94.7% cache hit rate with intelligent prefetching ✅ *Production Validated*
+- **Multi-Layer Caching**: up to ~94.7% cache hit rate with intelligent prefetching — target from offline analysis
 - **Progressive Search**: Multiple fallback strategies for hard-to-find content
-- **Real-time Telemetry**: Serilog-based performance monitoring with automatic validation
+- **Real-time Telemetry**: NLog-based performance monitoring with automatic validation
 
 ### Enterprise Features
 
@@ -38,7 +38,7 @@
 
 ### Prerequisites
 
-- Lidarr v2.13.0 or higher (plugins branch — `pr-plugins-3.x`)
+- Lidarr v3.0.0+ (plugins branch — `pr-plugins-3.x`; minimum host version 3.0.0.4855)
 - .NET 8.0 SDK (the plugin targets `net8.0`; the host runs .NET 8)
 - Qobuz subscription (Studio Premier recommended for Hi-Res)
 
@@ -171,7 +171,7 @@ The plugin integrates seamlessly with Lidarr's automated workflow:
 - By default, local builds target the Lidarr release API for wider developer compatibility.
 - CI auto-detects and flips to the plugins-branch API when assemblies are available.
 - You can override locally with MSBuild: `-p:UsePluginsBranch=true`.
-- During build, the project prints which branch is used (see `Qobuzarr.csproj` target `LogBranchSelection`).
+- The target branch is selected by the `UsePluginsBranch` MSBuild property in `Qobuzarr.csproj`.
 
 For a deeper dive into service decomposition, DI patterns, and the shared-library layer, see [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) and the [shared-library architecture overview](https://github.com/RicherTunes/Lidarr.Plugin.Common/blob/main/wiki/Architecture-Overview.md).
 
@@ -181,10 +181,12 @@ For a deeper dive into service decomposition, DI patterns, and the shared-librar
 
 | Metric | Result |
 |--------|--------|
-| API call reduction (ML) | **49.8%** ✅ *Production Validated* |
-| Cache hit rate | **94.7%** ✅ *Production Validated* |
-| Baseline failure rate | **33.9%** → **<10%** with progressive search |
-| Albums validated | **100,000+** |
+| API call reduction (ML) | **~49.8%** target (offline analysis) |
+| Cache hit rate | **~94.7%** target (offline analysis) |
+| Baseline failure rate | **33.9%** → **~10–15%** with progressive search |
+| Albums analyzed (offline) | **~100,000** |
+
+> Figures above are **targets derived from offline query-pattern analysis**, not runtime production measurements — the in-process performance-monitoring service is currently a stub (`src/Services/IPerformanceMonitoringService.cs`).
 
 ### Resource Usage
 
@@ -221,6 +223,8 @@ dotnet test --filter Category=Integration
 For test-environment setup, the Docker E2E harness, and the flaky-test policy, see [docs/TESTING.md](docs/TESTING.md) and [docs/development/COMPREHENSIVE-TESTING-GUIDE.md](docs/development/COMPREHENSIVE-TESTING-GUIDE.md).
 
 ## 📚 Documentation
+
+For a concise map of all documentation trees, see [docs/DOCUMENTATION_MAP.md](docs/DOCUMENTATION_MAP.md) and the [wiki](wiki/Home.md).
 
 ### Wiki (in-repo)
 
