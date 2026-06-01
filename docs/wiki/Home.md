@@ -48,7 +48,7 @@ Welcome to the comprehensive documentation for **Qobuzarr** - a professional-gra
 - **ML-Powered Query Intelligence**: **~49% API call reduction** using ML.NET ✅ *Production Validated*
 - **Multi-Layer Caching**: **94.7% cache hit rate** with intelligent prefetching ✅ *Production Validated*
 - **Progressive Search**: Multiple fallback strategies for hard-to-find content
-- **Real-time Telemetry**: Serilog-based performance monitoring
+- **Real-time Telemetry**: NLog-based performance monitoring
 
 ### 🏢 Enterprise Features
 

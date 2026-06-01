@@ -208,19 +208,19 @@ CONTAINER_NAME="lidarr"
 PLUGIN_URL="https://github.com/richertunes/qobuzarr/releases/latest/download/Qobuzarr.dll"
 
 # Download latest plugin
-wget -O Lidarr.Plugin.Qobuz.dll.new "$PLUGIN_URL"
+wget -O Lidarr.Plugin.Qobuzarr.dll.new "$PLUGIN_URL"
 
 # Backup existing
-docker exec $CONTAINER_NAME cp /config/plugins/Lidarr.Plugin.Qobuz.dll /config/plugins/Lidarr.Plugin.Qobuz.dll.bak
+docker exec $CONTAINER_NAME cp /config/plugins/Lidarr.Plugin.Qobuzarr.dll /config/plugins/Lidarr.Plugin.Qobuzarr.dll.bak
 
 # Copy new plugin
-docker cp Lidarr.Plugin.Qobuz.dll.new $CONTAINER_NAME:/config/plugins/Lidarr.Plugin.Qobuz.dll
+docker cp Lidarr.Plugin.Qobuzarr.dll.new $CONTAINER_NAME:/config/plugins/Lidarr.Plugin.Qobuzarr.dll
 
 # Restart container
 docker restart $CONTAINER_NAME
 
 # Cleanup
-rm Lidarr.Plugin.Qobuz.dll.new
+rm Lidarr.Plugin.Qobuzarr.dll.new
 ```
 
 ## Environment Variables
@@ -445,7 +445,7 @@ environment:
 docker exec lidarr ls -la /config/plugins/
 
 # Check permissions
-docker exec lidarr stat /config/plugins/Lidarr.Plugin.Qobuz.dll
+docker exec lidarr stat /config/plugins/Lidarr.Plugin.Qobuzarr.dll
 
 # View Lidarr logs
 docker exec lidarr cat /config/logs/lidarr.txt | grep -i plugin
@@ -455,10 +455,10 @@ docker exec lidarr cat /config/logs/lidarr.txt | grep -i plugin
 
 ```bash
 # Fix ownership
-docker exec lidarr chown abc:abc /config/plugins/Lidarr.Plugin.Qobuz.dll
+docker exec lidarr chown abc:abc /config/plugins/Lidarr.Plugin.Qobuzarr.dll
 
 # Fix permissions  
-docker exec lidarr chmod 644 /config/plugins/Lidarr.Plugin.Qobuz.dll
+docker exec lidarr chmod 644 /config/plugins/Lidarr.Plugin.Qobuzarr.dll
 ```
 
 **Network issues:**
@@ -541,7 +541,7 @@ docker run --rm \
   dotnet build -c Release
 
 # Copy to Lidarr
-docker cp bin/Release/net6.0/Lidarr.Plugin.Qobuz.dll lidarr:/config/plugins/
+docker cp bin/Release/net8.0/Lidarr.Plugin.Qobuzarr.dll lidarr:/config/plugins/
 
 # Restart
 docker restart lidarr

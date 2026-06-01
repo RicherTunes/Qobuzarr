@@ -4,7 +4,7 @@
 
 ## Overview
 
-**Purpose**: Validate claimed performance metrics ("65.8% API reduction", "94.7% cache hit rates") through real-world telemetry
+**Purpose**: Validate claimed performance metrics ("49.8% API reduction", "94.7% cache hit rates") through real-world telemetry
 
 **Implementation**: Serilog structured logging → JSON logs → Prometheus → Grafana dashboard
 
@@ -112,7 +112,7 @@
 
 **API Call Reduction**:
 
-- **Target**: 65.8%
+- **Target**: 49.8%
 - **Calculation**: `(CachedApiCalls / TotalApiCalls) * 100`
 - **Validation**: Real-time tracking with threshold alerts
 
@@ -191,7 +191,7 @@ grep "Cache_Hit_Rate" performance-*.log | tail -10
 
 **Automatic Validation**: Built into the monitoring service
 
-- ✅ Warns when API reduction < 65.8%
+- ✅ Warns when API reduction < 49.8%
 - ✅ Warns when cache hit rate < 94.7%
 - ✅ Logs validation results for external monitoring
 
