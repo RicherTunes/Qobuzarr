@@ -48,7 +48,7 @@ Qobuzarr is a comprehensive Lidarr plugin that integrates the Qobuz high-fidelit
 │  ┌──────▼────────┐ ┌─────▼─────────┐ ┌──────▼────────┐ ┌─────▼─────────┐  │
 │  │Session Cache  │ │Simple Retry   │ │Response Cache │ │Query Intel    │  │
 │  │(24hr TTL)     │ │Service        │ │(Smart TTL)    │ │Optimization   │  │
-│  │               │ │(Exponential   │ │               │ │(65.8% API     │  │
+│  │               │ │(Exponential   │ │               │ │(49.8% API     │  │
 │  │               │ │ Backoff)      │ │               │ │ reduction)    │  │
 │  └───────────────┘ └───────────────┘ └───────────────┘ └───────────────┘  │
 └────────────────────────────────────────────────────────────────────────────┘
@@ -199,13 +199,13 @@ This design ensures:
 
 **Monitoring Infrastructure:**
 
-- `PerformanceMonitoringService`: Serilog-based structured logging with JSON formatting
+- `PerformanceMonitoringService`: NLog-based structured logging with JSON formatting
 - `MLABTestingFramework`: Statistical A/B testing for ML model validation
 - **Integrated Monitoring**: Performance tracking in QobuzHttpClient, QobuzResponseCache, CompiledMLQueryOptimizer
 
 **Validated Metrics:**
 
-- **API Call Reduction**: Real-time tracking with 65.8% target validation
+- **API Call Reduction**: Real-time tracking with 49.8% target validation
 - **Cache Hit Rate**: Comprehensive monitoring with 94.7% target validation
 - **ML Optimization**: A/B testing framework with statistical significance analysis
 
@@ -252,7 +252,7 @@ This design ensures:
 
 **Query Intelligence System (Latest):**
 
-- **65.8% API call reduction** based on 100,000 real album analysis
+- **49.8% API call reduction** based on 100,000 real album analysis
 - **94.7% cache hit rate** with combined optimization strategies
 - Multiple optimization approaches: Pattern exploitation, context usage, substring caching
 - Real production test data generation from actual album patterns
@@ -261,10 +261,10 @@ This design ensures:
 **Advanced Optimization Strategies:**
 
 1. **API Response Pattern Exploitation**: 64.7% reduction, 91.5% hit rate
-2. **Substring Cache Matching**: 65.8% reduction, 94.3% hit rate  
+2. **Substring Cache Matching**: 49.8% reduction, 94.3% hit rate  
 3. **Lidarr Context Usage**: 49.6% reduction, 44.6% hit rate
 4. **ML Pattern Learning Engine**: Adaptive optimization with online learning ✨
-5. **Combined All Optimizations**: 65.8% reduction, 94.7% hit rate (optimal)
+5. **Combined All Optimizations**: 49.8% reduction, 94.7% hit rate (optimal)
 
 **Features:**
 
@@ -412,7 +412,7 @@ This design ensures:
 
 ### 1. Query Intelligence System (Latest)
 
-- **65.8% API call reduction** through combined optimization strategies
+- **49.8% API call reduction** through combined optimization strategies
 - **94.7% cache hit rate** with near-perfect pattern recognition
 - **4x processing speed improvement** (37.79 μs per album)
 - **5 MB memory overhead** for optimal performance gains

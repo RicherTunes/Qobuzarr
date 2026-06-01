@@ -1,3 +1,355 @@
 > ⚠️ Deprecated — this page is superseded by the canonical wiki. See [Home](../../wiki/Home.md) (or [docs/](../) for deep references).
 
-# Qobuzarr Wiki Structure\n\nThis document outlines the complete wiki structure for the Qobuzarr project, providing comprehensive documentation for all user types.\n\n## Overview\n\nThe wiki is organized into logical sections with progressive complexity:\n- **Getting Started**: For new users setting up the plugin\n- **User Guide**: For daily usage and troubleshooting\n- **Developer Guide**: For contributors and advanced users\n- **Advanced Topics**: For specialized configurations\n\n## Complete File Structure\n\n```\ndocs/wiki/\n├── Home.md                                    # Main landing page\n├── WIKI-STRUCTURE.md                          # This file\n│\n├── getting-started/\n│   ├── Installation-Guide.md                  # Complete installation instructions\n│   ├── Configuration.md                       # Comprehensive configuration guide\n│   └── First-Download.md                      # First download walkthrough\n│\n├── user-guide/\n│   ├── Features-Overview.md                   # All features with examples\n│   ├── CLI-Usage.md                          # Complete CLI reference\n│   └── Troubleshooting.md                    # Comprehensive troubleshooting\n│\n├── developer-guide/\n│   ├── Architecture-Overview.md               # System design and components\n│   ├── Building-from-Source.md               # Development environment setup\n│   ├── Testing.md                            # [To be created]\n│   └── Contributing.md                       # [To be created]\n│\n└── advanced/\n    ├── ML-Optimization.md                     # Machine learning system guide\n    ├── Performance-Tuning.md                 # [To be created]\n    └── Security-Model.md                     # [To be created]\n```\n\n## File Descriptions\n\n### 📁 Root Level\n\n#### `Home.md`\n**Purpose**: Main wiki landing page with navigation\n**Content**: \n- Project overview and key features\n- Quick navigation to all sections\n- Performance metrics and architecture overview\n- Getting started links and support information\n**Status**: ✅ Complete\n\n### 📁 Getting Started\n\n#### `Installation-Guide.md`\n**Purpose**: Complete installation instructions for all platforms\n**Content**:\n- Prerequisites and system requirements\n- Multiple installation methods (release, build from source)\n- Platform-specific instructions (Windows, Linux, macOS, Docker)\n- Verification steps and troubleshooting\n- File permissions and deployment\n**Status**: ✅ Complete\n\n#### `Configuration.md` \n**Purpose**: Comprehensive configuration guide\n**Content**:\n- Obtaining Qobuz credentials\n- Indexer and download client configuration\n- Quality settings and advanced options\n- Environment variables and security settings\n- Performance tuning and troubleshooting\n**Status**: ✅ Complete\n\n#### `First-Download.md`\n**Purpose**: Step-by-step guide for first successful download\n**Content**:\n- Pre-flight checks and verification\n- Automatic and manual download methods\n- CLI testing procedures\n- Troubleshooting first downloads\n- Success verification and next steps\n**Status**: ✅ Complete\n\n### 📁 User Guide\n\n#### `Features-Overview.md`\n**Purpose**: Comprehensive feature documentation with examples\n**Content**:\n- Core functionality (high-fidelity audio, playlists, labels)\n- Advanced features (ML optimization, caching, security)\n- Performance metrics and scalability\n- Integration features and CLI capabilities\n- Production-validated results\n**Status**: ✅ Complete\n\n#### `CLI-Usage.md`\n**Purpose**: Complete command-line interface reference\n**Content**:\n- Authentication and session management\n- Search commands with advanced options\n- Download operations (albums, playlists, tracks)\n- Batch operations and automation\n- Configuration and maintenance commands\n- Advanced usage and troubleshooting\n**Status**: ✅ Complete\n\n#### `Troubleshooting.md`\n**Purpose**: Comprehensive issue diagnosis and resolution\n**Content**:\n- Quick diagnostics and health checks\n- Authentication, search, and download issues\n- Plugin loading and performance problems\n- API errors and network connectivity\n- Log analysis and advanced debugging\n- Getting help and reporting issues\n**Status**: ✅ Complete\n\n### 📁 Developer Guide\n\n#### `Architecture-Overview.md`\n**Purpose**: System design documentation for developers\n**Content**:\n- High-level architecture and design principles\n- Component architecture and data flow\n- Plugin integration and ML optimization\n- Performance and security architecture\n- Extension points and development guidelines\n**Status**: ✅ Complete\n\n#### `Building-from-Source.md`\n**Purpose**: Development environment setup guide\n**Content**:\n- Prerequisites and quick/manual setup\n- Build configuration and development workflow\n- Testing and debugging procedures\n- Deployment and troubleshooting\n- Development checklist\n**Status**: ✅ Complete\n\n#### `Testing.md`\n**Purpose**: Testing strategies and frameworks\n**Content**: [To be created]\n- Unit testing guidelines\n- Integration testing setup\n- Performance testing procedures\n- Test data and mocking strategies\n**Status**: 🔄 Planned\n\n#### `Contributing.md`\n**Purpose**: Contribution guidelines and workflow\n**Content**: [To be created]\n- Code style and standards\n- Pull request process\n- Issue reporting guidelines\n- Development workflow\n**Status**: 🔄 Planned\n\n### 📁 Advanced Topics\n\n#### `ML-Optimization.md`\n**Purpose**: Machine learning system detailed guide\n**Content**:\n- ML architecture and query classification\n- Optimization strategies and performance metrics\n- Configuration and troubleshooting\n- Advanced customization options\n- Production results (~49% API call reduction)\n**Status**: ✅ Complete\n\n#### `Performance-Tuning.md`\n**Purpose**: Performance optimization guide\n**Content**: [To be created]\n- Caching strategies and configuration\n- Network optimization techniques\n- Memory and CPU optimization\n- Large library handling\n**Status**: 🔄 Planned\n\n#### `Security-Model.md`\n**Purpose**: Security architecture and best practices\n**Content**: [To be created]\n- Credential management\n- API security and encryption\n- Session management\n- Audit logging and monitoring\n**Status**: 🔄 Planned\n\n## Content Statistics\n\n### Completed Files\n- **Total Files Created**: 8\n- **Total Content**: ~50,000 words\n- **Coverage Areas**: Installation, Configuration, Usage, Troubleshooting, Architecture, Development, ML Optimization\n\n### File Sizes (Approximate)\n- `Home.md`: 2,000 words\n- `Installation-Guide.md`: 6,000 words\n- `Configuration.md`: 8,000 words\n- `First-Download.md`: 4,000 words\n- `Features-Overview.md`: 8,000 words\n- `CLI-Usage.md`: 10,000 words\n- `Troubleshooting.md`: 9,000 words\n- `Architecture-Overview.md`: 7,000 words\n- `Building-from-Source.md`: 8,000 words\n- `ML-Optimization.md`: 6,000 words\n\n## Content Highlights\n\n### Key Features Documented\n- **Production-validated performance**: ~49% API call reduction, 94.7% cache hit rate\n- **Comprehensive installation**: All platforms, Docker, manual and automated setup\n- **Complete CLI reference**: All commands with examples and troubleshooting\n- **ML optimization system**: Detailed technical explanation with examples\n- **Architecture documentation**: System design, components, and extension points\n- **Troubleshooting guide**: Structured problem-solving approach\n\n### User Experience Focus\n- **Progressive complexity**: From beginner to expert documentation\n- **Practical examples**: Real-world usage scenarios and code samples\n- **Cross-references**: Navigation between related topics\n- **Platform coverage**: Windows, Linux, macOS, Docker instructions\n- **Multiple audiences**: End users, system administrators, developers\n\n## Navigation Structure\n\n### Home Page Navigation\nThe main `Home.md` provides clear navigation to all sections:\n- 🚀 **Getting Started** → Installation, Configuration, First Download\n- 📖 **User Guide** → Features, CLI, Troubleshooting\n- 👨‍💻 **Developer Guide** → Architecture, Building, Testing, Contributing\n- ⚡ **Advanced Topics** → ML Optimization, Performance, Security\n\n### Cross-References\nEach document includes:\n- **Next steps** links to logical follow-up topics\n- **See also** references to related information\n- **Troubleshooting** links for problem resolution\n- **Back references** to prerequisite information\n\n## Missing Content (Planned)\n\nThe following files are planned for completion:\n\n1. **`Testing.md`**: Testing strategies and frameworks\n2. **`Contributing.md`**: Contribution guidelines\n3. **`Performance-Tuning.md`**: Advanced performance optimization\n4. **`Security-Model.md`**: Security architecture details\n\nThese represent additional specialized documentation that can be created based on specific needs or community contributions.\n\n## Usage Guidelines\n\n### For New Users\n1. Start with `Home.md` for overview\n2. Follow `Installation-Guide.md` for setup\n3. Configure using `Configuration.md`\n4. Complete first download with `First-Download.md`\n5. Explore features in `Features-Overview.md`\n\n### For Daily Users\n1. Reference `CLI-Usage.md` for command examples\n2. Use `Troubleshooting.md` for problem resolution\n3. Check `Features-Overview.md` for advanced capabilities\n\n### For Developers\n1. Review `Architecture-Overview.md` for system understanding\n2. Follow `Building-from-Source.md` for environment setup\n3. Study `ML-Optimization.md` for optimization details\n4. Use `Contributing.md` (when available) for contribution workflow\n\n### For System Administrators\n1. Use `Installation-Guide.md` for deployment\n2. Reference `Configuration.md` for enterprise settings\n3. Apply `Performance-Tuning.md` (when available) for optimization\n4. Follow `Security-Model.md` (when available) for security hardening\n\n## Maintenance\n\n### Content Updates\n- **Version-specific information**: Update for new releases\n- **Performance metrics**: Update validated production results\n- **Feature documentation**: Add new features as they're developed\n- **Troubleshooting**: Add new issues and solutions as discovered\n\n### Quality Assurance\n- **Link validation**: Ensure all internal links work\n- **Example testing**: Verify code examples and commands work\n- **Screenshot updates**: Update UI screenshots for new versions\n- **Platform testing**: Verify instructions on all supported platforms\n\n---\n\n## Summary\n\nThe Qobuzarr wiki provides comprehensive documentation covering:\n- **Complete installation and setup** for all platforms\n- **Thorough configuration guidance** with examples\n- **Comprehensive feature documentation** with performance metrics\n- **Complete CLI reference** with advanced usage\n- **Extensive troubleshooting guide** with structured problem-solving\n- **Detailed architecture documentation** for developers\n- **Advanced topics** including ML optimization system\n\nThe wiki serves users from beginners to expert developers, with progressive complexity and extensive cross-referencing for easy navigation.\n\n**Total Documentation**: 10 comprehensive guides covering all aspects of Qobuzarr usage, development, and administration."
+# Qobuzarr Wiki Structure
+
+This document outlines the complete wiki structure for the Qobuzarr project, providing comprehensive documentation for all user types.
+
+## Overview
+
+The wiki is organized into logical sections with progressive complexity:
+
+- **Getting Started**: For new users setting up the plugin
+- **User Guide**: For daily usage and troubleshooting
+- **Developer Guide**: For contributors and advanced users
+- **Advanced Topics**: For specialized configurations
+
+## Complete File Structure
+
+```text
+docs/wiki/
+├── Home.md                                    # Main landing page
+├── WIKI-STRUCTURE.md                          # This file
+│
+├── getting-started/
+│   ├── Installation-Guide.md                  # Complete installation instructions
+│   ├── Configuration.md                       # Comprehensive configuration guide
+│   └── First-Download.md                      # First download walkthrough
+│
+├── user-guide/
+│   ├── Features-Overview.md                   # All features with examples
+│   ├── CLI-Usage.md                          # Complete CLI reference
+│   └── Troubleshooting.md                    # Comprehensive troubleshooting
+│
+├── developer-guide/
+│   ├── Architecture-Overview.md               # System design and components
+│   ├── Building-from-Source.md               # Development environment setup
+│   ├── Testing.md                            # [To be created]
+│   └── Contributing.md                       # [To be created]
+│
+└── advanced/
+    ├── ML-Optimization.md                     # Machine learning system guide
+    ├── Performance-Tuning.md                 # [To be created]
+    └── Security-Model.md                     # [To be created]
+```
+
+## File Descriptions
+
+### 📁 Root Level
+
+#### `Home.md`
+
+**Purpose**: Main wiki landing page with navigation
+**Content**:
+
+- Project overview and key features
+- Quick navigation to all sections
+- Performance metrics and architecture overview
+- Getting started links and support information
+**Status**: ✅ Complete
+
+### 📁 Getting Started
+
+#### `Installation-Guide.md`
+
+**Purpose**: Complete installation instructions for all platforms
+**Content**:
+
+- Prerequisites and system requirements
+- Multiple installation methods (release, build from source)
+- Platform-specific instructions (Windows, Linux, macOS, Docker)
+- Verification steps and troubleshooting
+- File permissions and deployment
+**Status**: ✅ Complete
+
+#### `Configuration.md`
+
+**Purpose**: Comprehensive configuration guide
+**Content**:
+
+- Obtaining Qobuz credentials
+- Indexer and download client configuration
+- Quality settings and advanced options
+- Environment variables and security settings
+- Performance tuning and troubleshooting
+**Status**: ✅ Complete
+
+#### `First-Download.md`
+
+**Purpose**: Step-by-step guide for first successful download
+**Content**:
+
+- Pre-flight checks and verification
+- Automatic and manual download methods
+- CLI testing procedures
+- Troubleshooting first downloads
+- Success verification and next steps
+**Status**: ✅ Complete
+
+### 📁 User Guide
+
+#### `Features-Overview.md`
+
+**Purpose**: Comprehensive feature documentation with examples
+**Content**:
+
+- Core functionality (high-fidelity audio, playlists, labels)
+- Advanced features (ML optimization, caching, security)
+- Performance metrics and scalability
+- Integration features and CLI capabilities
+- Production-validated results
+**Status**: ✅ Complete
+
+#### `CLI-Usage.md`
+
+**Purpose**: Complete command-line interface reference
+**Content**:
+
+- Authentication and session management
+- Search commands with advanced options
+- Download operations (albums, playlists, tracks)
+- Batch operations and automation
+- Configuration and maintenance commands
+- Advanced usage and troubleshooting
+**Status**: ✅ Complete
+
+#### `Troubleshooting.md`
+
+**Purpose**: Comprehensive issue diagnosis and resolution
+**Content**:
+
+- Quick diagnostics and health checks
+- Authentication, search, and download issues
+- Plugin loading and performance problems
+- API errors and network connectivity
+- Log analysis and advanced debugging
+- Getting help and reporting issues
+**Status**: ✅ Complete
+
+### 📁 Developer Guide
+
+#### `Architecture-Overview.md`
+
+**Purpose**: System design documentation for developers
+**Content**:
+
+- High-level architecture and design principles
+- Component architecture and data flow
+- Plugin integration and ML optimization
+- Performance and security architecture
+- Extension points and development guidelines
+**Status**: ✅ Complete
+
+#### `Building-from-Source.md`
+
+**Purpose**: Development environment setup guide
+**Content**:
+
+- Prerequisites and quick/manual setup
+- Build configuration and development workflow
+- Testing and debugging procedures
+- Deployment and troubleshooting
+- Development checklist
+**Status**: ✅ Complete
+
+#### `Testing.md`
+
+**Purpose**: Testing strategies and frameworks
+**Content**: [To be created]
+
+- Unit testing guidelines
+- Integration testing setup
+- Performance testing procedures
+- Test data and mocking strategies
+**Status**: 🔄 Planned
+
+#### `Contributing.md`
+
+**Purpose**: Contribution guidelines and workflow
+**Content**: [To be created]
+
+- Code style and standards
+- Pull request process
+- Issue reporting guidelines
+- Development workflow
+**Status**: 🔄 Planned
+
+### 📁 Advanced Topics
+
+#### `ML-Optimization.md`
+
+**Purpose**: Machine learning system detailed guide
+**Content**:
+
+- ML architecture and query classification
+- Optimization strategies and performance metrics
+- Configuration and troubleshooting
+- Advanced customization options
+- Production results (~49% API call reduction)
+**Status**: ✅ Complete
+
+#### `Performance-Tuning.md`
+
+**Purpose**: Performance optimization guide
+**Content**: [To be created]
+
+- Caching strategies and configuration
+- Network optimization techniques
+- Memory and CPU optimization
+- Large library handling
+**Status**: 🔄 Planned
+
+#### `Security-Model.md`
+
+**Purpose**: Security architecture and best practices
+**Content**: [To be created]
+
+- Credential management
+- API security and encryption
+- Session management
+- Audit logging and monitoring
+**Status**: 🔄 Planned
+
+## Content Statistics
+
+### Completed Files
+
+- **Total Files Created**: 8
+- **Total Content**: ~50,000 words
+- **Coverage Areas**: Installation, Configuration, Usage, Troubleshooting, Architecture, Development, ML Optimization
+
+### File Sizes (Approximate)
+
+- `Home.md`: 2,000 words
+- `Installation-Guide.md`: 6,000 words
+- `Configuration.md`: 8,000 words
+- `First-Download.md`: 4,000 words
+- `Features-Overview.md`: 8,000 words
+- `CLI-Usage.md`: 10,000 words
+- `Troubleshooting.md`: 9,000 words
+- `Architecture-Overview.md`: 7,000 words
+- `Building-from-Source.md`: 8,000 words
+- `ML-Optimization.md`: 6,000 words
+
+## Content Highlights
+
+### Key Features Documented
+
+- **Production-validated performance**: ~49% API call reduction, 94.7% cache hit rate
+- **Comprehensive installation**: All platforms, Docker, manual and automated setup
+- **Complete CLI reference**: All commands with examples and troubleshooting
+- **ML optimization system**: Detailed technical explanation with examples
+- **Architecture documentation**: System design, components, and extension points
+- **Troubleshooting guide**: Structured problem-solving approach
+
+### User Experience Focus
+
+- **Progressive complexity**: From beginner to expert documentation
+- **Practical examples**: Real-world usage scenarios and code samples
+- **Cross-references**: Navigation between related topics
+- **Platform coverage**: Windows, Linux, macOS, Docker instructions
+- **Multiple audiences**: End users, system administrators, developers
+
+## Navigation Structure
+
+### Home Page Navigation
+
+The main `Home.md` provides clear navigation to all sections:
+
+- 🚀 **Getting Started** → Installation, Configuration, First Download
+- 📖 **User Guide** → Features, CLI, Troubleshooting
+- 👨‍💻 **Developer Guide** → Architecture, Building, Testing, Contributing
+- ⚡ **Advanced Topics** → ML Optimization, Performance, Security
+
+### Cross-References
+
+Each document includes:
+
+- **Next steps** links to logical follow-up topics
+- **See also** references to related information
+- **Troubleshooting** links for problem resolution
+- **Back references** to prerequisite information
+
+## Missing Content (Planned)
+
+The following files are planned for completion:
+
+1. **`Testing.md`**: Testing strategies and frameworks
+2. **`Contributing.md`**: Contribution guidelines
+3. **`Performance-Tuning.md`**: Advanced performance optimization
+4. **`Security-Model.md`**: Security architecture details
+
+These represent additional specialized documentation that can be created based on specific needs or community contributions.
+
+## Usage Guidelines
+
+### For New Users
+
+1. Start with `Home.md` for overview
+2. Follow `Installation-Guide.md` for setup
+3. Configure using `Configuration.md`
+4. Complete first download with `First-Download.md`
+5. Explore features in `Features-Overview.md`
+
+### For Daily Users
+
+1. Reference `CLI-Usage.md` for command examples
+2. Use `Troubleshooting.md` for problem resolution
+3. Check `Features-Overview.md` for advanced capabilities
+
+### For Developers
+
+1. Review `Architecture-Overview.md` for system understanding
+2. Follow `Building-from-Source.md` for environment setup
+3. Study `ML-Optimization.md` for optimization details
+4. Use `Contributing.md` (when available) for contribution workflow
+
+### For System Administrators
+
+1. Use `Installation-Guide.md` for deployment
+2. Reference `Configuration.md` for enterprise settings
+3. Apply `Performance-Tuning.md` (when available) for optimization
+4. Follow `Security-Model.md` (when available) for security hardening
+
+## Maintenance
+
+### Content Updates
+
+- **Version-specific information**: Update for new releases
+- **Performance metrics**: Update validated production results
+- **Feature documentation**: Add new features as they're developed
+- **Troubleshooting**: Add new issues and solutions as discovered
+
+### Quality Assurance
+
+- **Link validation**: Ensure all internal links work
+- **Example testing**: Verify code examples and commands work
+- **Screenshot updates**: Update UI screenshots for new versions
+- **Platform testing**: Verify instructions on all supported platforms
+
+---
+
+## Summary
+
+The Qobuzarr wiki provides comprehensive documentation covering:
+
+- **Complete installation and setup** for all platforms
+- **Thorough configuration guidance** with examples
+- **Comprehensive feature documentation** with performance metrics
+- **Complete CLI reference** with advanced usage
+- **Extensive troubleshooting guide** with structured problem-solving
+- **Detailed architecture documentation** for developers
+- **Advanced topics** including ML optimization system
+
+The wiki serves users from beginners to expert developers, with progressive complexity and extensive cross-referencing for easy navigation.
+
+**Total Documentation**: 10 comprehensive guides covering all aspects of Qobuzarr usage, development, and administration."
