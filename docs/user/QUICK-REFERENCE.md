@@ -12,7 +12,7 @@ POST /user/login
 {
   "email": "user@example.com",
   "password": "md5_hashed_password",
-  "app_id": "285473059"
+  "app_id": "798273057"
 }
 
 // Token Validation
@@ -123,13 +123,13 @@ Email: user@example.com
 Password: password
 UserId: 12345678
 AuthToken: auth_token_string
-AppId: 285473059
+AppId: ""   # Optional; leave empty for auto-detection
 AppSecret: app_secret
 SearchLimit: 100
 IncludeSingles: false
 IncludeCompilations: true
-PreferredGenre: ""
-MinimumYear: null
+QueryOptimizationMode: QueryIntelligence  # Disabled|QueryIntelligence|MLPrediction
+CountryCode: US
 ```
 
 ### Environment Variables
@@ -137,8 +137,6 @@ MinimumYear: null
 ```bash
 QOBUZ_APP_ID=your_app_id
 QOBUZ_APP_SECRET=your_secret
-QOBUZ_LOG_LEVEL=Debug
-QOBUZ_CACHE_DIR=/path/to/cache
 ```
 
 ## Useful Commands
@@ -225,7 +223,7 @@ CREATE TABLE Indexers (
 );
 ```
 
-### Download Queue (Planned)
+### Download Queue
 
 ```sql
 CREATE TABLE QobuzDownloadQueue (
@@ -284,4 +282,4 @@ CREATE TABLE QobuzDownloadQueue (
 - [Lidarr Plugin Docs](https://wiki.servarr.com/lidarr/plugins)
 - [.NET 8 Docs](https://docs.microsoft.com/dotnet/core/)
 - [NLog Documentation](https://nlog-project.org/)
-- [Autofac Documentation](https://autofac.org/)
+- [DryIoc Documentation](https://github.com/dadhi/DryIoc)

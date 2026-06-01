@@ -35,7 +35,7 @@ Run through these checks in order. If any step fails, see the troubleshooting se
 ### 4. Authentication Test
 
 - [ ] Add Qobuzarr as an Indexer
-- [ ] Enter your Qobuz App ID and App Secret
+- [ ] Enter your Qobuz **Email** and **Password** (App ID / App Secret are optional — leave empty for automatic detection)
 - [ ] Click **Test**
 
 **Expected:** Green checkmark with "Settings validated" message.
@@ -77,7 +77,7 @@ Run through these checks in order. If any step fails, see the troubleshooting se
 | Indicator | Meaning | Action |
 |-----------|---------|--------|
 | Green checkmark on Test | Connected to Qobuz | None needed |
-| Red X on Test | Authentication failed | Check App ID/Secret |
+| Red X on Test | Authentication failed | Check email/password |
 | No search results | API issue or query problem | Check query format |
 | Download stuck at 0% | Stream URL issue | Retry download |
 | Import failed | File format issue | Check quality settings |
@@ -121,7 +121,7 @@ If Query Intelligence is enabled:
 
 ### "Authentication failed"
 
-1. Verify App ID and App Secret are correct
+1. Verify your Qobuz email and password are correct
 2. Check if your Qobuz subscription is active
 3. Ensure credentials don't have extra spaces
 
@@ -186,4 +186,4 @@ Your Qobuzarr is working correctly when:
 
 ---
 
-*Last updated: November 2025*
+*Last updated: May 2026*
