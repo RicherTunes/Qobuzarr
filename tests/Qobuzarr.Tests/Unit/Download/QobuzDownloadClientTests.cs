@@ -63,7 +63,12 @@ namespace Qobuzarr.Tests.Unit.Download
             {
                 _testSettings = new QobuzDownloadSettings
                 {
-                    DownloadPath = @"C:\Downloads\Qobuz",
+                    // Must be ABSOLUTE on whatever OS the test runs on. The Common
+                    // DownloadPathValidator (Test() pre-check) uses
+                    // Path.IsPathFullyQualified, so a Windows-style "C:\..." string is
+                    // NOT absolute on the Linux CI host and would fail Test(). Pick an
+                    // OS-appropriate absolute path so Test() validates everywhere.
+                    DownloadPath = OperatingSystem.IsWindows() ? @"C:\Downloads\Qobuz" : "/downloads/qobuz",
                     PreferredQuality = 6, // FLAC CD Quality
                     CreateAlbumFolders = true,
                     ConcurrencyMode = (int)DownloadConcurrencyMode.Fixed,

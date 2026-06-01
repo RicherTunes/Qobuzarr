@@ -15,10 +15,15 @@
     <TargetPlatform>x64</TargetPlatform>
     <!-- TargetFrameworkVersion intentionally omitted - let csproj decide -->
     <CollectSources>false</CollectSources>
-    <!-- Session limit for full suite (60 minutes) -->
-    <TestSessionTimeout>3600000</TestSessionTimeout>
-    <!-- 120s hang timeout for integration tests that may have setup overhead -->
-    <BlameHangTimeout>00:02:00</BlameHangTimeout>
+    <!-- Session limit for the full suite (30 minutes). The suite's actual test work is
+         under a minute total (~2345 tests, ~40s of execution); this is a generous backstop
+         for the whole multi-project run plus coverage processing. The prior 7200000 (2h)
+         value was a stopgap that let a non-exiting/deadlocked test host run for the full 2h
+         before being aborted. The real defense is the active blame-hang collector: run-tests.ps1
+         and ci.yml pass a "blame hang timeout" flag to dotnet test, which kills a stuck host in
+         minutes (and captures a dump). A bare BlameHangTimeout element under RunConfiguration is
+         INERT; it only takes effect when the blame collector is enabled via that command flag. -->
+    <TestSessionTimeout>1800000</TestSessionTimeout>
   </RunConfiguration>
   <MSTest>
     <Parallelize>

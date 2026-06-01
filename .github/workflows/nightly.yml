@@ -14,8 +14,10 @@ env:
   MINIMUM_LIDARR_VERSION: 3.0.0.4855
   # Single source of truth for CI test filtering
   # Excludes: LiveIntegration (needs live Lidarr), Integration (needs assemblies),
-  #           Performance (benchmarks), Quarantined (known issues)
-  CI_TEST_FILTER: "Category!=LiveIntegration&Category!=Integration&Category!=Performance&Category!=Quarantined"
+  #           Performance (benchmarks), Quarantined (known issues),
+  #           DockerE2E (needs a booted Lidarr container with the merged plugin
+  #           mounted — covered by docker-e2e.yml; this broad sweep doesn't mount it).
+  CI_TEST_FILTER: "Category!=LiveIntegration&Category!=Integration&Category!=Performance&Category!=Quarantined&Category!=DockerE2E"
 
 jobs:
   nightly-tests:
