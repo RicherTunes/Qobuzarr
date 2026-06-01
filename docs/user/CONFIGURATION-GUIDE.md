@@ -16,7 +16,7 @@ This guide covers all configuration options for the Qobuzarr plugin, including i
 
 Before configuring Qobuzarr, ensure you have:
 
-1. **Lidarr v2.13.0+** running on the plugins branch
+1. **Lidarr v3.0.0+ (plugins branch)** running on the plugins branch
 2. **Qobuz Account** with active subscription
    - Studio tier: CD quality (FLAC 16-bit/44.1kHz)
    - Sublime tier: Hi-Res quality (up to 24-bit/192kHz)

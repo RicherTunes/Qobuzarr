@@ -57,7 +57,7 @@ Qobuzarr builds on [Lidarr.Plugin.Common](https://github.com/RicherTunes/Lidarr.
 ## Project Stats
 
 - **Version**: v0.5.11
-- **Lidarr Compatibility**: v2.13.0+
+- **Lidarr Compatibility**: v3.0.0+
 - **Framework**: .NET 8.0
 - **License**: GPL v3.0
 - **ML API Call Reduction**: ~50% (target 49.83%) through query optimization
@@ -66,7 +66,7 @@ Qobuzarr builds on [Lidarr.Plugin.Common](https://github.com/RicherTunes/Lidarr.
 ## Requirements
 
 - Active Qobuz subscription (Studio Premier recommended for Hi-Res)
-- Lidarr v2.13.0 or higher
+- Lidarr v3.0.0 or higher (plugins branch — `pr-plugins-3.x`)
 - .NET 8.0 Runtime
 
 ## External Resources

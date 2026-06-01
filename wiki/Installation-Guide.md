@@ -6,7 +6,7 @@ This guide provides comprehensive instructions for installing Qobuzarr in variou
 
 ### System Requirements
 
-- **Lidarr**: v2.13.0 or higher
+- **Lidarr**: v3.0.0 or higher (plugins branch — `pr-plugins-3.x`)
 - **.NET Runtime**: 8.0 or higher
 - **Operating System**: Linux, Windows, or macOS
 - **Memory**: Minimum 512MB RAM available
@@ -33,7 +33,7 @@ The simplest way to run Qobuzarr is using Hotio's Lidarr image with plugin suppo
 
 ```bash
 # Pull the plugins-enabled image
-docker pull ghcr.io/hotio/lidarr:pr-plugins
+docker pull ghcr.io/hotio/lidarr:pr-plugins-3.1.2.4913
 
 # Run with Qobuzarr support
 docker run -d \
@@ -46,7 +46,7 @@ docker run -d \
   -v /path/to/music:/music \
   -v /path/to/downloads:/downloads \
   --restart unless-stopped \
-  ghcr.io/hotio/lidarr:pr-plugins
+  ghcr.io/hotio/lidarr:pr-plugins-3.1.2.4913
 ```
 
 ### Docker Compose Setup
@@ -57,7 +57,7 @@ Create a `docker-compose.yml` file:
 version: '3.8'
 services:
   lidarr:
-    image: ghcr.io/hotio/lidarr:pr-plugins
+    image: ghcr.io/hotio/lidarr:pr-plugins-3.1.2.4913
     container_name: lidarr-qobuzarr
     environment:
       - PUID=1000
@@ -247,7 +247,7 @@ spec:
     spec:
       containers:
       - name: lidarr
-        image: ghcr.io/hotio/lidarr:pr-plugins
+        image: ghcr.io/hotio/lidarr:pr-plugins-3.1.2.4913
         ports:
         - containerPort: 8686
         env:
@@ -337,18 +337,7 @@ plugins/
 
 ### Environment Variables
 
-Set these environment variables for optimal performance:
-
-```bash
-# Enable ML optimization (default: true)
-export QOBUZ_QUERY_INTELLIGENCE=true
-
-# Enable adaptive rate limiting (default: true)
-export QOBUZ_ADAPTIVE_RATE_LIMITING=true
-
-# Set log level for debugging
-export QOBUZ_LOG_LEVEL=Info
-```
+No environment variables are required for production use. All settings are configured through the Lidarr UI. The only supported environment variables are optional App ID / App Secret overrides — see the [Configuration Guide](Configuration-Guide.md) for details.
 
 ## 🐛 Troubleshooting Installation
 
@@ -363,7 +352,7 @@ ls -la /config/plugins/
 
 # Check .NET runtime
 dotnet --version
-# Should be 6.0 or higher
+# Should be 8.0 or higher (plugin targets net8.0)
 ```
 
 #### Missing Dependencies
@@ -415,9 +404,7 @@ If you encounter issues:
 After successful installation:
 
 1. **[[Configuration Guide]]** - Configure authentication and settings
-2. **[[Quick Start]]** - Get up and running quickly
-3. **[[Usage Examples]]** - Learn common workflows
-4. **[[API Reference]]** - Understand plugin capabilities
+2. **[[API Reference]]** - Understand plugin capabilities
 
 ## 📈 Performance Optimization
 
@@ -432,16 +419,7 @@ Recommended system resources:
 
 ### Cache Configuration
 
-Configure caching for better performance:
-
-```bash
-# Set cache directory with sufficient space
-export QOBUZ_CACHE_DIR=/path/to/fast/storage
-
-# Enable all caching features
-export QOBUZ_ENABLE_CACHE=true
-export QOBUZ_CACHE_SIZE=1GB
-```
+Caching is built in and configured automatically. No environment variables are needed — cache behaviour can be adjusted through the Lidarr UI (see **Settings → Indexers → Qobuzarr**).
 
 ---
 

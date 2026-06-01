@@ -52,7 +52,7 @@ dotnet run -- test-optimizations
 # Testing 25 albums ████████████████████ 100%
 # 
 # Optimization Results:
-# • API Call Reduction: 65.8%
+# • API Call Reduction: ~49%
 # • Cache Hit Rate: 94.7%
 # • Processing Speed: 4x faster
 ```
@@ -535,4 +535,4 @@ var substringCache = new QobuzSubstringCache(
 );<!-- TODO(docval): Constructor requires additional DI parameters as of 2026-05-31 -->
 ```
 
-This comprehensive set of examples demonstrates how to effectively use the Query Intelligence optimization system to achieve up to 65.8% API call reduction while maintaining high search quality and performance.
+This comprehensive set of examples demonstrates how to effectively use the Query Intelligence optimization system to achieve up to ~49% API call reduction while maintaining high search quality and performance.
