@@ -1,4 +1,4 @@
-> ⚠️ Partially aspirational (flagged 2026-05-31): Some environment variables, CLI commands, and configuration options described below (e.g., `QOBUZ_*` environment variables) are aspirational design documentation; see inline `<!-- TODO(docval): ... -->` markers for non-existent features. Core troubleshooting guidance for plugin loading, authentication, and downloads is accurate.
+> **Note**: All environment variables referenced below are real (e.g. `QOBUZ_APP_ID`, `QOBUZ_APP_SECRET`, `DOTNET_*` runtime variables). All other settings are configured through the Lidarr UI. For the full settings reference, see [docs/user/TROUBLESHOOTING.md](../docs/user/TROUBLESHOOTING.md).
 
 # Troubleshooting Guide
 
@@ -98,16 +98,14 @@ df -h /config
    - Check for regional restrictions
    - Ensure account wasn't suspended
 
-3. **Advanced Troubleshooting**:<!-- TODO(docval): QOBUZ_LOG_LEVEL, QOBUZ_DEBUG_AUTH environment variables not found in codebase as of 2026-05-31. -->
+3. **Advanced Troubleshooting**:
+
+   Use Lidarr's built-in debug logging (**Settings → General → Log Level → Debug**) and check the logs:
 
    ```bash
-   # Enable debug logging
-   export QOBUZ_LOG_LEVEL=Debug
-   export QOBUZ_DEBUG_AUTH=true
-
    # Restart Lidarr and check logs
    systemctl restart lidarr
-   tail -f /config/logs/lidarr.txt | grep -A5 -B5 \"auth\"
+   tail -f /config/logs/lidarr.txt | grep -A5 -B5 "auth"
    ```
 
 ### Session Expired Issues
@@ -129,13 +127,7 @@ df -h /config
    # In Lidarr UI: Settings → Indexers → Qobuz → Test → Save
    ```
 
-2. **Configure Auto-Refresh** (if available):<!-- TODO(docval): QOBUZ_AUTO_REFRESH_SESSION, QOBUZ_SESSION_REFRESH_THRESHOLD environment variables not found in codebase as of 2026-05-31. -->
-
-   ```bash
-   # Environment variable for session management
-   export QOBUZ_AUTO_REFRESH_SESSION=true
-   export QOBUZ_SESSION_REFRESH_THRESHOLD=3600  # 1 hour before expiry
-   ```
+2. **Session auto-refresh** is handled automatically by the plugin. If sessions keep expiring, re-test the connection in **Settings → Indexers → Qobuzarr → Test**.
 
 ### Dynamic Authentication Issues
 
@@ -147,21 +139,15 @@ df -h /config
 
 **Solutions:**
 
-1. **Manual App Credentials**:<!-- TODO(docval): QOBUZ_APP_ID, QOBUZ_APP_SECRET environment variables not found in codebase as of 2026-05-31. -->
+1. **Manual App Credentials**:
 
    ```bash
    # Set manual app credentials instead of dynamic
-   export QOBUZ_APP_ID=\"285473059\"
-   export QOBUZ_APP_SECRET=\"your_manual_secret\"
+   export QOBUZ_APP_ID="285473059"
+   export QOBUZ_APP_SECRET="your_manual_secret"
    ```
 
-2. **Browser Path Configuration**:<!-- TODO(docval): QOBUZ_BROWSER_PATH, QOBUZ_BROWSER_ARGS environment variables not found in codebase as of 2026-05-31. -->
-
-   ```bash
-   # Specify browser path for dynamic extraction
-   export QOBUZ_BROWSER_PATH=\"/usr/bin/chromium-browser\"
-   export QOBUZ_BROWSER_ARGS=\"--headless --no-sandbox\"
-   ```
+2. **Browser Path Configuration**: Dynamic credential extraction is handled internally — no environment variable configuration is needed.
 
 ## 🔍 Search Issues
 
@@ -222,31 +208,11 @@ df -h /config
 
 **Solutions:**
 
-1. **Enable ML Optimization**:<!-- TODO(docval): QOBUZ_QUERY_INTELLIGENCE, QOBUZ_ADAPTIVE_RATE_LIMITING environment variables not found in codebase as of 2026-05-31. -->
+1. **Enable ML Optimization**: Ensure Query Optimization is set to "Query Intelligence" or "ML Prediction" in **Settings → Indexers → Qobuzarr**.
 
-   ```bash
-   # Ensure query intelligence is enabled
-   export QOBUZ_QUERY_INTELLIGENCE=true
-   export QOBUZ_ADAPTIVE_RATE_LIMITING=true
-   ```
+2. **Adjust Rate Limiting**: Reduce the API Rate Limit in indexer settings (**Settings → Indexers → Qobuzarr → API Rate Limit**) if experiencing throttling.
 
-2. **Adjust Rate Limiting**:<!-- TODO(docval): QOBUZ_INITIAL_RATE, QOBUZ_MAX_RATE, QOBUZ_RATE_INCREASE_FACTOR environment variables not found in codebase as of 2026-05-31. -->
-
-   ```bash
-   # Conservative settings for stability
-   export QOBUZ_INITIAL_RATE=30
-   export QOBUZ_MAX_RATE=300
-   export QOBUZ_RATE_INCREASE_FACTOR=1.1
-   ```
-
-3. **Cache Configuration**:<!-- TODO(docval): QOBUZ_SEARCH_CACHE_SIZE, QOBUZ_ALBUM_CACHE_SIZE, QOBUZ_SEARCH_CACHE_TTL environment variables not found in codebase as of 2026-05-31. -->
-
-   ```bash
-   # Increase cache sizes for better performance
-   export QOBUZ_SEARCH_CACHE_SIZE=100MB
-   export QOBUZ_ALBUM_CACHE_SIZE=200MB
-   export QOBUZ_SEARCH_CACHE_TTL=15m
-   ```
+3. **Cache Configuration**: Increase the Cache Duration in indexer settings (**Settings → Indexers → Qobuzarr → Cache Duration**) to reduce repeat API calls.
 
 ### ML Optimization Issues
 
@@ -268,22 +234,14 @@ df -h /config
    cat /config/plugins/ml-baseline-patterns.json | jq .
    ```
 
-2. **Reset ML Performance**:<!-- TODO(docval): QOBUZ_RESET_ML_STATS environment variable not found in codebase as of 2026-05-31. -->
+2. **Reset ML Performance**:
 
    ```bash
    # Clear ML statistics and restart learning
    rm -f /config/plugins/ml-performance.json
-   export QOBUZ_RESET_ML_STATS=true
    ```
 
-3. **Disable ML if Problematic**:<!-- TODO(docval): QOBUZ_QUERY_INTELLIGENCE environment variable not found in codebase as of 2026-05-31. -->
-
-   ```bash
-   # Temporary disable for troubleshooting
-   export QOBUZ_QUERY_INTELLIGENCE=false
-
-   # Test searches without ML optimization
-   ```
+3. **Disable ML if Problematic**: Set Query Optimization to "Disabled" in **Settings → Indexers → Qobuzarr** to test searches without ML optimization.
 
 ## 📥 Download Issues
 
@@ -389,8 +347,8 @@ df -h /config
    
    # Should contain proper metadata:
    # - \"name\": \"Qobuzarr\"
-   # - \"version\": \"0.0.12\"
-   # - \"minimumLidarrVersion\": \"2.13.0.0\"
+   # - \"version\": \"0.5.11\"
+   # - \"minHostVersion\": \"3.0.0.4855\"
    ```
 
 ### Assembly Loading Issues
@@ -409,14 +367,14 @@ df -h /config
    # Verify .NET runtime version
    dotnet --list-runtimes
    
-   # Should include Microsoft.NETCore.App 6.0.x
+   # Should include Microsoft.NETCore.App 8.0.x
    ```
 
 2. **Validate Assembly Dependencies**:
 
    ```bash
    # Use dotnet to check assembly
-   dotnet --fx-version 6.0.0 /config/plugins/Lidarr.Plugin.Qobuzarr.dll
+   dotnet --fx-version 8.0.0 /config/plugins/Lidarr.Plugin.Qobuzarr.dll
    ```
 
 3. **Clear Assembly Cache**:
@@ -444,16 +402,7 @@ df -h /config
 
 **Solutions:**
 
-1. **Configure Memory Limits**:<!-- TODO(docval): QOBUZ_SEARCH_CACHE_SIZE, QOBUZ_ALBUM_CACHE_SIZE, QOBUZ_MAX_CONCURRENT_SEARCHES environment variables not found in codebase as of 2026-05-31. -->
-
-   ```bash
-   # Limit cache sizes
-   export QOBUZ_SEARCH_CACHE_SIZE=25MB
-   export QOBUZ_ALBUM_CACHE_SIZE=50MB
-
-   # Reduce concurrent operations
-   export QOBUZ_MAX_CONCURRENT_SEARCHES=2
-   ```
+1. **Configure Memory Limits**: Reduce concurrency in **Settings → Indexers → Qobuzarr** (lower the Fixed Concurrency Level, or switch to Adaptive mode with a lower Maximum Concurrency).
 
 2. **Enable Garbage Collection**:
 
@@ -473,23 +422,9 @@ df -h /config
 
 **Solutions:**
 
-1. **Reduce ML Processing**:<!-- TODO(docval): QOBUZ_QUERY_INTELLIGENCE, QOBUZ_SIMPLE_THRESHOLD, QOBUZ_MEDIUM_THRESHOLD environment variables not found in codebase as of 2026-05-31. -->
+1. **Reduce ML Processing**: Set Query Optimization to "Disabled" or "Query Intelligence" in **Settings → Indexers → Qobuzarr** to reduce CPU load.
 
-   ```bash
-   # Disable or reduce ML optimization
-   export QOBUZ_QUERY_INTELLIGENCE=false
-
-   # Or use simpler thresholds
-   export QOBUZ_SIMPLE_THRESHOLD=0
-   export QOBUZ_MEDIUM_THRESHOLD=2
-   ```
-
-2. **Limit Concurrent Operations**:<!-- TODO(docval): QOBUZ_MAX_CONCURRENT_SEARCHES, QOBUZ_MAX_CONCURRENT_DOWNLOADS environment variables not found in codebase as of 2026-05-31. -->
-
-   ```bash
-   export QOBUZ_MAX_CONCURRENT_SEARCHES=1
-   export QOBUZ_MAX_CONCURRENT_DOWNLOADS=2
-   ```
+2. **Limit Concurrent Operations**: Lower the concurrency settings in **Settings → Indexers → Qobuzarr** (reduce Maximum Concurrency in Adaptive mode, or Fixed Concurrency Level).
 
 ## 🌐 Network Issues
 
@@ -503,12 +438,7 @@ df -h /config
 
 **Solutions:**
 
-1. **Adjust Timeout Settings**:<!-- TODO(docval): QOBUZ_API_TIMEOUT, QOBUZ_HTTP_TIMEOUT environment variables not found in codebase as of 2026-05-31. -->
-
-   ```bash
-   export QOBUZ_API_TIMEOUT=60  # Increase to 60 seconds
-   export QOBUZ_HTTP_TIMEOUT=45
-   ```
+1. **Adjust Timeout Settings**: Increase the Connection Timeout in **Settings → Indexers → Qobuzarr** (e.g. from 30s to 60s).
 
 2. **Check Network Path**:
 
@@ -553,20 +483,11 @@ df -h /config
 
 ### Enable Comprehensive Logging
 
-```bash
-# Set detailed logging levels<!-- TODO(docval): QOBUZ_LOG_LEVEL, QOBUZ_DEBUG_*, QOBUZ_DEVELOPER_MODE, QOBUZ_DEBUG_ALL, QOBUZ_ENABLE_PROFILING, QOBUZ_COLLECT_METRICS environment variables not found in codebase as of 2026-05-31. -->
-export QOBUZ_LOG_LEVEL=Debug
+Use Lidarr's built-in log level control to increase verbosity:
 
-# Enable component-specific debugging
-export QOBUZ_DEBUG_API=true
-export QOBUZ_DEBUG_AUTH=true
-export QOBUZ_DEBUG_SEARCH=true
-export QOBUZ_DEBUG_ML=true
-export QOBUZ_DEBUG_CACHE=true
-
-# Restart Lidarr
-systemctl restart lidarr
-```
+1. **Settings → General → Log Level → Debug** (or Trace for maximum detail)
+2. Restart Lidarr
+3. Check logs: `tail -f /config/logs/lidarr.txt`
 
 ### Key Log Patterns
 
@@ -605,19 +526,12 @@ systemctl restart lidarr
 
 ## 🔬 Advanced Debugging
 
-### Enable Developer Tools<!-- TODO(docval): QOBUZ_DEVELOPER_MODE, QOBUZ_DEBUG_ALL, QOBUZ_LOG_HTTP_REQUESTS, QOBUZ_LOG_HTTP_RESPONSES, QOBUZ_ENABLE_PROFILING, QOBUZ_PROFILE_OUTPUT_PATH environment variables not found in codebase as of 2026-05-31. -->
+### Enable Developer Tools
 
-```bash
-# Enable all debugging features
-export QOBUZ_DEVELOPER_MODE=true
-export QOBUZ_DEBUG_ALL=true
-export QOBUZ_LOG_HTTP_REQUESTS=true
-export QOBUZ_LOG_HTTP_RESPONSES=true
+For advanced debugging, use Lidarr's Trace log level and standard .NET diagnostics:
 
-# Enable performance profiling
-export QOBUZ_ENABLE_PROFILING=true
-export QOBUZ_PROFILE_OUTPUT_PATH=/tmp/qobuz-profile.json
-```
+1. Set **Settings → General → Log Level → Trace**
+2. Use .NET diagnostic tools (see Memory Debugging below)
 
 ### Memory Debugging
 
@@ -635,10 +549,6 @@ dotnet-dump analyze core_20250124_123456
 ### Performance Analysis
 
 ```bash
-# Enable detailed performance metrics
-export QOBUZ_COLLECT_METRICS=true
-export QOBUZ_METRICS_OUTPUT=/tmp/qobuz-metrics.json
-
 # Use dotnet-trace for profiling
 dotnet-trace collect --process-id $(pidof Lidarr) --format chromium
 ```

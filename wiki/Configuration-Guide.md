@@ -79,6 +79,11 @@ App ID and App Secret are **advanced fields** — leave them empty and the plugi
 |---------|---------|-------------|
 | **Query Optimization** | Disabled · Query Intelligence · ML Prediction | Reduces API calls (~35% or ~49%). Default: Query Intelligence |
 | **ML Model Type** | Baseline · Personal · Hybrid | Model when using ML Prediction *(advanced)* |
+| **Country/Region** | *(text)* | Your country code (e.g. US, GB, FR) — must match Qobuz account region |
+| **Locale** | *(text)* | Locale for localised results (e.g. en_US) *(advanced)* |
+| **Match Confidence Threshold** | 0–1 | Minimum confidence for accepting results. Default: 0.8 *(advanced)* |
+| **Hybrid Search Threshold** | 0–1 | Confidence below which additional strategies activate. Default: 0.6 *(advanced)* |
+| **Qobuz Subscription** | Unknown · Studio · Sublime+ | Helps optimise quality selection. Default: Unknown (auto-detect) |
 
 For concurrency, advanced matching, and API settings, see the [full Configuration Guide](../docs/user/CONFIGURATION-GUIDE.md).
 
@@ -93,6 +98,10 @@ Add the download client under **Settings → Download Clients → Add → Qobuza
 | **Audio Quality** | FLAC CD | MP3 320 / FLAC CD / FLAC 96 / FLAC 192 |
 | **Minimum Success Rate (%)** | 80 | Album passes when this % of tracks succeed |
 | **Skip Preview Tracks** | Yes | Skip 30-second samples |
+| **Count Previews as Failures** | No | Count skipped previews as failures in success rate *(advanced)* |
+| **Enable Quality Fallback** | Yes | Allow lower quality if requested format unavailable. Disable for strict HiRes-or-nothing *(advanced)* |
+| **Save Synced Lyrics** | Yes | Save a .lrc lyrics file alongside each track *(advanced)* |
+| **Use LRCLIB for Lyrics** | No | Fall back to public LRCLIB service for lyrics *(advanced)* |
 
 For performance, reliability, and metadata settings (concurrency, quality fallback, lyrics), see the [full Configuration Guide](../docs/user/CONFIGURATION-GUIDE.md).
 
