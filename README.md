@@ -81,6 +81,8 @@ dotnet build -c Release
 dotnet run -- auth login
 ```
 
+For detailed, step-by-step installation instructions (Docker, manual, and air-gapped scenarios), see the **[Installation Guide](wiki/Installation-Guide.md)**.
+
 ## ⚙️ Configuration
 
 ### Environment Variables
@@ -106,6 +108,8 @@ export QOBUZ_QUALITY="27"  # 5=MP3-320, 6=FLAC-CD, 7=FLAC-Hi-Res, 27=FLAC-Max
 2. **Download Client Configuration**:
    - Priority: 1 (highest)
    - Enable: Yes
+
+For full authentication setup (email/password, user-ID/token, dynamic extraction), quality presets, and performance-tuning options, see the **[Configuration Guide](wiki/Configuration-Guide.md)**.
 
 ## 🎯 Usage Examples
 
@@ -171,14 +175,18 @@ The plugin integrates seamlessly with Lidarr's automated workflow:
 - You can override locally with MSBuild: `-p:UsePluginsBranch=true`.
 - During build, the project prints which branch is used (see `Qobuzarr.csproj` target `LogBranchSelection`).
 
+For a deeper dive into service decomposition, DI patterns, and the shared-library layer, see [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) and the [shared-library architecture overview](https://github.com/RicherTunes/Lidarr.Plugin.Common/blob/main/wiki/Architecture-Overview.md).
+
 ## 📊 Performance
 
 ### Optimization Results
 
-- **49.8% reduction** in API calls through ML optimization
-- **94.7% cache hit rate** with intelligent caching
-- **33.9% baseline failure rate** reduced to **<10%** with progressive search
-- **100,000+ albums** successfully processed in validation
+| Metric | Result |
+|--------|--------|
+| API call reduction (ML) | **49.8%** ✅ *Production Validated* |
+| Cache hit rate | **94.7%** ✅ *Production Validated* |
+| Baseline failure rate | **33.9%** → **<10%** with progressive search |
+| Albums validated | **100,000+** |
 
 ### Resource Usage
 
@@ -187,15 +195,17 @@ The plugin integrates seamlessly with Lidarr's automated workflow:
 - Network: Adaptive rate limiting prevents API throttling
 - Disk I/O: Streaming downloads with minimal buffering
 
+For ML model details, prediction pipeline internals, and tuning knobs, see [docs/advanced/ML-OPTIMIZATION-GUIDE.md](docs/advanced/ML-OPTIMIZATION-GUIDE.md).
+
 ## 🔒 Security
 
-- **No hardcoded credentials** - uses environment variables
-- **Secure token storage** with encryption at rest
+- **No hardcoded credentials** — uses environment variables and secure stores
+- **Secure token storage** with at-rest encryption (DPAPI / Keychain / Secret Service)
 - **No stub/placeholder data** in production paths
 - **Input validation** on all user inputs
 - **Rate limiting** to prevent API abuse
 
-See [SECURITY.md](SECURITY.md) for vulnerability reporting.
+See [SECURITY.md](SECURITY.md) for vulnerability reporting. The wiki's **[Security Features](wiki/Security-Features.md)** page covers the full defence-in-depth model.
 
 ## 🧪 Testing
 
@@ -210,13 +220,59 @@ dotnet test /p:CollectCoverage=true /p:CoverletOutputFormat=opencover
 dotnet test --filter Category=Integration
 ```
 
-## 📝 Documentation
+For test-environment setup, the Docker E2E harness, and the flaky-test policy, see [docs/TESTING.md](docs/TESTING.md) and [docs/development/COMPREHENSIVE-TESTING-GUIDE.md](docs/development/COMPREHENSIVE-TESTING-GUIDE.md).
 
-- [Architecture](docs/ARCHITECTURE.md) - System design details
-- [Docker Guide](docs/DOCKER-GUIDE.md) - Container setup and testing
-- [Testing](docs/TESTING.md) - Test suite and coverage
-- [Logging Scopes](docs/LOGGING_SCOPES.md) - Structured logging reference
-- [Tech Debt Tracker](docs/TECH-DEBT-TRACKER.md) - Known debt and resolution status
+## 📚 Documentation
+
+### Wiki (in-repo)
+
+The [wiki/](wiki/) directory contains long-form guides that complement this README:
+
+| Page | What it covers |
+|------|---------------|
+| [Home](wiki/Home.md) | Wiki index, project overview, quick links |
+| [Installation Guide](wiki/Installation-Guide.md) | Docker, manual, and air-gapped installs |
+| [Configuration Guide](wiki/Configuration-Guide.md) | Auth methods, quality presets, performance tuning |
+| [Troubleshooting](wiki/Troubleshooting.md) | Diagnostics, log analysis, common fixes |
+| [API Reference](wiki/API-Reference.md) | Public APIs, services, and interfaces |
+| [Plugin Development](wiki/Plugin-Development.md) | Extending Qobuzarr, ML models, custom integrations |
+| [Security Features](wiki/Security-Features.md) | Defence-in-depth model, credential protection |
+
+### Expanded Docs (`docs/`)
+
+The [docs/](docs/) tree is organised by audience — see [docs/README.md](docs/README.md) for the full index. Highlights:
+
+| Area | Key documents |
+|------|--------------|
+| **User** | [Getting Started](docs/user/GETTING_STARTED.md) · [Is It Working?](docs/user/IS_IT_WORKING.md) · [FAQ](docs/user/FAQ.md) · [Quick Reference](docs/user/QUICK-REFERENCE.md) · [Usage Examples](docs/user/USAGE-EXAMPLES.md) · [Upgrade Guide](docs/user/UPGRADE_GUIDE.md) |
+| **Architecture** | [System Design](docs/ARCHITECTURE.md) · [API Reference](docs/architecture/API-REFERENCE.md) · [Performance Tuning](docs/architecture/PERFORMANCE-TUNING.md) · [Service Migration](docs/architecture/SERVICE-MIGRATION-GUIDE.md) |
+| **Development** | [Development Guide](docs/development/DEVELOPMENT.md) · [Plugin Dev Guide](docs/development/PLUGIN-DEVELOPMENT-GUIDE.md) · [Test Environment Setup](docs/development/TEST-ENVIRONMENT-SETUP.md) · [Testing Guide](docs/development/COMPREHENSIVE-TESTING-GUIDE.md) |
+| **Security** | [Security Architecture](docs/security/SECURITY-ARCHITECTURE.md) · [API Security](docs/security/API-SECURITY-GUIDE.md) · [ML Model Security](docs/security/ML-MODEL-SECURITY.md) |
+| **Operations** | [Deployment Guide](docs/operations/DEPLOYMENT-GUIDE.md) · [Monitoring](docs/operations/MONITORING-GUIDE.md) · [Pre-Release Checklist](docs/operations/PRE_RELEASE_CHECKLIST.md) · [Release Notes](docs/RELEASE_NOTES.md) |
+| **Infrastructure** | [Build Troubleshooting](docs/infrastructure/BUILD-FAILURE-TROUBLESHOOTING.md) · [CI/CD Optimization](docs/infrastructure/CI-CD-OPTIMIZATION-GUIDE.md) · [Plugins Branch Compatibility](docs/infrastructure/PLUGINS_BRANCH_COMPATIBILITY.md) |
+| **Advanced** | [ML Optimization Guide](docs/advanced/ML-OPTIMIZATION-GUIDE.md) · [Quality Management](docs/advanced/QUALITY-MANAGEMENT.md) |
+| **Shared Library** | [Quick Reference](docs/SHARED-LIBRARY-QUICK-REFERENCE.md) · [Technical Reference](docs/SHARED-LIBRARY-TECHNICAL-REFERENCE.md) · [Collaboration Guide](docs/SHARED-LIBRARY-COLLABORATION-GUIDE.md) |
+
+### Shared Library — Lidarr.Plugin.Common
+
+Qobuzarr builds on [Lidarr.Plugin.Common](https://github.com/RicherTunes/Lidarr.Plugin.Common), a shared library providing foundation plumbing (OAuth token stores, streaming API builders, download orchestration, adaptive rate-limiting, structured-logging helpers) for all RicherTunes Lidarr streaming plugins.
+
+**Common wiki pages** (cross-repo links):
+
+- [Common — Home](https://github.com/RicherTunes/Lidarr.Plugin.Common/blob/main/wiki/Home.md) — project overview and ecosystem context
+- [Architecture Overview](https://github.com/RicherTunes/Lidarr.Plugin.Common/blob/main/wiki/Architecture-Overview.md) — shared service layer and DI patterns
+- [SDK and Extension Points](https://github.com/RicherTunes/Lidarr.Plugin.Common/blob/main/wiki/SDK-and-Extension-Points.md) — reusable base classes (`StreamingPlugin`, token stores, rate limiters)
+- [Shared Helpers Catalog](https://github.com/RicherTunes/Lidarr.Plugin.Common/blob/main/wiki/Shared-Helpers-Catalog.md) — quick-reference for every Common helper (`PluginLogContext`, `Scrub`, `WarnOnce`, `BackendHealthCache`, etc.)
+- [Versioning and Submodule Pinning](https://github.com/RicherTunes/Lidarr.Plugin.Common/blob/main/wiki/Versioning-and-Submodule-Pinning.md) — how the `ext-common-sha.txt` pin and nightly bump workflow work
+- [Build Your First Plugin](https://github.com/RicherTunes/Lidarr.Plugin.Common/blob/main/docs/tutorials/BUILD_YOUR_FIRST_PLUGIN.md) — tutorial for creating a new streaming plugin
+- [Key Services Reference](https://github.com/RicherTunes/Lidarr.Plugin.Common/blob/main/docs/reference/KEY_SERVICES.md) — HTTP, auth, caching APIs
+
+### Sister Plugins
+
+Qobuzarr shares its Common library and architectural patterns with:
+
+- **[Tidalarr](https://github.com/RicherTunes/tidalarr)** — Tidal streaming plugin
+- **[Brainarr](https://github.com/RicherTunes/brainarr)** — AI-powered music recommendations
 
 ## 🤝 Contributing
 
@@ -261,25 +317,26 @@ dotnet test
 **⚠️ Important Notes:**
 
 - The `ext/Lidarr-source/` directory is required for compilation but excluded from git
-- If build fails, ensure Lidarr version compatibility with plugin requirements  
-- Some tests may fail without proper Lidarr assemblies - this is expected during development
+- If build fails, ensure Lidarr version compatibility with plugin requirements
+- Some tests may fail without proper Lidarr assemblies — this is expected during development
 
 **🆘 Troubleshooting:**
 
 - If you see "Skipping project... because it was not found" warnings, this is normal before running setup
 - For complete setup help, see [CLAUDE.md](CLAUDE.md) (build commands and architecture)
+- For build-specific issues, see [docs/infrastructure/BUILD-FAILURE-TROUBLESHOOTING.md](docs/infrastructure/BUILD-FAILURE-TROUBLESHOOTING.md)
 
 ## 📄 License
 
-This project is licensed under the GNU General Public License v3.0 - see [LICENSE](LICENSE) for details.
+This project is licensed under the GNU General Public License v3.0 — see [LICENSE](LICENSE) for details.
 
 ## 🙏 Credits
 
-- **[TrevTV](https://github.com/TrevTV)** - Original Lidarr.Plugin.Qobuz implementation
-- **[TypNull](https://github.com/TypNull)** - CI/CD methodology and Docker assembly approach ([Tubifarry](https://github.com/TypNull/Tubifarry))
-- **Lidarr Team** - For the excellent media management platform
-- **Qobuz** - For providing high-quality music streaming
-- **Contributors** - See [CREDITS.md](CREDITS.md) for full list
+- **[TrevTV](https://github.com/TrevTV)** — Original Lidarr.Plugin.Qobuz implementation
+- **[TypNull](https://github.com/TypNull)** — CI/CD methodology and Docker assembly approach ([Tubifarry](https://github.com/TypNull/Tubifarry))
+- **Lidarr Team** — For the excellent media management platform
+- **Qobuz** — For providing high-quality music streaming
+- **Contributors** — See [CREDITS.md](CREDITS.md) for full list
 
 ## 📬 Support
 
