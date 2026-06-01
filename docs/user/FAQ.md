@@ -173,12 +173,16 @@ Qobuz limits API requests to prevent abuse. The plugin handles this automaticall
 
 ### Downloads aren't working
 
-The download client feature is still in development. Currently, only search/indexer functionality is available.
+The download client is fully implemented. If downloads fail:
+
+1. Verify the download client is added under **Settings → Download Clients**
+2. Check that the **Download Path** is accessible by Lidarr
+3. Review the Lidarr logs for authentication or API errors
 
 ### How do I enable debug logging?
 
-1. Go to indexer settings
-2. Set "Log Level" to Debug
+1. Go to **Settings → General**
+2. Set "Log Level" to **Debug**
 3. Check logs at `/config/logs/lidarr.txt`
 
 ## Technical Questions
@@ -201,9 +205,9 @@ Absolutely! See [CONTRIBUTING.md](../CONTRIBUTING.md) for guidelines.
 
 ## Feature Questions
 
-### Will you add playlist support?
+### Does the plugin support playlists?
 
-This is planned for a future release. See our [roadmap](../CHANGELOG.md#future-roadmap).
+Yes. Playlist downloading (including M3U8 generation) is available through the CLI (`dotnet run -- download playlist <id>`). Lidarr-automated playlist grabs are not yet supported.
 
 ### Can I use multiple Qobuz accounts?
 
