@@ -961,8 +961,6 @@ public class ExamplePlugin : IQobuzarrPlugin
 ### Documentation
 
 - **[[API Reference]]**: Complete API documentation
-- **[[Architecture Overview]]**: System design details
-- **[[Testing Guide]]**: Testing methodologies
 - **[[Security Features]]**: Security implementation details
 
 ### Community
@@ -979,4 +977,4 @@ public class ExamplePlugin : IQobuzarrPlugin
 
 ---
 
-*Ready to build your first plugin? Start with our [[Plugin Template]] or explore existing extensions in the repository.*
+*Ready to build your first plugin? Explore the extension points above and the existing code in the repository.*
