@@ -1,7 +1,6 @@
 {
   "$schema": "https://xunit.net/schema/current/xunit.runner.schema.json",
   "longRunningTestSeconds": 60,
-  "parallelizeTestCollections": true,
-  "maxParallelThreads": 4,
-  "synchronousMessageReporting": true
+  "parallelizeTestCollections": false,
+  "maxParallelThreads": 1
 }
