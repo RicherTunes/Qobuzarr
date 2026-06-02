@@ -9,7 +9,7 @@
 
 *Built upon [TrevTV's pioneering Lidarr.Plugin.Qobuz](https://github.com/TrevTV/Lidarr.Plugin.Qobuz) with significant enhancements.*
 
-## 🚀 Key Features
+## Key Features
 
 ### Core Functionality
 
@@ -34,7 +34,7 @@
 - **Defensive Patterns**: Circuit breakers, retry logic, and graceful degradation
 - **Rate Limiting**: Adaptive backoff to respect API limits
 
-## 📦 Installation
+## Installation
 
 ### Prerequisites
 
@@ -82,7 +82,7 @@ dotnet run -- auth login
 
 For detailed, step-by-step installation instructions (Docker, manual, and air-gapped scenarios), see the **[Installation Guide](wiki/Installation-Guide.md)**.
 
-## ⚙️ Configuration
+## Configuration
 
 ### Environment Variables
 
@@ -110,7 +110,7 @@ export QOBUZ_QUALITY="27"  # 5=MP3-320, 6=FLAC-CD, 7=FLAC-Hi-Res, 27=FLAC-Max
 
 For full authentication setup (email/password, user-ID/token, dynamic extraction), quality presets, and performance-tuning options, see the **[Configuration Guide](wiki/Configuration-Guide.md)**.
 
-## 🎯 Usage Examples
+## Usage Examples
 
 ### CLI Commands
 
@@ -142,7 +142,7 @@ The plugin integrates seamlessly with Lidarr's automated workflow:
 2. **Quality Fallback**: Automatically falls back to lower quality when the requested format is unavailable
 3. **Full Metadata Tagging**: Tags downloaded files with artist, album, track info, and lyrics
 
-## 🏗️ Architecture
+## Architecture
 
 ### Plugin-First Design
 
@@ -175,7 +175,7 @@ The plugin integrates seamlessly with Lidarr's automated workflow:
 
 For a deeper dive into service decomposition, DI patterns, and the shared-library layer, see [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) and the [shared-library architecture overview](https://github.com/RicherTunes/Lidarr.Plugin.Common/blob/main/wiki/Architecture-Overview.md).
 
-## 📊 Performance
+## Performance
 
 ### Optimization Results
 
@@ -197,7 +197,7 @@ For a deeper dive into service decomposition, DI patterns, and the shared-librar
 
 For ML model details, prediction pipeline internals, and tuning knobs, see [docs/advanced/ML-OPTIMIZATION-GUIDE.md](docs/advanced/ML-OPTIMIZATION-GUIDE.md).
 
-## 🔒 Security
+## Security
 
 - **No hardcoded credentials** — uses environment variables and secure stores
 - **Secure token storage** with at-rest encryption (DPAPI / Keychain / Secret Service)
@@ -207,7 +207,7 @@ For ML model details, prediction pipeline internals, and tuning knobs, see [docs
 
 See [SECURITY.md](SECURITY.md) for vulnerability reporting. The wiki's **[Security Features](wiki/Security-Features.md)** page covers the full defence-in-depth model.
 
-## 🧪 Testing
+## Testing
 
 ```bash
 # Run all tests
@@ -222,7 +222,7 @@ dotnet test --filter Category=Integration
 
 For test-environment setup, the Docker E2E harness, and the flaky-test policy, see [docs/TESTING.md](docs/TESTING.md) and [docs/development/COMPREHENSIVE-TESTING-GUIDE.md](docs/development/COMPREHENSIVE-TESTING-GUIDE.md).
 
-## 📚 Documentation
+## Documentation
 
 For a concise map of all documentation trees, see [docs/DOCUMENTATION_MAP.md](docs/DOCUMENTATION_MAP.md) and the [wiki](wiki/Home.md).
 
@@ -276,7 +276,7 @@ Qobuzarr shares its Common library and architectural patterns with:
 - **[Tidalarr](https://github.com/RicherTunes/tidalarr)** — Tidal streaming plugin
 - **[Brainarr](https://github.com/RicherTunes/brainarr)** — AI-powered music recommendations
 
-## 🤝 Contributing
+## Contributing
 
 We welcome contributions! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
 
@@ -328,11 +328,11 @@ dotnet test
 - For complete setup help, see [CLAUDE.md](CLAUDE.md) (build commands and architecture)
 - For build-specific issues, see [docs/infrastructure/BUILD-FAILURE-TROUBLESHOOTING.md](docs/infrastructure/BUILD-FAILURE-TROUBLESHOOTING.md)
 
-## 📄 License
+## License
 
 This project is licensed under the GNU General Public License v3.0 — see [LICENSE](LICENSE) for details.
 
-## 🙏 Credits
+## Credits
 
 - **[TrevTV](https://github.com/TrevTV)** — Original Lidarr.Plugin.Qobuz implementation
 - **[TypNull](https://github.com/TypNull)** — CI/CD methodology and Docker assembly approach ([Tubifarry](https://github.com/TypNull/Tubifarry))
@@ -340,13 +340,13 @@ This project is licensed under the GNU General Public License v3.0 — see [LICE
 - **Qobuz** — For providing high-quality music streaming
 - **Contributors** — See [CREDITS.md](CREDITS.md) for full list
 
-## 📬 Support
+## Support
 
 - **Issues**: [GitHub Issues](https://github.com/RicherTunes/qobuzarr/issues)
 - **Discussions**: [GitHub Discussions](https://github.com/RicherTunes/qobuzarr/discussions)
 - **Wiki**: [Project Wiki](https://github.com/RicherTunes/qobuzarr/wiki)
 
-## ⚠️ Disclaimer
+## Disclaimer
 
 Qobuzarr is an independent, open-source project developed by RicherTunes for **educational and research purposes** — to study plugin architecture, streaming APIs, and the Lidarr ecosystem.
 
