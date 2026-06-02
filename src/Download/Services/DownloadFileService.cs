@@ -175,8 +175,9 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Services
                     return false;
                 }
 
-                // SECURITY: Validate path doesn't contain traversal attempts
-                if (path.Contains("..") || !Utilities.LidarrInputValidator.IsInputSafe(path))
+                // SECURITY: Validate path doesn't contain traversal attempts (Common's canonical, segment-aware
+                // guard — catches ../ ..\ /.. \.. exact-".." + %2e%2e, without false-positiving on "..-in-name").
+                if (Lidarr.Plugin.Common.HostBridge.PathTraversalGuard.ContainsTraversalAttempt(path) || !Utilities.LidarrInputValidator.IsInputSafe(path))
                 {
                     _logger.Warn("Download path contains potentially unsafe characters: {0}", path);
                     return false;
