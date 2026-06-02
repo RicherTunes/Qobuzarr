@@ -26,14 +26,12 @@ This directory contains integration tests that run against a real Lidarr instanc
    - Qobuzarr set as the only enabled indexer and download client
    - At least some artists added (for random selection)
 
-3. Run the tests:
+5. Run the tests:
+
    ```bash
    dotnet test tests/Integration/
    ```
 
 ## Test Types
 
-- **SmokeTests**: Basic connectivity and configuration validation
-- **RandomDownloadTests**: Automated random album download testing
-- **LogAnalysisTests**: Docker log monitoring and analysis
-- **LearningTests**: Adaptive testing that learns from previous runs
+- **ComprehensiveLiveTests**: Comprehensive live integration tests <!-- TODO(docval): SmokeTests, RandomDownloadTests, LogAnalysisTests, LearningTests classes not found; actual test class is ComprehensiveLiveTests as of 2026-05-31 -->

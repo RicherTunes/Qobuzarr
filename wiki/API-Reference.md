@@ -1,10 +1,13 @@
 # API Reference
 
+> **⚠️ Includes aspirational APIs**: Some interfaces and types below (e.g. `QualityAssessment`, `QualityRecommendation`, `QualityMetrics`, `IPluginHost`, `IModelConverter`) are design documentation for planned extension points and do not yet exist in the codebase. See `src/` for implemented APIs.
+
 Comprehensive reference for all public APIs, services, and interfaces provided by the Qobuzarr plugin.
 
 ## 📋 Overview
 
 Qobuzarr provides a rich set of APIs for:
+
 - **Authentication & Security**: Secure credential management and session handling
 - **Search & Indexing**: ML-powered search optimization and indexing
 - **Downloads**: High-performance download orchestration
@@ -22,15 +25,17 @@ public interface IQobuzAuthenticationService
 {
     Task<QobuzSession> AuthenticateAsync(QobuzCredentials credentials);
     Task<bool> ValidateSessionAsync(QobuzSession session);
-    Task RefreshSessionAsync(QobuzSession session);
-    Task<bool> IsAuthenticatedAsync();
-    event EventHandler<AuthenticationEventArgs> AuthenticationStateChanged;
+    Task<QobuzSession> RefreshSessionAsync(string refreshToken);  // Actual: takes string refreshToken, not session
+    QobuzSession GetCachedSession();  // Actual method
+    void ClearSession();  // Actual method
+    void StoreSession(QobuzSession session);  // Actual method
 }
 ```
 
 #### Key Methods
 
 ##### AuthenticateAsync
+
 ```csharp
 Task<QobuzSession> AuthenticateAsync(QobuzCredentials credentials)
 ```
@@ -38,15 +43,18 @@ Task<QobuzSession> AuthenticateAsync(QobuzCredentials credentials)
 Authenticates with Qobuz API using secure credential handling.
 
 **Parameters:**
+
 - `credentials` - User credentials with automatic security features
 
 **Security Features:**
+
 - Automatic credential masking in logs
 - Secure memory handling for passwords
 - Session token protection with encryption
 - Automatic credential cleanup
 
 **Example:**
+
 ```csharp
 var credentials = new QobuzCredentials
 {
@@ -67,6 +75,7 @@ catch (QobuzAuthenticationException ex)
 ```
 
 ##### ValidateSessionAsync
+
 ```csharp
 Task<bool> ValidateSessionAsync(QobuzSession session)
 ```
@@ -76,6 +85,8 @@ Validates session integrity with automatic renewal.
 **Returns:** `true` if session is valid and active
 
 ### SecureCredentialManager
+
+> ⚠️ Legacy (flagged 2026-05-31): This class has been replaced. See SessionManager for current credential management. The following documentation describes a past implementation.
 
 **New in v0.0.12**: Enterprise-grade secure credential management.
 
@@ -91,12 +102,14 @@ public class SecureCredentialManager : IDisposable
 ```
 
 **Features:**
+
 - **Memory Protection**: SecureString integration on Windows
 - **Automatic Cleanup**: Zero memory footprint after use
 - **Concurrent Access**: Thread-safe credential operations
 - **Security Validation**: Built-in credential policy enforcement
 
 **Example:**
+
 ```csharp
 using var credentialManager = new SecureCredentialManager(logger);
 
@@ -130,6 +143,7 @@ public interface IPatternLearningEngine
 #### Key Methods
 
 ##### PredictComplexityAsync
+
 ```csharp
 Task<PredictionResult> PredictComplexityAsync(string artist, string album)
 ```
@@ -139,6 +153,7 @@ Predicts search complexity using ML models for optimization.
 **Returns:** Prediction with confidence score and recommended strategy
 
 **Example:**
+
 ```csharp
 var prediction = await mlEngine.PredictComplexityAsync(\"Miles Davis\", \"Kind of Blue\");
 
@@ -149,7 +164,7 @@ Console.WriteLine($\"Recommended strategy: {prediction.RecommendedStrategy}\");
 
 ### CompiledMLQueryOptimizer
 
-**Production-ready ML optimization** with 65.8% API call reduction.
+**Production-ready ML optimization** with ~49% API call reduction.
 
 ```csharp
 public class CompiledMLQueryOptimizer : IPatternLearningEngine
@@ -161,12 +176,14 @@ public class CompiledMLQueryOptimizer : IPatternLearningEngine
 ```
 
 **Performance Metrics:**
-- **API Call Reduction**: 65.8% average reduction
-- **Accuracy**: 98.485% classification accuracy  
+
+- **API Call Reduction**: ~49% target (offline analysis)
+- **Accuracy**: ~87.3% offline training accuracy (`CompiledMLQueryOptimizer`)
 - **Speed**: <50ms prediction time
 - **Memory**: <10MB model footprint
 
 **Example:**
+
 ```csharp
 var optimizer = serviceProvider.GetService<CompiledMLQueryOptimizer>();
 
@@ -214,6 +231,7 @@ public class SmartQueryStrategy : ISmartQueryStrategy
 ```
 
 **Features:**
+
 - **Adaptive Search**: Adjusts strategy based on content type
 - **Progressive Fallback**: Multiple search strategies with automatic fallback
 - **Context Awareness**: Considers search history and patterns
@@ -242,22 +260,24 @@ public interface IDownloadOrchestrator
 Lidarr download client implementation.
 
 ```csharp
-public class QobuzDownloadClient : DownloadClientBase<QobuzDownloadSettings>
+public class QobuzDownloadClient : DownloadClientBase<QobuzDownloadSettings>, IDisposable
 {
     public override string Name { get; }
-    public override DownloadProtocol Protocol { get; }
-    
-    protected override string AddFromMagnetLink(RemoteEpisode remoteEpisode, string hash, string magnetLink)
-    protected override string AddFromNzbFile(RemoteEpisode remoteEpisode, string filename, byte[] fileContent)
-    protected override void RemoveItem(DownloadClientItem item, bool deleteData)
-    protected override DownloadClientInfo GetStatus()
-    protected override List<DownloadClientItem> GetItems()
+    public override string Protocol { get; }
+
+    // Qobuz is a direct-download client; it implements Download(album) rather
+    // than the magnet/NZB entry points used by torrent/usenet clients.
+    public override Task<string> Download(RemoteAlbum remoteAlbum, IIndexer indexer);
+    public override IEnumerable<DownloadClientItem> GetItems();
+    public override void RemoveItem(DownloadClientItem item, bool deleteData);
+    public override DownloadClientInfo GetStatus();
 }
 ```
 
 ### Advanced Download Features
 
 #### ConcurrencyManager
+
 ```csharp
 public class ConcurrencyManager : IConcurrencyManager
 {
@@ -268,6 +288,7 @@ public class ConcurrencyManager : IConcurrencyManager
 ```
 
 #### QualityFallbackProvider
+
 ```csharp
 public class QualityFallbackProvider : IQualityFallbackProvider
 {
@@ -338,8 +359,8 @@ Comprehensive ML optimization statistics.
 ```csharp
 public class MLPerformanceMetrics
 {
-    public float ApiCallReductionPercentage { get; set; } // 65.8% average
-    public float AccuracyPercentage { get; set; } // 98.485% average
+    public float ApiCallReductionPercentage { get; set; } // ~49% target (offline analysis)
+    public float AccuracyPercentage { get; set; } // ~87.3% offline training accuracy
     public TimeSpan AveragePredictionTime { get; set; } // <50ms average
     public long TotalPredictions { get; set; }
     public long CorrectPredictions { get; set; }
@@ -349,7 +370,7 @@ public class MLPerformanceMetrics
 
 ### AdaptiveRateLimiter
 
-**93x performance improvement** through intelligent rate management.
+Adaptive rate management that backs off on throttling and ramps back up when the API is healthy.
 
 ```csharp
 public class AdaptiveRateLimiter : IRateLimiter
@@ -362,6 +383,7 @@ public class AdaptiveRateLimiter : IRateLimiter
 ```
 
 **Features:**
+
 - **Dynamic Scaling**: Automatically adjusts rate limits based on API responses
 - **Category-Based Limiting**: Different limits for different operation types  
 - **Predictive Backoff**: ML-powered prediction of optimal request rates
@@ -397,6 +419,7 @@ public static class TestabilityExtensions
 ```
 
 **Example:**
+
 ```csharp
 // In test setup
 services.AddTestability();
@@ -410,6 +433,8 @@ mockClient.SetupSearchResponse(artist, album, expectedResults);
 ## 📈 Quality Management API
 
 ### IntelligentQualityDetector
+
+> ⚠️ Historical (flagged 2026-05-31): describes a past state; this class was not found in the current code.
 
 **New in v0.0.12**: AI-powered quality assessment and optimization.
 
@@ -430,6 +455,7 @@ public class IntelligentQualityDetector : IQualityDetector
 Services for bridging plugin functionality with CLI interfaces.
 
 #### PluginHost
+
 ```csharp
 public class PluginHost : IPluginHost
 {
@@ -444,6 +470,7 @@ public class PluginHost : IPluginHost
 ```
 
 #### ModelConverter
+
 ```csharp
 public class ModelConverter : IModelConverter
 {
@@ -461,31 +488,35 @@ public class ModelConverter : IModelConverter
 ### Exception Types
 
 #### QobuzApiException
+
 ```csharp
 public class QobuzApiException : Exception
 {
-    public int StatusCode { get; }
-    public string ApiError { get; }
-    public string RequestUrl { get; }
-    public QobuzErrorResponse ErrorResponse { get; }
+    public HttpStatusCode? StatusCode { get; }  // Actual: nullable HttpStatusCode
+    public string Endpoint { get; }  // Actual: not RequestUrl
+    public string ErrorCode { get; }  // Actual: not ApiError
+    public bool IsRetryable { get; }  // Actual property
 }
 ```
 
 #### QobuzAuthenticationException
+
 ```csharp
-public class QobuzAuthenticationException : QobuzApiException
+public class QobuzAuthenticationException : Exception  // Actual: inherits from Exception, not QobuzApiException
 {
-    public AuthenticationFailureReason Reason { get; }
-    public TimeSpan? RetryAfter { get; }
+    public AuthenticationFailureType FailureType { get; }  // Actual: FailureType, not Reason
+    public bool IsTemporary { get; }  // Actual property
 }
 ```
 
 #### QobuzSearchException
+
 ```csharp
-public class QobuzSearchException : QobuzApiException
+public class QobuzSearchException : Exception  // Actual: inherits from Exception, not QobuzApiException
 {
-    public string SearchQuery { get; }
-    public SearchFailureReason Reason { get; }
+    public SearchType SearchType { get; }  // Actual: SearchType, not SearchQuery
+    public bool IsRetryable { get; }  // Actual property
+    public string Query { get; }  // Actual property
 }
 ```
 
@@ -572,7 +603,7 @@ public class CustomQueryOptimizer : IPatternLearningEngine
 ```csharp
 public static class QobuzarrVersion
 {
-    public static readonly Version Current = new Version(0, 0, 12);
+    public static readonly Version Current = new Version(0, 5, 11);  // Verified: VERSION file contains 0.5.11
     public static readonly string ApiVersion = \"v1\";
     public static readonly DateTime BuildDate = new DateTime(2025, 1, 15);
 }
@@ -580,4 +611,4 @@ public static class QobuzarrVersion
 
 ---
 
-*This API reference covers the complete public surface of Qobuzarr v0.0.12. For implementation examples and usage patterns, see the [[Usage Examples]] and [[Plugin Development]] guides.*
+*This API reference covers the complete public surface of Qobuzarr v0.0.12. For implementation examples and usage patterns, see the [[Plugin Development]] guide.*

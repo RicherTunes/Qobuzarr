@@ -64,9 +64,13 @@ env:
   MINIMUM_LIDARR_VERSION: 3.0.0.4855
   DOTNET_VERSION: 8.0.x
   # Single source of truth for CI test filtering
-  # Excludes: LiveIntegration (needs live Lidarr), Integration (needs assemblies), 
-  #           Performance (benchmarks), Quarantined (known issues)
-  CI_TEST_FILTER: "Category!=LiveIntegration&Category!=Integration&Category!=Performance&Category!=Quarantined"
+  # Excludes: LiveIntegration (needs live Lidarr), Integration (needs assemblies),
+  #           Performance (benchmarks), Quarantined (known issues),
+  #           DockerE2E (needs a booted Lidarr container with the merged plugin
+  #           mounted — covered by the dedicated docker-e2e.yml; the broad
+  #           full-suite sweep extracts assemblies but doesn't mount the plugin,
+  #           so these would spuriously fail there).
+  CI_TEST_FILTER: "Category!=LiveIntegration&Category!=Integration&Category!=Performance&Category!=Quarantined&Category!=DockerE2E"
 
 jobs:
   parity-lint:
@@ -421,8 +425,13 @@ jobs:
     runs-on: ubuntu-latest
     needs: validate
     if: ${{ github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && inputs.run_mode == 'full') }}
-    timeout-minutes: 90
+    timeout-minutes: 75
     env:
+      # Full scenario scope. The earlier "200 exceeds 2h" abort was NOT scenario cost — the
+      # suite's real test work is <1 min total; the 2h came from a non-exiting/deadlocked test
+      # host running to a (since-lowered) TestSessionTimeout. With the active blame-hang collector
+      # (run-tests.ps1 --blame-hang-timeout) any such hang is now bounded to minutes, so the full
+      # 200-scenario scope runs comfortably. workflow_dispatch can still override via inputs.
       QOBUZ_TEST_MAX_REAL_ALBUMS: ${{ github.event_name == 'workflow_dispatch' && inputs.max_real_albums || '200' }}
       QOBUZ_TEST_MAX_SIM_SCENARIOS: ${{ github.event_name == 'workflow_dispatch' && inputs.max_sim_scenarios || '200' }}
       QOBUZ_TEST_CONCURRENCY: ${{ github.event_name == 'workflow_dispatch' && inputs.concurrency || '50' }}
@@ -527,12 +536,13 @@ jobs:
     - name: Restore and build
       run: |
         dotnet restore Qobuzarr.csproj
-        dotnet build Qobuzarr.csproj --configuration Release --no-restore \
+        # -m:1 serializes MSBuild to avoid the concurrent Common.dll copy race (MSB3026). See PR #582/#596.
+        dotnet build Qobuzarr.csproj --configuration Release --no-restore -m:1 \
           -p:RunAnalyzersDuringBuild=false -p:EnableNETAnalyzers=false -p:TreatWarningsAsErrors=false
 
     - name: Pre-build all tests
       run: |
-        find tests -name "*.csproj" -exec echo "Building: {}" \; -exec dotnet build {} --configuration Release --verbosity minimal -p:RunAnalyzersDuringBuild=false -p:EnableNETAnalyzers=false -p:TreatWarningsAsErrors=false \;
+        find tests -name "*.csproj" -exec echo "Building: {}" \; -exec dotnet build {} --configuration Release --verbosity minimal -m:1 -p:RunAnalyzersDuringBuild=false -p:EnableNETAnalyzers=false -p:TreatWarningsAsErrors=false \;
 
     - name: Run full tests with coverage
       run: |

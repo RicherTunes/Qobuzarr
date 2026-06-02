@@ -5,19 +5,22 @@ This guide provides comprehensive instructions for installing Qobuzarr in variou
 ## 📋 Prerequisites
 
 ### System Requirements
-- **Lidarr**: v2.13.0 or higher
-- **.NET Runtime**: 6.0 or higher
+
+- **Lidarr**: v3.0.0 or higher (plugins branch — `pr-plugins-3.x`)
+- **.NET Runtime**: 8.0 or higher
 - **Operating System**: Linux, Windows, or macOS
 - **Memory**: Minimum 512MB RAM available
 - **Storage**: 100MB for plugin files, additional space for downloads
 
 ### Qobuz Account Requirements
+
 - **Qobuz Subscription**: Active subscription required
   - **Studio**: CD quality FLAC (16-bit/44.1kHz)
   - **Sublime+**: Hi-Res FLAC (up to 24-bit/192kHz)
 - **Valid Credentials**: Email and password for authentication
 
 ### Network Requirements
+
 - **Internet Connection**: Stable broadband connection
 - **API Access**: Outbound access to `*.qobuz.com`
 - **Ports**: No inbound ports required
@@ -30,7 +33,7 @@ The simplest way to run Qobuzarr is using Hotio's Lidarr image with plugin suppo
 
 ```bash
 # Pull the plugins-enabled image
-docker pull ghcr.io/hotio/lidarr:pr-plugins
+docker pull ghcr.io/hotio/lidarr:pr-plugins-3.1.2.4913
 
 # Run with Qobuzarr support
 docker run -d \
@@ -43,7 +46,7 @@ docker run -d \
   -v /path/to/music:/music \
   -v /path/to/downloads:/downloads \
   --restart unless-stopped \
-  ghcr.io/hotio/lidarr:pr-plugins
+  ghcr.io/hotio/lidarr:pr-plugins-3.1.2.4913
 ```
 
 ### Docker Compose Setup
@@ -54,7 +57,7 @@ Create a `docker-compose.yml` file:
 version: '3.8'
 services:
   lidarr:
-    image: ghcr.io/hotio/lidarr:pr-plugins
+    image: ghcr.io/hotio/lidarr:pr-plugins-3.1.2.4913
     container_name: lidarr-qobuzarr
     environment:
       - PUID=1000
@@ -85,7 +88,10 @@ wget https://github.com/RicherTunes/qobuzarr/releases/latest/download/Qobuzarr.z
 
 # Copy to container
 docker cp Qobuzarr.zip lidarr-container:/tmp/
-docker exec lidarr-container unzip /tmp/Qobuzarr.zip -d /config/plugins/
+# Plugin DLLs MUST live under /config/plugins/<Owner>/<Name>/ — Lidarr's loader scans
+# /config/plugins/RicherTunes/Qobuzarr/ for Lidarr.Plugin.*.dll; a flat /config/plugins/ is NOT scanned.
+docker exec lidarr-container mkdir -p /config/plugins/RicherTunes/Qobuzarr
+docker exec lidarr-container unzip /tmp/Qobuzarr.zip -d /config/plugins/RicherTunes/Qobuzarr/
 docker restart lidarr-container
 ```
 
@@ -94,10 +100,11 @@ docker restart lidarr-container
 ### Linux Installation
 
 #### Debian/Ubuntu
+
 ```bash
-# Install .NET 6.0 runtime
+# Install .NET 8.0 runtime
 sudo apt update
-sudo apt install -y dotnet-runtime-6.0
+sudo apt install -y dotnet-runtime-8.0
 
 # Create plugins directory
 sudo mkdir -p /var/lib/lidarr/plugins
@@ -116,9 +123,10 @@ sudo systemctl restart lidarr
 ```
 
 #### CentOS/RHEL/Fedora
+
 ```bash
-# Install .NET 6.0 runtime
-sudo dnf install -y dotnet-runtime-6.0
+# Install .NET 8.0 runtime
+sudo dnf install -y dotnet-runtime-8.0
 
 # Create plugins directory
 sudo mkdir -p /var/lib/lidarr/plugins
@@ -136,6 +144,7 @@ sudo systemctl restart lidarr
 ```
 
 #### Arch Linux
+
 ```bash
 # Install .NET runtime
 sudo pacman -S dotnet-runtime
@@ -149,6 +158,7 @@ sudo systemctl restart lidarr
 ### Windows Installation
 
 #### Using PowerShell (Administrator)
+
 ```powershell
 # Download the plugin
 Invoke-WebRequest -Uri "https://github.com/RicherTunes/qobuzarr/releases/latest/download/Qobuzarr.zip" -OutFile "$env:TEMP\Qobuzarr.zip"
@@ -163,6 +173,7 @@ Restart-Service -Name "Lidarr"
 ```
 
 #### Manual Installation
+
 1. Download `Qobuzarr.zip` from [GitHub Releases](https://github.com/RicherTunes/qobuzarr/releases/latest)
 2. Extract the zip file
 3. Copy contents to `%ProgramData%\Lidarr\plugins\`
@@ -205,6 +216,7 @@ chmod +x setup.sh && ./setup.sh
 ```
 
 ### Windows Build
+
 ```powershell
 # Clone and setup
 git clone https://github.com/RicherTunes/qobuzarr.git
@@ -238,7 +250,7 @@ spec:
     spec:
       containers:
       - name: lidarr
-        image: ghcr.io/hotio/lidarr:pr-plugins
+        image: ghcr.io/hotio/lidarr:pr-plugins-3.1.2.4913
         ports:
         - containerPort: 8686
         env:
@@ -328,24 +340,14 @@ plugins/
 
 ### Environment Variables
 
-Set these environment variables for optimal performance:
-
-```bash
-# Enable ML optimization (default: true)
-export QOBUZ_QUERY_INTELLIGENCE=true
-
-# Enable adaptive rate limiting (default: true)
-export QOBUZ_ADAPTIVE_RATE_LIMITING=true
-
-# Set log level for debugging
-export QOBUZ_LOG_LEVEL=Info
-```
+No environment variables are required for production use. All settings are configured through the Lidarr UI. The only supported environment variables are optional App ID / App Secret overrides — see the [Configuration Guide](Configuration-Guide.md) for details.
 
 ## 🐛 Troubleshooting Installation
 
 ### Common Issues
 
 #### Plugin Not Loading
+
 ```bash
 # Check file permissions
 ls -la /config/plugins/
@@ -353,10 +355,11 @@ ls -la /config/plugins/
 
 # Check .NET runtime
 dotnet --version
-# Should be 6.0 or higher
+# Should be 8.0 or higher (plugin targets net8.0)
 ```
 
 #### Missing Dependencies
+
 ```bash
 # Verify all required files are present
 ls -la /config/plugins/Lidarr.Plugin.Qobuzarr.*
@@ -366,6 +369,7 @@ tail -f /config/logs/lidarr.txt
 ```
 
 #### Permission Errors
+
 ```bash
 # Fix ownership (Linux)
 sudo chown -R lidarr:lidarr /config/plugins/
@@ -382,6 +386,7 @@ Enable debug logging to diagnose issues:
 4. **Check logs**: `/config/logs/lidarr.txt`
 
 Look for these log entries:
+
 ```
 [Info] PluginService: Loading plugin: Qobuzarr
 [Info] QobuzarrPlugin: Plugin initialized successfully
@@ -402,9 +407,7 @@ If you encounter issues:
 After successful installation:
 
 1. **[[Configuration Guide]]** - Configure authentication and settings
-2. **[[Quick Start]]** - Get up and running quickly
-3. **[[Usage Examples]]** - Learn common workflows
-4. **[[API Reference]]** - Understand plugin capabilities
+2. **[[API Reference]]** - Understand plugin capabilities
 
 ## 📈 Performance Optimization
 
@@ -419,16 +422,7 @@ Recommended system resources:
 
 ### Cache Configuration
 
-Configure caching for better performance:
-
-```bash
-# Set cache directory with sufficient space
-export QOBUZ_CACHE_DIR=/path/to/fast/storage
-
-# Enable all caching features
-export QOBUZ_ENABLE_CACHE=true
-export QOBUZ_CACHE_SIZE=1GB
-```
+Caching is built in and configured automatically. No environment variables are needed — cache behaviour can be adjusted through the Lidarr UI (see **Settings → Indexers → Qobuzarr**).
 
 ---
 

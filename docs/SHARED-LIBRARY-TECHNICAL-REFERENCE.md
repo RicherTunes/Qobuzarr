@@ -1,4 +1,5 @@
 # 🔧 Shared Library Technical Reference
+
 ## Implementation Patterns & Best Practices
 
 > **Technical Companion to the Collaboration Guide**  
@@ -9,6 +10,7 @@
 ## 🎯 **Current Architecture Overview**
 
 ### **Proven Success Metrics**
+<!-- TODO(docval): Success metrics unverified - Tidalarr integration not found in codebase as of 2026-05-31 -->
 ```
 ✅ 74% Code Reduction (Tidalarr integration)
 ✅ 60%+ Development Time Savings (Target achieved)
@@ -16,7 +18,8 @@
 ✅ 100% Cross-Plugin Compatibility (Qobuz + Tidal)
 ```
 
-### **Core Library Structure** 
+### **Core Library Structure**
+
 ```
 Lidarr.Plugin.Common/
 ├── src/
@@ -54,10 +57,12 @@ Lidarr.Plugin.Common/
 
 ## 🏗️ **Implementation Patterns**
 
-### **Pattern 1: Service Integration** 
+### **Pattern 1: Service Integration**
+
 *How to integrate streaming service with minimal effort*
 
 #### **Step 1: Create Service-Specific Settings**
+<!-- TODO(docval): BaseStreamingSettings not found in Lidarr.Plugin.Common as of 2026-05-31 -->
 ```csharp
 // Qobuz Example
 public class QobuzIndexerSettings : BaseStreamingSettings
@@ -91,6 +96,7 @@ public class TidalIndexerSettings : BaseStreamingSettings
 ```
 
 #### **Step 2: Implement Indexer Using Base Class**
+
 ```csharp
 public class QobuzIndexer : HttpIndexerBase<QobuzIndexerSettings>
 {
@@ -104,7 +110,7 @@ public class QobuzIndexer : HttpIndexerBase<QobuzIndexerSettings>
         // Use shared utilities for common tasks
         var sanitizedQuery = FileNameSanitizer.SanitizeFileName(query.GetQueryString());
         
-        var requestBuilder = new StreamingApiRequestBuilder(Settings.BaseUrl)
+        var requestBuilder = new StreamingApiRequestBuilder(Settings.BaseUrl) // TODO(docval): StreamingApiRequestBuilder not found in codebase as of 2026-05-31
             .Endpoint("catalog/search/album")
             .Query("query", sanitizedQuery)
             .Query("limit", "50")
@@ -133,7 +139,7 @@ public class QobuzIndexer : HttpIndexerBase<QobuzIndexerSettings>
         foreach (var album in data.Albums.Items)
         {
             // Use shared factories for consistent data
-            results.Add(ReleaseInfoFactory.CreateFromStreamingAlbum(
+            results.Add(ReleaseInfoFactory.CreateFromStreamingAlbum( // TODO(docval): ReleaseInfoFactory not found in codebase as of 2026-05-31
                 album.ToStreamingAlbum(), // Convert to universal model
                 Settings.QualityId,
                 Protocol));
@@ -145,13 +151,14 @@ public class QobuzIndexer : HttpIndexerBase<QobuzIndexerSettings>
 ```
 
 #### **Step 3: Download Client Implementation**
+
 ```csharp
-public class QobuzDownloadClient : BaseStreamingDownloadClient<QobuzDownloadSettings>
+public class QobuzDownloadClient : BaseStreamingDownloadClient<QobuzDownloadSettings> // TODO(docval): BaseStreamingDownloadClient not found in codebase as of 2026-05-31
 {
     protected override string ServiceName => "Qobuz";
     
     // ✅ Implement service-specific download logic
-    protected override async Task<StreamingDownloadResult> DownloadTrackAsync(
+    protected override async Task<StreamingDownloadResult> DownloadTrackAsync( // TODO(docval): StreamingDownloadResult not found in codebase as of 2026-05-31
         StreamingTrack track, 
         string outputPath, 
         CancellationToken cancellationToken = default)
@@ -166,7 +173,7 @@ public class QobuzDownloadClient : BaseStreamingDownloadClient<QobuzDownloadSett
     // Service-specific stream URL resolution  
     private async Task<string> GetStreamUrlAsync(string trackId)
     {
-        var request = new StreamingApiRequestBuilder(_settings.BaseUrl)
+        var request = new StreamingApiRequestBuilder(_settings.BaseUrl) // TODO(docval): StreamingApiRequestBuilder not found in codebase as of 2026-05-31
             .Endpoint($"track/getFileUrl")
             .Query("track_id", trackId)
             .Query("format_id", _settings.QualityId.ToString())
@@ -184,12 +191,13 @@ public class QobuzDownloadClient : BaseStreamingDownloadClient<QobuzDownloadSett
 ### **Pattern 2: Authentication Service Integration**
 
 #### **Basic Authentication (Qobuz Pattern)**
+
 ```csharp
-public class QobuzAuthenticationService : BaseStreamingAuthenticationService<QobuzCredentials, QobuzSession>
+public class QobuzAuthenticationService : BaseStreamingAuthenticationService<QobuzCredentials, QobuzSession> // TODO(docval): BaseStreamingAuthenticationService not found in codebase as of 2026-05-31
 {
     protected override async Task<QobuzSession> AuthenticateAsync(QobuzCredentials credentials)
     {
-        var request = new StreamingApiRequestBuilder(_baseUrl)
+        var request = new StreamingApiRequestBuilder(_baseUrl) // TODO(docval): StreamingApiRequestBuilder not found in codebase as of 2026-05-31
             .Endpoint("user/login")
             .FormData("email", credentials.Email)
             .FormData("password", credentials.Password)
@@ -211,7 +219,7 @@ public class QobuzAuthenticationService : BaseStreamingAuthenticationService<Qob
     protected override async Task<bool> ValidateSessionAsync(QobuzSession session)
     {
         // Check if token is still valid with a lightweight API call
-        var request = new StreamingApiRequestBuilder(_baseUrl)
+        var request = new StreamingApiRequestBuilder(_baseUrl) // TODO(docval): StreamingApiRequestBuilder not found in codebase as of 2026-05-31
             .Endpoint("user/profile")
             .BearerToken(session.AuthToken)
             .Build();
@@ -230,8 +238,9 @@ public class QobuzAuthenticationService : BaseStreamingAuthenticationService<Qob
 ```
 
 #### **OAuth Authentication (Tidal Pattern)**
+
 ```csharp
-public class TidalAuthenticationService : OAuthStreamingAuthenticationService<TidalCredentials, TidalSession>
+public class TidalAuthenticationService : OAuthStreamingAuthenticationService<TidalCredentials, TidalSession> // TODO(docval): OAuthStreamingAuthenticationService not found in codebase as of 2026-05-31
 {
     protected override OAuthOptions GetOAuthConfiguration()
     {
@@ -280,6 +289,7 @@ public class TidalAuthenticationService : OAuthStreamingAuthenticationService<Ti
 ### **Pattern 3: Quality Mapping Integration**
 
 #### **Universal Quality Detection**
+
 ```csharp
 // Each service contributes their quality mapping
 public static class QualityMappingExtensions  
@@ -327,6 +337,7 @@ public static class QualityMappingExtensions
 ## 🧪 **Testing Integration Patterns**
 
 ### **Unit Testing with Shared Mocks**
+
 ```csharp
 [TestClass]
 public class QobuzIndexerTests
@@ -370,6 +381,7 @@ public class QobuzIndexerTests
 ```
 
 ### **Integration Testing Pattern**
+
 ```csharp
 [TestClass]
 public class CrossPluginCompatibilityTests
@@ -405,6 +417,7 @@ public class CrossPluginCompatibilityTests
 ## 🔄 **Migration & Upgrade Patterns**
 
 ### **Backwards Compatible API Evolution**
+
 ```csharp
 // v1.1.0 - Original method
 public virtual async Task<StreamingDownloadResult> DownloadTrackAsync(
@@ -441,6 +454,7 @@ public virtual async Task<StreamingDownloadResult> DownloadTrackAsync(
 ```
 
 ### **Feature Flag Pattern**
+
 ```csharp
 // Enable new features gradually
 public class BaseStreamingSettings
@@ -480,6 +494,7 @@ protected virtual async Task<T> ExecuteRequestAsync<T>(HttpRequestMessage reques
 ## ⚡ **Performance Optimization Patterns**
 
 ### **Caching Strategy**
+
 ```csharp
 // Universal caching for all streaming services
 public class StreamingResponseCache : IStreamingResponseCache
@@ -517,6 +532,7 @@ public async Task<QobuzAlbum> GetAlbumAsync(string albumId)
 ```
 
 ### **Batch Processing Pattern**
+
 ```csharp
 public class BatchDownloadProcessor
 {
@@ -574,6 +590,7 @@ public class BatchDownloadProcessor
 ## 🔐 **Security Best Practices**
 
 ### **Credential Management**
+
 ```csharp
 // Never log credentials
 public class SecureLoggingExtensions  
@@ -619,6 +636,7 @@ public static class SecurityUtilities
 ```
 
 ### **Rate Limiting**
+
 ```csharp
 public class AdaptiveRateLimiter
 {
@@ -670,6 +688,7 @@ public class AdaptiveRateLimiter
 ## 📊 **Monitoring & Observability**
 
 ### **Performance Metrics Collection**
+
 ```csharp
 public class PerformanceTracker : IDisposable
 {
@@ -732,8 +751,9 @@ protected async Task<StreamingDownloadResult> DownloadTrackAsync(StreamingTrack 
 ## 🎯 **Quick Implementation Checklist**
 
 ### **New Service Integration**
+
 - [ ] ✅ Create `{Service}IndexerSettings : BaseStreamingSettings`
-- [ ] ✅ Create `{Service}DownloadSettings : BaseStreamingSettings` 
+- [ ] ✅ Create `{Service}DownloadSettings : BaseStreamingSettings`
 - [ ] ✅ Implement `{Service}Indexer : HttpIndexerBase<{Service}IndexerSettings>`
 - [ ] ✅ Implement `{Service}DownloadClient : BaseStreamingDownloadClient<{Service}DownloadSettings>`
 - [ ] ✅ Create `{Service}AuthenticationService : BaseStreamingAuthenticationService<,>`
@@ -742,6 +762,7 @@ protected async Task<StreamingDownloadResult> DownloadTrackAsync(StreamingTrack 
 - [ ] ✅ Test cross-compatibility with existing plugins
 
 ### **Adding New Shared Features**
+
 - [ ] ✅ Design API to be universally applicable
 - [ ] ✅ Make feature opt-in with feature flags
 - [ ] ✅ Implement with backwards compatibility
@@ -751,6 +772,7 @@ protected async Task<StreamingDownloadResult> DownloadTrackAsync(StreamingTrack 
 - [ ] ✅ Performance impact assessment
 
 ### **Quality Gates**
+
 - [ ] ✅ All existing tests pass (Qobuzarr + Tidalarr)
 - [ ] ✅ No breaking changes to public APIs
 - [ ] ✅ Memory usage within acceptable limits

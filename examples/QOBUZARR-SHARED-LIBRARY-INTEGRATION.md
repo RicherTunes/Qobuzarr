@@ -9,6 +9,7 @@ Qobuzarr now properly implements `Lidarr.Plugin.Common` and serves as the **refe
 ## 📊 **Integration Success Metrics**
 
 ### **✅ Current Working Integration**
+
 - **6 Qobuzarr files** successfully use shared library utilities
 - **FileNameSanitizer** replaced custom file naming implementation  
 - **RetryUtilities** used in QobuzHttpClient for HTTP retry logic
@@ -16,6 +17,7 @@ Qobuzarr now properly implements `Lidarr.Plugin.Common` and serves as the **refe
 - **Production functionality** maintained with shared components
 
 ### **✅ Code Reduction Achieved**
+
 ```
 Files Using Shared Library:
 1. src/Core/QobuzDownloadService.cs        # Uses FileNameSanitizer
@@ -34,6 +36,7 @@ Total shared library usage: 100+ LOC replaced with shared components
 ## 🔧 **How Qobuzarr Uses Shared Library**
 
 ### **1. File Naming (Proven Working)**
+
 ```csharp
 // Before: Custom implementation (20+ LOC per file)
 foreach (var invalidChar in InvalidFileNameChars.Concat(ProblematicChars))
@@ -50,6 +53,7 @@ var sanitized = FileNameSanitizer.SanitizeFileName(fileName);
 **Result**: 20+ LOC saved per file × 6 files = **120+ LOC reduction**
 
 ### **2. HTTP Retry Logic (Production Ready)**
+
 ```csharp
 // In src/API/Http/QobuzHttpClient.cs
 var response = await RetryUtilities.ExecuteWithRetryAsync(
@@ -63,6 +67,7 @@ var response = await RetryUtilities.ExecuteWithRetryAsync(
 **Result**: 50+ LOC of custom retry logic replaced with battle-tested shared implementation
 
 ### **3. Project Configuration**
+
 ```xml
 <!-- Qobuzarr.csproj - Professional dependency management -->
 <ProjectReference Include="Lidarr.Plugin.Common\Lidarr.Plugin.Common.csproj">
@@ -80,27 +85,30 @@ var response = await RetryUtilities.ExecuteWithRetryAsync(
 ### **Enhanced Integration Examples Created**
 
 #### **QobuzHttpClientOptimized.cs**
-- **Demonstrates**: StreamingApiRequestBuilder integration
+
+- **Demonstrates**: StreamingApiRequestBuilder<!-- TODO(docval): StreamingApiRequestBuilder not found in code as of 2026-05-31 --> integration
 - **Shows**: StreamingCacheHelper usage for response caching
 - **Illustrates**: Enhanced error handling with shared library patterns  
 - **Savings**: 120+ LOC through shared HTTP utilities
 
 #### **QobuzIndexerEnhanced.cs**  
+
 - **Demonstrates**: StreamingIndexerMixin for rate limiting and validation
-- **Shows**: Quality management using QualityMapper
+- **Shows**: Quality management using QualityMapper<!-- TODO(docval): QualityMapper not found in code as of 2026-05-31 -->
 - **Illustrates**: Professional testing patterns with shared utilities
 - **Savings**: 100+ LOC through shared service frameworks
 
 ### **Future Migration Opportunities**
+
 ```csharp
-// 1. Replace QobuzResponseCache with StreamingResponseCache
-public class QobuzResponseCacheShared : StreamingResponseCache
+// 1. Replace QobuzResponseCache with StreamingResponseCache<!-- TODO(docval): StreamingResponseCache not found in code as of 2026-05-31 -->
+public class QobuzResponseCacheShared : StreamingResponseCache<!-- TODO(docval): StreamingResponseCache not found in code as of 2026-05-31 -->
 {
     // 70% code reduction - only Qobuz-specific caching logic needed
 }
 
 // 2. Use StreamingApiRequestBuilder in QobuzApiClient
-var request = new StreamingApiRequestBuilder(QobuzConstants.Api.BaseUrl)
+var request = new StreamingApiRequestBuilder<!-- TODO(docval): StreamingApiRequestBuilder not found in code as of 2026-05-31 -->(QobuzConstants.Api.BaseUrl)
     .Endpoint("album/search")
     .Query("query", searchTerm)
     .Query("limit", limit)
@@ -109,7 +117,7 @@ var request = new StreamingApiRequestBuilder(QobuzConstants.Api.BaseUrl)
     .Build();
 
 // 3. Integrate QualityMapper for cross-service quality comparison
-var bestQuality = QualityMapper.FindBestMatch(qobuzQualities, StreamingQualityTier.Lossless);
+var bestQuality = QualityMapper<!-- TODO(docval): QualityMapper not found in code as of 2026-05-31 -->.FindBestMatch(qobuzQualities, StreamingQualityTier<!-- TODO(docval): StreamingQualityTier not found in code as of 2026-05-31 -->.Lossless);
 ```
 
 ---
@@ -117,6 +125,7 @@ var bestQuality = QualityMapper.FindBestMatch(qobuzQualities, StreamingQualityTi
 ## 📋 **Professional Integration Checklist**
 
 ### **✅ Basic Integration (Working Now)**
+
 - [x] **Shared library reference** added to project file
 - [x] **Core utilities** integrated (FileNameSanitizer, RetryUtilities)
 - [x] **All imports working** with shared library namespaces
@@ -124,30 +133,37 @@ var bestQuality = QualityMapper.FindBestMatch(qobuzQualities, StreamingQualityTi
 - [x] **Functionality preserved** - all existing features work
 
 ### **⏳ Advanced Integration (Future Enhancement)**
-- [ ] **HTTP client optimization** using StreamingApiRequestBuilder
-- [ ] **Caching integration** with StreamingResponseCache patterns
-- [ ] **Quality management** using universal QualityMapper
+
+- [ ] **HTTP client optimization** using StreamingApiRequestBuilder<!-- TODO(docval): StreamingApiRequestBuilder not found in code as of 2026-05-31 -->
+- [ ] **Caching integration** with StreamingResponseCache<!-- TODO(docval): StreamingResponseCache not found in code as of 2026-05-31 --> patterns
+- [ ] **Quality management** using universal QualityMapper<!-- TODO(docval): QualityMapper not found in code as of 2026-05-31 -->
 - [ ] **Authentication enhancement** with shared auth frameworks
-- [ ] **Testing improvement** using MockFactories for comprehensive coverage
+- [ ] **Testing improvement** using MockFactories<!-- TODO(docval): MockFactories not found in code as of 2026-05-31 --> for comprehensive coverage
 
 ---
 
 ## 🎯 **Reference Implementation Value**
 
 ### **For Tidalarr Developer**
+
 Qobuzarr demonstrates **how to incrementally adopt** shared library components:
+
 - **Start simple**: Replace utilities like FileNameSanitizer (immediate value)
 - **Build up**: Add HTTP patterns, caching, quality management (ongoing value)  
 - **Maintain compatibility**: Existing functionality preserved throughout
 
 ### **For Community**
+
 Qobuzarr shows **realistic integration approach**:
+
 - **Gradual adoption**: No need to rewrite entire plugin at once
 - **Proven patterns**: Working examples of shared library usage
 - **Professional quality**: Production plugin demonstrating shared library value
 
 ### **For Ecosystem**
+
 Qobuzarr establishes **integration standards**:
+
 - **Composition over inheritance**: Use shared components via mixins and helpers
 - **Service-specific focus**: Keep streaming service logic separate from shared utilities
 - **Professional distribution**: NuGet package dependency management
@@ -157,6 +173,7 @@ Qobuzarr establishes **integration standards**:
 ## 📈 **Current vs Potential Integration**
 
 ### **Current Integration (Working)**
+
 ```
 Shared Library Usage: 170+ LOC
 - FileNameSanitizer: 6 files × 20 LOC = 120 LOC saved
@@ -164,7 +181,8 @@ Shared Library Usage: 170+ LOC
 - Total current savings: 170+ LOC
 ```
 
-### **Potential Full Integration** 
+### **Potential Full Integration**
+
 ```
 Additional Optimization Opportunities: 300+ LOC
 - HTTP request building: 80+ LOC savings potential
@@ -182,12 +200,14 @@ Additional Optimization Opportunities: 300+ LOC
 ## 🎉 **Integration Success Summary**
 
 ### **Qobuzarr Successfully Demonstrates**
+
 ✅ **Shared library works** with existing production plugins  
 ✅ **Incremental adoption** enables gradual migration without risk  
 ✅ **Professional patterns** improve code quality and maintainability  
 ✅ **Ecosystem foundation** ready for community expansion  
 
 ### **Validated for Ecosystem**
+
 ✅ **Tidalarr can start immediately** with proven integration patterns  
 ✅ **Community developers** have working reference implementation  
 ✅ **Professional standards** established through working example  
@@ -200,6 +220,7 @@ Additional Optimization Opportunities: 300+ LOC
 **Qobuzarr + Lidarr.Plugin.Common integration proves:**
 
 ### What’s New in This Integration Round
+
 - HTTP resilience: Central retry budget + Retry-After handling and per-host gating
 - Shared HttpClient: Single `SocketsHttpHandler`-backed instance for all streaming downloads
 - Resumable downloads: Range-aware resume to .partial + fsync + atomic move
@@ -211,6 +232,7 @@ Additional Optimization Opportunities: 300+ LOC
 These changes reduce tech debt, cut duplication, and standardize cross-plugin behavior while preserving current functionality.
 
 ### 🔁 Verifying Resumable Downloads
+
 Qobuzarr resumes downloads using HTTP Range (206): writes to `*.partial`, fsyncs, then atomically moves to the final file.
 
 - Manual test:

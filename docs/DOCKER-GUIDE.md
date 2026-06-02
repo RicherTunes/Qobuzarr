@@ -1,4 +1,4 @@
-# Docker Deployment Guide for Qobuzzarr
+# Docker Deployment Guide for Qobuzarr
 
 ## Overview
 
@@ -12,7 +12,7 @@ This guide covers deploying Lidarr with Qobuzzarr plugin using Docker, including
 version: '3.8'
 services:
   lidarr:
-    image: ghcr.io/hotio/lidarr:pr-plugins
+    image: ghcr.io/hotio/lidarr:pr-plugins-3.1.2.4913
     container_name: lidarr
     environment:
       - PUID=1000
@@ -50,7 +50,7 @@ docker-compose up -d
 version: '3.8'
 services:
   lidarr:
-    image: ghcr.io/hotio/lidarr:pr-plugins
+    image: ghcr.io/hotio/lidarr:pr-plugins-3.1.2.4913
     container_name: lidarr-qobuz
     environment:
       - PUID=${PUID:-1000}
@@ -82,7 +82,7 @@ networks:
 
 services:
   lidarr:
-    image: ghcr.io/hotio/lidarr:pr-plugins
+    image: ghcr.io/hotio/lidarr:pr-plugins-3.1.2.4913
     container_name: lidarr
     networks:
       - media
@@ -157,7 +157,7 @@ services:
     restart: unless-stopped
 
   lidarr:
-    image: ghcr.io/hotio/lidarr:pr-plugins
+    image: ghcr.io/hotio/lidarr:pr-plugins-3.1.2.4913
     container_name: lidarr
     network_mode: service:vpn
     depends_on:
@@ -192,6 +192,7 @@ RUN chown -R abc:abc /config/plugins
 ```
 
 Build and use:
+
 ```bash
 docker build -f Dockerfile.lidarr-qobuz -t lidarr-qobuz:latest .
 docker run -d --name lidarr lidarr-qobuz:latest
@@ -207,19 +208,19 @@ CONTAINER_NAME="lidarr"
 PLUGIN_URL="https://github.com/richertunes/qobuzarr/releases/latest/download/Qobuzarr.dll"
 
 # Download latest plugin
-wget -O Lidarr.Plugin.Qobuz.dll.new "$PLUGIN_URL"
+wget -O Lidarr.Plugin.Qobuzarr.dll.new "$PLUGIN_URL"
 
 # Backup existing
-docker exec $CONTAINER_NAME cp /config/plugins/Lidarr.Plugin.Qobuz.dll /config/plugins/Lidarr.Plugin.Qobuz.dll.bak
+docker exec $CONTAINER_NAME cp /config/plugins/Lidarr.Plugin.Qobuzarr.dll /config/plugins/Lidarr.Plugin.Qobuzarr.dll.bak
 
 # Copy new plugin
-docker cp Lidarr.Plugin.Qobuz.dll.new $CONTAINER_NAME:/config/plugins/Lidarr.Plugin.Qobuz.dll
+docker cp Lidarr.Plugin.Qobuzarr.dll.new $CONTAINER_NAME:/config/plugins/Lidarr.Plugin.Qobuzarr.dll
 
 # Restart container
 docker restart $CONTAINER_NAME
 
 # Cleanup
-rm Lidarr.Plugin.Qobuz.dll.new
+rm Lidarr.Plugin.Qobuzarr.dll.new
 ```
 
 ## Environment Variables
@@ -233,7 +234,7 @@ rm Lidarr.Plugin.Qobuz.dll.new
 | `TZ` | UTC | Timezone |
 | `UMASK` | 002 | File permissions mask |
 
-### Qobuzzarr Specific
+### Qobuzarr Specific
 
 ```yaml
 environment:
@@ -274,6 +275,7 @@ volumes:
 ### Permissions
 
 Ensure correct permissions:
+
 ```bash
 # Set ownership
 sudo chown -R 1000:1000 ./config ./music ./downloads
@@ -437,27 +439,30 @@ environment:
 ### Common Issues
 
 **Plugin not loading:**
+
 ```bash
 # Check plugin file exists
 docker exec lidarr ls -la /config/plugins/
 
 # Check permissions
-docker exec lidarr stat /config/plugins/Lidarr.Plugin.Qobuz.dll
+docker exec lidarr stat /config/plugins/Lidarr.Plugin.Qobuzarr.dll
 
 # View Lidarr logs
 docker exec lidarr cat /config/logs/lidarr.txt | grep -i plugin
 ```
 
 **Permission errors:**
+
 ```bash
 # Fix ownership
-docker exec lidarr chown abc:abc /config/plugins/Lidarr.Plugin.Qobuz.dll
+docker exec lidarr chown abc:abc /config/plugins/Lidarr.Plugin.Qobuzarr.dll
 
 # Fix permissions  
-docker exec lidarr chmod 644 /config/plugins/Lidarr.Plugin.Qobuz.dll
+docker exec lidarr chmod 644 /config/plugins/Lidarr.Plugin.Qobuzarr.dll
 ```
 
 **Network issues:**
+
 ```bash
 # Test connectivity
 docker exec lidarr ping -c 4 www.qobuz.com
@@ -536,7 +541,7 @@ docker run --rm \
   dotnet build -c Release
 
 # Copy to Lidarr
-docker cp bin/Release/net6.0/Lidarr.Plugin.Qobuz.dll lidarr:/config/plugins/
+docker cp bin/Release/net8.0/Lidarr.Plugin.Qobuzarr.dll lidarr:/config/plugins/
 
 # Restart
 docker restart lidarr
@@ -545,6 +550,7 @@ docker restart lidarr
 ### Production Deployment
 
 See `docker-compose.prod.yml` in the repository for a complete production setup with:
+
 - Automatic updates
 - Health monitoring  
 - Backup automation

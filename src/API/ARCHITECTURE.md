@@ -7,43 +7,52 @@ The Qobuz API client has been refactored from a monolithic 598-line God class in
 ## Architecture Components
 
 ### 1. **QobuzApiClient** (Orchestrator)
-**Location**: `src/API/QobuzApiClient.cs`  
-**Lines**: 463 (reduced from 598)  
+
+**Location**: `src/API/QobuzApiClient.cs`
+**Lines**: 835
 **Responsibility**: Orchestrates API operations by coordinating specialized components
 
 The main API client now acts as an orchestrator, delegating specific responsibilities to focused components while maintaining backward compatibility through dual constructors.
 
 ### 2. **QobuzHttpClient** (HTTP Communication)
+
 **Location**: `src/API/Http/QobuzHttpClient.cs`  
 **Interface**: `IQobuzHttpClient`  
 **Responsibilities**:
+
 - Pure HTTP request/response handling
 - Rate limiting enforcement
 - Retry logic for transient failures
 - HTTP header management
 
-### 3. **QobuzAuthenticationManager** (Session Management)
-**Location**: `src/API/Auth/QobuzAuthenticationManager.cs`  
-**Interface**: `IQobuzAuthenticationManager`  
+### 3. **Session Management** (Authentication)
+
+**Location**: `src/Authentication/SessionManager.cs`
+**Interface**: `ISessionManager` <!-- TODO(docval): IQobuzAuthenticationManager not found; uses ISessionManager from Authentication namespace as of 2026-05-31 -->
 **Responsibilities**:
+
 - Session validation and storage
 - Expiration tracking
 - Session renewal notifications
 - Thread-safe session access
 
 ### 4. **QobuzRequestSigner** (Request Signing)
-**Location**: `src/API/Signing/QobuzRequestSigner.cs`  
-**Interface**: `IQobuzRequestSigner`  
+
+**Location**: `src/API/Signing/QobuzRequestSigner.cs`
+**Interface**: `IRequestSigner` (from `Lidarr.Plugin.Common.Services.Http`) <!-- TODO(docval): IQobuzRequestSigner not found; uses IRequestSigner from Common as of 2026-05-31 -->
 **Responsibilities**:
+
 - MD5 signature generation for protected endpoints
 - Request timestamp management
 - Signature algorithm implementation (TrevTV format)
 - Endpoint signing requirements determination
 
 ### 5. **QobuzResponseCache** (Caching)
+
 **Location**: `src/API/Caching/QobuzResponseCache.cs`  
 **Interface**: `IQobuzResponseCache`  
 **Responsibilities**:
+
 - Cache key generation
 - TTL determination per endpoint type
 - Cache storage and retrieval
@@ -52,10 +61,13 @@ The main API client now acts as an orchestrator, delegating specific responsibil
 ## Benefits of Decomposition
 
 ### 1. **Single Responsibility Principle**
+
 Each component has one clear purpose, making the codebase easier to understand and maintain.
 
 ### 2. **Testability**
+
 Components can be tested in isolation:
+
 ```csharp
 // Example: Testing request signing without HTTP calls
 var signer = new QobuzRequestSigner(logger);
@@ -64,13 +76,17 @@ Assert.Equal(expectedSignature, signature);
 ```
 
 ### 3. **Maintainability**
+
 Changes are isolated to specific components:
+
 - Need to change caching strategy? Only modify `QobuzResponseCache`
 - New authentication method? Update `QobuzAuthenticationManager`
 - Rate limiting adjustment? Modify `QobuzHttpClient`
 
 ### 4. **Reusability**
+
 Components can be used independently in different contexts:
+
 ```csharp
 // Use the HTTP client directly for custom operations
 var httpClient = new QobuzHttpClient(lidarrHttpClient, logger);
@@ -80,19 +96,22 @@ var response = await httpClient.ExecuteAsync(customRequest);
 ## Dependency Injection
 
 ### New Component Registration
+
 ```csharp
 // Register decomposed components
 services.AddSingleton<IQobuzHttpClient, QobuzHttpClient>();
-services.AddSingleton<IQobuzAuthenticationManager, QobuzAuthenticationManager>();
-services.AddSingleton<IQobuzRequestSigner, QobuzRequestSigner>();
+services.AddSingleton<ISessionManager, SessionManager>(); <!-- TODO(docval): IQobuzAuthenticationManager not found as of 2026-05-31 -->
+services.AddSingleton<IRequestSigner, QobuzRequestSigner>(); <!-- TODO(docval): from Common; IQobuzRequestSigner not found as of 2026-05-31 -->
 services.AddSingleton<IQobuzResponseCache, QobuzResponseCache>();
 services.AddSingleton<IQobuzApiClient, QobuzApiClient>();
 ```
 
 ### Backward Compatibility
+
 The `QobuzApiClient` provides two constructors:
 
 1. **New architecture** (for DI containers):
+
 ```csharp
 public QobuzApiClient(
     IQobuzHttpClient httpClient,
@@ -102,7 +121,8 @@ public QobuzApiClient(
     Logger logger)
 ```
 
-2. **Legacy compatibility** (for existing code):
+1. **Legacy compatibility** (for existing code):
+
 ```csharp
 public QobuzApiClient(
     IHttpClient httpClient,
@@ -113,6 +133,7 @@ public QobuzApiClient(
 ## Usage Examples
 
 ### Using Individual Components
+
 ```csharp
 // Direct HTTP operations
 var httpClient = new QobuzHttpClient(lidarrHttp, logger);
@@ -145,6 +166,7 @@ if (cached == null)
 ```
 
 ### Using the Orchestrator
+
 ```csharp
 // The orchestrator coordinates all components transparently
 var apiClient = new QobuzApiClient(httpClient, cacheManager, logger);
@@ -157,6 +179,7 @@ var album = await apiClient.GetAsync<QobuzAlbum>("/album/get", parameters);
 ## Testing Strategy
 
 ### Unit Testing
+
 Each component can be unit tested in isolation:
 
 ```csharp
@@ -179,6 +202,7 @@ public async Task HttpClient_AppliesRateLimiting()
 ```
 
 ### Integration Testing
+
 Test component interaction through the orchestrator:
 
 ```csharp
@@ -201,16 +225,19 @@ public async Task ApiClient_CachesSuccessfulResponses()
 ## Migration Path
 
 ### Phase 1: Backward Compatible (Current)
+
 - New architecture is in place
 - Legacy constructor maintains compatibility
 - No breaking changes for existing consumers
 
 ### Phase 2: Gradual Migration
+
 - Update DI registrations to use new interfaces
 - Migrate high-level services to use decomposed components directly
 - Add component-specific configuration options
 
 ### Phase 3: Full Decomposition
+
 - Remove legacy constructor
 - Require explicit component injection
 - Enable advanced scenarios (custom caching, auth strategies, etc.)
@@ -218,16 +245,19 @@ public async Task ApiClient_CachesSuccessfulResponses()
 ## Performance Considerations
 
 ### Memory Efficiency
+
 - Components are singletons, reducing memory overhead
 - Shared cache manager across all instances
 - No duplicate rate limiter instances
 
 ### CPU Efficiency
+
 - Cache checks before expensive operations
 - Rate limiting prevents API throttling
 - Parallel-safe implementations
 
 ### Network Efficiency
+
 - Response caching reduces API calls
 - Intelligent cache TTLs per endpoint type
 - Automatic retry with exponential backoff
@@ -235,6 +265,7 @@ public async Task ApiClient_CachesSuccessfulResponses()
 ## Future Enhancements
 
 ### Potential Extensions
+
 1. **Pluggable authentication strategies** - OAuth, API keys, etc.
 2. **Custom cache providers** - Redis, Memcached, etc.
 3. **Advanced rate limiting** - Per-endpoint limits, burst handling
@@ -242,6 +273,7 @@ public async Task ApiClient_CachesSuccessfulResponses()
 5. **Circuit breaker pattern** - Fail fast on repeated failures
 
 ### Configuration Options
+
 ```csharp
 services.Configure<QobuzApiOptions>(options =>
 {

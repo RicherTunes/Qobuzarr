@@ -15,7 +15,7 @@ Based on your amazing feedback, here's your **fast-track guide** to building Tid
 // File: src/Settings/TidalSettings.cs
 // Based on: examples/Tidalarr/TidalSettings.cs
 
-public class TidalSettings : BaseStreamingSettings, IIndexerSettings
+public class TidalSettings : BaseStreamingSettings<!-- TODO(docval): verify BaseStreamingSettings exists in Lidarr.Plugin.Common as of 2026-05-31 -->, IIndexerSettings
 {
     public TidalSettings()
     {
@@ -26,10 +26,10 @@ public class TidalSettings : BaseStreamingSettings, IIndexerSettings
     // ✅ READY: Add your Tidal-specific fields
     [FieldDefinition(50, Label = "Tidal Access Token")]
     public string TidalAccessToken { get; set; }
-    
-    [FieldDefinition(51, Label = "Country Market")]  
+
+    [FieldDefinition(51, Label = "Country Market")]
     public string CountryCode { get; set; } = "US";
-    
+
     [FieldDefinition(52, Label = "Subscription Tier")]
     public TidalSubscriptionTier SubscriptionTier { get; set; } = TidalSubscriptionTier.HiFiPlus;
 }
@@ -42,13 +42,13 @@ public class TidalSettings : BaseStreamingSettings, IIndexerSettings
 
 public class TidalIndexer : HttpIndexerBase<TidalSettings>
 {
-    private readonly StreamingIndexerMixin _helper;
-    
+    private readonly StreamingIndexerMixin<!-- TODO(docval): StreamingIndexerMixin not found in Lidarr.Plugin.Common as of 2026-05-31 --> _helper;
+
     public override IIndexerRequestGenerator GetRequestGenerator()
     {
         return new TidalRequestGenerator(Settings, _logger, _helper);
     }
-    
+
     // ✅ READY: 130+ LOC of shared functionality via _helper
     // ✅ READY: HTTP building, retry logic, validation, caching all included
 }

@@ -1,3 +1,5 @@
+> ⚠️ Deprecated — this page is superseded by the canonical wiki. See [Configuration Guide](../../../wiki/Configuration-Guide.md) (or [docs/](../../) for deep references).
+
 # Configuration Guide
 
 This guide covers comprehensive configuration of Qobuzarr for optimal performance with your Qobuz subscription and Lidarr setup.
@@ -40,7 +42,7 @@ Before configuring Qobuzarr, gather:
 For production use, obtain official API credentials:
 
 1. **Contact Qobuz Developer Support**:
-   - Email: api@qobuz.com
+   - Email: <api@qobuz.com>
    - Include: Business use case, expected volume
    - Wait for approval and credential assignment
 
@@ -77,6 +79,7 @@ export QOBUZ_PASSWORD="your_password"
    - Settings → Indexers → Add → Qobuzarr
 
 2. **Configure Required Fields**:
+
    ```json
    {
      "name": "Qobuzarr",
@@ -89,6 +92,7 @@ export QOBUZ_PASSWORD="your_password"
    ```
 
 3. **Quality Selection**:
+
    ```json
    {
      "audioQuality": "27",  // 27=Max, 7=Hi-Res, 6=CD, 5=MP3
@@ -114,6 +118,7 @@ export QOBUZ_PASSWORD="your_password"
 ```
 
 **Field Descriptions**:
+
 - **Priority**: Lower numbers = higher priority (0-50)
 - **Enable RSS**: Not applicable for Qobuz (streaming service)
 - **Enable Automatic Search**: Allows Lidarr to search automatically
@@ -124,17 +129,18 @@ export QOBUZ_PASSWORD="your_password"
 ```json
 {
   "enableMLOptimization": true,
-  "mlOptimizationLevel": "High",
-  "enableQuerySimplification": true,
-  "enablePatternLearning": true,
-  "cacheStrategy": "Aggressive"
+  "mlOptimizationLevel": "High",<!-- TODO(docval): mlOptimizationLevel not found in code as of 2026-05-31 - use QueryOptimizationMode instead -->
+  "enableQuerySimplification": true,<!-- TODO(docval): enableQuerySimplification not found in code as of 2026-05-31 -->
+  "enablePatternLearning": true,<!-- TODO(docval): enablePatternLearning not found in code as of 2026-05-31 -->
+  "cacheStrategy": "Aggressive"<!-- TODO(docval): cacheStrategy not found in code as of 2026-05-31 -->
 }
 ```
 
 **Optimization Levels**:
+
 - **Conservative**: Basic optimization, maximum compatibility
 - **Balanced**: Good balance of performance and accuracy
-- **High**: Maximum optimization (65.8% API call reduction)
+- **High**: Maximum optimization (~49% API call reduction)
 
 ## Download Client Configuration
 
@@ -144,6 +150,7 @@ export QOBUZ_PASSWORD="your_password"
    - Settings → Download Clients → Add → Qobuzarr
 
 2. **Configure Basic Settings**:
+
    ```json
    {
      "name": "Qobuzarr Downloader",
@@ -156,13 +163,14 @@ export QOBUZ_PASSWORD="your_password"
    ```
 
 3. **Download Configuration**:
+
    ```json
    {
-     "musicDirectory": "/music",
+     "musicDirectory": "/music",<!-- TODO(docval): musicDirectory not found - use DownloadPath instead -->
      "audioQuality": "27",
-     "enableMetadataEmbedding": true,
-     "enableCoverArtDownload": true,
-     "fileNamingPattern": "{Artist} - {Album} ({Year}) [{Quality}]"
+     "enableMetadataEmbedding": true,<!-- TODO(docval): enableMetadataEmbedding not found in code as of 2026-05-31 --><!-- TODO(docval): enableMetadataEmbedding not found in code as of 2026-05-31 -->
+     "enableCoverArtDownload": true<!-- TODO(docval): enableCoverArtDownload not found in code as of 2026-05-31 -->,<!-- TODO(docval): enableCoverArtDownload not found in code as of 2026-05-31 -->
+     "fileNamingPattern": "{Artist} - {Album} ({Year}) [{Quality}]"<!-- TODO(docval): fileNamingPattern not found in code as of 2026-05-31 -->
    }
    ```
 
@@ -181,6 +189,7 @@ export QOBUZ_PASSWORD="your_password"
 ```
 
 **Performance Settings**:
+
 - **Concurrent Downloads**: Number of simultaneous downloads (1-10)
 - **Retry Attempts**: Number of retry attempts on failure
 - **Retry Delay**: Delay between retries (milliseconds)
@@ -249,15 +258,15 @@ Configure quality preferences in Lidarr:
 
 ```json
 {
-  "enableCaching": true,
-  "cacheSize": "500MB",
+  "enableCaching": true,<!-- TODO(docval): enableCaching not found in code as of 2026-05-31 - use SearchCacheDuration instead -->
+  "cacheSize": "500MB",<!-- TODO(docval): cacheSize not found in code as of 2026-05-31 -->
   "cacheTTL": {
     "searchResults": "4h",
     "albumMetadata": "24h",
     "sessionTokens": "24h",
     "mlPatterns": "7d"
   },
-  "cacheEvictionStrategy": "LRU"
+  "cacheEvictionStrategy": "LRU"<!-- TODO(docval): cacheEvictionStrategy not found in code as of 2026-05-31 -->
 }
 ```
 
@@ -315,16 +324,16 @@ export QOBUZ_PASSWORD="your_password"
 export QOBUZ_QUALITY="27"  # 5=MP3-320, 6=FLAC-CD, 7=FLAC-Hi-Res, 27=FLAC-Max
 
 # Performance
-export QOBUZ_CACHE_SIZE="500MB"
-export QOBUZ_CONCURRENT_DOWNLOADS="3"
+export QOBUZ_CACHE_SIZE="500MB"<!-- TODO(docval): QOBUZ_CACHE_SIZE not found in code as of 2026-05-31 -->
+export QOBUZ_CONCURRENT_DOWNLOADS="3"<!-- TODO(docval): QOBUZ_CONCURRENT_DOWNLOADS not found in code as of 2026-05-31 -->
 export QOBUZ_REQUEST_TIMEOUT="30000"
 
 # Security
-export QOBUZ_ENABLE_ENCRYPTION="true"
+export QOBUZ_ENABLE_ENCRYPTION="true"<!-- TODO(docval): QOBUZ_ENABLE_ENCRYPTION not found in code as of 2026-05-31 -->
 export QOBUZ_SESSION_TIMEOUT="86400"  # 24 hours in seconds
 
 # Development
-export QOBUZ_DEBUG_MODE="false"
+export QOBUZ_DEBUG_MODE="false"<!-- TODO(docval): QOBUZ_DEBUG_MODE not found in code as of 2026-05-31 -->
 export QOBUZ_LOG_LEVEL="Info"
 ```
 
@@ -377,6 +386,7 @@ curl -x proxy:port https://www.qobuz.com/api.json/0.2/album/get
 ### Quality Issues
 
 **Subscription Verification**:
+
 ```json
 {
   "error": "Quality not available",
@@ -409,10 +419,10 @@ curl -x proxy:port https://www.qobuz.com/api.json/0.2/album/get
 
 ```bash
 # Validate configuration
-dotnet run --project QobuzCLI -- validate-config
+dotnet run --project QobuzCLI -- validate-config<!-- TODO(docval): validate-config command not found in code as of 2026-05-31 -->
 
 # Test authentication
-dotnet run --project QobuzCLI -- auth test
+dotnet run --project QobuzCLI -- auth status
 
 # Test search functionality
 dotnet run --project QobuzCLI -- search "Pink Floyd Dark Side of the Moon" --limit 5
@@ -462,8 +472,8 @@ dotnet run --project QobuzCLI -- download album 123456 --dry-run
     "enableCoverArtDownload": true
   },
   "caching": {
-    "enableCaching": true,
-    "cacheSize": "500MB",
+    "enableCaching": true,<!-- TODO(docval): enableCaching not found in code as of 2026-05-31 - use SearchCacheDuration instead -->
+    "cacheSize": "500MB",<!-- TODO(docval): cacheSize not found in code as of 2026-05-31 -->
     "cacheStrategy": "Aggressive"
   }
 }

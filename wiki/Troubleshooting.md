@@ -1,3 +1,5 @@
+> **Note**: All environment variables referenced below are real (e.g. `QOBUZ_APP_ID`, `QOBUZ_APP_SECRET`, `DOTNET_*` runtime variables). All other settings are configured through the Lidarr UI. For the full settings reference, see [docs/user/TROUBLESHOOTING.md](../docs/user/TROUBLESHOOTING.md).
+
 # Troubleshooting Guide
 
 Comprehensive guide for diagnosing and resolving issues with Qobuzarr plugin installation, configuration, and operation.
@@ -7,17 +9,20 @@ Comprehensive guide for diagnosing and resolving issues with Qobuzarr plugin ins
 ### Plugin Health Check
 
 **Step 1: Verify Plugin Loading**
+
 1. Navigate to **System → Status** in Lidarr
 2. Check **Plugins** section
 3. Verify \"Qobuzarr\" appears with status \"Loaded\"
-4. Note the version number (should be v0.0.12 or later)
+4. Note the version number (should be v0.5.11 or later)
 
 **Step 2: Test Basic Connection**
+
 1. Go to **Settings → Indexers → Qobuzarr**  
 2. Click **Test** button
 3. Should display \"Test successful\" message
 
 **Step 3: Quick Log Check**
+
 ```bash
 # Linux/Docker
 tail -f /config/logs/lidarr.txt | grep -i qobuz
@@ -35,7 +40,7 @@ Get-Content \"$env:ProgramData\\Lidarr\\logs\\lidarr.txt\" -Tail 50 | Select-Str
 ```bash
 # Check .NET runtime
 dotnet --version
-# Should be 6.0 or higher
+# Should be 8.0 (plugin targets net8.0)
 
 # Check available memory
 free -h
@@ -51,6 +56,7 @@ df -h /config
 ### Invalid Credentials Error
 
 **Symptoms:**
+
 - Test connection fails with \"Invalid credentials\"
 - Search returns empty results  
 - Log entries show \"401 Unauthorized\"
@@ -58,6 +64,7 @@ df -h /config
 **Diagnosis Steps:**
 
 1. **Verify Credentials Outside Plugin**:
+
    ```bash
    # Using QobuzCLI (if available)
    cd QobuzCLI
@@ -67,6 +74,7 @@ df -h /config
    ```
 
 2. **Check Credential Format**:
+
    ```csharp
    // Ensure email is properly formatted
    Email: user@domain.com (not user@domain)
@@ -91,19 +99,19 @@ df -h /config
    - Ensure account wasn't suspended
 
 3. **Advanced Troubleshooting**:
+
+   Use Lidarr's built-in debug logging (**Settings → General → Log Level → Debug**) and check the logs:
+
    ```bash
-   # Enable debug logging
-   export QOBUZ_LOG_LEVEL=Debug
-   export QOBUZ_DEBUG_AUTH=true
-   
    # Restart Lidarr and check logs
    systemctl restart lidarr
-   tail -f /config/logs/lidarr.txt | grep -A5 -B5 \"auth\"
+   tail -f /config/logs/lidarr.txt | grep -A5 -B5 "auth"
    ```
 
 ### Session Expired Issues
 
 **Symptoms:**
+
 - Plugin works initially, fails after 24-48 hours
 - \"Session expired\" or \"Token invalid\" in logs
 - Intermittent authentication failures
@@ -111,6 +119,7 @@ df -h /config
 **Solutions:**
 
 1. **Force Session Refresh**:
+
    ```bash
    # Clear cached session data
    rm -f /config/plugins/qobuz_session.cache
@@ -118,16 +127,12 @@ df -h /config
    # In Lidarr UI: Settings → Indexers → Qobuz → Test → Save
    ```
 
-2. **Configure Auto-Refresh** (if available):
-   ```bash
-   # Environment variable for session management
-   export QOBUZ_AUTO_REFRESH_SESSION=true
-   export QOBUZ_SESSION_REFRESH_THRESHOLD=3600  # 1 hour before expiry
-   ```
+2. **Session auto-refresh** is handled automatically by the plugin. If sessions keep expiring, re-test the connection in **Settings → Indexers → Qobuzarr → Test**.
 
 ### Dynamic Authentication Issues
 
 **Symptoms:**
+
 - Dynamic credential extraction fails
 - \"Failed to extract app credentials\" errors
 - Browser automation issues
@@ -135,24 +140,21 @@ df -h /config
 **Solutions:**
 
 1. **Manual App Credentials**:
+
    ```bash
    # Set manual app credentials instead of dynamic
-   export QOBUZ_APP_ID=\"285473059\"
-   export QOBUZ_APP_SECRET=\"your_manual_secret\"
+   export QOBUZ_APP_ID="285473059"
+   export QOBUZ_APP_SECRET="your_manual_secret"
    ```
 
-2. **Browser Path Configuration**:
-   ```bash
-   # Specify browser path for dynamic extraction
-   export QOBUZ_BROWSER_PATH=\"/usr/bin/chromium-browser\"
-   export QOBUZ_BROWSER_ARGS=\"--headless --no-sandbox\"
-   ```
+2. **Browser Path Configuration**: Dynamic credential extraction is handled internally — no environment variable configuration is needed.
 
 ## 🔍 Search Issues
 
 ### No Search Results
 
 **Symptoms:**
+
 - Manual searches return empty results
 - Automatic searches find no releases
 - \"No results found\" in activity logs
@@ -160,6 +162,7 @@ df -h /config
 **Diagnosis:**
 
 1. **Check Search Parameters**:
+
    ```bash
    # Test with simple, known albums
    # Try: \"Beatles\" / \"Abbey Road\"
@@ -172,6 +175,7 @@ df -h /config
    - Verify date range isn't excluding results
 
 3. **Test Search Directly**:
+
    ```bash
    cd QobuzCLI
    dotnet run -- search \"Miles Davis Kind of Blue\" --debug
@@ -180,6 +184,7 @@ df -h /config
 **Solutions:**
 
 1. **Adjust Search Settings**:
+
    ```yaml
    Search Result Limit: 100 → 250
    Include Singles: No → Yes  
@@ -196,38 +201,23 @@ df -h /config
 ### Search Performance Issues
 
 **Symptoms:**
+
 - Searches take >30 seconds to complete
 - Frequent timeouts
 - High CPU usage during searches
 
 **Solutions:**
 
-1. **Enable ML Optimization**:
-   ```bash
-   # Ensure query intelligence is enabled
-   export QOBUZ_QUERY_INTELLIGENCE=true
-   export QOBUZ_ADAPTIVE_RATE_LIMITING=true
-   ```
+1. **Enable ML Optimization**: Ensure Query Optimization is set to "Query Intelligence" or "ML Prediction" in **Settings → Indexers → Qobuzarr**.
 
-2. **Adjust Rate Limiting**:
-   ```bash
-   # Conservative settings for stability
-   export QOBUZ_INITIAL_RATE=30
-   export QOBUZ_MAX_RATE=300
-   export QOBUZ_RATE_INCREASE_FACTOR=1.1
-   ```
+2. **Adjust Rate Limiting**: Reduce the API Rate Limit in indexer settings (**Settings → Indexers → Qobuzarr → API Rate Limit**) if experiencing throttling.
 
-3. **Cache Configuration**:
-   ```bash
-   # Increase cache sizes for better performance
-   export QOBUZ_SEARCH_CACHE_SIZE=100MB
-   export QOBUZ_ALBUM_CACHE_SIZE=200MB
-   export QOBUZ_SEARCH_CACHE_TTL=15m
-   ```
+3. **Cache Configuration**: Increase the Cache Duration in indexer settings (**Settings → Indexers → Qobuzarr → Cache Duration**) to reduce repeat API calls.
 
 ### ML Optimization Issues
 
 **Symptoms:**
+
 - \"ML prediction failed\" errors
 - Lower than expected API call reduction
 - Memory errors during optimization
@@ -235,6 +225,7 @@ df -h /config
 **Solutions:**
 
 1. **Verify ML Models**:
+
    ```bash
    # Check if ML patterns file exists
    ls -la /config/plugins/ml-baseline-patterns.json
@@ -244,25 +235,20 @@ df -h /config
    ```
 
 2. **Reset ML Performance**:
+
    ```bash
    # Clear ML statistics and restart learning
    rm -f /config/plugins/ml-performance.json
-   export QOBUZ_RESET_ML_STATS=true
    ```
 
-3. **Disable ML if Problematic**:
-   ```bash
-   # Temporary disable for troubleshooting
-   export QOBUZ_QUERY_INTELLIGENCE=false
-   
-   # Test searches without ML optimization
-   ```
+3. **Disable ML if Problematic**: Set Query Optimization to "Disabled" in **Settings → Indexers → Qobuzarr** to test searches without ML optimization.
 
 ## 📥 Download Issues
 
 ### Download Client Not Available
 
 **Symptoms:**
+
 - No \"Qobuzarr\" option in Download Clients list
 - \"Download client unavailable\" errors
 - Downloads fail immediately
@@ -270,6 +256,7 @@ df -h /config
 **Solutions:**
 
 1. **Verify Plugin Components**:
+
    ```bash
    # Check all required files are present
    ls -la /config/plugins/
@@ -286,6 +273,7 @@ df -h /config
 ### Download Failures
 
 **Symptoms:**
+
 - Downloads start but fail with errors
 - \"Stream not available\" errors
 - Incomplete downloads
@@ -293,6 +281,7 @@ df -h /config
 **Solutions:**
 
 1. **Check Quality Availability**:
+
    ```bash
    # Test quality detection
    cd QobuzCLI  
@@ -300,6 +289,7 @@ df -h /config
    ```
 
 2. **Verify Download Permissions**:
+
    ```bash
    # Check download directory permissions
    ls -la /downloads/
@@ -308,6 +298,7 @@ df -h /config
    ```
 
 3. **Network Connectivity**:
+
    ```bash
    # Test direct API access
    curl -I \"https://www.qobuz.com/api.json/0.2/track/get\"
@@ -321,6 +312,7 @@ df -h /config
 ### Plugin Not Detected
 
 **Symptoms:**
+
 - Plugin doesn't appear in System → Plugins
 - No Qobuzarr options in Indexers/Download Clients
 - \"Plugin not found\" errors
@@ -328,6 +320,7 @@ df -h /config
 **Solutions:**
 
 1. **Verify Installation Path**:
+
    ```bash
    # Check plugin location
    ls -la /config/plugins/
@@ -338,6 +331,7 @@ df -h /config
    ```
 
 2. **Check File Permissions**:
+
    ```bash
    # Ensure files are readable by Lidarr
    chmod 755 /config/plugins/
@@ -346,19 +340,21 @@ df -h /config
    ```
 
 3. **Validate Plugin Manifest**:
+
    ```bash
    # Check plugin.json is valid
    cat /config/plugins/plugin.json | jq .
    
    # Should contain proper metadata:
    # - \"name\": \"Qobuzarr\"
-   # - \"version\": \"0.0.12\"
-   # - \"minimumLidarrVersion\": \"2.13.0.0\"
+   # - \"version\": \"0.5.11\"
+   # - \"minHostVersion\": \"3.0.0.4855\"
    ```
 
 ### Assembly Loading Issues
 
 **Symptoms:**
+
 - \"Could not load assembly\" errors
 - \"Type not found\" exceptions
 - Plugin loads but features don't work
@@ -366,20 +362,23 @@ df -h /config
 **Solutions:**
 
 1. **Check .NET Compatibility**:
+
    ```bash
    # Verify .NET runtime version
    dotnet --list-runtimes
    
-   # Should include Microsoft.NETCore.App 6.0.x
+   # Should include Microsoft.NETCore.App 8.0.x
    ```
 
 2. **Validate Assembly Dependencies**:
+
    ```bash
    # Use dotnet to check assembly
-   dotnet --fx-version 6.0.0 /config/plugins/Lidarr.Plugin.Qobuzarr.dll
+   dotnet --fx-version 8.0.0 /config/plugins/Lidarr.Plugin.Qobuzarr.dll
    ```
 
 3. **Clear Assembly Cache**:
+
    ```bash
    # Stop Lidarr
    systemctl stop lidarr
@@ -396,23 +395,17 @@ df -h /config
 ### High Memory Usage
 
 **Symptoms:**
+
 - Lidarr memory usage >2GB
 - OutOfMemory exceptions
 - System slowdowns during searches
 
 **Solutions:**
 
-1. **Configure Memory Limits**:
-   ```bash
-   # Limit cache sizes
-   export QOBUZ_SEARCH_CACHE_SIZE=25MB
-   export QOBUZ_ALBUM_CACHE_SIZE=50MB
-   
-   # Reduce concurrent operations
-   export QOBUZ_MAX_CONCURRENT_SEARCHES=2
-   ```
+1. **Configure Memory Limits**: Reduce concurrency in **Settings → Indexers → Qobuzarr** (lower the Fixed Concurrency Level, or switch to Adaptive mode with a lower Maximum Concurrency).
 
 2. **Enable Garbage Collection**:
+
    ```bash
    # More aggressive GC for memory-constrained systems
    export DOTNET_gcServer=0
@@ -422,46 +415,33 @@ df -h /config
 ### High CPU Usage
 
 **Symptoms:**
+
 - CPU usage >80% during searches
 - System responsiveness issues
 - Slow search completion
 
 **Solutions:**
 
-1. **Reduce ML Processing**:
-   ```bash
-   # Disable or reduce ML optimization
-   export QOBUZ_QUERY_INTELLIGENCE=false
-   
-   # Or use simpler thresholds
-   export QOBUZ_SIMPLE_THRESHOLD=0
-   export QOBUZ_MEDIUM_THRESHOLD=2
-   ```
+1. **Reduce ML Processing**: Set Query Optimization to "Disabled" or "Query Intelligence" in **Settings → Indexers → Qobuzarr** to reduce CPU load.
 
-2. **Limit Concurrent Operations**:
-   ```bash
-   export QOBUZ_MAX_CONCURRENT_SEARCHES=1
-   export QOBUZ_MAX_CONCURRENT_DOWNLOADS=2
-   ```
+2. **Limit Concurrent Operations**: Lower the concurrency settings in **Settings → Indexers → Qobuzarr** (reduce Maximum Concurrency in Adaptive mode, or Fixed Concurrency Level).
 
 ## 🌐 Network Issues
 
 ### Connection Timeouts
 
 **Symptoms:**
+
 - \"Request timeout\" errors
 - Long delays before failures
 - Intermittent connectivity
 
 **Solutions:**
 
-1. **Adjust Timeout Settings**:
-   ```bash
-   export QOBUZ_API_TIMEOUT=60  # Increase to 60 seconds
-   export QOBUZ_HTTP_TIMEOUT=45
-   ```
+1. **Adjust Timeout Settings**: Increase the Connection Timeout in **Settings → Indexers → Qobuzarr** (e.g. from 30s to 60s).
 
 2. **Check Network Path**:
+
    ```bash
    # Test connectivity to Qobuz
    traceroute www.qobuz.com
@@ -474,6 +454,7 @@ df -h /config
 ### Proxy Configuration Issues
 
 **Symptoms:**
+
 - Works without proxy, fails with proxy
 - \"Proxy authentication required\" errors
 - DNS resolution failures
@@ -481,6 +462,7 @@ df -h /config
 **Solutions:**
 
 1. **Configure Proxy Settings**:
+
    ```bash
    export HTTP_PROXY=http://proxy.company.com:8080
    export HTTPS_PROXY=https://proxy.company.com:8443
@@ -488,6 +470,7 @@ df -h /config
    ```
 
 2. **Proxy Authentication**:
+
    ```bash
    export PROXY_USER=username
    export PROXY_PASS=password
@@ -500,24 +483,16 @@ df -h /config
 
 ### Enable Comprehensive Logging
 
-```bash
-# Set detailed logging levels
-export QOBUZ_LOG_LEVEL=Debug
+Use Lidarr's built-in log level control to increase verbosity:
 
-# Enable component-specific debugging
-export QOBUZ_DEBUG_API=true
-export QOBUZ_DEBUG_AUTH=true  
-export QOBUZ_DEBUG_SEARCH=true
-export QOBUZ_DEBUG_ML=true
-export QOBUZ_DEBUG_CACHE=true
-
-# Restart Lidarr
-systemctl restart lidarr
-```
+1. **Settings → General → Log Level → Debug** (or Trace for maximum detail)
+2. Restart Lidarr
+3. Check logs: `tail -f /config/logs/lidarr.txt`
 
 ### Key Log Patterns
 
 **Successful Operations**:
+
 ```
 [Info] QobuzarrPlugin: Plugin initialized successfully
 [Info] QobuzAuthenticationService: Successfully authenticated user
@@ -526,6 +501,7 @@ systemctl restart lidarr
 ```
 
 **Common Errors**:
+
 ```
 [Error] QobuzAuthenticationService: Authentication failed: Invalid credentials
 [Warn] QobuzApiClient: Rate limited, waiting 60 seconds
@@ -552,17 +528,10 @@ systemctl restart lidarr
 
 ### Enable Developer Tools
 
-```bash
-# Enable all debugging features
-export QOBUZ_DEVELOPER_MODE=true
-export QOBUZ_DEBUG_ALL=true
-export QOBUZ_LOG_HTTP_REQUESTS=true
-export QOBUZ_LOG_HTTP_RESPONSES=true
+For advanced debugging, use Lidarr's Trace log level and standard .NET diagnostics:
 
-# Enable performance profiling
-export QOBUZ_ENABLE_PROFILING=true
-export QOBUZ_PROFILE_OUTPUT_PATH=/tmp/qobuz-profile.json
-```
+1. Set **Settings → General → Log Level → Trace**
+2. Use .NET diagnostic tools (see Memory Debugging below)
 
 ### Memory Debugging
 
@@ -580,10 +549,6 @@ dotnet-dump analyze core_20250124_123456
 ### Performance Analysis
 
 ```bash
-# Enable detailed performance metrics
-export QOBUZ_COLLECT_METRICS=true
-export QOBUZ_METRICS_OUTPUT=/tmp/qobuz-metrics.json
-
 # Use dotnet-trace for profiling
 dotnet-trace collect --process-id $(pidof Lidarr) --format chromium
 ```
@@ -593,6 +558,7 @@ dotnet-trace collect --process-id $(pidof Lidarr) --format chromium
 ### Before Seeking Support
 
 1. **Collect Information**:
+
    ```bash
    # System information
    dotnet --info
@@ -607,6 +573,7 @@ dotnet-trace collect --process-id $(pidof Lidarr) --format chromium
    ```
 
 2. **Test with CLI**:
+
    ```bash
    # Verify basic functionality works
    cd QobuzCLI
@@ -633,12 +600,13 @@ dotnet-trace collect --process-id $(pidof Lidarr) --format chromium
 ### Creating Effective Bug Reports
 
 **Template:**
+
 ```markdown
 ## System Information
 - OS: Ubuntu 20.04 LTS
-- .NET Runtime: 6.0.15
-- Lidarr Version: 2.13.2.4686
-- Qobuzarr Version: 0.0.12
+- .NET Runtime: 8.0.x
+- Lidarr Version: 3.x.x (plugins branch)
+- Qobuzarr Version: 0.5.11
 
 ## Issue Description
 [Clear description of the problem]

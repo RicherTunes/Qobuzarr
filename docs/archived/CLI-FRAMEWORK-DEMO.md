@@ -1,3 +1,5 @@
+> ⚠️ Historical (flagged 2026-05-31): describes a past state; some details below no longer match the current code.
+
 # CLI Framework Integration Demonstration
 
 ## **Proven Success: Framework-Based Implementation Complete**

@@ -1,18 +1,20 @@
 # Plugin Development Guide
 
-Comprehensive guide for developing extensions and customizations for Qobuzarr, including ML models, security extensions, and custom integrations.
+> **⚠️ Aspirational extension points**: The interfaces and extension patterns below (e.g. `IQobuzAuthenticationProvider`, `ISecureCredentialProvider`, `IDownloadStrategy`, `IQobuzarrPlugin`, `ISecurityValidator`, `ISecurityMonitor`) are design documentation for planned extension points — they do not yet exist in the codebase. The existing `ISmartQueryStrategy` exists as a class (`SmartQueryStrategy`), not an interface. Use the current `src/` code as the ground truth for implemented APIs.
 
 ## 🚀 Getting Started
 
 ### Development Prerequisites
 
 **Required Tools:**
+
 - **.NET 8.0 SDK**: Core development framework
 - **Visual Studio Code/2022**: IDE with C# support
 - **Git**: Version control
-- **Lidarr Instance**: For testing (hotio/lidarr:pr-plugins recommended)
+- **Lidarr Instance**: For testing (`ghcr.io/hotio/lidarr:pr-plugins-3.1.2.4913` recommended)
 
 **Recommended Tools:**
+
 - **JetBrains Rider**: Advanced C# IDE
 - **Docker**: Container testing environments
 - **Postman**: API testing and validation
@@ -790,7 +792,7 @@ dotnet pack --configuration Release --output ./packages
 
 # Create deployment package
 mkdir -p deploy/MyCustomPlugin
-cp bin/Release/net6.0/*.dll deploy/MyCustomPlugin/
+cp bin/Release/net8.0/*.dll deploy/MyCustomPlugin/
 cp plugin.json deploy/MyCustomPlugin/
 tar czf MyCustomPlugin.tar.gz -C deploy MyCustomPlugin/
 ```
@@ -872,7 +874,7 @@ jobs:
     
     services:
       lidarr:
-        image: ghcr.io/hotio/lidarr:pr-plugins
+        image: ghcr.io/hotio/lidarr:pr-plugins-3.1.2.4913
         ports:
           - 8686:8686
     
@@ -957,21 +959,22 @@ public class ExamplePlugin : IQobuzarrPlugin
 ## 🔗 Resources and Support
 
 ### Documentation
+
 - **[[API Reference]]**: Complete API documentation
-- **[[Architecture Overview]]**: System design details
-- **[[Testing Guide]]**: Testing methodologies
 - **[[Security Features]]**: Security implementation details
 
 ### Community
+
 - **GitHub Repository**: [RicherTunes/qobuzarr](https://github.com/RicherTunes/qobuzarr)
 - **GitHub Discussions**: Community support and feature requests
 - **GitHub Issues**: Bug reports and feature requests
 
 ### Development Tools
+
 - **Plugin Template**: Starter template for new plugins
 - **Testing Framework**: Comprehensive testing utilities
 - **Development Environment**: Docker-based development setup
 
 ---
 
-*Ready to build your first plugin? Start with our [[Plugin Template]] or explore existing extensions in the repository.*
+*Ready to build your first plugin? Explore the extension points above and the existing code in the repository.*

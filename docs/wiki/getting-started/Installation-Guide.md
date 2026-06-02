@@ -1,8 +1,11 @@
+> ⚠️ Deprecated — this page is superseded by the canonical wiki. See [Installation Guide](../../../wiki/Installation-Guide.md) (or [docs/](../../) for deep references).
+
 # Installation Guide
 
 This guide will walk you through installing and setting up Qobuzarr for use with Lidarr.
 
 ## Table of Contents
+
 - [Prerequisites](#prerequisites)
 - [Installation Methods](#installation-methods)
 - [Plugin Installation](#plugin-installation)
@@ -13,12 +16,14 @@ This guide will walk you through installing and setting up Qobuzarr for use with
 ## Prerequisites
 
 ### System Requirements
+
 - **Lidarr**: Version 2.13.0 or higher
-- **.NET Runtime**: .NET 6.0 or higher
+- **.NET Runtime**: .NET 8.0 or higher
 - **Qobuz Account**: Active subscription (Studio Premier recommended)
 - **Storage**: At least 100MB free space for plugin and cache
 
 ### Before You Begin
+
 1. **Backup your Lidarr configuration** before installing any plugins
 2. **Stop Lidarr** during installation to prevent conflicts
 3. **Verify your Qobuz subscription** includes the quality levels you want to download
@@ -28,6 +33,7 @@ This guide will walk you through installing and setting up Qobuzarr for use with
 ### Method 1: GitHub Release (Recommended)
 
 1. **Download the Latest Release**
+
    ```bash
    # Visit GitHub releases page
    https://github.com/RicherTunes/qobuzarr/releases
@@ -36,6 +42,7 @@ This guide will walk you through installing and setting up Qobuzarr for use with
    ```
 
 2. **Extract the Plugin**
+
    ```bash
    # Extract to Lidarr plugins directory
    # Windows: %APPDATA%\Lidarr\plugins\Qobuzarr\
@@ -63,7 +70,7 @@ chmod +x setup.sh && ./setup.sh
 dotnet build --configuration Release -p:RunAnalyzersDuringBuild=false -p:EnableNETAnalyzers=false
 
 # Copy to Lidarr plugins directory
-# The build output will be in bin/Release/net6.0/
+# The build output will be in bin/Release/net8.0/
 ```
 
 ## Plugin Installation
@@ -76,6 +83,7 @@ dotnet build --configuration Release -p:RunAnalyzersDuringBuild=false -p:EnableN
    - **Docker**: Usually `/config` inside the container
 
 2. **Create the plugin directory structure**:
+
    ```
    [Lidarr Data Directory]/
    └── plugins/
@@ -108,12 +116,14 @@ docker start lidarr
 ### Verification of Installation
 
 1. **Check file permissions** (Linux/macOS):
+
    ```bash
    chmod 644 /path/to/lidarr/config/plugins/Qobuzarr/*
    chmod 755 /path/to/lidarr/config/plugins/Qobuzarr/
    ```
 
 2. **Verify plugin structure**:
+
    ```
    plugins/Qobuzarr/
    ├── Lidarr.Plugin.Qobuzarr.dll     ✓ Main plugin assembly
@@ -200,6 +210,7 @@ Configure quality settings to match your Qobuz subscription:
 ### Troubleshooting Installation Issues
 
 **Plugin Not Loading**:
+
 ```bash
 # Check Lidarr logs for errors
 tail -f /path/to/lidarr/logs/lidarr.txt
@@ -211,11 +222,13 @@ tail -f /path/to/lidarr/logs/lidarr.txt
 ```
 
 **Authentication Errors**:
+
 - Verify Qobuz credentials are correct
 - Check that your subscription includes the requested quality levels
 - Ensure API credentials are valid
 
 **Permission Errors** (Linux/macOS):
+
 ```bash
 # Fix file permissions
 sudo chown -R lidarr:lidarr /path/to/lidarr/config/plugins/
