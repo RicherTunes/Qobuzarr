@@ -6,13 +6,14 @@ using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
 using FluentAssertions;
-using Lidarr.Plugin.Qobuzarr.Download.Clients;
+using Lidarr.Plugin.Qobuzarr.Download;
 using Xunit;
 
 namespace Qobuzarr.Tests.Download.Clients
 {
     /// <summary>
-    /// QobuzDownloadClient.DownloadToFileAsync resumes an interrupted download by sending
+    /// The qobuz download paths (TrackDownloadService — the live path — and QobuzDownloadClient) resume an
+    /// interrupted download by sending
     /// <c>Range: bytes={existing}-</c> when a <c>.partial</c> file is present. If a COMPLETE <c>.partial</c>
     /// persists (the process was killed in the stream→atomic-move window), <c>existing == total</c> and the
     /// server answers <c>416 Range Not Satisfiable</c> — which <c>EnsureSuccessStatusCode()</c> turned into a
@@ -62,7 +63,7 @@ namespace Qobuzarr.Tests.Download.Clients
                 using var client = new HttpClient(handler);
 
                 var resetNotified = false;
-                var (response, existing) = await QobuzDownloadClient.SendDownloadRequestAsync(
+                var (response, existing) = await ResumeHttpDownloader.SendDownloadRequestAsync(
                     client, "https://example/track", partialPath, existing: 1024,
                     onRangeReset: _ => resetNotified = true, cancellationToken: CancellationToken.None);
 
@@ -90,7 +91,7 @@ namespace Qobuzarr.Tests.Download.Clients
                 });
             using var client = new HttpClient(handler);
 
-            var (response, existing) = await QobuzDownloadClient.SendDownloadRequestAsync(
+            var (response, existing) = await ResumeHttpDownloader.SendDownloadRequestAsync(
                 client, "https://example/track", "does-not-exist.partial", existing: 0,
                 onRangeReset: null, cancellationToken: CancellationToken.None);
 

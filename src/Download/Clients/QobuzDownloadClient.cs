@@ -768,7 +768,7 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Clients
                 try { existing = new FileInfo(partialPath).Length; } catch (IOException ex) { _logger.Debug(ex, "Could not read partial file size"); existing = 0; }
             }
 
-            var (response, effectiveExisting) = await SendDownloadRequestAsync(
+            var (response, effectiveExisting) = await Lidarr.Plugin.Qobuzarr.Download.ResumeHttpDownloader.SendDownloadRequestAsync(
                 httpClient, url, partialPath, existing,
                 p => _logger.Debug("Resume partial '{0}' was complete/stale (HTTP 416); restarting download fresh", p),
                 cancellationToken).ConfigureAwait(false);
@@ -846,44 +846,6 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Clients
                 throw new InvalidOperationException($"Downloaded file failed validation: {Path.GetFileName(filePath)}");
             }
             return totalWritten;
-        }
-
-        /// <summary>
-        /// Sends the download GET, using a resume <c>Range</c> header when <paramref name="existing"/> bytes are
-        /// already on disk. If the server answers <c>416 Range Not Satisfiable</c> (the <c>.partial</c> is already
-        /// complete or larger than the content — e.g. the process was killed in the stream→atomic-move window), the
-        /// stale partial is deleted and the GET is retried once WITHOUT the range header, so a complete <c>.partial</c>
-        /// can't poison the download forever (it would otherwise 416 on every retry). Returns the success-validated
-        /// response (caller disposes it) and the effective resume offset (0 after a 416 reset).
-        /// </summary>
-        internal static async Task<(HttpResponseMessage Response, long Existing)> SendDownloadRequestAsync(
-            System.Net.Http.HttpClient httpClient, string url, string partialPath, long existing,
-            Action<string>? onRangeReset, CancellationToken cancellationToken)
-        {
-            var request = new HttpRequestMessage(HttpMethod.Get, url);
-            if (existing > 0)
-            {
-                request.Headers.Range = new RangeHeaderValue(existing, null);
-            }
-
-            var response = await httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cancellationToken).ConfigureAwait(false);
-
-            if (existing > 0 && response.StatusCode == System.Net.HttpStatusCode.RequestedRangeNotSatisfiable)
-            {
-                // The .partial is already >= the server's content (e.g. the process was killed after the full
-                // stream but before the atomic move). Drop the stale partial and restart from scratch so the
-                // track isn't stuck 416-ing on every retry until someone deletes the .partial by hand.
-                response.Dispose();
-                try { File.Delete(partialPath); } catch { /* best-effort: a missing/locked partial is non-fatal */ }
-                onRangeReset?.Invoke(partialPath);
-                existing = 0;
-
-                var retry = new HttpRequestMessage(HttpMethod.Get, url);
-                response = await httpClient.SendAsync(retry, HttpCompletionOption.ResponseHeadersRead, cancellationToken).ConfigureAwait(false);
-            }
-
-            response.EnsureSuccessStatusCode();
-            return (response, existing);
         }
 
         private async Task ApplyMetadataTagsAsync(string filePath, QobuzTrack track, QobuzAlbum album, CancellationToken cancellationToken = default)
