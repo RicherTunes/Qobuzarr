@@ -1,6 +1,6 @@
-# Qobuzzarr Troubleshooting Guide
+# Qobuzarr Troubleshooting Guide
 
-This guide helps diagnose and resolve common issues with the Qobuzzarr plugin.
+This guide helps diagnose and resolve common issues with the Qobuzarr plugin.
 
 ## Table of Contents
 
@@ -20,7 +20,7 @@ This guide helps diagnose and resolve common issues with the Qobuzzarr plugin.
 
 1. **Verify Plugin is Loaded**
    - Navigate to **System → Plugins**
-   - Check "Qobuzzarr" appears with status "Loaded"
+   - Check "Qobuzarr" appears with status "Loaded"
    - Note the version number
 
 2. **Test Connection**
@@ -29,6 +29,7 @@ This guide helps diagnose and resolve common issues with the Qobuzzarr plugin.
    - Should show "Test successful"
 
 3. **Check Logs**
+
    ```bash
    # Linux
    tail -f /config/logs/lidarr.txt | grep -i qobuz
@@ -42,6 +43,7 @@ This guide helps diagnose and resolve common issues with the Qobuzzarr plugin.
 ### "Invalid Credentials" Error
 
 **Symptoms:**
+
 - Test connection fails with "Invalid credentials"
 - Search returns no results
 - Log shows "401 Unauthorized"
@@ -49,6 +51,7 @@ This guide helps diagnose and resolve common issues with the Qobuzzarr plugin.
 **Solutions:**
 
 1. **Verify Credentials**
+
    ```bash
    # Test with QobuzCLI
    qobuzcli auth --email your@email.com --password yourpass
@@ -67,6 +70,7 @@ This guide helps diagnose and resolve common issues with the Qobuzzarr plugin.
 ### "Session Expired" Errors
 
 **Symptoms:**
+
 - Works initially then fails after ~24 hours
 - "Session expired" in logs
 - Intermittent authentication failures
@@ -74,6 +78,7 @@ This guide helps diagnose and resolve common issues with the Qobuzzarr plugin.
 **Solutions:**
 
 1. **Force Re-authentication**
+
    ```bash
    # Clear session cache
    rm /config/qobuz_session.cache
@@ -87,12 +92,14 @@ This guide helps diagnose and resolve common issues with the Qobuzzarr plugin.
 ### Token Authentication Issues
 
 **Symptoms:**
+
 - Token auth fails but email/password works
 - "Invalid user ID or token" errors
 
 **Solutions:**
 
 1. **Get Fresh Tokens**
+
    ```javascript
    // In browser console on play.qobuz.com
    localStorage.getItem('user.id')
@@ -109,6 +116,7 @@ This guide helps diagnose and resolve common issues with the Qobuzzarr plugin.
 ### No Search Results
 
 **Symptoms:**
+
 - Searches return empty
 - "No results found" for known albums
 - Works on qobuz.com but not in Lidarr
@@ -116,6 +124,7 @@ This guide helps diagnose and resolve common issues with the Qobuzzarr plugin.
 **Solutions:**
 
 1. **Simplify Search Terms**
+
    ```
    Bad:  "Pink Floyd - The Dark Side of the Moon (1973)"
    Good: "Pink Floyd Dark Side Moon"
@@ -127,6 +136,7 @@ This guide helps diagnose and resolve common issues with the Qobuzzarr plugin.
    - Remove year restrictions
 
 3. **Test Search Strategies**
+
    ```bash
    # Test different search approaches
    qobuzcli search "artist:Pink Floyd"
@@ -137,6 +147,7 @@ This guide helps diagnose and resolve common issues with the Qobuzzarr plugin.
 ### Incomplete Results
 
 **Symptoms:**
+
 - Missing known albums
 - Only showing some formats
 - Regional content missing
@@ -156,6 +167,7 @@ This guide helps diagnose and resolve common issues with the Qobuzzarr plugin.
 ### Search Timeout
 
 **Symptoms:**
+
 - "Request timeout" errors
 - Searches take >30 seconds
 - Intermittent failures
@@ -163,6 +175,7 @@ This guide helps diagnose and resolve common issues with the Qobuzzarr plugin.
 **Solutions:**
 
 1. **Reduce Search Load**
+
    ```yaml
    Search Result Limit: 50  # Reduce from 100
    Include Singles: No
@@ -170,6 +183,7 @@ This guide helps diagnose and resolve common issues with the Qobuzzarr plugin.
    ```
 
 2. **Check Network**
+
    ```bash
    # Test API connectivity
    curl -I https://www.qobuz.com/api.json/0.2/album/search
@@ -177,7 +191,7 @@ This guide helps diagnose and resolve common issues with the Qobuzzarr plugin.
 
 ## Download Issues
 
-*Note: Download client is still in development*
+*Note: The download client is fully implemented. Ensure it is configured under Settings → Download Clients.*
 
 ### Common Download Problems
 
@@ -201,6 +215,7 @@ This guide helps diagnose and resolve common issues with the Qobuzzarr plugin.
 ### "Could not load plugin" Error
 
 **Symptoms:**
+
 - Plugin doesn't appear in list
 - Error in logs about loading assembly
 - "Missing dependency" errors
@@ -208,14 +223,16 @@ This guide helps diagnose and resolve common issues with the Qobuzzarr plugin.
 **Solutions:**
 
 1. **Verify Installation**
+
    ```bash
    # Check plugin file exists
    ls -la /config/plugins/Lidarr.Plugin.Qobuz.dll
    ```
 
 2. **Check .NET Version**
+
    ```bash
-   dotnet --version  # Should be 6.0 or higher
+   dotnet --version  # Should be 8.0 or higher
    ```
 
 3. **Dependency Issues**
@@ -226,12 +243,14 @@ This guide helps diagnose and resolve common issues with the Qobuzzarr plugin.
 ### "Plugin version incompatible"
 
 **Symptoms:**
+
 - Plugin loads but features missing
 - "Minimum version not met" warning
 
 **Solutions:**
 
 1. **Update Lidarr**
+
    ```bash
    # Pull latest plugins branch
    docker pull ghcr.io/hotio/lidarr:pr-plugins
@@ -246,24 +265,28 @@ This guide helps diagnose and resolve common issues with the Qobuzzarr plugin.
 ### Query Intelligence Not Working
 
 **Symptoms:**
+
 - API calls not reduced (should see ~50% reduction)
 - Searches still making 3 API calls per album
 - No performance improvement after v0.0.3
 
 **Diagnosis:**
-```bash
-# Check if Query Intelligence is enabled
-echo $QOBUZ_QUERY_INTELLIGENCE  # Should return "true"
 
-# Enable debug logging to see classifications
-export QOBUZ_DEBUG_QUERIES="true"
+Query Intelligence is controlled by the **Query Optimization** dropdown in indexer settings, not environment variables.
 
-# Test with CLI
-cd QobuzCLI
-dotnet run -- search "Pink Floyd The Wall" --debug
-```
+1. Check indexer settings: **Settings → Indexers → Qobuzarr → Query Optimization** should be set to "Query Intelligence" or "ML Prediction".
+
+2. Increase Lidarr's log level to **Debug** (**Settings → General → Log Level**) to see classification decisions.
+
+3. Test with the CLI:
+
+   ```bash
+   cd QobuzCLI
+   dotnet run -- search "Pink Floyd The Wall" --debug
+   ```
 
 **Expected Debug Output:**
+
 ```
 Query complexity for 'Pink Floyd - The Wall': Simple
 Optimized queries: 1 (reduced from 3, 66.7% reduction)
@@ -272,75 +295,53 @@ API calls saved: 2
 
 **Solutions:**
 
-1. **Verify Query Intelligence is Enabled**
-   ```bash
-   # Enable Query Intelligence
-   export QOBUZ_QUERY_INTELLIGENCE="true"
-   
-   # Restart Lidarr after environment change
-   sudo systemctl restart lidarr
-   ```
+1. **Verify Query Optimization Mode**
 
-2. **Check Classification Logic**
-   ```bash
-   # Test various complexity scenarios
-   dotnet run -- analyze-complexity --artist "Pink Floyd" --album "The Wall"        # Should be Simple
-   dotnet run -- analyze-complexity --artist "AC/DC" --album "Back in Black"       # Should be Complex
-   dotnet run -- analyze-complexity --artist "Various Artists" --album "Hits 2024" # Should be Complex
-   ```
+   Go to **Settings → Indexers → Qobuzarr** and confirm the "Query Optimization" dropdown is set to "Query Intelligence" (default) or "ML Prediction", not "Disabled".
 
-3. **Validate Performance Metrics**
-   ```bash
-   # Measure actual API call reduction
-   dotnet run -- test-performance --albums 20 --measure-reduction
-   
-   # Compare with/without optimization
-   export QOBUZ_QUERY_INTELLIGENCE="false"
-   dotnet run -- test-performance --albums 20 --baseline
-   ```
+2. **Check Concurrency Settings**
+
+   If adaptive concurrency is misconfigured, searches may stall. Verify the indexer's **Concurrency Mode** is set to "Adaptive" (recommended).
+
+3. **Report Edge Cases**
+
+   If specific queries are classified incorrectly, report them with the debug output.
 
 ### Slow Searches Despite Query Intelligence
 
 **Symptoms:**
+
 - Query Intelligence enabled but searches still slow
 - No significant performance improvement
 - API calls reduced but response time unchanged
 
 **Solutions:**
 
-1. **Check Adaptive Rate Limiting**
-   ```bash
-   # Ensure adaptive rate limiting is enabled
-   export QOBUZ_ADAPTIVE_RATE_LIMITING="true"
-   
-   # Allow higher maximum rate
-   export QOBUZ_MAX_RATE="500"
-   ```
+1. **Check Concurrency Settings**
 
-2. **Monitor Rate Limiting Effectiveness**
-   ```bash
-   # Enable rate limiting debug logging
-   export QOBUZ_DEBUG_RATE_LIMITING="true"
-   
-   # Test performance scaling
-   dotnet run -- test-performance --albums 50 --show-rate-scaling
-   ```
+   The adaptive concurrency system is configured through the indexer UI (Concurrency Mode, Min/Max Concurrency, Target/Max Response Time). Ensure Concurrency Mode is "Adaptive" and the limits are reasonable.
 
-3. **Optimize Combined Systems**
+2. **Reduce Search Result Limit**
+
+   Lowering "Maximum Search Results" (in indexer settings) from 100 to 50 reduces per-search workload.
+
+3. **Check Network**
+
    ```bash
-   # Both optimizations enabled (recommended)
-   export QOBUZ_QUERY_INTELLIGENCE="true"      # 49.83% API reduction
-   export QOBUZ_ADAPTIVE_RATE_LIMITING="true"  # 93x performance improvement
+   # Test API connectivity
+   curl -I https://www.qobuz.com/api.json/0.2/album/search
    ```
 
 ### Unexpected Query Classifications
 
 **Symptoms:**
+
 - Simple albums classified as Complex
 - Unicode artists not handled correctly
 - Various Artists not optimized as expected
 
 **Diagnosis:**
+
 ```bash
 # Enable debug logging
 export QOBUZ_DEBUG_QUERIES="true"
@@ -353,13 +354,16 @@ dotnet run -- analyze-complexity --artist "Sigur Rós" --album "Ágætis byrjun"
 **Understanding Classifications:**
 
 **Simple Cases (1 query):**
+
 - "Pink Floyd" + "The Wall" → Score: 0 (no complexity factors)
 - "Elton John" + "Goodbye Yellow Brick Road" → Score: 1 (long string)
 
 **Medium Cases (2 queries):**
+
 - "The Beatles" + "Abbey Road" → Score: 2 ("The" prefix + moderate complexity)
 
 **Complex Cases (3 queries):**
+
 - "AC/DC" + "Back in Black" → Score: 5+ (special characters)
 - "Various Artists" + "Top Hits" → Score: 6+ (compilation indicator)
 - "Björk" + "Homogenic" → Score: 4+ (Unicode characters)
@@ -371,16 +375,9 @@ dotnet run -- analyze-complexity --artist "Sigur Rós" --album "Ágætis byrjun"
    - Conservative behavior prioritizes quality over aggressive optimization
    - Complex cases maintain current search quality
 
-2. **Custom Thresholds (Advanced)**
-   ```bash
-   # More aggressive optimization (may impact quality)
-   export QOBUZ_SIMPLE_THRESHOLD="2"    # More albums classified as simple
-   export QOBUZ_MEDIUM_THRESHOLD="5"    # Fewer albums classified as complex
-   
-   # More conservative optimization (less API reduction but higher quality)
-   export QOBUZ_SIMPLE_THRESHOLD="0"    # Fewer albums classified as simple
-   export QOBUZ_MEDIUM_THRESHOLD="3"    # More albums classified as complex
-   ```
+2. **Adjust Optimization Mode**
+
+   Classification thresholds are not user-configurable. If results are too aggressive, switch from "ML Prediction" to "Query Intelligence" in the indexer's Query Optimization dropdown.
 
 3. **Report Edge Cases**
    - If you find consistently incorrect classifications, report them
@@ -390,6 +387,7 @@ dotnet run -- analyze-complexity --artist "Sigur Rós" --album "Ágætis byrjun"
 ### Legacy Performance Issues
 
 **Symptoms:**
+
 - Searches take >10 seconds
 - UI becomes unresponsive
 - High CPU usage
@@ -397,17 +395,12 @@ dotnet run -- analyze-complexity --artist "Sigur Rós" --album "Ágætis byrjun"
 **Solutions:**
 
 1. **Enable All Performance Optimizations**
-   ```bash
-   # Enable both major optimizations
-   export QOBUZ_QUERY_INTELLIGENCE="true"      # 49.83% API reduction
-   export QOBUZ_ADAPTIVE_RATE_LIMITING="true"  # 93x performance improvement
-   ```
 
-2. **Enable Caching**
-   ```yaml
-   Enable Response Cache: Yes
-   Search Cache Duration: 10 minutes
-   ```
+   Ensure the indexer's **Query Optimization** is set to "Query Intelligence" or "ML Prediction" and **Concurrency Mode** is "Adaptive".
+
+2. **Increase Cache Duration**
+
+   In the indexer's advanced API settings, raise **Cache Duration** from 5 to 10 minutes.
 
 3. **Optimize Queries** (largely automated by Query Intelligence)
    - Query Intelligence handles optimization automatically
@@ -417,6 +410,7 @@ dotnet run -- analyze-complexity --artist "Sigur Rós" --album "Ágætis byrjun"
 ### Memory Usage
 
 **Symptoms:**
+
 - Lidarr memory usage increases
 - Out of memory errors
 - Cache growth unbounded
@@ -424,6 +418,7 @@ dotnet run -- analyze-complexity --artist "Sigur Rós" --album "Ágætis byrjun"
 **Solutions:**
 
 1. **Clear Cache**
+
    ```bash
    # Restart Lidarr to clear memory cache
    docker restart lidarr
@@ -439,6 +434,7 @@ dotnet run -- analyze-complexity --artist "Sigur Rós" --album "Ágætis byrjun"
 ### Rate Limiting (429)
 
 **Symptoms:**
+
 - "Too many requests" errors
 - Searches failing after multiple attempts
 - "Rate limit exceeded" in logs
@@ -446,6 +442,7 @@ dotnet run -- analyze-complexity --artist "Sigur Rós" --album "Ágætis byrjun"
 **Solutions:**
 
 1. **Reduce Request Rate**
+
    ```yaml
    API Rate Limit: 30  # Reduce from 60
    ```
@@ -458,6 +455,7 @@ dotnet run -- analyze-complexity --artist "Sigur Rós" --album "Ágætis byrjun"
 ### Server Errors (500)
 
 **Symptoms:**
+
 - "Internal server error" responses
 - Intermittent failures
 - Works sometimes but not others
@@ -466,7 +464,7 @@ dotnet run -- analyze-complexity --artist "Sigur Rós" --album "Ágætis byrjun"
 
 1. **Wait and Retry**
    - Qobuz may have temporary issues
-   - Check https://status.qobuz.com
+   - Check <https://status.qobuz.com>
    - Try again in 5-10 minutes
 
 2. **Report Persistent Issues**
@@ -479,6 +477,7 @@ dotnet run -- analyze-complexity --artist "Sigur Rós" --album "Ágætis byrjun"
 ### Enable Debug Logging
 
 1. **Indexer Specific**
+
    ```yaml
    Log Level: Debug
    Log API Requests: Yes
@@ -486,6 +485,7 @@ dotnet run -- analyze-complexity --artist "Sigur Rós" --album "Ágætis byrjun"
    ```
 
 2. **Global Lidarr**
+
    ```bash
    # Edit config.xml
    <LogLevel>Debug</LogLevel>
@@ -541,7 +541,7 @@ qobuzcli search "Pink Floyd" --output json > results.json
 
 ```bash
 # Test API endpoint directly
-curl -v "https://www.qobuz.com/api.json/0.2/album/search?query=test&app_id=285473059"
+curl -v "https://www.qobuz.com/api.json/0.2/album/search?query=test&app_id=798273057"
 
 # Check DNS resolution
 nslookup www.qobuz.com
@@ -611,7 +611,9 @@ No results returned, error in logs
 
 **Logs:**
 ```
+
 [Relevant log entries]
+
 ```
 
 **Additional Context:**

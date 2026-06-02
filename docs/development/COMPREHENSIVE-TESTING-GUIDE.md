@@ -41,15 +41,17 @@ tests/
 ### **Basic Test Execution**
 
 **All Tests (Compilation Verified)**:
+
 ```bash
 # Build all test projects (validates architecture)
 dotnet build tests/Qobuzarr.Tests/Qobuzarr.Tests.csproj
 dotnet build tests/QobuzCLI.Tests/QobuzCLI.Tests.csproj
 
-# Note: Execution requires .NET 6.0 ASP.NET Core runtime (see Environment Setup)
+# Note: Execution requires .NET 8.0 ASP.NET Core runtime (see Environment Setup)
 ```
 
 **Specific Test Categories**:
+
 ```bash
 # Service consolidation tests
 dotnet test --filter "QobuzQualityManagerTests"
@@ -67,11 +69,13 @@ dotnet test --filter "PerformanceBenchmarkTests"
 ### **Coverage Reporting**
 
 **Generate Coverage Report**:
+
 ```bash
 dotnet test --collect:"XPlat Code Coverage" --settings coverlet.runsettings
 ```
 
 **Coverage Targets**:
+
 - **Overall Project**: 80%+ line coverage
 - **Critical Components**: 85%+ line coverage (QobuzDownloadClient, QobuzIndexer)
 - **Consolidated Services**: 90%+ line coverage (IQobuzQualityManager)
@@ -80,29 +84,32 @@ dotnet test --collect:"XPlat Code Coverage" --settings coverlet.runsettings
 
 ### **Current Environment Issue**
 
-**Root Cause**: Tests require `.NET 6.0 ASP.NET Core` runtime  
-**Available**: `.NET Core 6.0.36`, `ASP.NET Core 9.0.8`  
-**Missing**: `ASP.NET Core 6.0.x`  
+**Root Cause**: Tests require `.NET 8.0` runtime  
+**Available**: `.NET 8.0.x`  
+**Missing**: `ASP.NET Core 8.0.x` (part of .NET 8.0 hosting bundle)  
 
 **Why Required**: Lidarr components (`Lidarr.Core`, `Lidarr.SignalR`) include web functionality
 
 ### **Environment Solutions**
 
-**Option A: Install .NET 6.0 ASP.NET Core (Recommended)**
+**Option A: Install .NET 8.0 SDK or Runtime (Recommended)**
+
 ```bash
 # Windows
 winget install Microsoft.AspNetCore.6.0
 
 # Linux/macOS  
-curl -sSL https://dot.net/v1/dotnet-install.sh | bash /dev/stdin --runtime aspnetcore --version 6.0.36
+curl -sSL https://dot.net/v1/dotnet-install.sh | bash /dev/stdin --version 8.0.x
 ```
 
 **Option B: GitHub Actions Validation (Current)**
+
 - ✅ All tests compile in CI environment
-- ✅ CI has proper .NET 6.0 runtime  
+- ✅ CI has proper .NET 8.0 runtime  
 - ✅ Architecture validated through compilation success
 
 **Option C: Development Container**
+
 ```yaml
 # .devcontainer/devcontainer.json
 {
@@ -116,6 +123,7 @@ curl -sSL https://dot.net/v1/dotnet-install.sh | bash /dev/stdin --runtime aspne
 ### **✅ Unit Tests (100% Compile)**
 
 **Authentication Tests** (19 tests):
+
 - Email/password authentication flow
 - Token-based authentication
 - Session management and caching
@@ -123,6 +131,7 @@ curl -sSL https://dot.net/v1/dotnet-install.sh | bash /dev/stdin --runtime aspne
 - MD5 password hashing
 
 **API Client Tests** (15+ tests):
+
 - HTTP request/response handling
 - Rate limiting and backoff
 - Authentication integration  
@@ -130,12 +139,14 @@ curl -sSL https://dot.net/v1/dotnet-install.sh | bash /dev/stdin --runtime aspne
 - Error handling and retries
 
 **Service Consolidation Tests** (New - Sprint 2):
+
 - `QobuzQualityManagerTests`: Comprehensive consolidated service validation
 - Quality mapping and fallback testing
 - Batch operation validation
 - Performance optimization verification
 
 **Download Client Tests** (20+ tests):
+
 - Download initiation and tracking
 - Progress reporting
 - File management
@@ -143,6 +154,7 @@ curl -sSL https://dot.net/v1/dotnet-install.sh | bash /dev/stdin --runtime aspne
 - Cleanup operations
 
 **Security Tests** (25+ tests):
+
 - Input sanitization validation
 - Credential security testing
 - Memory security verification
@@ -151,16 +163,19 @@ curl -sSL https://dot.net/v1/dotnet-install.sh | bash /dev/stdin --runtime aspne
 ### **✅ Integration Tests (100% Compile)**
 
 **Service Integration Tests**:
+
 - Cross-service functionality validation
 - Dependency injection verification
 - Error propagation testing
 
 **Security Integration Tests**:
+
 - End-to-end security validation
 - Authentication flow integration
 - Secure data handling verification
 
 **Lidarr Integration Tests**:
+
 - Plugin discovery validation
 - Lidarr API compatibility testing
 - Album/track processing integration
@@ -168,12 +183,14 @@ curl -sSL https://dot.net/v1/dotnet-install.sh | bash /dev/stdin --runtime aspne
 ### **✅ Performance Tests (100% Compile)**
 
 **ML Optimization Tests**:
+
 - Query complexity classification accuracy
 - API call reduction measurement
 - Cache hit rate validation
 - Real-data simulation testing
 
 **Benchmark Tests**:
+
 - Algorithm performance validation
 - Memory usage testing
 - Concurrency testing
@@ -218,6 +235,7 @@ public class ServiceTests : TestFixtureBase
 ### **Integration Test Patterns**
 
 **Service Integration**:
+
 ```csharp
 [Test]
 public async Task ServiceChain_WithRealDependencies_WorksCorrectly()
@@ -239,6 +257,7 @@ public async Task ServiceChain_WithRealDependencies_WorksCorrectly()
 ### **Performance Test Patterns**
 
 **Benchmark Testing**:
+
 ```csharp
 [Test]
 public void Algorithm_WithLargeDataset_PerformsWithinLimits()
@@ -261,11 +280,13 @@ public void Algorithm_WithLargeDataset_PerformsWithinLimits()
 ### **Test Fixtures & Builders**
 
 **TestFixtureBase**: Common setup for all tests
+
 - Mock dependencies (HTTP client, cache, logger)
 - Common test data setup
 - Cleanup and disposal patterns
 
 **Builders**: Fluent test data creation
+
 - `QobuzAlbumBuilder`: Creates test albums with various configurations
 - `QobuzTrackBuilder`: Creates test tracks with metadata
 - Real response data from `SampleQobuzResponses`
@@ -273,11 +294,13 @@ public void Algorithm_WithLargeDataset_PerformsWithinLimits()
 ### **Mocking Strategy**
 
 **Framework Usage**:
+
 - **Moq**: Primary mocking framework for main plugin tests
 - **NSubstitute**: Used for CLI tests and some integration scenarios
 - **Consistent Pattern**: Each test fixture uses one framework consistently
 
 **Mock Guidelines**:
+
 - Mock external dependencies (HTTP, file system, Lidarr APIs)
 - Use real objects for business logic validation
 - Verify interactions for behavior testing
@@ -290,6 +313,7 @@ public void Algorithm_WithLargeDataset_PerformsWithinLimits()
 **After Sprint 2**: ✅ **0 compilation errors** - All test projects build successfully
 
 **Fixed Issues**:
+
 - ✅ Lidarr API compatibility (IndexerFlags, ParsedAlbumInfo, etc.)
 - ✅ Service migration integration (QobuzQualityManagerTests)
 - ✅ Extension method availability (IsNotNullOrWhiteSpace)
@@ -298,7 +322,7 @@ public void Algorithm_WithLargeDataset_PerformsWithinLimits()
 ### **🔧 Environment Setup Required**
 
 **Execution Status**: Tests compile but need runtime environment setup  
-**Solution**: Install .NET 6.0 ASP.NET Core runtime OR use CI validation  
+**Solution**: Install .NET 8.0 SDK/runtime OR use CI validation  
 **Impact**: Architecture validated through compilation success  
 
 ## Performance Testing Integration
@@ -306,11 +330,13 @@ public void Algorithm_WithLargeDataset_PerformsWithinLimits()
 ### **Sprint 3 Additions**
 
 **Performance Monitoring Tests**:
+
 - Test performance monitoring service functionality
 - Validate telemetry data collection
 - Test automatic performance target validation
 
 **A/B Testing Validation**:
+
 - Test MLABTestingFramework statistical analysis
 - Validate confidence scoring
 - Test significance determination
@@ -324,6 +350,7 @@ public void Algorithm_WithLargeDataset_PerformsWithinLimits()
 **Coverage**: Main plugin, CLI, and all test projects  
 
 **Pipeline Configuration**:
+
 ```yaml
 # Tests included in CI/CD pipeline
 - name: Build Tests
@@ -345,6 +372,7 @@ public void Algorithm_WithLargeDataset_PerformsWithinLimits()
 ### **Quality Guidelines**
 
 **Test Quality Targets**:
+
 - **Pass Rate**: 100% (compilation achieved, execution environment dependent)
 - **Coverage**: 85%+ for critical components
 - **Execution Time**: <2 minutes for full suite
@@ -354,12 +382,14 @@ public void Algorithm_WithLargeDataset_PerformsWithinLimits()
 ### **Maintenance**
 
 **Regular Tasks**:
+
 - Update tests when APIs change
 - Maintain mock data currency
 - Review test performance and coverage
 - Update test documentation
 
 **Quality Gates**:
+
 - All new code must have accompanying tests
 - Test compilation must pass in CI/CD
 - Performance tests must validate optimization claims

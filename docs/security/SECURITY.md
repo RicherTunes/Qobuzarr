@@ -19,9 +19,10 @@ Security vulnerabilities should **never** be reported via public GitHub issues.
 
 ### 2. Report Privately
 
-Send details to: security@qobuzzarr.dev (or create a GitHub Security Advisory)
+Send details to: [GitHub Security Advisory](https://github.com/RicherTunes/qobuzarr/security/advisories) <!-- TODO(docval): security@qobuzzarr.dev email appears fictional; use GitHub Security Advisories instead as of 2026-05-31 -->
 
 Include:
+
 - Description of the vulnerability
 - Steps to reproduce
 - Potential impact
@@ -55,6 +56,7 @@ Include:
 ### For Developers
 
 1. **Code Security**
+
    ```csharp
    // NEVER log sensitive data
    _logger.Debug("Authenticating user: {0}", email); // OK
@@ -99,13 +101,14 @@ Include:
    - Passwords still transmitted over HTTPS
 
 2. **Session Storage**
-   - Sessions stored in memory cache
-   - Cleared on application restart
-   - No persistent storage of tokens
+   - Sessions stored in persistent encrypted storage (DPAPI on Windows, Keychain on macOS, Secret Service on Linux) <!-- TODO(docval): doc claimed in-memory storage; actual implementation uses FileTokenStore with encryption as of 2026-05-31 -->
+   - Survives application restarts
+   - Cross-platform secure token storage via Lidarr.Plugin.Common
 
 ## Security Checklist
 
 ### Before Release
+
 - [ ] No hardcoded credentials
 - [ ] No sensitive data in logs
 - [ ] All user input validated
@@ -113,6 +116,7 @@ Include:
 - [ ] Security scan performed
 
 ### Regular Maintenance
+
 - [ ] Monitor security advisories
 - [ ] Update dependencies monthly
 - [ ] Review authentication logs
@@ -128,13 +132,14 @@ After a security issue is resolved:
 
 ## Contact
 
-- Security Email: security@qobuzzarr.dev
+- Security Email: [GitHub Security Advisory](https://github.com/RicherTunes/qobuzarr/security/advisories) <!-- TODO(docval): security@qobuzzarr.dev appears fictional as of 2026-05-31 -->
 - PGP Key: [Available on request]
 - GitHub Security Advisories: [Enable notifications]
 
 ## Acknowledgments
 
 We appreciate responsible disclosure and may acknowledge security researchers who:
+
 - Follow this policy
 - Provide detailed reports
 - Allow time for fixes

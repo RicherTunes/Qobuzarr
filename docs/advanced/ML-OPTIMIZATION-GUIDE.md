@@ -1,9 +1,12 @@
+> ⚠️ Reference Design (flagged 2026-05-31): This is an aspirational ML system design document. The code examples (class names, interfaces, methods) below are reference implementations that do not match the actual codebase. See src/Indexers/ for the current implementation.
+
 # ML Optimization Guide
 
 **Version:** 0.0.12+  
 **Last Updated:** August 2024
 
 ## Table of Contents
+
 - [Overview](#overview)
 - [ML Query Optimization](#ml-query-optimization)
 - [Pattern Learning Engine](#pattern-learning-engine)
@@ -18,6 +21,7 @@
 Qobuzarr's ML optimization system provides intelligent query processing that reduces API calls by up to 49% while maintaining search accuracy. The system learns from user patterns, adapts to changing behaviors, and optimizes performance in real-time.
 
 ### Key Benefits
+
 - **49% API call reduction** through intelligent query classification
 - **Sub-100ms response times** for cached patterns
 - **Self-improving accuracy** via continuous learning
@@ -25,6 +29,7 @@ Qobuzarr's ML optimization system provides intelligent query processing that red
 - **Memory-efficient processing** with <50MB overhead
 
 ### Architecture Components
+
 ```
 ┌─────────────────┐    ┌──────────────────┐    ┌─────────────────┐
 │   Query Input   │───▶│  ML Classifier   │───▶│  Optimization   │
@@ -43,6 +48,7 @@ Qobuzarr's ML optimization system provides intelligent query processing that red
 ### Core ML Features
 
 #### 1. Query Classification
+
 The ML system classifies queries into optimization categories:
 
 ```csharp
@@ -76,6 +82,7 @@ switch (optimization.Type)
 ```
 
 #### 2. Confidence Scoring
+
 ML predictions include confidence scores to ensure accuracy:
 
 ```csharp
@@ -100,6 +107,7 @@ private static readonly Dictionary<QueryOptimizationType, double> MinConfidenceT
 ```
 
 #### 3. Feature Engineering
+
 The ML system extracts features from search queries:
 
 ```csharp
@@ -159,6 +167,7 @@ public class QueryFeatureExtractor : IQueryFeatureExtractor
 ## Pattern Learning Engine
 
 ### IPatternLearningEngine Interface
+
 ```csharp
 public interface IPatternLearningEngine
 {
@@ -172,6 +181,7 @@ public interface IPatternLearningEngine
 ```
 
 ### Pattern Storage and Retrieval
+
 ```csharp
 public class QueryPattern
 {
@@ -250,6 +260,7 @@ public class PatternLearningEngine : IPatternLearningEngine
 ## Performance Metrics
 
 ### Real-time Performance Monitoring
+
 ```csharp
 public class MLOptimizationMetrics
 {
@@ -309,6 +320,7 @@ public class MLMetricsCollector : IMLMetricsCollector
 ## Model Training
 
 ### Automated Model Training Pipeline
+
 ```csharp
 public class MLModelTrainingService : IMLModelTrainingService
 {
@@ -357,6 +369,7 @@ public class MLModelTrainingService : IMLModelTrainingService
 ```
 
 ### Model Evaluation and A/B Testing
+
 ```csharp
 public class ModelEvaluationService : IModelEvaluationService
 {
@@ -429,6 +442,7 @@ public class ModelEvaluationService : IModelEvaluationService
 ## Real-time Adaptation
 
 ### Dynamic Model Updates
+
 ```csharp
 public class RealTimeMLAdapter : IMLAdapter
 {
@@ -509,6 +523,7 @@ public class RealTimeMLAdapter : IMLAdapter
 ## Monitoring and Analytics
 
 ### ML Performance Dashboard
+
 ```csharp
 public class MLPerformanceDashboard : IMLPerformanceDashboard
 {
@@ -600,6 +615,7 @@ public class MLPerformanceDashboard : IMLPerformanceDashboard
 ```
 
 ### Advanced Analytics
+
 ```csharp
 public class MLAnalyticsEngine : IMLAnalyticsEngine
 {
@@ -665,11 +681,14 @@ public class MLAnalyticsEngine : IMLAnalyticsEngine
 ### Common Issues and Solutions
 
 #### 1. Low API Call Reduction
+
 **Symptoms:**
+
 - API call reduction below 30%
 - High number of queries falling back to standard search
 
 **Diagnosis:**
+
 ```csharp
 public class MLTroubleshooter : IMLTroubleshooter
 {
@@ -713,17 +732,21 @@ public class MLTroubleshooter : IMLTroubleshooter
 ```
 
 **Solutions:**
+
 1. **Increase Training Data:** Collect more diverse query examples
 2. **Lower Confidence Thresholds:** Reduce minimum confidence for pattern matching
 3. **Pattern Cleanup:** Remove underperforming patterns
 4. **Model Retraining:** Update ML models with recent data
 
 #### 2. High False Positive Rate
+
 **Symptoms:**
+
 - Incorrect query optimizations
 - Poor search results from optimized queries
 
 **Solutions:**
+
 ```csharp
 // Implement stricter validation
 public class StrictMLValidator : IMLValidator
@@ -759,11 +782,14 @@ public class StrictMLValidator : IMLValidator
 ```
 
 #### 3. Memory Usage Issues
+
 **Symptoms:**
+
 - High memory consumption (>100MB)
 - OutOfMemoryExceptions
 
 **Solutions:**
+
 ```csharp
 public class MemoryOptimizedMLService : IMLService
 {
@@ -801,6 +827,7 @@ public class MemoryOptimizedMLService : IMLService
 ```
 
 ### Debug Configuration
+
 ```json
 {
   "ML": {

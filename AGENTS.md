@@ -28,7 +28,7 @@ dotnet test --filter "Category!=Integration&Category!=Performance"
 
 ```
 src/
-├── API/              # Qobuz API client (598-line God class - needs refactoring)
+├── API/              # Qobuz API client (~836 lines, refactored with delegating components)
 ├── Authentication/   # Dynamic auth extraction from web player
 ├── Download/         # Download orchestration
 ├── Indexers/         # Search with ML optimization
@@ -40,17 +40,21 @@ src/
 ## Critical Architecture Issues
 
 ### 1. QobuzApiClient God Class
+
 **Location**: `src/API/QobuzApiClient.cs` (598 LOC)
 **Problem**: HTTP + auth + caching + rate limiting all in one class
 **Agent**: `@qobuzarr-architecture`
 
 ### 2. Manual DI in Download Client
+
 **Location**: `src/Download/Clients/QobuzDownloadClient.cs:571`
-**Problem**: `CreateTrackDownloaderFactory()` manually instantiates dependencies
+**Status**: Verified - no manual `CreateTrackDownloaderFactory()` method found at this line; download client uses proper DI injection
 
 ### 3. Disabled Tests
-**CRITICAL**: 3 major test files disabled:
-- `QobuzDownloadClientTests.cs` (416 lines)
+
+**NOTE**: The following test files exist and are active (not disabled):
+
+- `QobuzDownloadClientTests.cs` (~416 lines)
 - `QobuzAlbumTests.cs`
 - `QobuzTrackTests.cs`
 **Agent**: `@qobuzarr-testing`
@@ -58,6 +62,7 @@ src/
 ## ML Query Optimization
 
 The indexer uses ML-powered query optimization:
+
 - **49.83% API call reduction**
 - **94.7% cache hit rate**
 - Pre-trained decision tree with 100K+ training examples
@@ -68,6 +73,7 @@ The indexer uses ML-powered query optimization:
 ## Authentication System
 
 Dynamic credential extraction from Qobuz web player:
+
 - Parses obfuscated JavaScript bundle
 - Extracts app secrets via regex
 - Multi-fallback authentication strategies
@@ -89,14 +95,15 @@ Dynamic credential extraction from Qobuz web player:
 
 | Area | Status | Priority |
 |------|--------|----------|
-| CHANGELOG.md | Missing | High |
-| release.yml workflow | Missing | High |
+| CHANGELOG.md | Exists | - |
+| release.yml workflow | Exists | - |
 | CodeQL | Partial | Medium |
 | Disabled tests | Blocked | Critical |
 
 ## Lidarr Plugin Rules
 
 ### Protocol Pattern
+
 ```csharp
 // Unique protocol marker for multi-plugin cohabitation
 public class QobuzDownloadProtocol : IDownloadProtocol { }
@@ -108,6 +115,7 @@ public class QobuzDownloadProtocol : IDownloadProtocol { }
 
 **Why this coupling exists**: These aren't arbitrary pins—types from these assemblies cross the
 plugin boundary at runtime:
+
 - `FluentValidation.Results.ValidationFailure` is returned by `DownloadClientBase.Test()`
 - `NLog.Logger` is injected into plugin constructors by Lidarr's DI container
 
@@ -135,6 +143,7 @@ dotnet test --filter "FullyQualifiedName~PluginPackagingTests"
 ```
 
 ### ILRepack Configuration
+
 ```xml
 <ILRepack Internalize="true">
   <ExcludeAssemblies>FluentValidation</ExcludeAssemblies>
@@ -142,6 +151,7 @@ dotnet test --filter "FullyQualifiedName~PluginPackagingTests"
 ```
 
 ### Constructor Pattern
+
 ```csharp
 // ILocalizationService required by DownloadClientBase
 public QobuzDownloadClient(

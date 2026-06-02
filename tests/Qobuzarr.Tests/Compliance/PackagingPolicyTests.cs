@@ -13,6 +13,17 @@ namespace Qobuzarr.Tests.Compliance
     /// Validates that plugin packages contain the correct assemblies.
     /// Prevents regressions where host assemblies accidentally get bundled
     /// or required dependencies are missing.
+    ///
+    /// These tests require a built plugin package. When none is present
+    /// (PLUGIN_PACKAGE_PATH unset AND no built package found) they SKIP
+    /// gracefully via <see cref="Skip"/> rather than fail — so they're inert
+    /// in broad CI sweeps (e.g. the nightly full-suite, which doesn't package)
+    /// yet still execute wherever a package exists (release.yml,
+    /// build.ps1 -Package, local runs). Packaging is independently gated by
+    /// the dedicated packaging-gates.yml (Common reusable workflow), so this
+    /// skip loses no coverage. Build a package with
+    /// <c>./build.ps1 -Package</c> or set <c>PLUGIN_PACKAGE_PATH</c> to run
+    /// them here.
     /// </summary>
     public class PackagingPolicyTests
     {
@@ -98,34 +109,27 @@ namespace Qobuzarr.Tests.Compliance
         };
 
         /// <summary>
-        /// When true, missing package is a test failure instead of skip.
-        /// Set via REQUIRE_PACKAGE_TESTS=true or CI=true environment variable.
+        /// Skip reason when no package is available, otherwise <c>null</c>.
+        /// Resolved once per test from <see cref="FindLatestPackage"/>; a non-null
+        /// value drives <see cref="Skip.If(bool, string)"/> so the test is reported
+        /// as Skipped (not Failed) when no package has been built.
         /// </summary>
-        private static bool RequirePackageExists =>
-            Environment.GetEnvironmentVariable("REQUIRE_PACKAGE_TESTS")?.Equals("true", StringComparison.OrdinalIgnoreCase) == true ||
-            Environment.GetEnvironmentVariable("CI")?.Equals("true", StringComparison.OrdinalIgnoreCase) == true;
+        private static string? NoPackageSkipReason =>
+            FindLatestPackage() == null
+                ? "no plugin package present; run ./build.ps1 -Package or set PLUGIN_PACKAGE_PATH"
+                : null;
 
         public PackagingPolicyTests(ITestOutputHelper output)
         {
             _output = output;
         }
 
-        [Fact]
+        [SkippableFact]
         public void Package_Should_Contain_Required_Assemblies()
         {
             // Arrange
-            var packagePath = FindLatestPackage();
-            if (packagePath == null)
-            {
-                if (RequirePackageExists)
-                {
-                    throw new InvalidOperationException(
-                        "No package found but REQUIRE_PACKAGE_TESTS/CI is set. " +
-                        "Run 'build.ps1 Release -Package' before running tests.");
-                }
-                _output.WriteLine("No package found - skipping test. Run 'build.ps1 Release -Package' first.");
-                return;
-            }
+            Skip.If(NoPackageSkipReason is not null, NoPackageSkipReason);
+            var packagePath = FindLatestPackage()!;
 
             _output.WriteLine($"Testing package: {Path.GetFileName(packagePath)}");
             var assemblies = GetPackageAssemblies(packagePath);
@@ -143,20 +147,11 @@ namespace Qobuzarr.Tests.Compliance
             }
         }
 
-        [Fact]
+        [SkippableFact]
         public void Plugin_Dll_Should_Be_Merged_Size()
         {
-            var packagePath = FindLatestPackage();
-            if (packagePath == null)
-            {
-                if (RequirePackageExists)
-                {
-                    throw new InvalidOperationException(
-                        "No package found but REQUIRE_PACKAGE_TESTS/CI is set.");
-                }
-                _output.WriteLine("No package found - skipping test.");
-                return;
-            }
+            Skip.If(NoPackageSkipReason is not null, NoPackageSkipReason);
+            var packagePath = FindLatestPackage()!;
 
             using var archive = ZipFile.OpenRead(packagePath);
             var entry = archive.Entries.FirstOrDefault(e =>
@@ -170,21 +165,12 @@ namespace Qobuzarr.Tests.Compliance
                 "'Could not load file or assembly Lidarr.Plugin.Common / Abstractions'");
         }
 
-        [Fact]
+        [SkippableFact]
         public void Package_Should_Not_Contain_Forbidden_Assemblies()
         {
             // Arrange
-            var packagePath = FindLatestPackage();
-            if (packagePath == null)
-            {
-                if (RequirePackageExists)
-                {
-                    throw new InvalidOperationException(
-                        "No package found but REQUIRE_PACKAGE_TESTS/CI is set.");
-                }
-                _output.WriteLine("No package found - skipping test.");
-                return;
-            }
+            Skip.If(NoPackageSkipReason is not null, NoPackageSkipReason);
+            var packagePath = FindLatestPackage()!;
 
             _output.WriteLine($"Testing package: {Path.GetFileName(packagePath)}");
             var assemblies = GetPackageAssemblies(packagePath);
@@ -205,21 +191,12 @@ namespace Qobuzarr.Tests.Compliance
                 "package should not contain host assemblies that would conflict with Lidarr");
         }
 
-        [Fact]
+        [SkippableFact]
         public void Package_Should_Not_Ship_HostContract_Assemblies()
         {
             // Arrange
-            var packagePath = FindLatestPackage();
-            if (packagePath == null)
-            {
-                if (RequirePackageExists)
-                {
-                    throw new InvalidOperationException(
-                        "No package found but REQUIRE_PACKAGE_TESTS/CI is set.");
-                }
-                _output.WriteLine("No package found - skipping test.");
-                return;
-            }
+            Skip.If(NoPackageSkipReason is not null, NoPackageSkipReason);
+            var packagePath = FindLatestPackage()!;
 
             var assemblies = GetPackageAssemblies(packagePath);
             var hostContractAssemblies = new[]
@@ -236,21 +213,12 @@ namespace Qobuzarr.Tests.Compliance
             }
         }
 
-        [Fact]
+        [SkippableFact]
         public void Package_Should_Have_Reasonable_Size()
         {
             // Arrange
-            var packagePath = FindLatestPackage();
-            if (packagePath == null)
-            {
-                if (RequirePackageExists)
-                {
-                    throw new InvalidOperationException(
-                        "No package found but REQUIRE_PACKAGE_TESTS/CI is set.");
-                }
-                _output.WriteLine("No package found - skipping test.");
-                return;
-            }
+            Skip.If(NoPackageSkipReason is not null, NoPackageSkipReason);
+            var packagePath = FindLatestPackage()!;
 
             var fileInfo = new FileInfo(packagePath);
             var sizeMB = fileInfo.Length / (1024.0 * 1024.0);
@@ -268,28 +236,15 @@ namespace Qobuzarr.Tests.Compliance
                 "plugin package should be at least 100KB - smaller size suggests missing assemblies");
         }
 
-        [Fact]
+        [SkippableFact]
         public void Package_Metadata_Should_Match_Contents()
         {
             // Arrange
-            var packagePath = FindLatestPackage();
-            if (packagePath == null)
-            {
-                if (RequirePackageExists)
-                {
-                    throw new InvalidOperationException(
-                        "No package found but REQUIRE_PACKAGE_TESTS/CI is set.");
-                }
-                _output.WriteLine("No package found - skipping test.");
-                return;
-            }
+            Skip.If(NoPackageSkipReason is not null, NoPackageSkipReason);
+            var packagePath = FindLatestPackage()!;
 
             var metadataPath = packagePath + ".metadata.json";
-            if (!File.Exists(metadataPath))
-            {
-                _output.WriteLine("No metadata file found - skipping validation.");
-                return;
-            }
+            Skip.IfNot(File.Exists(metadataPath), "no .metadata.json sidecar next to the package");
 
             // Act
             var actualAssemblies = GetPackageAssemblies(packagePath);

@@ -4,6 +4,7 @@
 **Last Updated:** August 2024
 
 ## Table of Contents
+
 - [Overview](#overview)
 - [Prerequisites](#prerequisites)
 - [Local Development Deployment](#local-development-deployment)
@@ -21,11 +22,13 @@
 This guide covers deploying Qobuzarr in various environments, from local development to production cloud deployments. Qobuzarr is designed as a Lidarr plugin with optional standalone capabilities.
 
 ### Deployment Options
+
 - **Plugin Mode**: Deploy as a Lidarr plugin (recommended)
 - **Standalone Mode**: Deploy as an independent service
 - **Hybrid Mode**: Plugin with external ML/caching services
 
 ### Supported Platforms
+
 - Windows (Windows Server 2019+, Windows 10+)
 - Linux (Ubuntu 20.04+, CentOS 8+, Alpine 3.14+)
 - macOS (10.15+)
@@ -35,6 +38,7 @@ This guide covers deploying Qobuzarr in various environments, from local develop
 ## Prerequisites
 
 ### System Requirements
+
 ```yaml
 Minimum:
   CPU: 2 cores
@@ -57,9 +61,10 @@ Production:
 ```
 
 ### Software Dependencies
+
 ```bash
 # .NET Runtime
-.NET 8.0 Runtime (or .NET 6.0 for older Lidarr versions)
+.NET 8.0 Runtime (required by Qobuzarr)
 
 # Lidarr (Plugin Mode)
 Lidarr 2.13.2.4685+ (hotio/lidarr:pr-plugins recommended)
@@ -76,6 +81,7 @@ Prometheus + Grafana (for monitoring)
 ## Local Development Deployment
 
 ### Quick Setup
+
 ```bash
 # Clone repository
 git clone https://github.com/yourusername/qobuzarr.git
@@ -91,6 +97,7 @@ cd qobuzarr
 ```
 
 ### Manual Setup
+
 ```bash
 # 1. Build the plugin
 dotnet build --configuration Release \
@@ -102,7 +109,7 @@ dotnet build --configuration Release \
 mkdir -p /lidarr/plugins/RicherTunes/Qobuzarr
 
 # 3. Deploy plugin files
-cp bin/Release/net6.0/Lidarr.Plugin.Qobuzarr.dll /lidarr/plugins/RicherTunes/Qobuzarr/
+cp bin/Release/net8.0/Lidarr.Plugin.Qobuzarr.dll /lidarr/plugins/RicherTunes/Qobuzarr/
 cp plugin.json /lidarr/plugins/RicherTunes/Qobuzarr/
 cp src/Indexers/ml-baseline-patterns.json /lidarr/plugins/RicherTunes/Qobuzarr/
 
@@ -111,6 +118,7 @@ sudo systemctl restart lidarr
 ```
 
 ### Development Configuration
+
 ```json
 {
   "Logging": {
@@ -131,6 +139,7 @@ sudo systemctl restart lidarr
 ## Docker Deployment
 
 ### Docker Compose Setup
+
 ```yaml
 # docker-compose.yml
 version: '3.8'
@@ -205,6 +214,7 @@ networks:
 ```
 
 ### Environment Configuration
+
 ```bash
 # .env
 POSTGRES_USER=qobuzarr
@@ -222,6 +232,7 @@ QOBUZ_PASSWORD=your_password
 ```
 
 ### Docker Build
+
 ```dockerfile
 # Dockerfile (for standalone deployment)
 FROM mcr.microsoft.com/dotnet/aspnet:8.0 AS base
@@ -277,6 +288,7 @@ ENTRYPOINT ["dotnet", "Lidarr.Plugin.Qobuzarr.dll"]
 ```
 
 ### Deployment Commands
+
 ```bash
 # Deploy with Docker Compose
 docker-compose up -d
@@ -301,6 +313,7 @@ docker cp lidarr-qobuzarr:/tmp/qobuzarr-config.tar.gz ./backup/
 ## Kubernetes Deployment
 
 ### Namespace and ConfigMap
+
 ```yaml
 # namespace.yaml
 apiVersion: v1
@@ -336,6 +349,7 @@ data:
 ```
 
 ### Secrets
+
 ```yaml
 # secrets.yaml
 apiVersion: v1
@@ -352,6 +366,7 @@ data:
 ```
 
 ### Lidarr Deployment
+
 ```yaml
 # lidarr-deployment.yaml
 apiVersion: apps/v1
@@ -449,6 +464,7 @@ spec:
 ```
 
 ### Redis and PostgreSQL
+
 ```yaml
 # redis-deployment.yaml
 apiVersion: apps/v1
@@ -514,6 +530,7 @@ spec:
 ```
 
 ### Ingress
+
 ```yaml
 # ingress.yaml
 apiVersion: networking.k8s.io/v1
@@ -546,6 +563,7 @@ spec:
 ```
 
 ### Deployment Commands
+
 ```bash
 # Deploy to Kubernetes
 kubectl apply -f namespace.yaml
@@ -571,6 +589,7 @@ kubectl rollout status deployment/lidarr -n qobuzarr
 ## Production Deployment
 
 ### High Availability Setup
+
 ```yaml
 # ha-deployment.yaml
 apiVersion: apps/v1
@@ -619,6 +638,7 @@ spec:
 ```
 
 ### Production Configuration
+
 ```json
 {
   "Qobuz": {
@@ -661,6 +681,7 @@ spec:
 ```
 
 ### Database Migration
+
 ```bash
 # Production database setup
 kubectl exec -it postgres-primary-0 -n qobuzarr -- psql -U qobuzarr -d qobuzarr -c "
@@ -688,6 +709,7 @@ kubectl create cronjob qobuzarr-backup --image=postgres:15 --schedule="0 2 * * *
 ## Cloud Deployments
 
 ### AWS ECS Deployment
+
 ```json
 {
   "family": "qobuzarr-lidarr",
@@ -759,6 +781,7 @@ kubectl create cronjob qobuzarr-backup --image=postgres:15 --schedule="0 2 * * *
 ```
 
 ### Azure Container Instances
+
 ```yaml
 # azure-deployment.yaml
 apiVersion: '2019-12-01'
@@ -815,6 +838,7 @@ tags:
 ```
 
 ### Google Cloud Run
+
 ```yaml
 # cloudrun-service.yaml
 apiVersion: serving.knative.dev/v1
@@ -873,6 +897,7 @@ spec:
 ## Configuration Management
 
 ### Environment-Specific Configurations
+
 ```bash
 # environments/development.json
 {
@@ -916,6 +941,7 @@ spec:
 ```
 
 ### Secret Management
+
 ```bash
 # Using Kubernetes secrets
 kubectl create secret generic qobuzarr-secrets \
@@ -943,6 +969,7 @@ vault kv put secret/qobuzarr \
 ## Security Considerations
 
 ### Network Security
+
 ```yaml
 # NetworkPolicy for Kubernetes
 apiVersion: networking.k8s.io/v1
@@ -987,6 +1014,7 @@ spec:
 ```
 
 ### Security Hardening
+
 ```dockerfile
 # Hardened Dockerfile
 FROM mcr.microsoft.com/dotnet/aspnet:8.0-alpine AS base
@@ -1029,6 +1057,7 @@ ENTRYPOINT ["dotnet", "Lidarr.Plugin.Qobuzarr.dll"]
 ## Monitoring Setup
 
 ### Prometheus Configuration
+
 ```yaml
 # prometheus-config.yaml
 apiVersion: v1
@@ -1055,6 +1084,7 @@ data:
 ```
 
 ### Grafana Dashboards
+
 ```json
 {
   "dashboard": {
@@ -1100,6 +1130,7 @@ data:
 ### Common Deployment Issues
 
 #### Plugin Not Loading
+
 ```bash
 # Check plugin directory
 ls -la /config/plugins/RicherTunes/Qobuzarr/
@@ -1118,6 +1149,7 @@ grep -i version /config/plugins/RicherTunes/Qobuzarr/plugin.json
 ```
 
 #### Database Connection Issues
+
 ```bash
 # Test PostgreSQL connection
 kubectl exec -it postgres-primary-0 -n qobuzarr -- \
@@ -1132,6 +1164,7 @@ kubectl get configmap qobuzarr-config -o yaml -n qobuzarr
 ```
 
 #### Performance Issues
+
 ```bash
 # Monitor resource usage
 kubectl top pods -n qobuzarr
@@ -1147,6 +1180,7 @@ redis-cli -a "$REDIS_PASSWORD" info stats
 ```
 
 #### Authentication Failures
+
 ```bash
 # Verify Qobuz credentials
 kubectl get secret qobuzarr-secrets -o yaml -n qobuzarr
@@ -1161,6 +1195,7 @@ kubectl logs deployment/lidarr -n qobuzarr | grep -i "auth\|login\|credential"
 ```
 
 ### Health Checks
+
 ```bash
 # Application health
 curl http://lidarr-service:8686/health

@@ -1,6 +1,6 @@
-# Qobuzzarr Configuration Guide
+# Qobuzarr Configuration Guide
 
-This guide covers all configuration options for the Qobuzzarr plugin, including initial setup, authentication methods, and advanced settings.
+This guide covers all configuration options for the Qobuzarr plugin, including initial setup, authentication methods, and advanced settings.
 
 ## Table of Contents
 
@@ -14,13 +14,13 @@ This guide covers all configuration options for the Qobuzzarr plugin, including 
 
 ## Prerequisites
 
-Before configuring Qobuzzarr, ensure you have:
+Before configuring Qobuzarr, ensure you have:
 
-1. **Lidarr v2.0+** running on the plugins branch
+1. **Lidarr v3.0.0+ (plugins branch)** running on the plugins branch
 2. **Qobuz Account** with active subscription
    - Studio tier: CD quality (FLAC 16-bit/44.1kHz)
    - Sublime tier: Hi-Res quality (up to 24-bit/192kHz)
-3. **.NET 6.0 Runtime** installed
+3. **.NET 8.0 Runtime** installed
 4. **Network Access** to Qobuz API endpoints
 
 ## Installation
@@ -29,7 +29,7 @@ Before configuring Qobuzzarr, ensure you have:
 
 ```bash
 # Using hotio's plugins image
-docker pull ghcr.io/hotio/lidarr:pr-plugins
+docker pull ghcr.io/hotio/lidarr:pr-plugins-3.1.2.4913
 
 # Run with plugin support
 docker run -d \
@@ -47,7 +47,7 @@ docker run -d \
 ### Manual Installation
 
 1. Download the latest release from [GitHub Releases](https://github.com/richertunes/qobuzarr/releases)
-2. Extract `Lidarr.Plugin.Qobuz.dll` to your Lidarr plugins directory:
+2. Extract `Lidarr.Plugin.Qobuzarr.dll` to your Lidarr plugins directory:
    - Linux: `/config/plugins/`
    - Windows: `%ProgramData%\Lidarr\plugins\`
    - macOS: `~/.config/Lidarr/plugins/`
@@ -56,12 +56,12 @@ docker run -d \
 ### Verifying Installation
 
 1. Navigate to **System → Plugins** in Lidarr
-2. Confirm "Qobuzzarr" appears in the plugin list
+2. Confirm "Qobuzarr" appears in the plugin list
 3. Check the plugin status is "Loaded"
 
 ## Authentication Setup
 
-Qobuzzarr supports two authentication methods:
+Qobuzarr supports two authentication methods:
 
 ### Method 1: Email & Password Authentication
 
@@ -123,43 +123,45 @@ qobuzcli auth --email your@email.com --password yourpass --show-token
 
 | Setting | Default | Range | Description |
 |---------|---------|-------|-------------|
-| **Search Result Limit** | 100 | 10-500 | Maximum results per search |
-| **Include Singles** | No | - | Include single releases in results |
-| **Include Compilations** | Yes | - | Include compilation albums |
-| **Include Live Albums** | Yes | - | Include live recordings |
+| **Maximum Search Results** | 100 | 10–500 | Results fetched per search query |
+| **Include Singles & EPs** | No | — | Include singles and EPs in results |
+| **Include Compilations** | Yes | — | Include compilation / Various Artists albums |
+| **Pre-release Window (days)** | 0 | 0–30 | Include albums up to N days before official release *(advanced)* |
 
-### Quality Filters
+### Query Optimization *(Performance section)*
 
 | Setting | Options | Description |
 |---------|---------|-------------|
-| **Minimum Quality** | Any, MP3-320, FLAC, Hi-Res | Exclude lower qualities |
-| **Maximum Quality** | Any, MP3-320, FLAC, Hi-Res | Exclude higher qualities |
+| **Query Optimization** | Disabled · Query Intelligence · ML Prediction | Reduces API calls. "Query Intelligence" saves ~35%; "ML Prediction" saves ~49% (experimental). Default: Query Intelligence |
+| **ML Model Type** | Baseline · Personal · Hybrid | Model selection when using ML Prediction mode. "Baseline" is pre-trained; others require manual training *(advanced)* |
 
-### Genre Filtering
+### Concurrency *(advanced)*
 
-Select specific genres to search within:
+| Setting | Default | Range | Description |
+|---------|---------|-------|-------------|
+| **Concurrency Mode** | Adaptive | Adaptive / Fixed / Manual | How to manage parallel API operations |
+| **Fixed Concurrency Level** | 4 | 1–16 | Parallel operations in Fixed mode |
+| **Minimum Concurrency** | 1 | 1–8 | Adaptive floor — system won't go below this |
+| **Maximum Concurrency** | 8 | 2–16 | Adaptive ceiling — system won't exceed this |
+| **Target Response Time (ms)** | 1000 | 500–5 000 | Adaptive: increases concurrency when faster |
+| **Maximum Response Time (ms)** | 5000 | 1 000–10 000 | Adaptive: reduces concurrency when slower |
 
-```yaml
-Preferred Genre: [Dropdown]
-  - All Genres (default)
-  - Jazz
-  - Classical
-  - Rock
-  - Pop
-  - Electronic
-  - Hip-Hop
-  - Folk
-  - Blues
-  - Country
-  - World Music
-```
-
-### Date Filtering
+### Advanced Matching *(advanced)*
 
 | Setting | Default | Description |
 |---------|---------|-------------|
-| **Minimum Year** | - | Exclude releases before this year |
-| **Maximum Year** | - | Exclude releases after this year |
+| **Match Confidence Threshold** | 0.8 | Minimum score (0–1) for accepting results |
+| **Hybrid Search Threshold** | 0.6 | Confidence below which extra strategies activate |
+| **Qobuz Subscription** | Unknown | Helps optimise quality selection (Unknown / Free / Sublime / Premier) |
+| **Locale (optional)** | *(empty)* | Locale for localised results (e.g. `en_US`, `fr_FR`) |
+
+### API Settings *(advanced)*
+
+| Setting | Default | Range | Description |
+|---------|---------|-------|-------------|
+| **API Rate Limit** | 60/min | 1–300 | Maximum requests per minute |
+| **Cache Duration (minutes)** | 5 | 0–60 | Search-result cache TTL (0 = disabled) |
+| **Connection Timeout (seconds)** | 30 | 5–300 | API request timeout |
 
 ### Example Configuration
 
@@ -169,29 +171,57 @@ Name: Qobuz
 Authentication Method: Email & Password
 Email: user@example.com
 Password: ********
-Search Result Limit: 100
-Include Singles: No
+Maximum Search Results: 100
+Include Singles & EPs: No
 Include Compilations: Yes
-Include Live Albums: Yes
-Minimum Quality: FLAC
-Preferred Genre: All Genres
+Query Optimization: Query Intelligence
+Qobuz Subscription: Unknown
 ```
 
 ## Download Client Configuration
 
-*Note: Download client functionality is currently in development*
+The download client is fully implemented. Configure it under **Settings → Download Clients → Add → Qobuzarr**.
 
-### Planned Settings
+### Storage
 
 | Setting | Default | Description |
 |---------|---------|-------------|
-| **Download Directory** | - | Where to save downloads |
-| **Concurrent Downloads** | 5 | Parallel track downloads |
-| **Bandwidth Limit** | Unlimited | Max download speed (MB/s) |
-| **File Naming Pattern** | `{Artist} - {Album} ({Year})/{Track} - {Title}` | |
-| **Embed Metadata** | Yes | Add ID3/Vorbis tags |
-| **Download Artwork** | Yes | Save album artwork |
-| **Create M3U Playlist** | No | Generate playlist file |
+| **Download Path** | *(required)* | Root folder for downloads; Lidarr imports from here |
+| **Create Album Folders** | Yes | Organise into Artist/Album folder structure |
+
+### Quality
+
+| Setting | Options | Description |
+|---------|---------|-------------|
+| **Audio Quality** | MP3 320 · FLAC CD (16/44.1) · FLAC Hi-Res (24/96) · FLAC Hi-Res (24/192) | Preferred quality; falls back automatically if unavailable |
+
+> **Note:** 24-bit/192 kHz (format 27) is purchase-only on Qobuz; streaming tops out at 24/96. The plugin falls back to 96 kHz or CD quality.
+
+### Performance
+
+| Setting | Default | Range | Description |
+|---------|---------|-------|-------------|
+| **Concurrency Mode** | Adaptive | Adaptive / Fixed / Manual | How to manage parallel track downloads |
+| **Fixed Concurrent Downloads** | 3 | 1–10 | Tracks downloaded at once in Fixed mode |
+| **Minimum Downloads** | 1 | 1–5 | Adaptive floor *(advanced)* |
+| **Maximum Downloads** | 6 | 2–10 | Adaptive ceiling *(advanced)* |
+| **Target Response Time (ms)** | 1000 | 500–3 000 | Adaptive: increases concurrency when faster *(advanced)* |
+
+### Reliability
+
+| Setting | Default | Description |
+|---------|---------|-------------|
+| **Minimum Success Rate (%)** | 80 | Tracks that must succeed for the album to pass (0–100%) |
+| **Skip Preview Tracks** | Yes | Skip 30-second preview/sample tracks |
+| **Count Previews as Failures** | No | Count skipped previews as failures in the success rate *(advanced)* |
+| **Enable Quality Fallback** | Yes | Allow lower quality when requested format is unavailable *(advanced)* |
+
+### Metadata *(advanced)*
+
+| Setting | Default | Description |
+|---------|---------|-------------|
+| **Save Synced Lyrics** | Yes | Save a `.lrc` file alongside each track when lyrics are available |
+| **Use LRCLIB for Lyrics** | No | Fall back to the public LRCLIB service (lrclib.net) for lyrics |
 
 ## Advanced Settings
 
@@ -199,125 +229,30 @@ Preferred Genre: All Genres
 
 | Setting | Default | Description |
 |---------|---------|-------------|
-| **App ID** | 285473059 | Qobuz application ID |
+| **App ID** | *(auto-detected)* | Qobuz application ID — leave empty for automatic dynamic extraction from the web player |
 | **App Secret** | (built-in) | Application secret |
 | **API Timeout** | 30s | Request timeout |
 | **Rate Limit** | 60/min | Initial rate limit (adaptive system adjusts to 500+/min) |
 
-### Query Intelligence Configuration ⚡
+### Query Intelligence Configuration
 
-**Query Intelligence provides 49.83% API call reduction automatically - enabled by default!**
+Query Intelligence is controlled through the **Query Optimization** dropdown in indexer settings (see *Query Optimization* table above). No environment variables are required — all tuning is done via the Lidarr UI.
 
-| Setting | Environment Variable | Default | Description |
-|---------|---------------------|---------|-------------|
-| **Enable Query Intelligence** | `QOBUZ_QUERY_INTELLIGENCE` | `true` | Master switch for optimization system |
-| **Debug Query Classification** | `QOBUZ_DEBUG_QUERIES` | `false` | Log complexity classifications |
-| **Simple Threshold** | `QOBUZ_SIMPLE_THRESHOLD` | `1` | Threshold for simple classification (experts only) |
-| **Medium Threshold** | `QOBUZ_MEDIUM_THRESHOLD` | `4` | Threshold for medium classification (experts only) |
+### Concurrency and Rate Limiting
 
-#### Configuration Examples
+Adaptive concurrency and rate limiting are built-in and configured through the indexer and download-client UI (see the *Concurrency* tables above). No environment variables are needed.
 
-**Default (Recommended)**
-```bash
-# Query Intelligence enabled with conservative settings
-QOBUZ_QUERY_INTELLIGENCE="true"      # 49.83% API reduction
-QOBUZ_DEBUG_QUERIES="false"          # Clean logs
-```
+### Caching
 
-**Debug Mode**
-```bash
-# Enable debug logging to understand classifications
-QOBUZ_QUERY_INTELLIGENCE="true"
-QOBUZ_DEBUG_QUERIES="true"           # Log all complexity decisions
-```
+Search-result caching is controlled by the **Cache Duration (minutes)** setting in the indexer's advanced API section (see *API Settings* table above).
 
-**Custom Thresholds (Advanced Users Only)**
-```bash
-# More aggressive optimization (may impact quality)
-QOBUZ_SIMPLE_THRESHOLD="2"           # More albums classified as simple
-QOBUZ_MEDIUM_THRESHOLD="5"           # Fewer albums classified as complex
+### Logging
 
-# More conservative optimization (less API reduction)
-QOBUZ_SIMPLE_THRESHOLD="0"           # Fewer albums classified as simple  
-QOBUZ_MEDIUM_THRESHOLD="3"           # More albums classified as complex
-```
-
-**Performance vs Quality Trade-offs**
-
-| Configuration | API Reduction | Quality Impact | Use Case |
-|---------------|---------------|----------------|----------|
-| **Default** | 49.83% | 1.515% loss | **Recommended for all users** |
-| **Aggressive** | 55%+ | 3-5% loss | High-volume, quality-tolerant |
-| **Conservative** | 35-40% | <1% loss | Quality-critical applications |
-| **Disabled** | 0% | 0% loss | Troubleshooting only |
-
-### Adaptive Rate Limiting Configuration ⚡
-
-**Adaptive Rate Limiting provides 93x performance improvement automatically - enabled by default!**
-
-| Setting | Environment Variable | Default | Description |
-|---------|---------------------|---------|-------------|
-| **Enable Adaptive Rate Limiting** | `QOBUZ_ADAPTIVE_RATE_LIMITING` | `true` | Master switch for adaptive system |
-| **Initial Rate** | `QOBUZ_INITIAL_RATE` | `60/min` | Starting request rate |
-| **Maximum Rate** | `QOBUZ_MAX_RATE` | `500/min` | Maximum request rate |
-| **Rate Increase Factor** | `QOBUZ_RATE_INCREASE_FACTOR` | `1.2` | Rate increase multiplier |
-| **Success Threshold** | `QOBUZ_SUCCESS_THRESHOLD` | `20` | Successful requests before rate increase |
-
-#### Configuration Examples
-
-**Default (Recommended)**
-```bash
-# Adaptive rate limiting with conservative start
-QOBUZ_ADAPTIVE_RATE_LIMITING="true"   # 93x performance improvement
-QOBUZ_INITIAL_RATE="60"               # Conservative start
-QOBUZ_MAX_RATE="500"                  # Safe maximum
-```
-
-**Aggressive Performance**
-```bash
-# Faster initial rate, higher maximum
-QOBUZ_INITIAL_RATE="120"              # Start faster
-QOBUZ_MAX_RATE="600"                  # Higher ceiling
-QOBUZ_RATE_INCREASE_FACTOR="1.5"      # Faster scaling
-```
-
-**Conservative Performance**
-```bash
-# Slower scaling for stability
-QOBUZ_INITIAL_RATE="30"               # Very conservative start
-QOBUZ_MAX_RATE="300"                  # Lower ceiling
-QOBUZ_RATE_INCREASE_FACTOR="1.1"      # Gradual scaling
-```
-
-### Caching Configuration
-
-| Setting | Default | Description |
-|---------|---------|-------------|
-| **Enable Response Cache** | Yes | Cache API responses |
-| **Search Cache Duration** | 5 min | Search result cache TTL |
-| **Album Cache Duration** | 1 hour | Album details cache TTL |
-| **Artist Cache Duration** | 24 hours | Artist info cache TTL |
-
-### Network Configuration
-
-| Setting | Default | Description |
-|---------|---------|-------------|
-| **Use Proxy** | No | Route through HTTP proxy |
-| **Proxy URL** | - | Proxy server address |
-| **Proxy Username** | - | Proxy authentication |
-| **Proxy Password** | - | Proxy authentication |
-
-### Logging Configuration
-
-| Setting | Options | Description |
-|---------|---------|-------------|
-| **Log Level** | Info | Debug, Info, Warn, Error |
-| **Log API Requests** | No | Log all API calls |
-| **Log API Responses** | No | Log full responses |
+Use Lidarr's global log level (**Settings → General → Log Level**) to control verbosity. The plugin does not expose separate log-level or API-logging settings.
 
 ## Quality Profile Mapping
 
-Qobuzzarr automatically maps Qobuz qualities to Lidarr profiles:
+Qobuzarr automatically maps Qobuz qualities to Lidarr profiles:
 
 | Qobuz Format | Format ID | Lidarr Quality | Bitrate/Sample Rate |
 |--------------|-----------|----------------|---------------------|
@@ -332,15 +267,9 @@ Qobuzzarr automatically maps Qobuz qualities to Lidarr profiles:
 Override default settings using environment variables:
 
 ```bash
-# Override app credentials
+# Override app credentials (optional — leave empty to auto-detect from web player)
 QOBUZ_APP_ID=your_app_id
 QOBUZ_APP_SECRET=your_app_secret
-
-# Enable debug logging
-QOBUZ_LOG_LEVEL=Debug
-
-# Set custom cache directory
-QOBUZ_CACHE_DIR=/path/to/cache
 ```
 
 ## Configuration Files

@@ -1,3 +1,5 @@
+> ⚠️ Historical (flagged 2026-05-31): describes a past state; some details below no longer match the current code.
+
 # Tech Debt Tracker (Archive Copy)
 
 > **Note**: This is a snapshot for reference. The authoritative version lives at `docs/TECH-DEBT-TRACKER.md`.

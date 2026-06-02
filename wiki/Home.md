@@ -1,50 +1,49 @@
 # Qobuzarr Wiki
 
-Welcome to the **Qobuzarr** project wiki - your comprehensive guide to the high-performance Lidarr plugin for Qobuz streaming service.
+Welcome to the **Qobuzarr** project wiki — your guide to the high-performance Lidarr plugin for the Qobuz streaming service.
 
-## 🎵 What is Qobuzarr?
+## Built on Lidarr.Plugin.Common
 
-**Qobuzarr** is a production-ready Lidarr plugin that provides both indexing and download capabilities for Qobuz's high-fidelity music streaming service. Built upon TrevTV's foundation with significant ML-powered enhancements, it delivers professional-grade audio management with advanced optimization.
+Qobuzarr builds on [Lidarr.Plugin.Common](https://github.com/RicherTunes/Lidarr.Plugin.Common), a shared library providing foundation plumbing for Lidarr streaming-service plugins. For shared concepts, cross-plugin patterns, and extension points, consult Common's wiki:
+
+- [Common — Home](https://github.com/RicherTunes/Lidarr.Plugin.Common/blob/main/wiki/Home.md) — project overview, ecosystem context, and links to the other Common plugins.
+- [Architecture Overview](https://github.com/RicherTunes/Lidarr.Plugin.Common/blob/main/wiki/Architecture-Overview.md) — shared service layer, DI patterns, and how Common fits inside a Lidarr plugin host.
+- [SDK and Extension Points](https://github.com/RicherTunes/Lidarr.Plugin.Common/blob/main/wiki/SDK-and-Extension-Points.md) — reusable base classes (`StreamingPlugin`, token stores, rate limiters) that Qobuzarr consumes.
+- [Shared Helpers Catalog](https://github.com/RicherTunes/Lidarr.Plugin.Common/blob/main/wiki/Shared-Helpers-Catalog.md) — quick-reference for every Common helper (`PluginLogContext`, `Scrub`, `WarnOnce`, `BackendHealthCache`, etc.).
+- [Versioning and Submodule Pinning](https://github.com/RicherTunes/Lidarr.Plugin.Common/blob/main/wiki/Versioning-and-Submodule-Pinning.md) — how the Common submodule pin works (`ext-common-sha.txt`), the nightly bump workflow, and coordination across plugins.
+
+## What is Qobuzarr?
+
+**Qobuzarr** is a production-ready Lidarr plugin that provides both indexing and download capabilities for Qobuz's high-fidelity music streaming service. Built upon TrevTV's foundation with ML-powered enhancements, it delivers professional-grade audio management with advanced optimization.
 
 ### Key Highlights
-- **High-Fidelity Audio**: Lossless FLAC up to 24-bit/192kHz Hi-Res quality
-- **ML-Powered Optimization**: 65.8% API call reduction using machine learning
-- **Production Ready**: Used in real-world deployments with 100,000+ albums processed
+
+- **High-Fidelity Audio**: Lossless FLAC up to 24-bit/192 kHz Hi-Res quality
+- **ML-Powered Optimization**: ~50% API call reduction using pre-compiled machine-learning models
+- **Production Ready**: Designed for real-world automated music collection management
 - **Plugin-First Architecture**: Clean separation between plugin core and CLI wrapper
 
-## 📚 Documentation Overview
+## Documentation
 
 ### Getting Started
-- [[Installation Guide]] - Complete installation and setup instructions
-- [[Configuration Guide]] - Detailed configuration options and examples
-- [[Quick Start]] - Get up and running in minutes
-- [[Usage Examples]] - Common usage patterns and workflows
 
-### Features & Capabilities
-- [[Core Features]] - Overview of all plugin capabilities
-- [[ML Optimization]] - Machine learning query optimization system
-- [[Quality Management]] - Audio quality detection and management
-- [[Security Features]] - Security architecture and best practices
+- [[Installation Guide]] — complete installation and setup instructions
+- [[Configuration Guide]] — detailed configuration options and examples
 
-### Development & Technical
-- [[Architecture Overview]] - System design and component structure
-- [[API Reference]] - Complete API documentation
-- [[Plugin Development]] - Guide for extending functionality
-- [[Testing Guide]] - Running tests and quality assurance
+### Features and Capabilities
 
-### Operations & Deployment
-- [[Deployment Guide]] - Production deployment scenarios
-- [[Monitoring Guide]] - Observability and health monitoring
-- [[Troubleshooting]] - Common issues and solutions
-- [[Performance Tuning]] - Optimization recommendations
+- [[Security Features]] — security architecture and best practices
 
-### Advanced Topics
-- [[Integration Examples]] - Docker, Kubernetes, CI/CD examples
-- [[Security Architecture]] - Defense-in-depth security design
-- [[ML Model Security]] - Machine learning model protection
-- [[Contributing]] - How to contribute to the project
+### Development and Technical
 
-## 🚀 Quick Links
+- [[API Reference]] — complete API documentation
+- [[Plugin Development]] — guide for extending functionality
+
+### Operations
+
+- [[Troubleshooting]] — common issues and solutions
+
+## Quick Links
 
 | Topic | Description | Link |
 |-------|-------------|------|
@@ -55,55 +54,28 @@ Welcome to the **Qobuzarr** project wiki - your comprehensive guide to the high-
 | **Security** | Security best practices | [[Security Features]] |
 | **Development** | Contribute to the project | [[Plugin Development]] |
 
-## 📊 Project Stats
+## Project Stats
 
-- **Version**: v0.0.12
-- **Lidarr Compatibility**: v2.13.0+
-- **Framework**: .NET 6.0
+- **Version**: v0.5.11
+- **Lidarr Compatibility**: v3.0.0+
+- **Framework**: .NET 8.0
 - **License**: GPL v3.0
-- **API Call Reduction**: 65.8% through ML optimization
-- **Cache Hit Rate**: 94.7% with intelligent caching
+- **ML API Call Reduction**: ~50% (target 49.83%) through query optimization
+- **ML Cache Hit Rate**: 94.7% target
 
-## 🎯 Use Cases
+## Requirements
 
-### Home Media Server
-Perfect for personal media servers with automated music collection management.
-
-### Professional Studios
-Used in professional environments requiring high-fidelity audio with reliable automation.
-
-### Music Archival
-Ideal for music archival projects with comprehensive metadata and quality preservation.
-
-### Developer Testing
-CLI interface provides direct Qobuz access for development and testing workflows.
-
-## 🔗 External Resources
-
-- **GitHub Repository**: [RicherTunes/qobuzarr](https://github.com/RicherTunes/qobuzarr)
-- **Issues & Bug Reports**: [GitHub Issues](https://github.com/RicherTunes/qobuzarr/issues)
-- **Feature Requests**: [GitHub Discussions](https://github.com/RicherTunes/qobuzarr/discussions)
-- **Release Downloads**: [GitHub Releases](https://github.com/RicherTunes/qobuzarr/releases)
-
-## ⚠️ Important Notes
-
-### Requirements
 - Active Qobuz subscription (Studio Premier recommended for Hi-Res)
-- Lidarr v2.13.0 or higher
-- .NET 6.0 Runtime
+- Lidarr v3.0.0 or higher (plugins branch — `pr-plugins-3.x`)
+- .NET 8.0 Runtime
 
-### Legal Compliance
+## External Resources
+
+- **GitHub Repository**: [RicherTunes/Qobuzarr](https://github.com/RicherTunes/Qobuzarr)
+- **Issues and Bug Reports**: [GitHub Issues](https://github.com/RicherTunes/Qobuzarr/issues)
+- **Feature Requests**: [GitHub Discussions](https://github.com/RicherTunes/Qobuzarr/discussions)
+- **Release Downloads**: [GitHub Releases](https://github.com/RicherTunes/Qobuzarr/releases)
+
+## Legal Compliance
+
 This plugin requires compliance with Qobuz's Terms of Service. Users must have valid subscriptions and follow all applicable licensing agreements.
-
-### Support Channels
-- Primary support through GitHub Issues
-- Community discussions via GitHub Discussions
-- Documentation updates welcome via pull requests
-
-## 📈 Recent Updates
-
-Check the [[Release Notes]] for the latest updates and changelog information.
-
----
-
-*This wiki is actively maintained and updated. For the most current information, always refer to the official documentation.*

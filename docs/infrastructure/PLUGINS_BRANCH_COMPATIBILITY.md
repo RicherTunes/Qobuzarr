@@ -22,6 +22,7 @@ Method 'get_Protocol' in type 'Lidarr.Plugin.Qobuzarr.Download.Clients.QobuzDown
    - `DownloadClientBase<T>.Protocol` returns `string`
 
 **The Compilation Mismatch:**
+
 - Plugin compiles against release assemblies (expects enum)
 - Runtime uses plugins branch assemblies (expects string)
 - Result: Method signature mismatch causes runtime failure
@@ -32,28 +33,32 @@ Method 'get_Protocol' in type 'Lidarr.Plugin.Qobuzarr.Download.Clients.QobuzDown
 
 Updated all Protocol property implementations to return `string` instead of `DownloadProtocol` enum:
 
-1. **QobuzIndexer.cs** (line 32):
+1. **QobuzIndexer.cs** (line 44):
+
    ```csharp
    // OLD: public override DownloadProtocol Protocol => DownloadProtocol.Unknown;
-   public override string Protocol => "Qobuzarr";
+   public override string Protocol => nameof(QobuzarrDownloadProtocol);
    ```
 
-2. **QobuzDownloadClient.cs** (line 54):
+2. **QobuzDownloadClient.cs** (line 75):
+
    ```csharp
    // OLD: public override DownloadProtocol Protocol => DownloadProtocol.Unknown;
-   public override string Protocol => "Qobuzarr";
+   public override string Protocol => nameof(QobuzarrDownloadProtocol);
    ```
 
-3. **QobuzParser.cs** (line 225):
+3. **QobuzParser.cs**:
+
    ```csharp
    // OLD: DownloadProtocol = DownloadProtocol.Unknown,
-   DownloadProtocol = "Qobuzarr",
+   DownloadProtocol = nameof(QobuzarrDownloadProtocol),
    ```
 
-4. **QobuzDownloadItem.cs** (line 149):
+4. **QobuzDownloadItem.cs**:
+
    ```csharp
    // OLD: Protocol = DownloadProtocol.Unknown,
-   Protocol = "Qobuzarr",
+   Protocol = nameof(QobuzarrDownloadProtocol),
    ```
 
 ### Assembly Requirements
@@ -87,8 +92,8 @@ docker create --name temp-lidarr ghcr.io/hotio/lidarr:pr-plugins-3.1.2.4913
 docker cp temp-lidarr:/app ./lidarr-plugins-temp
 docker rm temp-lidarr
 
-# Copy required assemblies to ext/Lidarr/_output/net6.0/
-cp lidarr-plugins-temp/*.dll ext/Lidarr/_output/net6.0/
+# Copy required assemblies to ext/Lidarr/_output/net8.0/
+cp lidarr-plugins-temp/*.dll ext/Lidarr/_output/net8.0/
 ```
 
 ### Method 3: Build from Plugins Branch Source
@@ -132,7 +137,7 @@ Deploy the compiled plugin to a Lidarr plugins branch instance:
 
 **WARNING:** Plugins compiled for plugins branch (string Protocol) will NOT work with regular release branch (enum Protocol).
 
-- **Plugins Branch Plugin:** `Protocol => "Qobuzarr"` ✅ Works with pr-plugins-3.1.2.4913
+- **Plugins Branch Plugin:** `Protocol => nameof(QobuzarrDownloadProtocol)` ✅ Works with pr-plugins-3.1.2.4913
 - **Release Branch Plugin:** `Protocol => DownloadProtocol.Unknown` ✅ Works with regular 2.13.2.4685
 
 ### Branch-Specific Deployment
@@ -172,7 +177,8 @@ steps:
 
 ⚠️ **PENDING:** Acquisition of plugins branch assemblies required for successful compilation.
 
-🔄 **NEXT STEPS:** 
+🔄 **NEXT STEPS:**
+
 1. Run assembly extraction script
 2. Verify clean build
 3. Test runtime compatibility with plugins branch Lidarr

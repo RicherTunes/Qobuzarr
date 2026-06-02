@@ -5,6 +5,7 @@ This directory contains comprehensive test data for validating search functional
 ## Overview
 
 The `SearchEdgeCases.cs` file provides a centralized test data set covering:
+
 - Special characters and punctuation
 - International characters and scripts
 - Similar/duplicate album names
@@ -14,19 +15,24 @@ The `SearchEdgeCases.cs` file provides a centralized test data set covering:
 ## Categories
 
 ### 1. Special Characters (`SpecialCharacterAlbums`)
+
 Tests handling of:
+
 - Punctuation: `/`, `&`, `'`, `$`, `*`, `!`, `?`, etc.
 - Mathematical symbols: `∆`, `≠`, `∞`
 - Brackets and quotes: `()`, `[]`, `{}`, `""`
 - HTML/XML entities that need escaping
 
 **Examples:**
+
 - AC/DC - Back in Black
 - Guns N' Roses - Appetite for Destruction
 - "Weird Al" Yankovic - Mandatory Fun
 
 ### 2. International Characters (`InternationalAlbums`)
+
 Tests Unicode handling for:
+
 - Japanese (Kanji, Hiragana, Katakana)
 - Korean (Hangul)
 - Chinese (Traditional and Simplified)
@@ -35,23 +41,29 @@ Tests Unicode handling for:
 - Special diacritics (Nordic, French, Spanish, German)
 
 **Examples:**
+
 - 宇多田ヒカル - First Love
 - 방탄소년단 - MAP OF THE SOUL: 7
 - Björk - Homogenic
 
 ### 3. Similar Names (`SimilarNameAlbums`)
+
 Tests disambiguation for:
+
 - Same title, different artists
 - Multiple versions (Deluxe, Remastered, Live)
 - Self-titled albums
 - Greatest Hits variations
 
 **Examples:**
+
 - Pink Floyd - The Wall vs Roger Waters - The Wall
 - Multiple "Weezer" self-titled albums
 
 ### 4. Sanitization Cases (`SanitizationCases`)
+
 Tests file system safety for:
+
 - Invalid file system characters
 - Path traversal attempts
 - Excessive whitespace
@@ -60,12 +72,15 @@ Tests file system safety for:
 - Empty/null-like values
 
 **Examples:**
+
 - "../../../etc" - Security test
 - Names with tabs, newlines, multiple spaces
 - Zero-width space characters (U+200B)
 
 ### 5. Query Parsing (`QueryParsingCases`)
+
 Tests search query handling for:
+
 - Boolean operators in names (AND, OR, NOT)
 - Search wildcards (`*`, `?`)
 - Pre-quoted content
@@ -73,6 +88,7 @@ Tests search query handling for:
 - Case sensitivity
 
 **Examples:**
+
 - Band name "AND" or "OR"
 - Albums with wildcards like "Artist*"
 
@@ -140,6 +156,7 @@ new SearchTestCase(
 ## Test Coverage Goals
 
 These test cases aim to ensure:
+
 1. **Search Accuracy**: Special characters don't break search
 2. **Unicode Support**: International content is preserved
 3. **File System Safety**: Names are sanitized for storage
@@ -149,6 +166,6 @@ These test cases aim to ensure:
 
 ## Related Tests
 
-- `EdgeCaseSearchTests.cs`: Validates search with edge cases
-- `SearchPerformanceTests.cs`: Performance testing with edge cases
-- `QobuzParserEdgeCaseTests.cs`: Parser validation with edge cases
+- `EdgeCaseSearchTests.cs`: Validates search with edge cases <!-- TODO(docval): EdgeCaseSearchTests class not found as of 2026-05-31 -->
+- `SearchPerformanceTests.cs`: Performance testing with edge cases <!-- TODO(docval): SearchPerformanceTests class not found as of 2026-05-31 -->
+- `QobuzParserEdgeCaseTests.cs`: Parser validation with edge cases <!-- TODO(docval): QobuzParserEdgeCaseTests class not found as of 2026-05-31 -->

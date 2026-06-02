@@ -1,4 +1,4 @@
-# Performance Tuning Guide for Qobuzzarr
+# Performance Tuning Guide for Qobuzarr
 
 ## Overview
 
@@ -7,7 +7,7 @@ This guide helps optimize Qobuzzarr performance for different usage scenarios, f
 ## Quick Performance Checklist
 
 - [x] **Query Intelligence enabled** (enabled by default - 49.83% API reduction!)
-- [x] **Adaptive Rate Limiting enabled** (enabled by default - 93x performance improvement!)
+- [x] **Adaptive Rate Limiting enabled** (enabled by default) <!-- TODO(docval): 93x performance improvement claim not verified in code as of 2026-05-31 -->
 - [ ] Configure appropriate cache settings
 - [ ] Optimize search parameters  
 - [ ] Monitor resource usage
@@ -21,10 +21,10 @@ This guide helps optimize Qobuzzarr performance for different usage scenarios, f
 
 ```csharp
 // Optimal cache settings for different scenarios
-public class CacheSettings
+public class CacheSettings <!-- TODO(docval): CacheSettings class not found in code as of 2026-05-31 -->
 {
     // Small library (<10,000 tracks)
-    public static readonly CacheProfile Small = new()
+    public static readonly CacheProfile Small = new() <!-- TODO(docval): CacheProfile class not found in code as of 2026-05-31 -->
     {
         SearchCacheDuration = TimeSpan.FromMinutes(5),
         AlbumCacheDuration = TimeSpan.FromHours(1),
@@ -56,7 +56,7 @@ public class CacheSettings
 
 ```bash
 #!/bin/bash
-# warm-cache.sh - Pre-populate cache with common searches
+# warm-cache.sh - Pre-populate cache with common searches <!-- TODO(docval): warm-cache.sh script not found in repo as of 2026-05-31 -->
 
 # Most popular artists
 artists=("Pink Floyd" "Beatles" "Led Zeppelin" "Queen" "David Bowie")
@@ -74,6 +74,7 @@ qobuzcli search --year-min $(date +%Y) --limit 100 --quiet
 ### Memory Cache vs Disk Cache
 
 **Memory Cache (Default)**
+
 ```yaml
 CacheType: Memory
 MaxMemorySize: 500MB
@@ -81,6 +82,7 @@ EvictionPolicy: LRU
 ```
 
 **Disk Cache (For Large Deployments)**
+
 ```yaml
 CacheType: Disk
 CacheDirectory: /var/cache/qobuzzarr
@@ -97,6 +99,7 @@ CompressionEnabled: true
 Qobuzarr's Query Intelligence system automatically reduces API calls by **49.83%** with minimal quality impact (1.515% average loss).
 
 #### How It Works
+
 The system analyzes artist and album complexity to determine the optimal number of search queries:
 
 - **Simple Cases (73.7% of real data)**: 1 query instead of 3 → **66.7% API reduction**
@@ -104,12 +107,13 @@ The system analyzes artist and album complexity to determine the optimal number 
 - **Complex Cases (24.2% of real data)**: 3 queries preserved → **0% reduction, quality maintained**
 
 #### Configuration
+
 ```bash
 # Query Intelligence is enabled by default - no configuration needed!
-QOBUZ_QUERY_INTELLIGENCE="true"    # Default: enabled
+QOBUZ_QUERY_INTELLIGENCE="true"    # Default: enabled <!-- TODO(docval): QOBUZ_QUERY_INTELLIGENCE env var not found in code as of 2026-05-31 -->
 
 # Optional: Enable debug logging to see classifications
-QOBUZ_DEBUG_QUERIES="true"         # Default: disabled
+QOBUZ_DEBUG_QUERIES="true"         # Default: disabled <!-- TODO(docval): QOBUZ_DEBUG_QUERIES env var not found in code as of 2026-05-31 -->
 
 # Advanced: Custom complexity thresholds (experts only)
 QOBUZ_SIMPLE_THRESHOLD="1"         # Default: 1 (conservative)
@@ -117,13 +121,16 @@ QOBUZ_MEDIUM_THRESHOLD="4"         # Default: 4 (conservative)
 ```
 
 #### Real-World Performance Impact
+
 For a typical user library of 100 albums:
+
 - **Before**: 297 API calls
 - **After**: 149 API calls  
 - **Time Saved**: ~50% faster searches
 - **Server Load**: 148 fewer API calls
 
 #### Performance Monitoring
+
 ```csharp
 // Monitor Query Intelligence effectiveness
 var strategy = new SmartQueryStrategy(logger);
@@ -138,26 +145,29 @@ logger.Info($"Expected API call reduction: {reduction:P}");
 The Pattern Learning Engine uses ML.NET to learn from successful searches and improve predictions over time.
 
 ##### Configuration
+
 ```bash
 # Enable ML predictions (experimental - default: disabled)
-QOBUZ_ML_PREDICTIONS="true"             # Enable ML-powered optimization
+QOBUZ_ML_PREDICTIONS="true"             # Enable ML-powered optimization <!-- TODO(docval): QOBUZ_ML_PREDICTIONS env var not found in code as of 2026-05-31 -->
 
 # ML tuning parameters
-QOBUZ_ML_CONFIDENCE_THRESHOLD="0.7"     # Confidence required for ML predictions (0.5-0.9)
-QOBUZ_ML_RETRAIN_INTERVAL="24"          # Hours between model retraining (12-72)
-QOBUZ_ML_RETRAIN_BATCH_SIZE="1000"      # Patterns before triggering retrain (500-2000)
+QOBUZ_ML_CONFIDENCE_THRESHOLD="0.7"     # Confidence required for ML predictions (0.5-0.9) <!-- TODO(docval): QOBUZ_ML_CONFIDENCE_THRESHOLD env var not found in code as of 2026-05-31 -->
+QOBUZ_ML_RETRAIN_INTERVAL="24"          # Hours between model retraining (12-72) <!-- TODO(docval): QOBUZ_ML_RETRAIN_INTERVAL env var not found in code as of 2026-05-31 -->
+QOBUZ_ML_RETRAIN_BATCH_SIZE="1000"      # Patterns before triggering retrain (500-2000) <!-- TODO(docval): QOBUZ_ML_RETRAIN_BATCH_SIZE env var not found in code as of 2026-05-31 -->
 ```
 
 ##### Performance Benefits
+
 - **Adaptive Learning**: Improves accuracy over time with your specific music catalog
 - **Context Awareness**: Learns patterns specific to your search behavior
 - **Edge Case Handling**: Better than static rules for unusual artist/album combinations
 - **Hybrid Approach**: Falls back to rule-based classification when confidence is low
 
 ##### ML Performance Monitoring
+
 ```csharp
 // Monitor ML model performance
-var mlEngine = new PatternLearningEngine(logger);
+var mlEngine = new PatternLearningEngine(logger); <!-- TODO(docval): PatternLearningEngine implementation class not found in code as of 2026-05-31 (IPatternLearningEngine interface exists) -->
 var metrics = await mlEngine.EvaluateModelAsync();
 
 logger.Info($"ML Model Stats:");
@@ -168,19 +178,23 @@ logger.Info($"  Correct: {metrics.CorrectPredictions}");
 ```
 
 ##### ML Memory Usage
+
 - **Initial Model**: ~2-5 MB memory overhead
 - **Training Data**: ~1 KB per pattern (1000 patterns = ~1 MB)
 - **Feature Cache**: Minimal overhead (~100 KB)
 - **Total Overhead**: Typically 5-10 MB for active systems
 
 ##### When to Enable ML
+
 **Enable ML predictions when:**
+
 - Library size > 1000 albums (more training data)
 - Diverse music catalog (benefits from adaptive learning)
 - Regular search activity (provides feedback data)
 - Performance monitoring available (track accuracy)
 
 **Keep ML disabled when:**
+
 - Small library < 500 albums (insufficient training data)
 - Consistent music patterns (rule-based works well)
 - Memory-constrained environments
@@ -364,7 +378,7 @@ services:
 ### Memory Usage Monitoring
 
 ```csharp
-public class MemoryMonitor
+public class MemoryMonitor <!-- TODO(docval): MemoryMonitor class not found in code as of 2026-05-31 -->
 {
     private readonly ILogger _logger;
     private readonly Timer _timer;
@@ -585,6 +599,7 @@ k6 run loadtest.js
 ## Conclusion
 
 Performance tuning is an iterative process. Start with the basics:
+
 1. Enable caching
 2. Set appropriate rate limits
 3. Monitor resource usage

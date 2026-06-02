@@ -203,7 +203,7 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Services
                 }
 
                 // For audio files, check for common magic bytes
-                if (IsValidAudioFile(buffer, Path.GetExtension(filePath)))
+                if (IsValidAudioFile(buffer))
                 {
                     _logger.Debug("Downloaded file validation successful: {0} ({1} bytes)", filePath, fileInfo.Length);
                     return true;
@@ -277,19 +277,14 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Services
             }
         }
 
-        private static bool IsValidAudioFile(byte[] buffer, string extension)
+        private static bool IsValidAudioFile(byte[] buffer)
         {
             if (buffer.Length < 4) return false;
 
-            // M4A is not currently covered by common's AudioMagicBytesValidator (which checks
-            // the first 4 bytes); preserve the legacy ftyp-after-size check for that extension.
-            // For all other audio extensions, defer to the canonical validator from common.
-            if (string.Equals(extension, ".m4a", StringComparison.OrdinalIgnoreCase))
-            {
-                return buffer.Skip(4).Take(4).SequenceEqual(new byte[] { 0x66, 0x74, 0x79, 0x70 }); // "ftyp" after size
-            }
-
-            return AudioMagicBytesValidator.IsValidAudioMagicBytes(buffer.AsSpan());
+            // Audio-payload validation is consolidated in Common's DownloadPayloadValidator, which
+            // recognizes MP4/M4A (ftyp at offset 4) natively alongside FLAC/OGG/RIFF/ID3/MPEG — so the
+            // former extension-specific ftyp workaround is no longer needed.
+            return DownloadPayloadValidator.IsValidAudioMagicBytes(buffer.AsSpan());
         }
 
         private static bool IsRetryableNetworkError(Exception ex)

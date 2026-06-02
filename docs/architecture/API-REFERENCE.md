@@ -1,3 +1,5 @@
+> ⚠️ Partially aspirational (flagged 2026-05-31): some classes/methods/APIs below are design documentation that does not exist in the current code; see inline TODO(docval) markers. Verify against `src/` before relying on any symbol.
+
 # Qobuzarr API Reference
 
 This document provides a comprehensive reference for all public APIs and services provided by the Qobuzarr plugin, including the latest ML optimization, security, and performance features.
@@ -27,21 +29,26 @@ The authentication service manages user credentials and session lifecycle with e
 #### Methods
 
 ##### AuthenticateAsync
+
 ```csharp
 Task<QobuzSession> AuthenticateAsync(QobuzCredentials credentials)
 ```
+
 Authenticates with the Qobuz API using secure credential handling.
 
 **Parameters:**
+
 - `credentials`: Authentication credentials (automatically secured)
 
 **Security Features:**
+
 - Automatic credential masking in logs
 - Secure string handling for passwords
 - Session token protection
 - Automatic credential cleanup
 
 **Example:**
+
 ```csharp
 var credentials = new QobuzCredentials
 {
@@ -53,12 +60,14 @@ var session = await authService.AuthenticateAsync(credentials);
 ```
 
 ##### ValidateSessionAsync
+
 ```csharp
 Task<bool> ValidateSessionAsync(QobuzSession session)
 ```
+
 Validates session with integrity checks and automatic renewal.
 
-### SecureCredentialManager
+### SecureCredentialManager<!-- TODO(docval): SecureCredentialManager not found in code as of 2026-05-31; real equivalent is StreamingTokenManager from Common + local credential handling -->
 
 **New in v0.0.12**: Secure credential management with memory protection.
 
@@ -73,14 +82,16 @@ public class SecureCredentialManager : IDisposable
 ```
 
 **Features:**
-- SecureString integration for Windows
+
+- SecureString integration for Windows<!-- TODO(docval): SecureString-based credential handling not found in code as of 2026-05-31 -->
 - Memory protection and automatic cleanup  
 - Concurrent credential access patterns
 - Credential validation and security policies
 
 **Example:**
+
 ```csharp
-var credentialManager = new SecureCredentialManager(logger);
+var credentialManager = new SecureCredentialManager(logger);<!-- TODO(docval): SecureCredentialManager not found in code as of 2026-05-31 -->
 
 // Store credential securely
 credentialManager.StoreSecureCredential("qobuz_password", userPassword);
@@ -108,6 +119,7 @@ public class SecureMLModelLoader : IDisposable
 ```
 
 **Security Validation Pipeline:**
+
 1. Path traversal protection
 2. Assembly whitelist verification  
 3. Cryptographic hash verification (SHA-256)
@@ -116,6 +128,7 @@ public class SecureMLModelLoader : IDisposable
 6. Comprehensive audit logging
 
 **Example:**
+
 ```csharp
 var modelLoader = new SecureMLModelLoader(logger);
 
@@ -152,6 +165,7 @@ public class SecurityValidationResult
 ```
 
 **Validation Categories:**
+
 - Authentication security (credential strength, format validation)
 - Injection attack prevention (SQL, XSS, path traversal)
 - Network security (HTTPS enforcement, certificate validation)
@@ -166,17 +180,20 @@ public class SecurityValidationResult
 #### Core Methods
 
 ##### GetAsync&lt;T&gt;
+
 ```csharp
 Task<T> GetAsync<T>(string endpoint, Dictionary<string, string> parameters = null)
 ```
 
 **Security Features:**
+
 - HTTPS enforcement with certificate validation
 - Request signing with HMAC-SHA256
 - Response integrity verification
 - Input sanitization and validation
 
 **Performance Features:**
+
 - Adaptive rate limiting (60-500 req/min)
 - Intelligent caching with pattern recognition
 - Automatic retry with exponential backoff
@@ -185,23 +202,27 @@ Task<T> GetAsync<T>(string endpoint, Dictionary<string, string> parameters = nul
 #### New Advanced Features
 
 ##### ExecuteWithRetryAsync
+
 ```csharp
 Task<T> ExecuteWithRetryAsync<T>(Func<Task<T>> operation, RetryPolicy policy = null)
 ```
 
 **Retry Strategies:**
+
 - Exponential backoff: 1s, 2s, 4s, 8s, 16s
 - Jittered delays to prevent thundering herd
 - Circuit breaker pattern for sustained failures
 - Adaptive timeout adjustment
 
 ##### GetWithCacheAsync
+
 ```csharp
 Task<T> GetWithCacheAsync<T>(string endpoint, Dictionary<string, string> parameters, 
     TimeSpan? cacheExpiration = null)
 ```
 
 **Advanced Caching:**
+
 - Multi-level cache hierarchy (memory → disk → network)
 - Cache invalidation with dependency tracking
 - Compressed cache storage for large responses
@@ -214,13 +235,14 @@ Task<T> GetWithCacheAsync<T>(string endpoint, Dictionary<string, string> paramet
 ```csharp
 public class QobuzRequestSigner
 {
-    SignedRequest SignRequest(string method, string path, Dictionary<string, string> parameters, 
+    SignedRequest SignRequest(string method, string path, Dictionary<string, string> parameters, <!-- TODO(docval): SignedRequest return type not found in code as of 2026-05-31 -->
         DateTimeOffset timestamp, string nonce);
-    bool VerifyResponseIntegrity(string responseContent, string expectedSignature);
+    bool VerifyResponseIntegrity(string responseContent, string expectedSignature);<!-- TODO(docval): VerifyResponseIntegrity method not found as of 2026-05-31 -->
 }
 ```
 
 **Security Features:**
+
 - HMAC-SHA256 request signing
 - Replay attack prevention with timestamps/nonces
 - Request canonicalization for consistent signing
@@ -235,12 +257,14 @@ Enhanced indexer with ML optimization and security features.
 #### Search Capabilities
 
 **Traditional Features:**
+
 - Album search by title, artist, year, genre
 - Fuzzy matching with fallback strategies
 - Quality preference filtering
 - RSS support (read-only)
 
 **New ML-Powered Features:**
+
 - Query Intelligence optimization (49.83% API reduction)
 - Pattern learning with continuous improvement
 - Context-aware search optimization
@@ -256,18 +280,20 @@ Enhanced indexer with ML optimization and security features.
 public class QueryComplexityClassifier
 {
     QueryComplexity ClassifyComplexity(string artist, string album);
-    QueryComplexityAnalysis AnalyzeWithDetails(string artist, string album);
-    void UpdateClassificationRules(ClassificationRules rules);
+    QueryComplexityAnalysis AnalyzeWithDetails(string artist, string album);<!-- TODO(docval): AnalyzeWithDetails method not found in code as of 2026-05-31 -->
+    void UpdateClassificationRules(ClassificationRules rules);<!-- TODO(docval): UpdateClassificationRules method not found; ClassificationRules type not found as of 2026-05-31 -->
 }
 ```
 
 **New Analysis Features:**
+
 - **Deep Pattern Recognition**: 25+ complexity factors
 - **Unicode Handling**: Advanced normalization and analysis
 - **Context Awareness**: Genre and era-specific rules
 - **Confidence Scoring**: Prediction confidence levels
 
 **Complexity Factors (Expanded):**
+
 - Character analysis: Special chars, Unicode, length patterns
 - Linguistic patterns: "Various Artists", "Remastered", edition indicators  
 - Structural analysis: Word count, phrase complexity
@@ -282,19 +308,21 @@ public class QueryComplexityClassifier
 public class SmartQueryStrategy
 {
     List<string> BuildOptimizedQueries(string artist, string album, List<string> originalQueries);
-    QueryOptimizationResult OptimizeWithML(string artist, string album, 
+    QueryOptimizationResult OptimizeWithML(string artist, string album, <!-- TODO(docval): OptimizeWithML method not found; QueryOptimizationResult type not found as of 2026-05-31 -->
         List<string> originalQueries, IPatternLearningEngine mlEngine = null);
-    void LearnFromResult(QueryResult result, QueryComplexity predictedComplexity);
+    void LearnFromResult(QueryResult result, QueryComplexity predictedComplexity);<!-- TODO(docval): LearnFromResult method not found as of 2026-05-31 -->
 }
 ```
 
 **New ML Features:**
+
 - **Adaptive Learning**: Learns from search success/failure patterns
 - **Confidence-Based Decisions**: Uses ML confidence for query count decisions
 - **Feedback Loop**: Continuously improves from real usage data
 - **Hybrid Approach**: Combines rule-based and ML-based optimization
 
 **Performance Improvements:**
+
 - **API Reduction**: 49.83% → 55.2% (with ML)
 - **Accuracy**: 98.5% maintained with ML optimization
 - **Processing Speed**: 3x faster with ML predictions
@@ -348,6 +376,7 @@ public class CompiledMLQueryOptimizer : IPatternLearningEngine
 ```
 
 **Features:**
+
 - **Zero Training Required**: Ships with pre-trained model
 - **Production Ready**: Optimized for low-latency predictions
 - **Security Validated**: Signed assemblies with hash verification
@@ -386,25 +415,27 @@ public class MLPerformanceMetrics
 ```csharp
 public interface IQobuzQualityManager
 {
-    Task<QualityDetectionResult> DetectAlbumQualityAsync(string albumId);
-    Task<List<AvailableQuality>> GetAvailableQualitiesAsync(string trackId);
-    QualityFormat MapLidarrQuality(LidarrQualityProfile profile);
-    Task<QualityFallbackResult> GetOptimalQualityAsync(string trackId, 
-        QualityPreference preference);
-    QualityValidationResult ValidateQualityAvailability(QualityFormat requestedQuality, 
-        List<AvailableQuality> available);
+    Task<QualityDetectionResult> DetectAlbumQualityAsync(string albumId);<!-- TODO(docval): method signature differs as of 2026-05-31 -->
+    Task<List<AvailableQuality>> GetAvailableQualitiesAsync(string trackId);<!-- TODO(docval): AvailableQuality type not found; method returns List<int> as of 2026-05-31 -->
+    QualityFormat MapLidarrQuality(LidarrQualityProfile profile);<!-- TODO(docval): return type is QobuzQuality as of 2026-05-31 -->
+    Task<QualityFallbackResult> GetOptimalQualityAsync(string trackId,
+        QualityPreference preference);<!-- TODO(docval): QualityFallbackResult and QualityPreference types not found as of 2026-05-31 -->
+    QualityValidationResult ValidateQualityAvailability(QualityFormat requestedQuality,
+        List<AvailableQuality> available);<!-- TODO(docval): QualityValidationResult and AvailableQuality types not found as of 2026-05-31 -->
 }
 ```
 
 #### Quality Detection Features
 
 **IntelligentQualityDetector Integration:**
+
 - **Smart Sampling**: Checks 2-3 representative tracks instead of all tracks
 - **Album-Level Caching**: 95% reduction in quality check API calls  
 - **Consistency Analysis**: Detects mixed-quality albums automatically
 - **Batch Processing**: Optimizes quality checks for multiple albums
 
 **QualityFallbackService Integration:**
+
 - **Intelligent Fallback**: Hi-Res → FLAC CD → MP3 320 with user preferences
 - **Availability Prediction**: Predicts quality availability based on release patterns
 - **Dynamic Adjustment**: Adapts quality preferences based on subscription level
@@ -423,10 +454,10 @@ public class QualityFormat
     public QualityTier Tier { get; set; } // Lossy, CD, HiRes
 }
 
-public enum QualityTier
+public enum QualityTier<!-- TODO(docval): QualityTier enum not found in code as of 2026-05-31 -->
 {
     Lossy = 1,      // MP3 320kbps
-    CD = 2,         // FLAC 16bit/44.1kHz  
+    CD = 2,         // FLAC 16bit/44.1kHz
     HiRes96 = 3,    // FLAC 24bit/96kHz
     HiRes192 = 4    // FLAC 24bit/192kHz
 }
@@ -441,12 +472,14 @@ public enum QualityTier
 #### Core Features
 
 **Traditional Download Features:**
+
 - Multi-threaded downloads with progress tracking
 - Automatic retry with exponential backoff
 - File integrity verification (checksum validation)
 - Bandwidth throttling and connection management
 
 **New Advanced Features:**
+
 - **Intelligent Download Orchestration**: ML-powered download optimization
 - **Quality-Aware Batching**: Groups downloads by quality for efficiency  
 - **Adaptive Concurrency**: Adjusts concurrent downloads based on performance
@@ -455,45 +488,49 @@ public enum QualityTier
 #### Methods
 
 ##### DownloadAsync
+
 ```csharp
-Task<DownloadResult> DownloadAsync(DownloadRequest request, 
-    IProgress<DownloadProgress> progress = null, 
+Task<DownloadResult> DownloadAsync(DownloadRequest request, <!-- TODO(docval): DownloadRequest type not found as of 2026-05-31 -->
+    IProgress<DownloadProgress> progress = null,
     CancellationToken cancellationToken = default)
 ```
 
 **Enhanced with:**
+
 - Quality optimization and fallback handling
 - Intelligent progress reporting with ETA prediction
 - Automatic metadata embedding and validation
 - Security verification for downloaded files
 
 ##### BatchDownloadAsync
+
 ```csharp
-Task<List<DownloadResult>> BatchDownloadAsync(List<DownloadRequest> requests,
+Task<List<DownloadResult>> BatchDownloadAsync(List<DownloadRequest> requests,<!-- TODO(docval): DownloadRequest type not found; BatchDownloadOptions type not found as of 2026-05-31 -->
     BatchDownloadOptions options = null,
-    IProgress<BatchProgress> progress = null)
+    IProgress<BatchProgress> progress = null)<!-- TODO(docval): BatchProgress type signature differs as of 2026-05-31 -->
 ```
 
 **New Batch Features:**
+
 - **Smart Batching**: Groups similar downloads for efficiency
 - **Quality Consistency**: Ensures consistent quality across album
 - **Memory Management**: Prevents memory exhaustion in large batches
 - **Error Resilience**: Continues batch on individual failures
 
-### AdaptiveBatchDownloadService
+### AdaptiveBatchDownloadService<!-- TODO(docval): AdaptiveBatchDownloadService not found in code as of 2026-05-31; real equivalent is BatchDownloadService from QobuzCLI/Services/BatchDownloadService.cs -->
 
 **New in v0.0.12**: Intelligent batch processing with adaptive algorithms.
 
 ```csharp
 public class AdaptiveBatchDownloadService
 {
-    Task<BatchResult> ProcessBatchAsync(List<DownloadRequest> requests, 
-        AdaptiveBatchOptions options);
+    Task<BatchResult> ProcessBatchAsync(List<DownloadRequest> requests, <!-- TODO(docval): BatchResult type not found; DownloadRequest type not found as of 2026-05-31 -->
+        AdaptiveBatchOptions options);<!-- TODO(docval): AdaptiveBatchOptions type not found as of 2026-05-31 -->
     void UpdatePerformanceMetrics(BatchResult result);
-    AdaptiveBatchStatistics GetOptimizationStatistics();
+    AdaptiveBatchStatistics GetOptimizationStatistics();<!-- TODO(docval): AdaptiveBatchStatistics type not found as of 2026-05-31 -->
 }
 
-public class AdaptiveBatchOptions
+public class AdaptiveBatchOptions<!-- TODO(docval): AdaptiveBatchOptions not found in code as of 2026-05-31 -->
 {
     public int InitialConcurrency { get; set; } = 4;
     public int MaxConcurrency { get; set; } = 12;
@@ -504,6 +541,7 @@ public class AdaptiveBatchOptions
 ```
 
 **Adaptive Features:**
+
 - **Dynamic Concurrency**: Adjusts based on network performance and API limits
 - **Quality Grouping**: Processes same-quality downloads together for efficiency
 - **Memory Pressure Response**: Reduces batch size under memory constraints
@@ -518,11 +556,11 @@ public class AdaptiveBatchOptions
 ```csharp
 public interface ILidarrIntegrationService
 {
-    Task<LidarrImportResult> ImportSearchResultsAsync(List<QobuzAlbum> albums,
-        LidarrImportOptions options);
-    Task<LidarrQualityMapping> MapQobuzToLidarrQualityAsync(QualityFormat qobuzQuality);
+    Task<LidarrImportResult> ImportSearchResultsAsync(List<QobuzAlbum> albums,<!-- TODO(docval): LidarrImportResult type not found as of 2026-05-31 -->
+        LidarrImportOptions options);<!-- TODO(docval): LidarrImportOptions type not found as of 2026-05-31 -->
+    Task<LidarrQualityMapping> MapQobuzToLidarrQualityAsync(QualityFormat qobuzQuality);<!-- TODO(docval): LidarrQualityMapping type not found as of 2026-05-31 -->
     Task<List<LidarrQualityProfile>> GetCompatibleQualityProfilesAsync();
-    Task<LidarrMetadataResult> EnrichWithLidarrMetadataAsync(QobuzAlbum album);
+    Task<LidarrMetadataResult> EnrichWithLidarrMetadataAsync(QobuzAlbum album);<!-- TODO(docval): LidarrMetadataResult type not found as of 2026-05-31 -->
 }
 ```
 
@@ -533,15 +571,16 @@ public interface ILidarrIntegrationService
 ```csharp
 public class LidarrContextOptimizer
 {
-    OptimizedQueryContext OptimizeWithContext(string artistName, string albumTitle, 
+    OptimizedQueryContext OptimizeWithContext(string artistName, string albumTitle,
         List<string> originalQueries);
-    Task<LidarrArtistContext> GetArtistContextAsync(string artistName);
-    Task<LidarrAlbumContext> GetAlbumContextAsync(string artistName, string albumTitle);
+    Task<LidarrArtistContext> GetArtistContextAsync(string artistName);<!-- TODO(docval): LidarrArtistContext type not found as of 2026-05-31 -->
+    Task<LidarrAlbumContext> GetAlbumContextAsync(string artistName, string albumTitle);<!-- TODO(docval): LidarrAlbumContext type not found as of 2026-05-31 -->
     ContextStatistics GetStatistics();
 }
 ```
 
 **Context Optimization Benefits:**
+
 - **49.6% API Call Reduction**: Uses Lidarr metadata to skip redundant searches
 - **44.6% Cache Hit Rate**: Leverages existing Lidarr artist/album data
 - **Smart Artist Matching**: Uses Lidarr's artist aliases and variations
@@ -555,13 +594,14 @@ public class LidarrContextOptimizer
 public class LidarrQueueManager : ILidarrQueueManager
 {
     Task<QueueStatus> GetQueueStatusAsync();
-    Task<List<QueueItem>> GetPendingItemsAsync(QueueFilter filter = null);
-    Task<bool> AddToQueueAsync(QobuzAlbum album, QueuePriority priority = QueuePriority.Normal);
-    Task<QueueProcessingResult> ProcessQueueAsync(QueueProcessingOptions options);
+    Task<List<QueueItem>> GetPendingItemsAsync(QueueFilter filter = null);<!-- TODO(docval): QueueFilter type not found as of 2026-05-31 -->
+    Task<bool> AddToQueueAsync(QobuzAlbum album, QueuePriority priority = QueuePriority.Normal);<!-- TODO(docval): QueuePriority enum not found; AddToQueueAsync signature different as of 2026-05-31 -->
+    Task<QueueProcessingResult> ProcessQueueAsync(QueueProcessingOptions options);<!-- TODO(docval): QueueProcessingResult and QueueProcessingOptions types not found as of 2026-05-31 -->
 }
 ```
 
 **Advanced Queue Features:**
+
 - **Priority-Based Processing**: High, Normal, Low priority queues
 - **Intelligent Scheduling**: Optimal processing order based on dependencies
 - **Progress Tracking**: Real-time progress updates for queue processing
@@ -574,23 +614,25 @@ public class LidarrQueueManager : ILidarrQueueManager
 **Enhanced in v0.0.12**: Intelligent rate limiting with adaptive algorithms.
 
 ```csharp
-public class AdaptiveRateLimiter : IAdaptiveRateLimiter
+public class AdaptiveRateLimiter : IAdaptiveRateLimiter<!-- TODO(docval): IAdaptiveRateLimiter interface not found as of 2026-05-31 -->
 {
     Task<bool> WaitIfNeededAsync(string endpoint, CancellationToken cancellationToken);
     void RecordResponse(string endpoint, HttpResponseMessage response);
     int GetCurrentLimit(string endpoint);
     RateLimitStats GetStats();
-    AdaptiveRateLimitConfig GetConfiguration();
+    AdaptiveRateLimitConfig GetConfiguration();<!-- TODO(docval): AdaptiveRateLimitConfig type not found as of 2026-05-31 -->
 }
 ```
 
 **Adaptive Features:**
+
 - **Endpoint-Specific Limits**: Different limits for search, download, metadata endpoints
 - **Success-Based Adjustment**: Increases limits after consistent success
 - **Failure-Based Backoff**: Reduces limits on rate limit or error responses
 - **Global vs Local Limiting**: Balances per-endpoint and global API limits
 
 **Rate Limiting Algorithm:**
+
 ```
 Default: 60 req/min
 Success threshold: 20 consecutive successes → increase by 20%
@@ -605,14 +647,15 @@ Min limit: 10 req/min, Max limit: 500 req/min
 ```csharp
 public class AdaptiveConcurrencyManager
 {
-    Task<T> ExecuteAsync<T>(Func<Task<T>> operation, ConcurrencyContext context);
-    void UpdatePerformanceMetrics(OperationResult result);
+    Task<T> ExecuteAsync<T>(Func<Task<T>> operation, ConcurrencyContext context);<!-- TODO(docval): ConcurrencyContext type not found; ExecuteAsync signature different as of 2026-05-31 -->
+    void UpdatePerformanceMetrics(OperationResult result);<!-- TODO(docval): OperationResult type not found as of 2026-05-31 -->
     ConcurrencyStatistics GetStatistics();
-    void SetConcurrencyLimits(ConcurrencyLimits limits);
+    void SetConcurrencyLimits(ConcurrencyLimits limits);<!-- TODO(docval): ConcurrencyLimits type not found as of 2026-05-31 -->
 }
 ```
 
 **Adaptive Algorithms:**
+
 - **Performance-Based Adjustment**: Increases/decreases based on response times
 - **Error-Rate Monitoring**: Reduces concurrency on high error rates
 - **Memory Pressure Response**: Adapts to available system memory
@@ -625,23 +668,24 @@ public class AdaptiveConcurrencyManager
 ```csharp
 public class MemoryHealthMonitor
 {
-    MemoryHealthStatus GetCurrentStatus();
+    MemoryHealthStatus GetCurrentStatus();<!-- TODO(docval): MemoryHealthStatus type not found as of 2026-05-31 -->
     Task<MemoryOptimizationResult> OptimizeMemoryAsync();
-    void RegisterMemoryPressureCallback(Action<MemoryPressureLevel> callback);
-    MemoryStatistics GetStatistics();
+    void RegisterMemoryPressureCallback(Action<MemoryPressureLevel> callback);<!-- TODO(docval): MemoryPressureLevel enum not found as of 2026-05-31 -->
+    MemoryStatistics GetStatistics();<!-- TODO(docval): MemoryStatistics type not found as of 2026-05-31 -->
 }
 
-public class MemoryHealthStatus
+public class MemoryHealthStatus<!-- TODO(docval): MemoryHealthStatus not found in code as of 2026-05-31 -->
 {
     public long TotalMemoryMB { get; set; }
     public long AvailableMemoryMB { get; set; }
     public long QobuzarrMemoryUsageMB { get; set; }
     public MemoryPressureLevel PressureLevel { get; set; }
-    public List<MemoryHotspot> MemoryHotspots { get; set; }
+    public List<MemoryHotspot> MemoryHotspots { get; set; }<!-- TODO(docval): MemoryHotspot type not found as of 2026-05-31 -->
 }
 ```
 
 **Memory Optimization Features:**
+
 - **Cache Size Management**: Automatically adjusts cache sizes under pressure
 - **Batch Size Optimization**: Reduces batch sizes when memory is constrained
 - **Memory Leak Detection**: Monitors for memory leaks in long-running operations
@@ -652,16 +696,17 @@ public class MemoryHealthStatus
 **New in v0.0.12**: Advanced network resilience and recovery.
 
 ```csharp
-public class NetworkResilienceService
+public class NetworkResilienceService<!-- TODO(docval): NetworkResilienceService not found in code as of 2026-05-31 -->
 {
-    Task<T> ExecuteWithResilienceAsync<T>(Func<Task<T>> operation, 
-        ResiliencePolicy policy = null);
-    NetworkHealthStatus GetNetworkHealth();
-    void UpdateNetworkConditions(NetworkConditions conditions);
+    Task<T> ExecuteWithResilienceAsync<T>(Func<Task<T>> operation,
+        ResiliencePolicy policy = null);<!-- TODO(docval): ResiliencePolicy type not found as of 2026-05-31 -->
+    NetworkHealthStatus GetNetworkHealth();<!-- TODO(docval): NetworkHealthStatus type not found as of 2026-05-31 -->
+    void UpdateNetworkConditions(NetworkConditions conditions);<!-- TODO(docval): NetworkConditions type not found as of 2026-05-31 -->
 }
 ```
 
 **Resilience Features:**
+
 - **Circuit Breaker Pattern**: Prevents cascade failures
 - **Adaptive Timeout**: Adjusts timeouts based on network conditions  
 - **Connection Health Monitoring**: Tracks connection quality and stability
@@ -674,16 +719,17 @@ public class NetworkResilienceService
 **Enhanced in v0.0.12**: Comprehensive testing framework with advanced analytics.
 
 ```csharp
-public class TestOptimizationsCommand
+public class TestOptimizationsCommand<!-- TODO(docval): TestOptimizationsCommand not found in code as of 2026-05-31 -->
 {
-    Task ExecuteAsync(TestConfiguration config);
-    Task<TestReport> RunPerformanceTestsAsync(List<string> testAlbums);
-    Task<MLTestResults> ValidateMLOptimizationsAsync();
-    Task<SecurityTestResults> RunSecurityValidationAsync();
+    Task ExecuteAsync(TestConfiguration config);<!-- TODO(docval): TestConfiguration type not found as of 2026-05-31 -->
+    Task<TestReport> RunPerformanceTestsAsync(List<string> testAlbums);<!-- TODO(docval): TestReport type not found as of 2026-05-31 -->
+    Task<MLTestResults> ValidateMLOptimizationsAsync();<!-- TODO(docval): MLTestResults type not found as of 2026-05-31 -->
+    Task<SecurityTestResults> RunSecurityValidationAsync();<!-- TODO(docval): SecurityTestResults type not found as of 2026-05-31 -->
 }
 ```
 
 **New Testing Features:**
+
 - **ML Validation Testing**: Validates ML model accuracy and performance
 - **Security Testing**: Tests input validation, injection prevention
 - **Performance Benchmarking**: Comprehensive performance analysis  
@@ -692,15 +738,16 @@ public class TestOptimizationsCommand
 ### Performance Testing Results
 
 **Enhanced Analytics:**
+
 ```csharp
-public class TestReport
+public class TestReport<!-- TODO(docval): TestReport not found in code as of 2026-05-31 -->
 {
     public PerformanceMetrics BaselinePerformance { get; set; }
     public PerformanceMetrics OptimizedPerformance { get; set; }
-    public MLPerformanceResults MLResults { get; set; }
+    public MLPerformanceResults MLResults { get; set; }<!-- TODO(docval): MLPerformanceResults not found as of 2026-05-31 -->
     public SecurityTestResults SecurityResults { get; set; }
-    public List<TestRecommendation> Recommendations { get; set; }
-    
+    public List<TestRecommendation> Recommendations { get; set; }<!-- TODO(docval): TestRecommendation not found as of 2026-05-31 -->
+
     public class PerformanceMetrics
     {
         public double ApiCallReduction { get; set; }    // 49.83% typical
@@ -717,6 +764,7 @@ public class TestReport
 ### Enhanced Core Models
 
 #### QobuzSession (Enhanced)
+
 ```csharp
 public class QobuzSession
 {
@@ -735,6 +783,7 @@ public class QobuzSession
 ```
 
 #### QobuzCredentials (Enhanced)
+
 ```csharp
 public class QobuzCredentials
 {
@@ -756,6 +805,7 @@ public class QobuzCredentials
 ### New ML/Optimization Models
 
 #### QueryComplexityAnalysis
+
 ```csharp
 public class QueryComplexityAnalysis
 {
@@ -769,6 +819,7 @@ public class QueryComplexityAnalysis
 ```
 
 #### OptimizedQueryContext  
+
 ```csharp
 public class OptimizedQueryContext
 {
@@ -783,6 +834,7 @@ public class OptimizedQueryContext
 ```
 
 #### QualityDetectionResult
+
 ```csharp
 public class QualityDetectionResult  
 {
@@ -799,6 +851,7 @@ public class QualityDetectionResult
 ### Performance and Statistics Models
 
 #### CacheStatistics (Enhanced)
+
 ```csharp
 public class CacheStatistics
 {
@@ -817,6 +870,7 @@ public class CacheStatistics
 ```
 
 #### RateLimitStats (Enhanced)
+
 ```csharp
 public class RateLimitStats
 {
@@ -878,7 +932,8 @@ public class QobuzIndexerSettings
 
 ### New Configuration Classes
 
-#### MLOptimizationConfig
+#### MLOptimizationConfig<!-- TODO(docval): MLOptimizationConfig not found in code as of 2026-05-31 -->
+
 ```csharp
 public class MLOptimizationConfig
 {
@@ -892,14 +947,15 @@ public class MLOptimizationConfig
 }
 ```
 
-#### PerformanceConfig
+#### PerformanceConfig<!-- TODO(docval): PerformanceConfig not found in code as of 2026-05-31 -->
+
 ```csharp
 public class PerformanceConfig
 {
     public AdaptiveRateLimitConfig RateLimit { get; set; }
     public CacheConfig Cache { get; set; }
-    public ConcurrencyConfig Concurrency { get; set; }
-    public MemoryConfig Memory { get; set; }
+    public ConcurrencyConfig Concurrency { get; set; }<!-- TODO(docval): ConcurrencyConfig not found as of 2026-05-31 -->
+    public MemoryConfig Memory { get; set; }<!-- TODO(docval): MemoryConfig not found as of 2026-05-31 -->
 }
 ```
 
@@ -907,31 +963,34 @@ public class PerformanceConfig
 
 ### Enhanced Exception Hierarchy
 
-#### QobuzSecurityException (New)
+#### QobuzSecurityException (New)<!-- TODO(docval): QobuzSecurityException not found in code as of 2026-05-31 -->
+
 ```csharp
 public class QobuzSecurityException : Exception
 {
-    public SecurityThreatLevel ThreatLevel { get; set; }
+    public SecurityThreatLevel ThreatLevel { get; set; }<!-- TODO(docval): SecurityThreatLevel enum not found as of 2026-05-31 -->
     public string ThreatType { get; set; }
     public Dictionary<string, object> SecurityContext { get; set; }
 }
 ```
 
-#### QobuzMLException (New)
+#### QobuzMLException (New)<!-- TODO(docval): QobuzMLException not found in code as of 2026-05-31 -->
+
 ```csharp
 public class QobuzMLException : Exception
 {
-    public MLErrorType ErrorType { get; set; }
+    public MLErrorType ErrorType { get; set; }<!-- TODO(docval): MLErrorType enum not found as of 2026-05-31 -->
     public string ModelPath { get; set; }
-    public MLErrorContext ErrorContext { get; set; }
+    public MLErrorContext ErrorContext { get; set; }<!-- TODO(docval): MLErrorContext not found as of 2026-05-31 -->
 }
 ```
 
-#### QobuzPerformanceException (New)
+#### QobuzPerformanceException (New)<!-- TODO(docval): QobuzPerformanceException not found in code as of 2026-05-31 -->
+
 ```csharp
 public class QobuzPerformanceException : Exception
 {
-    public PerformanceMetric AffectedMetric { get; set; }
+    public PerformanceMetric AffectedMetric { get; set; }<!-- TODO(docval): PerformanceMetric enum not found in code as of 2026-05-31 -->
     public double ThresholdValue { get; set; }
     public double ActualValue { get; set; }
     public TimeSpan Duration { get; set; }
@@ -943,6 +1002,7 @@ public class QobuzPerformanceException : Exception
 ### Security Best Practices
 
 1. **Credential Management**
+
 ```csharp
 // ✅ SECURE: Use SecureCredentialManager
 await credentialManager.UseSecureCredentialAsync("password", async password => {
@@ -953,7 +1013,8 @@ await credentialManager.UseSecureCredentialAsync("password", async password => {
 var result = await qobuzApi.AuthenticateAsync(email, plainTextPassword);
 ```
 
-2. **ML Model Security**
+1. **ML Model Security**
+
 ```csharp
 // ✅ SECURE: Use SecureMLModelLoader with signature verification
 var model = secureLoader.LoadSecureModel(modelPath, requireSignature: true);
@@ -965,6 +1026,7 @@ var assembly = Assembly.LoadFrom(untrustedPath);
 ### Performance Best Practices
 
 1. **Use ML Optimization**
+
 ```csharp
 // ✅ OPTIMAL: Enable ML-powered query optimization
 var settings = new QobuzIndexerSettings
@@ -974,14 +1036,16 @@ var settings = new QobuzIndexerSettings
 };
 ```
 
-2. **Leverage Intelligent Caching**
+1. **Leverage Intelligent Caching**
+
 ```csharp
 // ✅ EFFICIENT: Use pattern-aware caching
 var cachedResult = patternCache.GetCachedResult(artist, album);
 if (cachedResult != null) return cachedResult.CachedData;
 ```
 
-3. **Enable Adaptive Rate Limiting**
+1. **Enable Adaptive Rate Limiting**
+
 ```csharp
 // ✅ ADAPTIVE: Let the system optimize API usage
 var rateLimiter = new AdaptiveRateLimiter(logger);

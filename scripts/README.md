@@ -39,7 +39,7 @@ cat training_output/integration_guide.md
 python setup_environment.py
 
 # 2. Balanced training for good results
-python quick_start.py --mb-url http://192.168.2.13:5001/ --profile balanced
+python quick_start.py --mb-url http://192.168.2.13:5001/ --profile balanced <!-- TODO(docval): --profile option declared but not implemented in code as of 2026-05-31 -->
 
 # 3. Copy generated model to Qobuzarr
 cp training_output/PersonalizedMLQueryOptimizer.cs ../src/Indexers/
@@ -63,16 +63,19 @@ cp training_output/PersonalizedMLQueryOptimizer.cs ../src/Indexers/
 ## 🔧 **Prerequisites**
 
 ### **Required**
+
 - **MusicBrainz Instance**: Running at `http://192.168.2.13:5001/` (or your URL)
 - **Python 3.8+**: For running training scripts
 - **10GB+ disk space**: For datasets and models
 
 ### **Recommended**
+
 - **NVIDIA GPU**: RTX 3090/4090 for fast training (15-30 min vs 2-4 hours CPU)
 - **16GB+ RAM**: For large dataset processing
 - **Large music library**: 10,000+ albums for best results
 
 ### **Check Requirements**
+
 ```bash
 python setup_environment.py --gpu-check
 python test_scripts.py --mock-musicbrainz
@@ -81,17 +84,20 @@ python test_scripts.py --mock-musicbrainz
 ## 📁 **Scripts Overview**
 
 ### **Main Scripts**
+
 - **`quick_start.py`** ⭐ - Complete pipeline in one command
 - **`setup_environment.py`** - Install dependencies and test GPU
 - **`test_scripts.py`** - Test all functionality without MusicBrainz
 
 ### **Individual Components**
+
 - **`extract_musicbrainz_data.py`** - Extract album data from MusicBrainz
 - **`train_ml_model.py`** - Train neural network with GPU acceleration
 - **`export_model_to_csharp.py`** - Convert model to C# production code
 - **`validate_model.py`** - Test model performance vs baseline
 
 ### **Configuration & Docs**
+
 - **`config.json`** - Comprehensive configuration for all user types
 - **`requirements.txt`** - Python dependencies
 - **`TRAINING_GUIDE.md`** - Complete step-by-step guide
@@ -100,6 +106,7 @@ python test_scripts.py --mock-musicbrainz
 ## 🎵 **Example Use Cases**
 
 ### **Classical Music Enthusiast**
+
 ```bash
 # Large classical library with complex naming
 python quick_start.py \
@@ -107,9 +114,11 @@ python quick_start.py \
   --profile high_quality \
   --class-name ClassicalMLOptimizer
 ```
+
 **Why**: Classical has complex naming (composer, opus, performer) that benefits greatly from personalized training.
 
 ### **Electronic Music Fan**
+
 ```bash
 # Many compilations and remix albums
 python quick_start.py \
@@ -117,20 +126,24 @@ python quick_start.py \
   --profile balanced \
   --class-name ElectronicMLOptimizer
 ```
+
 **Why**: Electronic music has many compilations and series that generic models struggle with.
 
 ### **Small Library Test**
+
 ```bash
 # Quick test with limited data
 python quick_start.py \
   --mb-url http://192.168.2.13:5001/ \
   --profile quick_test
 ```
+
 **Why**: Test functionality without long training time.
 
 ## ⚙️ **Configuration Examples**
 
 ### **GPU Optimization**
+
 ```json
 {
   "training": {
@@ -146,6 +159,7 @@ python quick_start.py \
 ```
 
 ### **CPU Fallback**
+
 ```json
 {
   "training": {
@@ -157,6 +171,7 @@ python quick_start.py \
 ```
 
 ### **Large Library Setup**
+
 ```json
 {
   "musicbrainz": {
@@ -172,28 +187,33 @@ python quick_start.py \
 ### **Common Issues**
 
 **"CUDA out of memory"**
+
 ```bash
 python quick_start.py --profile development  # Use smaller batch size
 ```
 
 **"MusicBrainz connection failed"**
+
 ```bash
 curl http://192.168.2.13:5001/ws/2/artist/5b11f4ce-a62d-471e-81fc-a69a8278c7da
 # Check if MusicBrainz is running
 ```
 
 **"Poor model performance"**
+
 - Try `--profile high_quality` (more data)
 - Ensure library has 10,000+ albums
 - Check library diversity (multiple genres)
 
 **"Dependencies missing"**
+
 ```bash
 python setup_environment.py  # Auto-install everything
 pip install -r requirements.txt  # Manual install
 ```
 
 ### **Testing Without MusicBrainz**
+
 ```bash
 # Test all scripts with mock data
 python test_scripts.py --mock-musicbrainz
@@ -202,15 +222,18 @@ python test_scripts.py --mock-musicbrainz
 ## 📈 **Performance Monitoring**
 
 ### **Before Training**
+
 1. Check current API call reduction in Qobuzarr logs
 2. Note search performance for complex albums
 
 ### **After Training**
+
 1. Look for "🤖 ML PREDICTION" messages in logs
 2. Monitor API call reduction percentage
 3. Compare search times for same albums
 
 ### **Success Indicators**
+
 ✅ API call reduction increases 10-25%  
 ✅ More "high confidence" ML predictions  
 ✅ Fewer search retries and failures  
@@ -219,11 +242,13 @@ python test_scripts.py --mock-musicbrainz
 ## 🤝 **Community**
 
 ### **Share Your Results**
+
 - Report improvements in GitHub issues
 - Share anonymized training configurations
 - Contribute pattern improvements
 
 ### **Get Help**
+
 - Check [TRAINING_GUIDE.md](TRAINING_GUIDE.md) for detailed instructions
 - Test with `python test_scripts.py` first
 - Report issues with your GPU/system specs

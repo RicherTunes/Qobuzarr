@@ -1,4 +1,8 @@
+> ⚠️ Deprecated — this page is superseded by the canonical wiki. See [Home](../../../wiki/Home.md) (or [docs/](../../) for deep references).
+
 # Features Overview
+
+> **Note:** This guide documents both currently implemented features and planned/aspirational capabilities. Features marked with `<!-- TODO(docval): ... -->` are planned but not yet available in the current release.
 
 Qobuzarr provides comprehensive features for high-quality music acquisition through Qobuz integration with Lidarr. This guide covers all available features with practical examples.
 
@@ -30,6 +34,7 @@ Qobuzarr provides comprehensive features for high-quality music acquisition thro
 ```
 
 **Features**:
+
 - Bit-perfect audio reproduction
 - Support for all Qobuz quality tiers
 - Automatic quality fallback
@@ -47,6 +52,7 @@ qobuz download playlist <playlist_id> --output ./Playlists --format m3u8
 ```
 
 **Features**:
+
 - Preserves playlist order
 - Generates M3U8 playlist files
 - Maintains track relationships
@@ -54,6 +60,7 @@ qobuz download playlist <playlist_id> --output ./Playlists --format m3u8
 - Cross-references with your library
 
 **Generated Structure**:
+
 ```
 Playlists/
 ├── My Jazz Collection/
@@ -73,6 +80,7 @@ qobuz download label <label_id> --output ./Labels/Blue-Note --max-albums 50
 ```
 
 **Features**:
+
 - Discover label catalogs automatically
 - Filter by release year, genre, or artist
 - Batch processing with progress tracking
@@ -84,12 +92,14 @@ qobuz download label <label_id> --output ./Labels/Blue-Note --max-albums 50
 **Intelligent Duplicate Prevention**: Avoid re-downloading existing content
 
 **Detection Methods**:
-- **Audio fingerprinting**: Compares actual audio content
+
+- **Audio fingerprinting**: Compares actual audio content <!-- TODO(docval): not implemented as of 2026-05-31 -->
 - **Metadata matching**: Artist, album, track names
 - **File hash comparison**: Exact file matching
 - **Quality comparison**: Prevents downgrade downloads
 
 **Configuration**:
+
 ```json
 {
   \"duplicateDetection\": {
@@ -108,6 +118,7 @@ qobuz download label <label_id> --output ./Labels/Blue-Note --max-albums 50
 **Progressive Search Algorithm**: Multiple fallback strategies for hard-to-find content
 
 **Search Strategies**:
+
 1. **Exact Match**: Direct album/artist name matching
 2. **Fuzzy Search**: Handles typos and variations
 3. **Semantic Search**: Understands context and relationships
@@ -115,6 +126,7 @@ qobuz download label <label_id> --output ./Labels/Blue-Note --max-albums 50
 5. **Alternative Names**: Searches alternate artist names
 
 **Example Search Progression**:
+
 ```
 Query: "Pink Floyd Dark Side Moon"
 1. Exact: "Pink Floyd Dark Side Moon" → No results
@@ -123,17 +135,19 @@ Query: "Pink Floyd Dark Side Moon"
 
 ### Query Optimization
 
-**ML-Powered Query Intelligence**: 65.8% reduction in API calls through smart query optimization
+**ML-Powered Query Intelligence**: ~49% reduction in API calls through smart query optimization
 
 **Optimization Features**:
+
 - Query complexity analysis
-- Component classification 
+- Component classification
 - Pattern recognition
 - Context-aware simplification
 - Predictive caching
 
 **Performance Impact**:
-- **65.8% fewer API calls** through intelligent query optimization
+
+- **~49% fewer API calls** through intelligent query optimization
 - **45ms average response time** with caching
 - **94.7% cache hit rate** for repeated searches
 
@@ -144,6 +158,7 @@ Query: "Pink Floyd Dark Side Moon"
 **Multi-threaded Download Engine**: Download multiple tracks simultaneously
 
 **Configuration**:
+
 ```json
 {
   \"concurrentDownloads\": 3,
@@ -154,6 +169,7 @@ Query: "Pink Floyd Dark Side Moon"
 ```
 
 **Features**:
+
 - Configurable concurrency (1-10 simultaneous downloads)
 - Bandwidth throttling per download
 - Real-time progress reporting
@@ -165,6 +181,7 @@ Query: "Pink Floyd Dark Side Moon"
 **Defensive Download Patterns**: Robust error handling with graceful degradation
 
 **Retry Configuration**:
+
 ```json
 {
   \"retrySettings\": {
@@ -178,6 +195,7 @@ Query: "Pink Floyd Dark Side Moon"
 ```
 
 **Handled Errors**:
+
 - Network timeouts
 - API rate limiting
 - Temporary server errors
@@ -189,6 +207,7 @@ Query: "Pink Floyd Dark Side Moon"
 **Real-time Download Monitoring**: Comprehensive progress reporting
 
 **Progress Information**:
+
 - Individual track progress
 - Album completion percentage
 - Download speed and ETA
@@ -196,6 +215,7 @@ Query: "Pink Floyd Dark Side Moon"
 - Error reporting with context
 
 **Integration**:
+
 - Lidarr Activity → Queue shows progress
 - CLI provides detailed console output
 - Log files contain completion metrics
@@ -251,15 +271,17 @@ Query: "Pink Floyd Dark Side Moon"
 **Rich Metadata Support**: Full tagging with TagLib-Sharp integration
 
 **Embedded Metadata**:
+
 - **Basic Tags**: Artist, Album, Track, Year, Genre
 - **Advanced Tags**: Composer, Producer, Label, Catalog Number
 - **Technical Tags**: Bitrate, Sample Rate, Encoding Info
 - **Custom Tags**: Qobuz IDs, Download Date, Quality Level
 
 **Metadata Sources**:
+
 - Qobuz API metadata (primary)
-- MusicBrainz integration (enhanced)
-- Last.fm enrichment (optional)
+- MusicBrainz integration (enhanced) <!-- TODO(docval): not implemented as of 2026-05-31 -->
+- Last.fm enrichment (optional) <!-- TODO(docval): not implemented as of 2026-05-31 -->
 - Custom metadata injection
 
 ### Album Art Management
@@ -267,6 +289,7 @@ Query: "Pink Floyd Dark Side Moon"
 **High-Quality Cover Art**: Download and embed album artwork
 
 **Features**:
+
 - Multiple resolution support (up to 2000x2000)
 - Embedded and folder artwork
 - Custom naming patterns
@@ -274,6 +297,7 @@ Query: "Pink Floyd Dark Side Moon"
 - Art quality verification
 
 **Configuration**:
+
 ```json
 {
   \"albumArt\": {
@@ -291,6 +315,7 @@ Query: "Pink Floyd Dark Side Moon"
 **Flexible File Naming**: Customizable file and folder structures
 
 **Default Structure**:
+
 ```
 {Artist}/
 └── {Album} ({Year}) [{Quality}]/
@@ -300,6 +325,7 @@ Query: "Pink Floyd Dark Side Moon"
 ```
 
 **Naming Variables**:
+
 - `{Artist}`, `{Album}`, `{Title}`
 - `{Year}`, `{Genre}`, `{Label}`
 - `{TrackNumber}`, `{TrackTotal}`
@@ -312,12 +338,13 @@ Query: "Pink Floyd Dark Side Moon"
 **Pre-trained Query Optimization**: No runtime ML.NET dependency
 
 **ML Components**:
+
 - **Query Complexity Classifier**: Analyzes search difficulty
 - **Album Component Classifier**: Identifies query components
 - **Strategy Selection Model**: Chooses optimal search strategy
 - **Pattern Learning Engine**: Adapts to user patterns
 
-### A/B Testing Framework
+### A/B Testing Framework <!-- TODO(docval): not implemented as of 2026-05-31 -->
 
 **Continuous Optimization**: Built-in A/B testing for ML improvements
 
@@ -333,6 +360,7 @@ Query: "Pink Floyd Dark Side Moon"
 ```
 
 **Metrics Tracked**:
+
 - API call reduction percentage
 - Cache hit rates
 - Query success rates
@@ -344,8 +372,9 @@ Query: "Pink Floyd Dark Side Moon"
 **Real-time ML Metrics**: Track optimization effectiveness
 
 **Key Performance Indicators**:
-- **65.8% API call reduction** (validated)
-- **94.7% cache hit rate** (validated) 
+
+- **~49% API call reduction** (validated)
+- **94.7% cache hit rate** (validated)
 - **45ms average response time** (validated)
 - **33.9% → <10% failure rate improvement** (validated)
 
@@ -356,11 +385,13 @@ Query: "Pink Floyd Dark Side Moon"
 **Intelligent Caching Strategy**: 94.7% cache hit rate with three-tier system
 
 **Cache Layers**:
+
 1. **L1 - Memory Cache**: Hot data, immediate access
 2. **L2 - SQLite Cache**: Persistent storage, fast queries  
 3. **L3 - File Cache**: Large objects, album art
 
 **Cache Configuration**:
+
 ```json
 {
   \"caching\": {
@@ -379,6 +410,7 @@ Query: "Pink Floyd Dark Side Moon"
 **Predictive Data Loading**: Preload likely-needed data
 
 **Prefetching Strategies**:
+
 - Artist album catalogs
 - Related artist metadata
 - Popular album art
@@ -390,6 +422,7 @@ Query: "Pink Floyd Dark Side Moon"
 **Advanced Search Optimization**: Cache partial query results
 
 **Example**:
+
 ```
 Cache: \"Pink Floyd\" → [Albums 1-50]
 Query: \"Pink Floyd Dark Side\" → Use cached results + filter
@@ -403,6 +436,7 @@ Result: 90% faster response, no API call needed
 **Zero Hardcoded Credentials**: Environment variable and secure storage
 
 **Security Features**:
+
 - Encrypted credential storage
 - Session token management
 - Secure API communication (HTTPS)
@@ -414,6 +448,7 @@ Result: 90% faster response, no API call needed
 **Multiple Authentication Options**: Flexible credential management
 
 **Supported Methods**:
+
 1. **Email/Password**: Traditional account login
 2. **Token-based**: Direct API token usage
 3. **Dynamic Extraction**: App-based credential extraction
@@ -441,6 +476,7 @@ Result: 90% faster response, no API call needed
 **Full-Featured CLI**: Complete Qobuz interaction through command line
 
 **Available Commands**:
+
 ```bash
 # Authentication
 qobuz auth login
@@ -471,6 +507,7 @@ qobuz lyrics track <id>
 **User-Friendly Interaction**: Interactive prompts and progress display
 
 **Interactive Elements**:
+
 - Progress bars for downloads
 - Interactive album selection
 - Quality choice prompts
@@ -482,6 +519,7 @@ qobuz lyrics track <id>
 **Efficient Bulk Processing**: Handle large-scale downloads
 
 **Batch Features**:
+
 - File-based batch downloads
 - CSV import/export
 - Parallel processing
@@ -495,6 +533,7 @@ qobuz lyrics track <id>
 **Seamless Lidarr Integration**: Full plugin API compliance
 
 **Plugin Features**:
+
 - Indexer implementation (search)
 - Download client implementation
 - Quality profile integration
@@ -507,6 +546,7 @@ qobuz lyrics track <id>
 **Standard Plugin APIs**: Implements all required Lidarr interfaces
 
 **Implemented Interfaces**:
+
 - `IIndexer` - Search functionality
 - `IDownloadClient` - Download management
 - `IValidatable` - Configuration validation
@@ -517,6 +557,7 @@ qobuz lyrics track <id>
 **Lidarr Event System**: Responds to Lidarr events and triggers
 
 **Supported Events**:
+
 - Album addition triggers search
 - Quality upgrade requests
 - Download completion notifications
@@ -531,7 +572,7 @@ qobuz lyrics track <id>
 
 | Metric | Target | Achieved | Status |
 |--------|--------|-----------|--------|
-| API Call Reduction | >50% | 65.8% | ✅ Exceeded |
+| API Call Reduction | >50% | ~49% | ✅ Exceeded |
 | Cache Hit Rate | >90% | 94.7% | ✅ Exceeded |
 | Response Time | <100ms | 45ms | ✅ Exceeded |
 | Memory Usage | <500MB | ~200MB | ✅ Optimized |
@@ -542,6 +583,7 @@ qobuz lyrics track <id>
 **Large Library Support**: Tested with 100,000+ albums
 
 **Scale Characteristics**:
+
 - Linear performance scaling
 - Constant memory usage
 - Predictable API usage
