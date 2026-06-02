@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
@@ -99,7 +100,7 @@ namespace Lidarr.Plugin.Qobuzarr.Services
                     Title = $"{album.Artist?.Name} - {album.Title} - {track.Title}",
                     Artist = album.Artist?.Name ?? "Unknown Artist",
                     Album = album.Title,
-                    PublishDate = DateTime.TryParse(album.ReleaseDateOriginal, out var date) ? date : DateTime.MinValue,
+                    PublishDate = DateTime.TryParse(album.ReleaseDateOriginal, CultureInfo.InvariantCulture, DateTimeStyles.None, out var date) ? date : DateTime.MinValue,
                     Size = EstimateTrackSize(track),
                     DownloadProtocol = nameof(QobuzarrDownloadProtocol), // Streaming protocol
                     Source = QobuzarrConstants.PluginName
