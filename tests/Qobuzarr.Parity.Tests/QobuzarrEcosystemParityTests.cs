@@ -74,6 +74,10 @@ public class QobuzarrEcosystemParityTests : EcosystemParityTestBase
     // for parity so a future plugin-local sink would fail CI.
     [Fact] public void Check_UsesCommonDownloadTelemetrySink_Test() => Assert.True(Check_UsesCommonDownloadTelemetrySink().Passed, string.Join("; ", Check_UsesCommonDownloadTelemetrySink().Errors));
     [Fact] public void Check_DownloadClientUsesPathTraversalGuard_Test() => Assert.True(Check_DownloadClientUsesPathTraversalGuard().Passed, string.Join("; ", Check_DownloadClientUsesPathTraversalGuard().Errors));
+    // Download-client-id contract (Common #598): GetItems() must stamp DownloadClientInfo.Id from Definition (never 0).
+    [Fact] public void Check_DownloadClientStampsRegisteredClientId_Test() => Assert.True(Check_DownloadClientStampsRegisteredClientId().Passed, string.Join("; ", Check_DownloadClientStampsRegisteredClientId().Errors));
+    // Audio-payload validation consolidated on Common's DownloadPayloadValidator (Common #602; qobuz #302 migrated off the weak validator).
+    [Fact] public void Check_DownloadClientUsesCommonPayloadValidator_Test() => Assert.True(Check_DownloadClientUsesCommonPayloadValidator().Passed, string.Join("; ", Check_DownloadClientUsesCommonPayloadValidator().Errors));
     [Fact] public void Check_FileClassNameParity_Test() => Assert.True(Check_FileClassNameParity().Passed, string.Join("; ", Check_FileClassNameParity().Errors));
     [Fact] public void Check_ClaudeMdDocumentsCommonHelpers_Test() => Assert.True(Check_ClaudeMdDocumentsCommonHelpers().Passed, string.Join("; ", Check_ClaudeMdDocumentsCommonHelpers().Errors));
 
