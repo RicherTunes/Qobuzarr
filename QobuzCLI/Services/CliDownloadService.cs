@@ -10,7 +10,7 @@ namespace QobuzCLI.Services
 {
     /// <summary>
     /// CLI-specific download service that works with CliApiService
-    /// Simplified version of the main QobuzDownloadService for CLI usage
+    /// Simplified Qobuz download service for CLI usage
     /// </summary>
     public class CliDownloadService
     {
