@@ -38,7 +38,7 @@ int? Concurrency);
 /// </summary>
 /// <remarks>
 /// Architecture principle: CLI wraps plugin functionality, never reimplements it.
-/// - Uses plugin's QobuzDownloadService for actual downloads
+/// - Uses the plugin's download services for actual downloads
 /// - Adds CLI-specific features: progress display, batch management, UI
 /// - Maintains separation: plugin = core logic, CLI = user interface
 /// </remarks>
