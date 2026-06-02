@@ -269,14 +269,12 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Services
                 try { existing = new FileInfo(partialPath).Length; } catch (Exception ex) { _logger.Debug(ex, "Could not read partial file size for {0}", partialPath); existing = 0; }
             }
 
-            var request = new HttpRequestMessage(HttpMethod.Get, url);
-            if (existing > 0)
-            {
-                request.Headers.Range = new RangeHeaderValue(existing, null);
-            }
-
-            using var response = await httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cancellationToken).ConfigureAwait(false);
-            response.EnsureSuccessStatusCode();
+            var (response, effectiveExisting) = await Lidarr.Plugin.Qobuzarr.Download.ResumeHttpDownloader.SendDownloadRequestAsync(
+                httpClient, url, partialPath, existing,
+                p => _logger.Debug("Resume partial '{0}' was complete/stale (HTTP 416); restarting download fresh", p),
+                cancellationToken).ConfigureAwait(false);
+            using var _responseScope = response;
+            existing = effectiveExisting;
 
             var contentType = response.Content.Headers.ContentType?.MediaType ?? "unknown";
             var contentLength = response.Content.Headers.ContentLength;
