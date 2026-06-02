@@ -59,7 +59,10 @@ namespace Lidarr.Plugin.Qobuzarr.Models
         {
             get
             {
-                if (ExpiresTimestamp.HasValue && ExpiresTimestamp > 0)
+                // Range-guard the epoch so an out-of-range expiry yields null rather than throwing
+                // ArgumentOutOfRangeException out of this getter on the auth path.
+                if (ExpiresTimestamp.HasValue && ExpiresTimestamp > 0 &&
+                    ExpiresTimestamp <= DateTimeOffset.MaxValue.ToUnixTimeSeconds())
                 {
                     return DateTimeOffset.FromUnixTimeSeconds(ExpiresTimestamp.Value).DateTime;
                 }
