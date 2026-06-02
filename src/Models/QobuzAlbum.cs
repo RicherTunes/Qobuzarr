@@ -132,7 +132,9 @@ namespace Lidarr.Plugin.Qobuzarr.Models
         {
             get
             {
-                if (ReleasedAtTimestamp > 0)
+                // Range-guard the epoch so an out-of-range timestamp falls through to the ISO strings below
+                // rather than throwing ArgumentOutOfRangeException out of this getter.
+                if (ReleasedAtTimestamp > 0 && ReleasedAtTimestamp <= DateTimeOffset.MaxValue.ToUnixTimeSeconds())
                 {
                     return DateTimeOffset.FromUnixTimeSeconds(ReleasedAtTimestamp).DateTime;
                 }
