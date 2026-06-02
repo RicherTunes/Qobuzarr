@@ -78,15 +78,16 @@ qobuzarr/
 │   │   └── Authentication/      # Auth-specific models
 │   ├── Services/                # Business logic services
 │   ├── Utilities/               # Helper classes
-│   ├── QobuzModule.cs          # DI configuration
-│   └── QobuzzarrPlugin.cs      # Plugin entry point
+│   ├── QobuzarrModule.cs       # DI registration (Lidarr AutoAddServices)
+│   └── Integration/            # Plugin entry points (Installed/Streaming)
 ├── tests/                       # Test projects
-│   ├── Unit/                    # Unit tests
+│   ├── Qobuzarr.Tests/          # Core unit tests
+│   ├── QobuzCLI.Tests/          # CLI tests
 │   └── Integration/             # Integration tests
 ├── docs/                        # Documentation
 ├── scripts/                     # Build and utility scripts
 ├── QobuzCLI/                   # CLI tool for testing
-└── Lidarr.Plugin.Qobuz.csproj # Main project file
+└── Qobuzarr.csproj            # Main project file
 ```
 
 ## Building the Plugin
@@ -170,7 +171,7 @@ dotnet test /p:CollectCoverage=true /p:Include="[*]Lidarr.Plugin.Qobuzarr.Indexe
 
 ```bash
 # Test Query Intelligence with real data (124 test scenarios)
-dotnet test tests/Qobuzarr.Tests/Unit/Indexers/QueryIntelligenceIntegrationTests.cs
+dotnet test tests/Qobuzarr.Tests
 
 # Real data simulation tests (322 albums)
 dotnet test tests/Qobuzarr.Tests/Simulations/RealDataQueryIntelligenceTests.cs
