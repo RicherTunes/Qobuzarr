@@ -27,29 +27,41 @@ namespace Lidarr.Plugin.Qobuzarr.API.Caching
 
         // Using base Get/Set implementations from StreamingResponseCache
 
+        /// <summary>
+        /// Normalizes an API endpoint to a canonical form (no leading slash, lowercased) so the
+        /// caching predicates match regardless of whether the caller wrote "track/get" or
+        /// "/track/get". The plugin passes both shapes (internal helpers use "track/get";
+        /// QobuzIndexerAdapter / LidarrAlbumRetriever use "/album/search", "/catalog/search").
+        /// Parameters are not part of the endpoint string passed here.
+        /// </summary>
+        private static string Normalize(string endpoint)
+            => (endpoint ?? string.Empty).Trim().TrimStart('/').ToLowerInvariant();
+
         /// <inheritdoc/>
         public override bool ShouldCache(string endpoint)
         {
-            // Cache search results and metadata, but not authentication or streaming URLs
-            return endpoint.Contains("/search/") ||
-                   endpoint.Contains("/album/get") ||
-                   endpoint.Contains("/artist/get") ||
-                   endpoint.Contains("/track/get") ||
-                   endpoint.Contains("/playlist/get") ||
-                   endpoint.Contains("/label/get");
+            // Cache search results and metadata reads, but NOT authentication or signed,
+            // short-lived streaming URLs. Note "track/getFileUrl" must be excluded explicitly:
+            // it has a "track/get" prefix, so naive substring matching would cache it.
+            var ep = Normalize(endpoint);
+            if (ep.Contains("getfileurl"))
+            {
+                return false;
+            }
+
+            return ep.EndsWith("/search") ||   // album/search, catalog/search, playlist/search, label/search
+                   ep.EndsWith("/get");        // album/get, track/get, artist/get, playlist/get, label/get
         }
 
         /// <inheritdoc/>
         public override TimeSpan GetCacheDuration(string endpoint)
         {
-            return endpoint switch
+            var ep = Normalize(endpoint);
+            return ep switch
             {
-                var e when e.Contains("/search/") => QobuzConstants.Cache.ShortDuration,
-                var e when e.Contains("/album/get") => QobuzConstants.Cache.MediumDuration,
-                var e when e.Contains("/artist/get") => QobuzConstants.Cache.LongDuration,
-                var e when e.Contains("/label/get") => QobuzConstants.Cache.LongDuration,
-                var e when e.Contains("/playlist/get") => QobuzConstants.Cache.MediumDuration,
-                var e when e.Contains("/track/get") => QobuzConstants.Cache.MediumDuration,
+                _ when ep.EndsWith("/search") => QobuzConstants.Cache.ShortDuration,
+                "artist/get" or "label/get" => QobuzConstants.Cache.LongDuration,
+                _ when ep.EndsWith("/get") => QobuzConstants.Cache.MediumDuration,
                 _ => QobuzConstants.Cache.SessionDuration
             };
         }
