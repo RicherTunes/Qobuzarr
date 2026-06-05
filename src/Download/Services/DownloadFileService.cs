@@ -11,6 +11,7 @@ using NzbDrone.Core.RemotePathMappings;
 using Lidarr.Plugin.Qobuzarr.Configuration;
 using Lidarr.Plugin.Qobuzarr.Download.Clients;
 using Lidarr.Plugin.Common.Security;
+using Lidarr.Plugin.Common.Services.Download;
 using System.Text;
 
 namespace Lidarr.Plugin.Qobuzarr.Download.Services
@@ -119,43 +120,27 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Services
             }
         }
 
-        public async Task CleanupFailedDownloadAsync(string path)
+        public async Task CleanupFailedDownloadAsync(string path, string downloadRoot)
         {
             try
             {
-                if (string.IsNullOrWhiteSpace(path) || !_diskProvider.FolderExists(path))
-                {
-                    _logger.Debug("Cleanup path does not exist or is invalid: {0}", path);
-                    return;
-                }
-
-                _logger.Debug("Cleaning up failed download directory: {0}", path);
-
-                // Delete all files in the directory
-                var files = _diskProvider.GetFiles(path, true);
-                foreach (var file in files)
-                {
-                    try
-                    {
-                        _diskProvider.DeleteFile(file);
-                    }
-                    catch (Exception ex)
-                    {
-                        _logger.Warn(ex, "Failed to delete file during cleanup: {0}", file);
-                    }
-                }
-
-                // Remove the directory if it's empty or force removal after delay
+                // F-10: root-contained recursive delete. SafeDirectoryCleanup refuses to delete the root
+                // itself or anything that resolves outside it (canonical-form check), so a hostile or
+                // mis-derived OutputPath can never turn cleanup into a data-loss primitive.
                 await Task.Delay(QobuzConstants.Timing.FileOperations.FileSystemStabilizationDelayMs).ConfigureAwait(false);
 
-                try
+                var result = SafeDirectoryCleanup.DeleteTreeUnderRoot(path, downloadRoot);
+                if (result.Deleted)
                 {
-                    _diskProvider.DeleteFolder(path, true);
-                    _logger.Debug("Successfully cleaned up directory: {0}", path);
+                    _logger.Debug("Successfully cleaned up failed download directory: {0}", path);
                 }
-                catch (Exception ex)
+                else if (!string.IsNullOrEmpty(result.Reason))
                 {
-                    _logger.Warn(ex, "Failed to remove directory during cleanup (may not be empty): {0}", path);
+                    _logger.Warn("Refusing to clean up '{0}' (download root '{1}'): {2}", path, downloadRoot, result.Reason);
+                }
+                else
+                {
+                    _logger.Debug("Cleanup path does not exist: {0}", path);
                 }
             }
             catch (Exception ex)
@@ -175,8 +160,9 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Services
                     return false;
                 }
 
-                // SECURITY: Validate path doesn't contain traversal attempts
-                if (path.Contains("..") || !Utilities.LidarrInputValidator.IsInputSafe(path))
+                // SECURITY: Validate path doesn't contain traversal attempts (Common's canonical, segment-aware
+                // guard — catches ../ ..\ /.. \.. exact-".." + %2e%2e, without false-positiving on "..-in-name").
+                if (Lidarr.Plugin.Common.HostBridge.PathTraversalGuard.ContainsTraversalAttempt(path) || !Utilities.LidarrInputValidator.IsInputSafe(path))
                 {
                     _logger.Warn("Download path contains potentially unsafe characters: {0}", path);
                     return false;

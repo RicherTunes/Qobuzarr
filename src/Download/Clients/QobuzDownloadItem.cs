@@ -32,6 +32,10 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Clients
 
         // Qobuz-only extras ──────────────────────────────────────────────────────────────
         public Task? DownloadTask { get; set; }
+
+        /// <summary>The configured download root this item writes under. Carried alongside OutputPath so a
+        /// failed-download cleanup can be root-contained (F-10) without re-deriving the root.</summary>
+        public string? DownloadRoot { get; set; }
         public CancellationTokenSource? CancellationTokenSource { get; set; }
         public QobuzAlbum? Album { get; set; }
 

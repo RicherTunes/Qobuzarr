@@ -16,6 +16,12 @@
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\ext\Lidarr.Plugin.Common\testkit\Lidarr.Plugin.Common.TestKit.csproj" />
-    <ProjectReference Include="..\..\Qobuzarr.csproj" />
+    <!-- Build the plugin WITHOUT the post-build ILRepack/RepackPlugin step so its types resolve to the
+         standalone Common/Abstractions the TestKit references (not the internalized copies in the merged
+         DLL). Mirrors the amazon parity-test pattern; otherwise the cross-identity type scan can trip a
+         ReflectionTypeLoadException once ILRepack is enabled. -->
+    <ProjectReference Include="..\..\Qobuzarr.csproj">
+      <AdditionalProperties>PluginPackagingDisable=true;OutputPath=bin-tests\;EnablePluginDeployment=false</AdditionalProperties>
+    </ProjectReference>
   </ItemGroup>
 </Project>
