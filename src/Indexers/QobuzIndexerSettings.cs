@@ -82,7 +82,7 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
         [FieldDefinition(6, Label = "App ID", Type = FieldType.Textbox, Section = "Authentication", Advanced = true, HelpText = "Qobuz API Application ID. Leave empty for automatic detection from Qobuz web player. Only set this if you have custom API credentials.")]
         public string AppId { get; set; }
 
-        [FieldDefinition(7, Label = "App Secret", Type = FieldType.Textbox, Section = "Authentication", Advanced = true, HelpText = "Qobuz API Application Secret. Must be provided together with App ID. Leave empty for automatic detection.")]
+        [FieldDefinition(7, Label = "App Secret", Type = FieldType.Password, Privacy = PrivacyLevel.Password, Section = "Authentication", Advanced = true, HelpText = "Qobuz API Application Secret. Must be provided together with App ID. Leave empty for automatic detection.")]
         public string AppSecret { get; set; }
 
         [FieldDefinition(8, Label = "Country/Region", Type = FieldType.Textbox, Section = "Authentication", HelpText = "Your country code (e.g., US, CA, GB, FR, DE, JP). This determines content availability and pricing. Must match your Qobuz account region.")]
