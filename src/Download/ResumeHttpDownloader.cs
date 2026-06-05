@@ -3,6 +3,7 @@ using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Threading;
 using System.Threading.Tasks;
+using Lidarr.Plugin.Common.Services.Download;
 
 namespace Lidarr.Plugin.Qobuzarr.Download
 {
@@ -23,15 +24,32 @@ namespace Lidarr.Plugin.Qobuzarr.Download
         /// </summary>
         public static async Task<(HttpResponseMessage Response, long Existing)> SendDownloadRequestAsync(
             HttpClient httpClient, string url, string partialPath, long existing,
-            Action<string>? onRangeReset, CancellationToken cancellationToken)
+            Action<string>? onRangeReset, CancellationToken cancellationToken, RemoteMediaUriPolicy? policy = null)
         {
+            // R2-02: validate the stream URL against the SSRF policy and keep it in force across redirects.
+            // Qobuz file URLs are https CDN endpoints, so the Strict default (https-only, public, ResolveDns=true)
+            // applies in production; tests inject a policy carrying a deterministic DnsResolver. The Range header
+            // is preserved across hops by MediaRedirectSafeSender, and the 416-recovery below is unaffected (a
+            // 416 is a non-redirect response, returned as-is for the caller to handle).
+            policy ??= RemoteMediaUriPolicy.Strict;
+
+            // Validate the initial URL BEFORE any request is issued — MediaRedirectSafeSender keeps the policy in
+            // force across redirect hops, but the first hop must be refused up-front so a private/internal target
+            // is never contacted at all.
+            var guard = RemoteMediaUriGuard.Validate(url, policy);
+            if (!guard.IsAllowed)
+            {
+                throw new InvalidOperationException($"Refusing to download from an unsafe URL: {guard.Reason}");
+            }
+
             var request = new HttpRequestMessage(HttpMethod.Get, url);
             if (existing > 0)
             {
                 request.Headers.Range = new RangeHeaderValue(existing, null);
             }
 
-            var response = await httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cancellationToken).ConfigureAwait(false);
+            var response = await MediaRedirectSafeSender.SendValidatedAsync(
+                httpClient, request, policy, HttpCompletionOption.ResponseHeadersRead, cancellationToken: cancellationToken).ConfigureAwait(false);
 
             if (existing > 0 && response.StatusCode == System.Net.HttpStatusCode.RequestedRangeNotSatisfiable)
             {
@@ -44,7 +62,8 @@ namespace Lidarr.Plugin.Qobuzarr.Download
                 existing = 0;
 
                 var retry = new HttpRequestMessage(HttpMethod.Get, url);
-                response = await httpClient.SendAsync(retry, HttpCompletionOption.ResponseHeadersRead, cancellationToken).ConfigureAwait(false);
+                response = await MediaRedirectSafeSender.SendValidatedAsync(
+                    httpClient, retry, policy, HttpCompletionOption.ResponseHeadersRead, cancellationToken: cancellationToken).ConfigureAwait(false);
             }
 
             response.EnsureSuccessStatusCode();
