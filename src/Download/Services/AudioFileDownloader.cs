@@ -8,6 +8,7 @@ using System.Threading.Tasks;
 using NzbDrone.Common.Http;
 using Lidarr.Plugin.Qobuzarr.Abstractions;
 using Lidarr.Plugin.Common.Observability;
+using Lidarr.Plugin.Common.Services.Download;
 using Lidarr.Plugin.Common.Utilities;
 using Lidarr.Plugin.Qobuzarr.Configuration;
 using Lidarr.Plugin.Qobuzarr.Services.Http;
@@ -85,13 +86,23 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Services
                         try { existing = new FileInfo(partialPath).Length; } catch { existing = 0; }
                     }
 
+                    // R2-02: refuse an unsafe (private/internal/non-https) stream URL before any request is issued,
+                    // then keep the SSRF policy in force across redirects. Qobuz file URLs are https CDN endpoints,
+                    // so the Strict default applies.
+                    var streamGuard = RemoteMediaUriGuard.Validate(streamUrl, RemoteMediaUriPolicy.Strict);
+                    if (!streamGuard.IsAllowed)
+                    {
+                        throw new InvalidOperationException($"Refusing to download from an unsafe URL: {streamGuard.Reason}");
+                    }
+
                     var httpRequest = new HttpRequestMessage(HttpMethod.Get, streamUrl);
                     if (existing > 0)
                     {
                         httpRequest.Headers.Range = new RangeHeaderValue(existing, null);
                     }
 
-                    using var httpResponse = await http.SendAsync(httpRequest, HttpCompletionOption.ResponseHeadersRead, cancellationToken).ConfigureAwait(false);
+                    using var httpResponse = await MediaRedirectSafeSender.SendValidatedAsync(
+                        http, httpRequest, RemoteMediaUriPolicy.Strict, HttpCompletionOption.ResponseHeadersRead, cancellationToken: cancellationToken).ConfigureAwait(false);
                     httpResponse.EnsureSuccessStatusCode();
 
                     var isPartial = httpResponse.StatusCode == System.Net.HttpStatusCode.PartialContent;
