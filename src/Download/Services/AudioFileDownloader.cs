@@ -119,8 +119,13 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Services
                         expectedTotal = contentRange.Length!.Value;
                     }
 
+                    // LOOP-003: on a 200 (server ignored the resume Range) truncate instead of appending — a stale
+                    // .partial that the best-effort delete above failed to remove must not be appended onto (silent
+                    // stale+fresh corruption). Mirrors Common's PartialFileReset (adopt it on the next re-pin).
+                    var partialWriteMode = isPartial ? FileMode.Append : FileMode.Create;
+
                     await using (var network = await httpResponse.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false))
-                    await using (var fs = new FileStream(partialPath, FileMode.Append, FileAccess.Write, FileShare.None, bufferSize: BufferSize, useAsync: true))
+                    await using (var fs = new FileStream(partialPath, partialWriteMode, FileAccess.Write, FileShare.None, bufferSize: BufferSize, useAsync: true))
                     {
                         var buffer = new byte[BufferSize];
                         long written = existing;
