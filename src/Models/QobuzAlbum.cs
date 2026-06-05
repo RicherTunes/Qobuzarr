@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using Newtonsoft.Json;
 using NzbDrone.Common.Extensions;
@@ -131,17 +132,21 @@ namespace Lidarr.Plugin.Qobuzarr.Models
         {
             get
             {
-                if (ReleasedAtTimestamp > 0)
+                // Range-guard the epoch so an out-of-range timestamp falls through to the ISO strings below
+                // rather than throwing ArgumentOutOfRangeException out of this getter.
+                if (ReleasedAtTimestamp > 0 && ReleasedAtTimestamp <= DateTimeOffset.MaxValue.ToUnixTimeSeconds())
                 {
                     return DateTimeOffset.FromUnixTimeSeconds(ReleasedAtTimestamp).DateTime;
                 }
 
-                if (DateTime.TryParse(ReleaseDateOriginal, out var originalDate))
+                // Qobuz release-date strings are always Gregorian ISO (e.g. "2021-05-14"); parse them with the
+                // invariant culture so a non-Gregorian current culture (e.g. Thai Buddhist) doesn't shift the year.
+                if (DateTime.TryParse(ReleaseDateOriginal, CultureInfo.InvariantCulture, DateTimeStyles.None, out var originalDate))
                 {
                     return originalDate;
                 }
 
-                if (DateTime.TryParse(ReleaseDateStream, out var streamDate))
+                if (DateTime.TryParse(ReleaseDateStream, CultureInfo.InvariantCulture, DateTimeStyles.None, out var streamDate))
                 {
                     return streamDate;
                 }

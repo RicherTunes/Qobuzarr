@@ -246,8 +246,9 @@ namespace Lidarr.Plugin.Qobuzarr.Security
         {
             try
             {
-                // Remove any path traversal attempts
-                if (path.Contains("..") || path.Contains("~") ||
+                // Reject path traversal (Common's canonical, segment-aware guard — also catches %2e%2e),
+                // home-dir references, and invalid path chars. Final containment is the allowed-dirs check below.
+                if (Lidarr.Plugin.Common.HostBridge.PathTraversalGuard.ContainsTraversalAttempt(path) || path.Contains("~") ||
                     path.IndexOfAny(Path.GetInvalidPathChars()) >= 0)
                 {
                     return null;

@@ -27,11 +27,13 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Services
         void EnsureOutputDirectory(string path);
 
         /// <summary>
-        /// Cleans up files and directories from a failed download.
+        /// Cleans up files and directories from a failed download. Refuses to delete anything that does not
+        /// resolve to a strict descendant of <paramref name="downloadRoot"/> (F-10).
         /// </summary>
-        /// <param name="path">Path to clean up</param>
+        /// <param name="path">Path to clean up (must be inside <paramref name="downloadRoot"/>).</param>
+        /// <param name="downloadRoot">The configured download root; the path must be contained within it.</param>
         /// <returns>Task representing cleanup completion</returns>
-        Task CleanupFailedDownloadAsync(string path);
+        Task CleanupFailedDownloadAsync(string path, string downloadRoot);
 
         /// <summary>
         /// Validates that a download path is acceptable and accessible.
