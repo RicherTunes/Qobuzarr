@@ -83,7 +83,7 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Services
                 {
                     try
                     {
-                        await _fileService.CleanupFailedDownloadAsync(removedItem.OutputPath).ConfigureAwait(false);
+                        await _fileService.CleanupFailedDownloadAsync(removedItem.OutputPath, removedItem.DownloadRoot ?? string.Empty).ConfigureAwait(false);
                         _logger.Debug("Cleaned up download data for: {0}", downloadId);
                     }
                     catch (Exception ex)
