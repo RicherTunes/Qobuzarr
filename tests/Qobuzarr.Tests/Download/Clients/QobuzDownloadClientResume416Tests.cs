@@ -6,6 +6,7 @@ using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
 using FluentAssertions;
+using Lidarr.Plugin.Common.Services.Download;
 using Lidarr.Plugin.Qobuzarr.Download;
 using Xunit;
 
@@ -22,6 +23,14 @@ namespace Qobuzarr.Tests.Download.Clients
     /// </summary>
     public class QobuzDownloadClientResume416Tests
     {
+        // R2-02: SendDownloadRequestAsync now enforces the SSRF policy (ResolveDns=true by default). These tests
+        // drive a synthetic non-resolving host (https://example), so inject a deterministic resolver that
+        // classifies it as public — exercising the resume/416 logic without weakening the production policy.
+        private static readonly RemoteMediaUriPolicy ResolvingPolicy = new()
+        {
+            DnsResolver = _ => new[] { System.Net.IPAddress.Parse("8.8.8.8") }
+        };
+
         private sealed class SequenceHandler : HttpMessageHandler
         {
             private readonly Queue<Func<HttpRequestMessage, HttpResponseMessage>> _responders;
@@ -65,7 +74,7 @@ namespace Qobuzarr.Tests.Download.Clients
                 var resetNotified = false;
                 var (response, existing) = await ResumeHttpDownloader.SendDownloadRequestAsync(
                     client, "https://example/track", partialPath, existing: 1024,
-                    onRangeReset: _ => resetNotified = true, cancellationToken: CancellationToken.None);
+                    onRangeReset: _ => resetNotified = true, cancellationToken: CancellationToken.None, policy: ResolvingPolicy);
 
                 using var _ = response;
                 response.StatusCode.Should().Be(HttpStatusCode.OK);
@@ -93,12 +102,29 @@ namespace Qobuzarr.Tests.Download.Clients
 
             var (response, existing) = await ResumeHttpDownloader.SendDownloadRequestAsync(
                 client, "https://example/track", "does-not-exist.partial", existing: 0,
-                onRangeReset: null, cancellationToken: CancellationToken.None);
+                onRangeReset: null, cancellationToken: CancellationToken.None, policy: ResolvingPolicy);
 
             using var _ = response;
             response.StatusCode.Should().Be(HttpStatusCode.OK);
             existing.Should().Be(0);
             handler.CallCount.Should().Be(1);
+        }
+
+        // R2-02: a stream URL pointing at a private/internal host must be refused by the SSRF guard BEFORE any
+        // request is issued — a compromised/spoofed Qobuz file URL can't be used to reach the host's network.
+        [Fact]
+        public async Task SendDownloadRequestAsync_PrivateHost_IsRefused_WithoutSending()
+        {
+            var handler = new SequenceHandler(
+                _ => new HttpResponseMessage(HttpStatusCode.OK) { Content = new ByteArrayContent(new byte[1]) });
+            using var client = new HttpClient(handler);
+
+            Func<Task> act = () => ResumeHttpDownloader.SendDownloadRequestAsync(
+                client, "https://10.0.0.1/track", "x.partial", existing: 0,
+                onRangeReset: null, cancellationToken: CancellationToken.None);
+
+            await act.Should().ThrowAsync<InvalidOperationException>("a private-host stream URL is an SSRF target");
+            handler.CallCount.Should().Be(0, "the private host must never be contacted");
         }
     }
 }
