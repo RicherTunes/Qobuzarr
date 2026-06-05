@@ -1,10 +1,9 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$comment": "Allowlist of intentional sync-over-async (.GetAwaiter().GetResult()) call-sites. Category A = host requires synchronous entry-point; Category B = avoidable (never listed here). Review entries when they expire — if the host constraint still exists, renew the date.",
+  "$comment": "Allowlist of intentional sync-over-async (.GetAwaiter().GetResult()) call-sites. Category A = host requires synchronous entry-point; Category B = avoidable (never listed here). Entries are identified semantically by file + pattern + method, NOT by line number — line numbers drift and the linter reports the accurate current line at scan time. Review entries when they expire; if the host constraint still exists, renew the date.",
   "entries": [
     {
       "file": "src/Download/Clients/QobuzDownloadClient.cs",
-      "line": 1019,
       "pattern": "DisposeAsync().ConfigureAwait(false).GetAwaiter().GetResult()",
       "method": "QobuzDownloadClient.Dispose()",
       "category": "A",
@@ -14,7 +13,6 @@
     },
     {
       "file": "src/Authentication/LegacySessionMigrator.cs",
-      "line": 62,
       "pattern": "store.SaveAsync(...).GetAwaiter().GetResult()",
       "method": "LegacySessionMigrator.MigrateIfNeeded()",
       "category": "A",
@@ -24,7 +22,6 @@
     },
     {
       "file": "src/Authentication/QobuzAuthenticationService.cs",
-      "line": 497,
       "pattern": "_persistentStore.LoadAsync().GetAwaiter().GetResult()",
       "method": "QobuzAuthenticationService.TryLoadPersistedSession()",
       "category": "A",
@@ -34,21 +31,19 @@
     },
     {
       "file": "src/Authentication/QobuzAuthenticationService.cs",
-      "line": 517,
       "pattern": "_persistentStore.SaveAsync(...).GetAwaiter().GetResult()",
       "method": "QobuzAuthenticationService.TryPersistSession()",
       "category": "A",
-      "reason": "Same lock(_persistLock) constraint as TryLoadPersistedSession — see entry for line 497.",
+      "reason": "Same lock(_persistLock) constraint as QobuzAuthenticationService.TryLoadPersistedSession().",
       "owner": "alex",
       "expiresOn": "2026-08-01"
     },
     {
       "file": "src/Authentication/QobuzAuthenticationService.cs",
-      "line": 533,
       "pattern": "_persistentStore.ClearAsync().GetAwaiter().GetResult()",
       "method": "QobuzAuthenticationService.TryClearPersistedSession()",
       "category": "A",
-      "reason": "Same lock(_persistLock) constraint as TryLoadPersistedSession — see entry for line 497.",
+      "reason": "Same lock(_persistLock) constraint as QobuzAuthenticationService.TryLoadPersistedSession().",
       "owner": "alex",
       "expiresOn": "2026-08-01"
     }
