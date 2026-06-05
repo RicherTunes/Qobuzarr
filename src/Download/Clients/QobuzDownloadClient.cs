@@ -157,6 +157,11 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Clients
 
                 // Create download item with file service integration
                 var outputPath = BuildOutputPath(remoteAlbum);
+                // Capture the configured download root for root-contained failed-download cleanup (F-10).
+                // base.Settings can rely on Definition (not set in some unit-test paths), so resolve defensively.
+                string? downloadRoot = null;
+                try { downloadRoot = GetEffectiveSettings()?.DownloadPath; }
+                catch (Exception ex) { _logger.Debug(ex, "Could not resolve download root for cleanup containment"); }
                 var downloadItem = new QobuzDownloadItem
                 {
                     DownloadId = downloadId,
@@ -165,6 +170,7 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Clients
                     Artist = remoteAlbum.Artist?.Name ?? "Unknown Artist",
                     StartedAt = DateTime.UtcNow,
                     OutputPath = outputPath,
+                    DownloadRoot = downloadRoot,
                     CancellationTokenSource = new CancellationTokenSource()
                 };
                 // Status defaults to Queued (HostBridgeDownloadItem initial state = 0 = Queued)
