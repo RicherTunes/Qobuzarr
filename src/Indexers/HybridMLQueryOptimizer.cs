@@ -80,7 +80,10 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
                 // Baseline-only mode
                 result = _baselineModel.PredictComplexity(artistName, albumTitle);
                 strategy = "baseline-only";
-                _baselineUsed++;
+                lock (_metricsLock)
+                {
+                    _baselineUsed++;
+                }
             }
             else
             {
@@ -88,8 +91,12 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
                 result = CombinePredictions(artistName, albumTitle, out strategy);
             }
 
-            _statistics[result]++;
-            _totalPredictions++;
+            // Update statistics with thread safety (mirrors CompiledMLQueryOptimizer)
+            lock (_metricsLock)
+            {
+                _statistics[result]++;
+                _totalPredictions++;
+            }
 
             _logger.Trace($"Hybrid prediction for '{artistName} - {albumTitle}': {result} (strategy: {strategy})");
 
@@ -111,7 +118,10 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
             {
                 // Models agree - use the prediction
                 strategy = $"agreement (baseline: {baselineConfidence:F2}, personal: {personalConfidence:F2})";
-                _hybridUsed++;
+                lock (_metricsLock)
+                {
+                    _hybridUsed++;
+                }
                 return baselinePrediction;
             }
 
@@ -121,7 +131,10 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
             {
                 // Personal model is highly confident and significantly more confident
                 strategy = $"personal-high-conf ({personalConfidence:F2} vs {baselineConfidence:F2})";
-                _personalUsed++;
+                lock (_metricsLock)
+                {
+                    _personalUsed++;
+                }
                 return personalPrediction;
             }
 
@@ -130,7 +143,10 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
             {
                 // Baseline model is highly confident and significantly more confident
                 strategy = $"baseline-high-conf ({baselineConfidence:F2} vs {personalConfidence:F2})";
-                _baselineUsed++;
+                lock (_metricsLock)
+                {
+                    _baselineUsed++;
+                }
                 return baselinePrediction;
             }
 
@@ -153,7 +169,10 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
             // Return highest scoring complexity
             var result = scores.OrderByDescending(kvp => kvp.Value).First().Key;
             strategy = $"weighted ({personalWeight:F1}*personal + {baselineWeight:F1}*baseline)";
-            _hybridUsed++;
+            lock (_metricsLock)
+            {
+                _hybridUsed++;
+            }
 
             return result;
         }
@@ -179,7 +198,10 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
                 var predicted = PredictComplexity(artistName, albumTitle);
                 if (predicted == usedComplexity)
                 {
-                    _correctPredictions++;
+                    lock (_metricsLock)
+                    {
+                        _correctPredictions++;
+                    }
                 }
 
                 _logger.Trace($"Hybrid result: {(wasSuccessful ? "success" : "failure")} " +
@@ -193,27 +215,41 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
 
         public PatternStatistics GetStatistics()
         {
-            var accuracy = _totalPredictions > 0
-                ? (double)_correctPredictions / _totalPredictions
+            // Snapshot the shared counters + copy the statistics dictionary under the metrics lock so the
+            // read never races concurrent PredictComplexity mutations (mirrors CompiledMLQueryOptimizer).
+            int totalPredictions, correctPredictions, baselineUsed, personalUsed, hybridUsed;
+            Dictionary<QueryComplexity, int> distribution;
+            lock (_metricsLock)
+            {
+                totalPredictions = _totalPredictions;
+                correctPredictions = _correctPredictions;
+                baselineUsed = _baselineUsed;
+                personalUsed = _personalUsed;
+                hybridUsed = _hybridUsed;
+                distribution = new Dictionary<QueryComplexity, int>(_statistics);
+            }
+
+            var accuracy = totalPredictions > 0
+                ? (double)correctPredictions / totalPredictions
                 : 0.0;
 
-            // Get baseline statistics for comparison
+            // Get baseline statistics for comparison (external call kept outside the lock)
             var baselineStats = _baselineModel.GetStatistics();
 
             return new PatternStatistics
             {
-                TotalPredictions = _totalPredictions,
-                CorrectPredictions = _correctPredictions,
+                TotalPredictions = totalPredictions,
+                CorrectPredictions = correctPredictions,
                 Accuracy = accuracy,
                 LastModelUpdate = DateTime.UtcNow,
-                PatternDistribution = new Dictionary<QueryComplexity, int>(_statistics),
+                PatternDistribution = distribution,
                 IsUsingMLEngine = true,
                 // Hybrid-specific metadata
                 HybridStatistics = new Dictionary<string, object>
                 {
-                    ["BaselineUsed"] = _baselineUsed,
-                    ["PersonalUsed"] = _personalUsed,
-                    ["HybridUsed"] = _hybridUsed,
+                    ["BaselineUsed"] = baselineUsed,
+                    ["PersonalUsed"] = personalUsed,
+                    ["HybridUsed"] = hybridUsed,
                     ["HasPersonalModel"] = _personalModel != null,
                     ["BaselineAccuracy"] = baselineStats.Accuracy,
                     ["PersonalModelAvailable"] = _personalModel != null,

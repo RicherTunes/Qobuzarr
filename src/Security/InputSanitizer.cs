@@ -220,13 +220,11 @@ namespace Lidarr.Plugin.Qobuzarr.Security
             if (string.IsNullOrWhiteSpace(path))
                 throw new ArgumentException("Path cannot be empty");
 
-            // Check for path traversal attempts before sanitizing
-            if (path.Contains("..") || path.Contains("~"))
+            // Check for path traversal attempts before sanitizing. Use Common's canonical, segment-aware
+            // guard (matches ../ ..\ /.. \.. exact-".." and URL-encoded %2e%2e — and does NOT false-positive
+            // on a literal ".." inside a filename like "Vol..2") instead of a bare Contains("..").
+            if (Lidarr.Plugin.Common.HostBridge.PathTraversalGuard.ContainsTraversalAttempt(path) || path.Contains("~"))
                 throw new ArgumentException("Path contains potential traversal patterns");
-
-            // Remove any path traversal attempts that might have been missed
-            path = path.Replace("..", "");
-            path = path.Replace("~", "");
 
             // Remove multiple slashes
             path = MultipleSlashesRegex().Replace(path, System.IO.Path.DirectorySeparatorChar.ToString());

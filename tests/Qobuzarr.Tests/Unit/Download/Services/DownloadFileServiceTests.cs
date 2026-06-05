@@ -229,57 +229,71 @@ namespace Qobuzarr.Tests.Unit.Download.Services
             Assert.Throws<ArgumentException>(() => _sut.EnsureOutputDirectory("   "));
         }
 
+        // F-10: cleanup is root-contained via Common's SafeDirectoryCleanup — it deletes a partial download
+        // tree under the configured root, but refuses to delete the root itself or anything outside it. These
+        // exercise the real filesystem (SafeDirectoryCleanup uses System.IO, not the IDiskProvider mock).
+
         [Fact]
-        public async Task CleanupFailedDownloadAsync_WithValidPath_DeletesFiles()
+        public async Task CleanupFailedDownloadAsync_PathInsideRoot_DeletesTree()
         {
-            // Arrange
-            var path = Path.Combine(TestOutputPath, "FailedDownload");
-            var files = new[] { Path.Combine(path, "file1.mp3"), Path.Combine(path, "file2.mp3") };
+            var root = Path.Combine(Path.GetTempPath(), "qz-cleanup-" + Guid.NewGuid().ToString("N"));
+            var target = Path.Combine(root, "Artist", "Album");
+            Directory.CreateDirectory(target);
+            File.WriteAllText(Path.Combine(target, "01.flac"), "x");
+            try
+            {
+                await _sut.CleanupFailedDownloadAsync(target, root);
 
-            MockDiskProvider.Setup(x => x.FolderExists(path)).Returns(true);
-            MockDiskProvider.Setup(x => x.GetFiles(path, true)).Returns(files);
-
-            // Act
-            await _sut.CleanupFailedDownloadAsync(path);
-
-            // Assert
-            MockDiskProvider.Verify(x => x.DeleteFile(files[0]), Times.Once);
-            MockDiskProvider.Verify(x => x.DeleteFile(files[1]), Times.Once);
-            MockDiskProvider.Verify(x => x.DeleteFolder(path, true), Times.Once);
+                Directory.Exists(target).Should().BeFalse("the partial download tree must be removed");
+                Directory.Exists(root).Should().BeTrue("the download root must survive");
+            }
+            finally { try { Directory.Delete(root, true); } catch { } }
         }
 
         [Fact]
-        public async Task CleanupFailedDownloadAsync_WithNonExistentPath_DoesNothing()
+        public async Task CleanupFailedDownloadAsync_PathOutsideRoot_RefusesDelete()
         {
-            // Arrange
-            var path = Path.Combine(TestOutputPath, "NonExistent");
-            MockDiskProvider.Setup(x => x.FolderExists(path)).Returns(false);
+            var root = Path.Combine(Path.GetTempPath(), "qz-root-" + Guid.NewGuid().ToString("N"));
+            var outside = Path.Combine(Path.GetTempPath(), "qz-outside-" + Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(root);
+            Directory.CreateDirectory(outside);
+            try
+            {
+                await _sut.CleanupFailedDownloadAsync(outside, root);
 
-            // Act
-            await _sut.CleanupFailedDownloadAsync(path);
-
-            // Assert
-            MockDiskProvider.Verify(x => x.GetFiles(It.IsAny<string>(), It.IsAny<bool>()), Times.Never);
-            MockDiskProvider.Verify(x => x.DeleteFile(It.IsAny<string>()), Times.Never);
+                Directory.Exists(outside).Should().BeTrue("a path outside the download root must never be deleted");
+            }
+            finally { try { Directory.Delete(root, true); } catch { } try { Directory.Delete(outside, true); } catch { } }
         }
 
         [Fact]
-        public async Task CleanupFailedDownloadAsync_WithFileDeleteError_ContinuesWithFolderCleanup()
+        public async Task CleanupFailedDownloadAsync_PathEqualsRoot_RefusesDelete()
         {
-            // Arrange
-            var path = Path.Combine(TestOutputPath, "FailedDownload");
-            var files = new[] { Path.Combine(path, "file1.mp3") };
+            var root = Path.Combine(Path.GetTempPath(), "qz-root-" + Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(root);
+            try
+            {
+                await _sut.CleanupFailedDownloadAsync(root, root);
 
-            MockDiskProvider.Setup(x => x.FolderExists(path)).Returns(true);
-            MockDiskProvider.Setup(x => x.GetFiles(path, true)).Returns(files);
-            MockDiskProvider.Setup(x => x.DeleteFile(files[0])).Throws<IOException>();
+                Directory.Exists(root).Should().BeTrue("the download root itself must never be deleted");
+            }
+            finally { try { Directory.Delete(root, true); } catch { } }
+        }
 
-            // Act
-            await _sut.CleanupFailedDownloadAsync(path);
+        [Fact]
+        public async Task CleanupFailedDownloadAsync_NonExistentPathInsideRoot_DoesNotThrow()
+        {
+            var root = Path.Combine(Path.GetTempPath(), "qz-root-" + Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(root);
+            try
+            {
+                var missing = Path.Combine(root, "never-created");
 
-            // Assert
-            MockDiskProvider.Verify(x => x.DeleteFile(files[0]), Times.Once);
-            MockDiskProvider.Verify(x => x.DeleteFolder(path, true), Times.Once);
+                Func<Task> act = async () => await _sut.CleanupFailedDownloadAsync(missing, root);
+
+                await act.Should().NotThrowAsync();
+            }
+            finally { try { Directory.Delete(root, true); } catch { } }
         }
 
         [Fact]

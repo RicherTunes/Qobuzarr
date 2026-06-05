@@ -538,5 +538,36 @@ namespace Qobuzarr.Tests.Unit.Security
         }
 
         #endregion
+
+        #region SanitizeFilePath traversal guard (consolidated onto Common PathTraversalGuard)
+
+        [Theory]
+        [InlineData("downloads/../../etc/passwd")]
+        [InlineData(@"C:\Music\..\..\..\Windows\System32")]
+        [InlineData("..")]
+        public void SanitizeFilePath_RejectsRealTraversal(string path)
+        {
+            Action act = () => InputSanitizer.SanitizeFilePath(path);
+            act.Should().Throw<ArgumentException>();
+        }
+
+        [Fact]
+        public void SanitizeFilePath_RejectsUrlEncodedTraversal()
+        {
+            // A bare Contains("..") missed %2e%2e; Common's canonical guard catches the URL-encoded form.
+            Action act = () => InputSanitizer.SanitizeFilePath("downloads/%2e%2e/secret.txt");
+            act.Should().Throw<ArgumentException>();
+        }
+
+        [Fact]
+        public void SanitizeFilePath_AllowsDoubleDotWithinFilename()
+        {
+            // "Vol..2" contains ".." but is NOT a traversal segment (no adjacent separator) — the segment-aware
+            // guard must not false-reject it, unlike the previous bare Contains("..").
+            var result = InputSanitizer.SanitizeFilePath("Music/Vol..2/track.flac");
+            result.Should().NotBeNullOrEmpty();
+        }
+
+        #endregion
     }
 }

@@ -157,6 +157,11 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Clients
 
                 // Create download item with file service integration
                 var outputPath = BuildOutputPath(remoteAlbum);
+                // Capture the configured download root for root-contained failed-download cleanup (F-10).
+                // base.Settings can rely on Definition (not set in some unit-test paths), so resolve defensively.
+                string? downloadRoot = null;
+                try { downloadRoot = GetEffectiveSettings()?.DownloadPath; }
+                catch (Exception ex) { _logger.Debug(ex, "Could not resolve download root for cleanup containment"); }
                 var downloadItem = new QobuzDownloadItem
                 {
                     DownloadId = downloadId,
@@ -165,6 +170,7 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Clients
                     Artist = remoteAlbum.Artist?.Name ?? "Unknown Artist",
                     StartedAt = DateTime.UtcNow,
                     OutputPath = outputPath,
+                    DownloadRoot = downloadRoot,
                     CancellationTokenSource = new CancellationTokenSource()
                 };
                 // Status defaults to Queued (HostBridgeDownloadItem initial state = 0 = Queued)
@@ -768,14 +774,12 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Clients
                 try { existing = new FileInfo(partialPath).Length; } catch (IOException ex) { _logger.Debug(ex, "Could not read partial file size"); existing = 0; }
             }
 
-            var request = new HttpRequestMessage(HttpMethod.Get, url);
-            if (existing > 0)
-            {
-                request.Headers.Range = new RangeHeaderValue(existing, null);
-            }
-
-            using var response = await httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cancellationToken).ConfigureAwait(false);
-            response.EnsureSuccessStatusCode();
+            var (response, effectiveExisting) = await Lidarr.Plugin.Qobuzarr.Download.ResumeHttpDownloader.SendDownloadRequestAsync(
+                httpClient, url, partialPath, existing,
+                p => _logger.Debug("Resume partial '{0}' was complete/stale (HTTP 416); restarting download fresh", p),
+                cancellationToken).ConfigureAwait(false);
+            using var _responseScope = response;
+            existing = effectiveExisting;
 
             var contentType = response.Content.Headers.ContentType?.MediaType ?? "unknown";
             var contentLength = response.Content.Headers.ContentLength;
