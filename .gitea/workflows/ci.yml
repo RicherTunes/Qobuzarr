@@ -4,7 +4,13 @@ on:
   push:
     branches: [main]
 jobs:
-  smoke:
+  diag:
     runs-on: ubuntu-latest
     steps:
-      - run: echo hello-from-gitea-runner
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - run: ls ext/Lidarr.Plugin.Common/scripts/lint-date-parsing.ps1 && echo CHECKOUT_OK
+      - name: pwsh check
+        shell: pwsh
+        run: $PSVersionTable.PSVersion; Write-Host PWSH_OK
