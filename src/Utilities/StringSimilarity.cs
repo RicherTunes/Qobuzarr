@@ -50,38 +50,8 @@ namespace Lidarr.Plugin.Qobuzarr.Utilities
         /// This is the minimum number of single-character edits required to change one string into the other.
         /// </summary>
         public static int LevenshteinDistance(string s1, string s2)
-        {
-            if (string.IsNullOrEmpty(s1))
-                return string.IsNullOrEmpty(s2) ? 0 : s2.Length;
-
-            if (string.IsNullOrEmpty(s2))
-                return s1.Length;
-
-            var n = s1.Length;
-            var m = s2.Length;
-            var d = new int[n + 1, m + 1];
-
-            // Initialize base cases
-            for (int i = 0; i <= n; i++)
-                d[i, 0] = i;
-
-            for (int j = 0; j <= m; j++)
-                d[0, j] = j;
-
-            // Calculate distances
-            for (int i = 1; i <= n; i++)
-            {
-                for (int j = 1; j <= m; j++)
-                {
-                    var cost = s1[i - 1] == s2[j - 1] ? 0 : 1;
-                    d[i, j] = Math.Min(
-                        Math.Min(d[i - 1, j] + 1, d[i, j - 1] + 1),
-                        d[i - 1, j - 1] + cost);
-                }
-            }
-
-            return d[n, m];
-        }
+            // LOOP-010: delegate to Common's canonical implementation (single source of truth).
+            => Lidarr.Plugin.Common.Utilities.StringSimilarity.LevenshteinDistance(s1, s2);
 
         /// <summary>
         /// Normalizes a title for comparison by removing special characters and standardizing format.
@@ -130,93 +100,16 @@ namespace Lidarr.Plugin.Qobuzarr.Utilities
         /// Returns a value between 0.0 and 1.0 indicating similarity.
         /// </summary>
         public static double JaroSimilarity(string s1, string s2)
-        {
-            if (string.IsNullOrEmpty(s1) && string.IsNullOrEmpty(s2))
-                return 1.0;
-
-            if (string.IsNullOrEmpty(s1) || string.IsNullOrEmpty(s2))
-                return 0.0;
-
-            if (s1.Equals(s2, StringComparison.OrdinalIgnoreCase))
-                return 1.0;
-
-            var s1Length = s1.Length;
-            var s2Length = s2.Length;
-
-            var matchDistance = Math.Max(s1Length, s2Length) / 2 - 1;
-            var s1Matches = new bool[s1Length];
-            var s2Matches = new bool[s2Length];
-
-            var matches = 0;
-            var transpositions = 0;
-
-            // Find matches
-            for (int i = 0; i < s1Length; i++)
-            {
-                var start = Math.Max(0, i - matchDistance);
-                var end = Math.Min(i + matchDistance + 1, s2Length);
-
-                for (int j = start; j < end; j++)
-                {
-                    if (s2Matches[j] || s1[i] != s2[j])
-                        continue;
-
-                    s1Matches[i] = true;
-                    s2Matches[j] = true;
-                    matches++;
-                    break;
-                }
-            }
-
-            if (matches == 0)
-                return 0.0;
-
-            // Find transpositions
-            var k = 0;
-            for (int i = 0; i < s1Length; i++)
-            {
-                if (!s1Matches[i])
-                    continue;
-
-                while (!s2Matches[k])
-                    k++;
-
-                if (s1[i] != s2[k])
-                    transpositions++;
-
-                k++;
-            }
-
-            return (matches / (double)s1Length +
-                    matches / (double)s2Length +
-                    (matches - transpositions / 2.0) / matches) / 3.0;
-        }
+            // LOOP-010: delegate to Common's canonical implementation (single source of truth).
+            => Lidarr.Plugin.Common.Utilities.StringSimilarity.Jaro(s1, s2);
 
         /// <summary>
         /// Calculates Jaro-Winkler similarity between two strings.
         /// This gives more weight to strings with common prefixes.
         /// </summary>
         public static double JaroWinklerSimilarity(string s1, string s2, double prefixScale = 0.1)
-        {
-            var jaroSimilarity = JaroSimilarity(s1, s2);
-
-            if (jaroSimilarity < 0.7)
-                return jaroSimilarity;
-
-            // Calculate common prefix length (up to 4 characters)
-            var prefixLength = 0;
-            var maxPrefix = Math.Min(Math.Min(s1?.Length ?? 0, s2?.Length ?? 0), 4);
-
-            for (int i = 0; i < maxPrefix; i++)
-            {
-                if (s1[i] == s2[i])
-                    prefixLength++;
-                else
-                    break;
-            }
-
-            return jaroSimilarity + prefixLength * prefixScale * (1 - jaroSimilarity);
-        }
+            // LOOP-010: delegate to Common's canonical implementation (single source of truth).
+            => Lidarr.Plugin.Common.Utilities.StringSimilarity.JaroWinkler(s1, s2, prefixScale);
 
         /// <summary>
         /// Determines if two strings are similar enough based on a threshold.
