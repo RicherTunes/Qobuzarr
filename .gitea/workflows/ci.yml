@@ -1,13 +1,7 @@
 name: CI
-# Gitea-primary CI (GitHub Actions is out of credits). This workflow is LINT-ONLY by design:
-#   * The 3 ecosystem gates (date-parsing, sync-over-async, ecosystem-parity) need only pwsh + the
-#     Common submodule scripts -- no Lidarr host assemblies -- so they run cleanly on the shared runner.
-#   * The plugin BUILD + UNIT TESTS need the Lidarr plugins-branch host assemblies (Lidarr.dll etc.),
-#     obtained via the Docker image (download-plugins-branch-assemblies). That is NOT available on the
-#     shared act_runner, so build + tests remain LOCAL-VALIDATION-ONLY (the established merge gate).
-# ACTIVATION: this file does nothing until the repo's Actions are enabled AND the dead .github/workflows
-# are neutralized on the Gitea copy (else Gitea would also run ~20-30 GitHub workflows and clog the
-# single serial runner). See memory: gitea-primary-host.
+# Gitea-primary lint CI. The default act_runner image lacks Node (for actions/checkout@v4) and
+# PowerShell (for the .ps1 gates), so the job pins a container that has Node20+git and installs pwsh.
+# Build + unit tests stay LOCAL-ONLY (need Lidarr host assemblies). See memory: gitea-primary-host.
 on:
   workflow_dispatch:
   push:
@@ -16,11 +10,36 @@ on:
 jobs:
   lint:
     runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/catthehacker/ubuntu:act-latest
     steps:
-      - uses: actions/checkout@v4
+      - name: Mark workspace safe for git
+        shell: bash
+        run: git config --global --add safe.directory '*'
+      - name: Checkout (no submodules; token is repo-scoped)
+        uses: actions/checkout@v4
         with:
-          submodules: recursive
-      - name: Date-parsing gate (culture-safety + epoch guard)
+          submodules: false
+      - name: Init Common submodule (anonymous HTTP, public repo)
+        shell: bash
+        run: |
+          set -euo pipefail
+          git submodule sync -- ext/Lidarr.Plugin.Common
+          git submodule update --init --depth=1 -- ext/Lidarr.Plugin.Common
+          test -d ext/Lidarr.Plugin.Common/scripts || { echo "::error::Common submodule not initialized"; exit 1; }
+      - name: Install PowerShell
+        shell: bash
+        run: |
+          set -euo pipefail
+          if command -v pwsh >/dev/null 2>&1; then echo "pwsh present"; exit 0; fi
+          apt-get update
+          apt-get install -y --no-install-recommends wget ca-certificates
+          . /etc/os-release
+          wget -q "https://packages.microsoft.com/config/ubuntu/${VERSION_ID}/packages-microsoft-prod.deb"
+          dpkg -i packages-microsoft-prod.deb && rm packages-microsoft-prod.deb
+          apt-get update && apt-get install -y --no-install-recommends powershell
+          pwsh --version
+      - name: Date-parsing gate
         shell: pwsh
         run: ./ext/Lidarr.Plugin.Common/scripts/lint-date-parsing.ps1 -Path . -Mode ci
       - name: Sync-over-async gate
