@@ -8,6 +8,7 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using Lidarr.Plugin.Qobuzarr.Download;
+using Lidarr.Plugin.Common.Services.Download;
 using Lidarr.Plugin.Common.Services.Lyrics;
 using NLog;
 using Lidarr.Plugin.Qobuzarr.API;
@@ -305,7 +306,7 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Services
             // 200, ignoring the Range), use Create so the file is truncated even if the stale
             // ".partial" delete above failed (it is swallowed) — otherwise the full fresh body was
             // appended onto stale bytes, silently corrupting the audio file.
-            var partialFileMode = isPartial ? FileMode.Append : FileMode.Create;
+            var partialFileMode = PartialFileReset.ResolveWriteMode(serverHonoredRange: isPartial);
             await using (var fileStream = new FileStream(partialPath, partialFileMode, FileAccess.Write, FileShare.None, 131072, useAsync: true))
             {
                 read = await responseStream.ReadAsync(buffer.AsMemory(0, buffer.Length), cancellationToken).ConfigureAwait(false);
