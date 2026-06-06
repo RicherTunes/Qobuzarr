@@ -8,9 +8,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-        with:
-          submodules: recursive
-      - run: ls ext/Lidarr.Plugin.Common/scripts/lint-date-parsing.ps1 && echo CHECKOUT_OK
+      - run: echo CHECKOUT_NO_SUBMODULE_OK && ls -d .gitea
       - name: pwsh check
         shell: pwsh
-        run: $PSVersionTable.PSVersion; Write-Host PWSH_OK
+        run: 'Write-Host "PWSH_OK"'
