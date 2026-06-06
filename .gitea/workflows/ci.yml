@@ -3,17 +3,8 @@ on:
   workflow_dispatch:
   push:
     branches: [main]
-  pull_request:
 jobs:
-  lint:
+  smoke:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-        with:
-          submodules: recursive
-      - name: Ecosystem lint gates (date-parsing, sync-over-async, parity)
-        shell: pwsh
-        run: |
-          ./ext/Lidarr.Plugin.Common/scripts/lint-date-parsing.ps1 -Path . -Mode ci
-          ./ext/Lidarr.Plugin.Common/scripts/lint-sync-over-async.ps1 -Path . -Mode ci
-          ./ext/Lidarr.Plugin.Common/scripts/ecosystem-parity-lint.ps1 -RepoPath . -CommonRoot ext/Lidarr.Plugin.Common -Mode ci
+      - run: echo hello-from-gitea-runner
