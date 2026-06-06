@@ -1,27 +1,43 @@
 name: CI
-on: [workflow_dispatch, push]
+# Gitea-primary lint CI (3 ecosystem gates). Pins a container with Node20 + PowerShell7 + git so
+# actions/checkout@v4 and the .ps1 gates run (default act_runner image lacks them). Build + unit tests
+# stay LOCAL-ONLY (need Lidarr host assemblies). See memory: gitea-primary-host.
+#
+# KNOWN BLOCKER (#12): on this host the job container cannot reach the Gitea instance at
+# 192.168.2.59:3001 -> checkout + submodule init hang. Needs a runner/host networking fix (e.g. runner
+# config `container.network: host` on a Linux host, or a host.docker.internal mapping on Docker Desktop).
+# has_actions is left OFF until that is resolved.
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+  pull_request:
 jobs:
-  diag:
+  lint:
     runs-on: ubuntu-latest
     container:
       image: ghcr.io/catthehacker/ubuntu:full-latest
-      options: --network=host
     steps:
-      - name: probe
+      - name: Mark workspace safe for git
+        shell: bash
+        run: git config --global --add safe.directory '*'
+      - name: Checkout (no submodules; token is repo-scoped)
+        uses: actions/checkout@v4
+        with:
+          submodules: false
+      - name: Init Common submodule (anonymous HTTP, public repo)
         shell: bash
         run: |
-          set +e
-          R=diag.txt; : > "$R"
-          echo "## net->gitea (curl, 10s)" >> "$R"
-          curl -sS -m 10 -o /dev/null -w "gitea_http=%{http_code}\n" "http://192.168.2.59:3001/RicherTunes/Lidarr.Plugin.Common.git/info/refs?service=git-upload-pack" >> "$R" 2>&1
-          echo "curl rc=$?" >> "$R"
-          echo "## submodule clone (timeout 25s)" >> "$R"
-          timeout 25 git clone --depth=1 "http://192.168.2.59:3001/RicherTunes/Lidarr.Plugin.Common.git" /tmp/ct >> "$R" 2>&1
-          echo "clone rc=$? (124=timeout)" >> "$R"
-          ls /tmp/ct/scripts/lint-date-parsing.ps1 >> "$R" 2>&1; echo "ls rc=$?" >> "$R"
-          echo "## ip/route" >> "$R"
-          ip addr 2>/dev/null | grep -E "inet " >> "$R"; ip route 2>/dev/null | head -3 >> "$R"
-          cat "$R"
-      - name: upload
-        uses: actions/upload-artifact@v3
-        with: { name: diag, path: diag.txt }
+          set -euo pipefail
+          git submodule sync -- ext/Lidarr.Plugin.Common
+          git submodule update --init --depth=1 -- ext/Lidarr.Plugin.Common
+          test -d ext/Lidarr.Plugin.Common/scripts || { echo "::error::Common submodule not initialized"; exit 1; }
+      - name: Date-parsing gate
+        shell: pwsh
+        run: ./ext/Lidarr.Plugin.Common/scripts/lint-date-parsing.ps1 -Path . -Mode ci
+      - name: Sync-over-async gate
+        shell: pwsh
+        run: ./ext/Lidarr.Plugin.Common/scripts/lint-sync-over-async.ps1 -Path . -Mode ci
+      - name: Ecosystem parity gate
+        shell: pwsh
+        run: ./ext/Lidarr.Plugin.Common/scripts/ecosystem-parity-lint.ps1 -RepoPath . -CommonRoot ext/Lidarr.Plugin.Common -Mode ci
