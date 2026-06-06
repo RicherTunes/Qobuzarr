@@ -5,6 +5,7 @@ using System.Linq;
 using Newtonsoft.Json;
 using NzbDrone.Common.Extensions;
 using Lidarr.Plugin.Qobuzarr.Security;
+using Lidarr.Plugin.Common.Utilities;
 
 namespace Lidarr.Plugin.Qobuzarr.Models
 {
@@ -132,11 +133,11 @@ namespace Lidarr.Plugin.Qobuzarr.Models
         {
             get
             {
-                // Range-guard the epoch so an out-of-range timestamp falls through to the ISO strings below
-                // rather than throwing ArgumentOutOfRangeException out of this getter.
-                if (ReleasedAtTimestamp > 0 && ReleasedAtTimestamp <= DateTimeOffset.MaxValue.ToUnixTimeSeconds())
+                // Range-guard the epoch via Common's fail-closed TimeParsing so an out-of-range timestamp falls
+                // through to the ISO strings below rather than throwing ArgumentOutOfRangeException out of this getter.
+                if (ReleasedAtTimestamp > 0 && TimeParsing.TryFromUnixTimeSeconds(ReleasedAtTimestamp, out var releasedAt))
                 {
-                    return DateTimeOffset.FromUnixTimeSeconds(ReleasedAtTimestamp).DateTime;
+                    return releasedAt.DateTime;
                 }
 
                 // Qobuz release-date strings are always Gregorian ISO (e.g. "2021-05-14"); parse them with the

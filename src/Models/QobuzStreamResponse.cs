@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using Newtonsoft.Json;
 using NzbDrone.Common.Extensions;
+using Lidarr.Plugin.Common.Utilities;
 
 namespace Lidarr.Plugin.Qobuzarr.Models
 {
@@ -59,12 +60,12 @@ namespace Lidarr.Plugin.Qobuzarr.Models
         {
             get
             {
-                // Range-guard the epoch so an out-of-range expiry yields null rather than throwing
-                // ArgumentOutOfRangeException out of this getter on the auth path.
+                // Range-guard the epoch via Common's fail-closed TimeParsing so an out-of-range expiry yields null
+                // rather than throwing ArgumentOutOfRangeException out of this getter on the auth path.
                 if (ExpiresTimestamp.HasValue && ExpiresTimestamp > 0 &&
-                    ExpiresTimestamp <= DateTimeOffset.MaxValue.ToUnixTimeSeconds())
+                    TimeParsing.TryFromUnixTimeSeconds(ExpiresTimestamp.Value, out var expires))
                 {
-                    return DateTimeOffset.FromUnixTimeSeconds(ExpiresTimestamp.Value).DateTime;
+                    return expires.DateTime;
                 }
                 return null;
             }
