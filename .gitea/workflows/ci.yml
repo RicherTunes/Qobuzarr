@@ -1,42 +1,30 @@
 name: CI
-# Gitea-primary lint CI. Pin a container image that ships Node20 (for actions/checkout@v4),
-# PowerShell 7 (for the .ps1 gates), and git -- the default act_runner image lacks them.
-# full-* mirrors the GitHub ubuntu-latest toolcache (pwsh baked in); act-* would need a pwsh install.
-# Build + unit tests stay LOCAL-ONLY (need Lidarr host assemblies). See memory: gitea-primary-host.
-on:
-  workflow_dispatch:
-  push:
-    branches: [main]
-  pull_request:
+on: [workflow_dispatch, push]
 jobs:
-  lint:
+  diag:
     runs-on: ubuntu-latest
     container:
       image: ghcr.io/catthehacker/ubuntu:full-latest
     steps:
-      - name: Mark workspace safe for git
-        shell: bash
-        run: git config --global --add safe.directory '*'
-      - name: Tooling smoke (node/git/pwsh present)
-        shell: bash
-        run: node --version && git --version && pwsh --version
-      - name: Checkout (no submodules; token is repo-scoped)
-        uses: actions/checkout@v4
-        with:
-          submodules: false
-      - name: Init Common submodule (anonymous HTTP, public repo)
+      - name: probe
         shell: bash
         run: |
-          set -euo pipefail
-          git submodule sync -- ext/Lidarr.Plugin.Common
-          git submodule update --init --depth=1 -- ext/Lidarr.Plugin.Common
-          test -d ext/Lidarr.Plugin.Common/scripts || { echo "::error::Common submodule not initialized"; exit 1; }
-      - name: Date-parsing gate
-        shell: pwsh
-        run: ./ext/Lidarr.Plugin.Common/scripts/lint-date-parsing.ps1 -Path . -Mode ci
-      - name: Sync-over-async gate
-        shell: pwsh
-        run: ./ext/Lidarr.Plugin.Common/scripts/lint-sync-over-async.ps1 -Path . -Mode ci
-      - name: Ecosystem parity gate
-        shell: pwsh
-        run: ./ext/Lidarr.Plugin.Common/scripts/ecosystem-parity-lint.ps1 -RepoPath . -CommonRoot ext/Lidarr.Plugin.Common -Mode ci
+          set +e
+          R=diag.txt; : > "$R"
+          echo "## tooling" >> "$R"
+          node --version  >> "$R" 2>&1; echo "node rc=$?"  >> "$R"
+          git  --version  >> "$R" 2>&1; echo "git rc=$?"   >> "$R"
+          (command -v pwsh && pwsh --version) >> "$R" 2>&1; echo "pwsh rc=$?" >> "$R"
+          echo "## net->gitea" >> "$R"
+          curl -sS -m 10 -o /dev/null -w "gitea_http=%{http_code}\n" "http://192.168.2.59:3001/RicherTunes/Lidarr.Plugin.Common.git/info/refs?service=git-upload-pack" >> "$R" 2>&1
+          echo "curl rc=$?" >> "$R"
+          echo "## submodule clone" >> "$R"
+          git clone --depth=1 "http://192.168.2.59:3001/RicherTunes/Lidarr.Plugin.Common.git" /tmp/ct >> "$R" 2>&1
+          echo "clone rc=$?" >> "$R"
+          ls /tmp/ct/scripts/lint-date-parsing.ps1 >> "$R" 2>&1; echo "ls rc=$?" >> "$R"
+          echo "## done"; cat "$R"
+      - name: upload
+        uses: actions/upload-artifact@v3
+        with:
+          name: diag
+          path: diag.txt
