@@ -18,17 +18,21 @@ namespace Qobuzarr.Tests.Indexers
         {
             _output = output;
 
-            // Setup NLog for testing
-            var config = new NLog.Config.LoggingConfiguration();
+            // Setup NLog for testing on an ISOLATED LogFactory — assigning the
+            // process-global LogManager.Configuration here clobbered the shared
+            // "testMemory" target installed by NLogTestLogger.Create(), flaking
+            // parallel log-assertion tests (e.g. QobuzAppSecretLogScrubTests).
+            var factory = new LogFactory();
+            var config = new NLog.Config.LoggingConfiguration(factory);
             var consoleTarget = new NLog.Targets.ConsoleTarget("console")
             {
                 Layout = "${time} ${level} ${message}"
             };
             config.AddTarget(consoleTarget);
             config.AddRule(LogLevel.Debug, LogLevel.Fatal, consoleTarget);
-            LogManager.Configuration = config;
+            factory.Configuration = config;
 
-            _logger = LogManager.GetCurrentClassLogger();
+            _logger = factory.GetLogger(nameof(MLPerformanceMetricsTests));
             _metrics = new MLPerformanceMetrics(_logger);
         }
 

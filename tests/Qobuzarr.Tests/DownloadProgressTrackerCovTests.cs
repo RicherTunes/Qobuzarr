@@ -19,21 +19,27 @@ namespace Qobuzarr.Tests
     public class DownloadProgressTrackerCovTests : IDisposable
     {
         private readonly Logger _logger;
+        private readonly LogFactory _logFactory;
 
         public DownloadProgressTrackerCovTests()
         {
-            // Configure a minimal NLog logger for tests
-            var config = new LoggingConfiguration();
+            // Configure a minimal NLog logger on an ISOLATED LogFactory.
+            // Mutating the process-global LogManager.Configuration (and calling
+            // LogManager.Shutdown() in Dispose) clobbered the shared "testMemory"
+            // target installed by NLogTestLogger.Create(), flaking parallel
+            // log-assertion tests (e.g. QobuzAppSecretLogScrubTests).
+            _logFactory = new LogFactory();
+            var config = new LoggingConfiguration(_logFactory);
             var target = new MemoryTarget("mem") { Layout = "${message}" };
             config.AddTarget("mem", target);
             config.LoggingRules.Add(new LoggingRule("*", LogLevel.Debug, target));
-            LogManager.Configuration = config;
-            _logger = LogManager.GetLogger("TestLogger");
+            _logFactory.Configuration = config;
+            _logger = _logFactory.GetLogger("TestLogger");
         }
 
         public void Dispose()
         {
-            LogManager.Shutdown();
+            _logFactory.Shutdown();
         }
 
         // Helper to create a ProgressTracker via reflection-free means:

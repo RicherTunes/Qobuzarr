@@ -20,13 +20,18 @@ namespace Qobuzarr.Tests.Indexers
 
         public MLPerformanceMetricsLogGateTests()
         {
+            // ISOLATED LogFactory — assigning the process-global
+            // LogManager.Configuration (and nulling it in Dispose) clobbered the
+            // shared "testMemory" target installed by NLogTestLogger.Create(),
+            // flaking parallel log-assertion tests (e.g. QobuzAppSecretLogScrubTests).
+            var factory = new LogFactory();
             _memoryTarget = new MemoryTarget("test-gate-log") { Layout = "${message}" };
-            var config = new NLog.Config.LoggingConfiguration();
+            var config = new NLog.Config.LoggingConfiguration(factory);
             config.AddTarget(_memoryTarget);
             config.AddRule(LogLevel.Debug, LogLevel.Fatal, _memoryTarget);
-            LogManager.Configuration = config;
+            factory.Configuration = config;
 
-            _logger = LogManager.GetCurrentClassLogger();
+            _logger = factory.GetLogger(nameof(MLPerformanceMetricsLogGateTests));
             _metrics = new MLPerformanceMetrics(_logger);
         }
 
@@ -124,7 +129,6 @@ namespace Qobuzarr.Tests.Indexers
         public void Dispose()
         {
             _metrics?.Dispose();
-            LogManager.Configuration = null;
         }
     }
 }
