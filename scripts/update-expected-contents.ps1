@@ -40,8 +40,8 @@ try {
     Import-Module (Resolve-Path -LiteralPath $pluginPack) -Force
 
     $zipPath = New-PluginPackage `
-        -Csproj 'src/Qobuzarr.csproj' `
-        -Manifest 'src/plugin.json' `
+        -Csproj 'Qobuzarr.csproj' `
+        -Manifest 'plugin.json' `
         -Framework net8.0 `
         -Configuration Release `
         -RequireCanonicalAbstractions | Select-Object -Last 1
