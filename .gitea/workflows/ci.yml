@@ -1,12 +1,9 @@
 name: CI
-# Gitea-primary lint CI (3 ecosystem gates). Pins a container with Node20 + PowerShell7 + git so
-# actions/checkout@v4 and the .ps1 gates run (default act_runner image lacks them). Build + unit tests
-# stay LOCAL-ONLY (need Lidarr host assemblies). See memory: gitea-primary-host.
-#
-# KNOWN BLOCKER (#12): on this host the job container cannot reach the Gitea instance at
-# 192.168.2.59:3001 -> checkout + submodule init hang. Needs a runner/host networking fix (e.g. runner
-# config `container.network: host` on a Linux host, or a host.docker.internal mapping on Docker Desktop).
-# has_actions is left OFF until that is resolved.
+# Gitea-primary lint CI (3 ecosystem gates). Build + unit tests stay LOCAL-ONLY (need Lidarr host
+# assemblies). The runner image has no pwsh, and the catthehacker container both can't be pulled on
+# this host ("No such image") and can't reach Gitea for in-container checkout (the #12 blocker). So
+# run on the bare runner (which reaches Gitea + has dotnet) and install PowerShell from the
+# self-contained release tarball — same proven pattern as Common/brainarr/tidalarr/amazonmusicarr.
 on:
   workflow_dispatch:
   push:
@@ -15,23 +12,20 @@ on:
 jobs:
   lint:
     runs-on: ubuntu-latest
-    container:
-      image: ghcr.io/catthehacker/ubuntu:full-latest
+    timeout-minutes: 15
     steps:
-      - name: Mark workspace safe for git
-        shell: bash
-        run: git config --global --add safe.directory '*'
-      - name: Checkout (no submodules; token is repo-scoped)
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
         with:
-          submodules: false
-      - name: Init Common submodule (anonymous HTTP, public repo)
+          submodules: recursive
+      - name: Install PowerShell
         shell: bash
         run: |
-          set -euo pipefail
-          git submodule sync -- ext/Lidarr.Plugin.Common
-          git submodule update --init --depth=1 -- ext/Lidarr.Plugin.Common
-          test -d ext/Lidarr.Plugin.Common/scripts || { echo "::error::Common submodule not initialized"; exit 1; }
+          set -e
+          curl -sSL https://github.com/PowerShell/PowerShell/releases/download/v7.4.6/powershell-7.4.6-linux-x64.tar.gz -o /tmp/pwsh.tgz
+          mkdir -p /opt/pwsh
+          tar -xzf /tmp/pwsh.tgz -C /opt/pwsh
+          chmod +x /opt/pwsh/pwsh
+          echo "/opt/pwsh" >> "$GITHUB_PATH"
       - name: Date-parsing gate
         shell: pwsh
         run: ./ext/Lidarr.Plugin.Common/scripts/lint-date-parsing.ps1 -Path . -Mode ci
