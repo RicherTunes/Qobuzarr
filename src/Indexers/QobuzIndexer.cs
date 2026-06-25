@@ -143,27 +143,8 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
 
         private Models.Authentication.QobuzCredentials BuildFallbackCredentialsFromSettings()
         {
-            var settings = GetSettingsSafe();
-            var creds = new Models.Authentication.QobuzCredentials();
-
-            // Prefer email + password if provided (hash to MD5 as required by Qobuz)
-            if (!string.IsNullOrWhiteSpace(settings.Email) && !string.IsNullOrWhiteSpace(settings.Password))
-            {
-                creds.Email = settings.Email;
-                creds.MD5Password = Utilities.HashingUtility.ComputePasswordMD5Hash(settings.Password);
-            }
-            else if (!string.IsNullOrWhiteSpace(settings.UserId) && !string.IsNullOrWhiteSpace(settings.AuthToken))
-            {
-                // Fallback to UserId + AuthToken
-                creds.UserId = settings.UserId;
-                creds.AuthToken = settings.AuthToken;
-            }
-
-            // Optional app credentials (used if configured)
-            if (!string.IsNullOrWhiteSpace(settings.AppId)) creds.AppId = settings.AppId;
-            if (!string.IsNullOrWhiteSpace(settings.AppSecret)) creds.AppSecret = settings.AppSecret;
-
-            return creds;
+            return QobuzCredentialFactory.TryFromIndexerSettings(GetSettingsSafe())
+                ?? new Models.Authentication.QobuzCredentials();
         }
 
         public override IParseIndexerResponse GetParser()

@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using Xunit;
 using Moq;
 using FluentAssertions;
+using Newtonsoft.Json;
 using NLog;
 using NzbDrone.Common.Http;
 using NzbDrone.Core.Configuration;
@@ -13,12 +14,18 @@ using NzbDrone.Common.Disk;
 using NzbDrone.Core.Localization;
 using NzbDrone.Core.Download;
 using NzbDrone.Core.Indexers;
+using NzbDrone.Core.Music;
+using NzbDrone.Core.Parser.Model;
 using Lidarr.Plugin.Qobuzarr.Download.Clients;
 using Lidarr.Plugin.Qobuzarr.Download.Services;
 using Lidarr.Plugin.Qobuzarr.Download.Orchestration;
 using Lidarr.Plugin.Qobuzarr.Download;
 using Lidarr.Plugin.Qobuzarr.Authentication;
 using Lidarr.Plugin.Qobuzarr.API;
+using Lidarr.Plugin.Qobuzarr.Indexers;
+using Lidarr.Plugin.Qobuzarr.Models;
+using Lidarr.Plugin.Qobuzarr.Models.Authentication;
+using Qobuzarr.Tests.TestData;
 using Qobuzarr.Tests.Fixtures;
 
 namespace Qobuzarr.Tests
@@ -62,6 +69,45 @@ namespace Qobuzarr.Tests
 
         protected override Lidarr.Plugin.Common.HostBridge.HostBridgeDownloadTrackerStore<Lidarr.Plugin.Qobuzarr.Download.Clients.QobuzDownloadItem> Tracker
             => _testTracker;
+    }
+
+    /// <summary>
+    /// Test subclass that lets the re-authentication credential seam be controlled
+    /// from the test. Mirrors how the indexer builds fallback credentials from settings,
+    /// but lets us assert the download-path re-auth behavior hermetically (download
+    /// settings do not themselves carry credentials).
+    /// </summary>
+    public class ReauthTestableQobuzDownloadClient : TestableQobuzDownloadClient
+    {
+        private readonly Lidarr.Plugin.Qobuzarr.Models.Authentication.QobuzCredentials _credsFromSettings;
+
+        public ReauthTestableQobuzDownloadClient(
+            IQobuzAuthenticationService authService,
+            IQobuzApiClient apiClient,
+            IHttpClient httpClient,
+            IDownloadQueueService queueService,
+            IDownloadFileService fileService,
+            IConcurrencyManager concurrencyManager,
+            IDownloadOrchestrator orchestrator,
+            IDownloadSummary downloadSummary,
+            IBatchProcessor batchProcessor,
+            Lidarr.Plugin.Qobuzarr.Download.Services.ITrackDownloadService trackDownloadService,
+            IConfigService configService,
+            IDiskProvider diskProvider,
+            IRemotePathMappingService remotePathMappingService,
+            ILocalizationService localizationService,
+            Logger logger,
+            Lidarr.Plugin.Qobuzarr.Models.Authentication.QobuzCredentials credsFromSettings = null)
+            : base(authService, apiClient, httpClient, queueService, fileService,
+                   concurrencyManager, orchestrator, downloadSummary, batchProcessor,
+                   trackDownloadService, configService, diskProvider, remotePathMappingService,
+                   localizationService, logger)
+        {
+            _credsFromSettings = credsFromSettings;
+        }
+
+        protected override Lidarr.Plugin.Qobuzarr.Models.Authentication.QobuzCredentials BuildReauthCredentialsFromSettings()
+            => _credsFromSettings;
     }
 
     /// <summary>
@@ -701,5 +747,342 @@ namespace Qobuzarr.Tests
             // Act & Assert - should not throw
             sut.RemoveItem(clientItem, true);
         }
+    }
+
+    /// <summary>
+    /// Pins the download-path re-authentication contract (FIX 1):
+    /// <see cref="QobuzDownloadClient.EnsureAuthenticatedAsync"/> must self-heal a stale session
+    /// (null OR <c>NeedsRefresh()</c>) by re-authenticating with available credentials — exactly
+    /// like the indexer's <c>QobuzPreRequestHandler</c> — instead of throwing. The previous code
+    /// threw <c>InvalidOperationException("No valid authentication session available")</c> for any
+    /// session within 30 minutes of its synthetic 24h expiry, so every album grabbed in that window
+    /// failed and never recovered on the download path.
+    /// </summary>
+    public class QobuzDownloadClientReauthTests : TestFixtureBase
+    {
+        private readonly Mock<IQobuzAuthenticationService> _mockAuthService = new();
+        private readonly Mock<IQobuzApiClient> _mockApiClient = new();
+        private readonly Mock<IHttpClient> _mockClient = new();
+        private readonly Mock<IDownloadQueueService> _mockQueueService = new();
+        private readonly Mock<IDownloadFileService> _mockFileService = new();
+        private readonly Mock<IConcurrencyManager> _mockConcurrencyManager = new();
+        private readonly Mock<IDownloadOrchestrator> _mockOrchestrator = new();
+        private readonly Mock<IDownloadSummary> _mockDownloadSummary = new();
+        private readonly Mock<IBatchProcessor> _mockBatchProcessor = new();
+        private readonly Mock<Lidarr.Plugin.Qobuzarr.Download.Services.ITrackDownloadService> _mockTrackDownloadService = new();
+
+        private ReauthTestableQobuzDownloadClient CreateSut(
+            Lidarr.Plugin.Qobuzarr.Models.Authentication.QobuzCredentials credsFromSettings = null)
+        {
+            return new ReauthTestableQobuzDownloadClient(
+                _mockAuthService.Object,
+                _mockApiClient.Object,
+                _mockClient.Object,
+                _mockQueueService.Object,
+                _mockFileService.Object,
+                _mockConcurrencyManager.Object,
+                _mockOrchestrator.Object,
+                _mockDownloadSummary.Object,
+                _mockBatchProcessor.Object,
+                _mockTrackDownloadService.Object,
+                MockConfigService.Object,
+                MockDiskProvider.Object,
+                MockRemotePathMappingService.Object,
+                MockLocalizationService.Object,
+                MockLogger.Object,
+                credsFromSettings);
+        }
+
+        private static Lidarr.Plugin.Qobuzarr.Models.Authentication.QobuzSession SessionExpiringIn(TimeSpan ttl)
+            => new Lidarr.Plugin.Qobuzarr.Models.Authentication.QobuzSession
+            {
+                UserId = "user-1",
+                AuthToken = "tok-stale",
+                AppId = "app-1",
+                AppSecret = "secret-1",
+                CreatedAt = DateTime.UtcNow.AddHours(-24).Add(ttl),
+                ExpiresAt = DateTime.UtcNow.Add(ttl)
+            };
+
+        private static Lidarr.Plugin.Qobuzarr.Models.Authentication.QobuzSession FreshSession()
+            => new Lidarr.Plugin.Qobuzarr.Models.Authentication.QobuzSession
+            {
+                UserId = "user-1",
+                AuthToken = "tok-fresh",
+                AppId = "app-1",
+                AppSecret = "secret-1",
+                CreatedAt = DateTime.UtcNow,
+                ExpiresAt = DateTime.UtcNow.AddHours(24)
+            };
+
+        private static Lidarr.Plugin.Qobuzarr.Models.Authentication.QobuzCredentials ValidCreds()
+            => new Lidarr.Plugin.Qobuzarr.Models.Authentication.QobuzCredentials
+            {
+                UserId = "user-1",
+                AuthToken = "tok-stale"
+            };
+
+        [Fact]
+        public async Task EnsureAuthenticatedAsync_StaleSession_NeedsRefresh_ReAuthenticatesAndProceeds()
+        {
+            // Arrange: cached session within the 30-minute NeedsRefresh window (synthetic 24h expiry).
+            var stale = SessionExpiringIn(TimeSpan.FromMinutes(20));
+            stale.NeedsRefresh().Should().BeTrue("the test fixture must reproduce the bug condition");
+
+            var fresh = FreshSession();
+            // Read #1 (initial) and #2 (recheck-under-gate, nothing renewed concurrently) see the
+            // stale session; after AuthenticateAsync stores a new session, subsequent reads see fresh.
+            _mockAuthService.SetupSequence(a => a.GetCachedSession())
+                .Returns(stale)
+                .Returns(stale)
+                .Returns(fresh)
+                .Returns(fresh);
+            _mockAuthService.Setup(a => a.AuthenticateAsync(It.IsAny<Lidarr.Plugin.Qobuzarr.Models.Authentication.QobuzCredentials>()))
+                .ReturnsAsync(fresh);
+
+            var sut = CreateSut(ValidCreds());
+
+            // Act + Assert: must NOT throw, must re-auth, must push the refreshed session.
+            await sut.EnsureAuthenticatedAsync();
+
+            _mockAuthService.Verify(a => a.AuthenticateAsync(It.IsAny<Lidarr.Plugin.Qobuzarr.Models.Authentication.QobuzCredentials>()), Times.Once);
+            _mockApiClient.Verify(c => c.SetSession(fresh), Times.Once);
+        }
+
+        [Fact]
+        public async Task EnsureAuthenticatedAsync_NullSession_WithCreds_ReAuthenticates()
+        {
+            var fresh = FreshSession();
+            // Reads #1 and #2 (initial + recheck-under-gate) see null; after re-auth, fresh.
+            _mockAuthService.SetupSequence(a => a.GetCachedSession())
+                .Returns((Lidarr.Plugin.Qobuzarr.Models.Authentication.QobuzSession)null)
+                .Returns((Lidarr.Plugin.Qobuzarr.Models.Authentication.QobuzSession)null)
+                .Returns(fresh)
+                .Returns(fresh);
+            _mockAuthService.Setup(a => a.AuthenticateAsync(It.IsAny<Lidarr.Plugin.Qobuzarr.Models.Authentication.QobuzCredentials>()))
+                .ReturnsAsync(fresh);
+
+            var sut = CreateSut(ValidCreds());
+
+            await sut.EnsureAuthenticatedAsync();
+
+            _mockAuthService.Verify(a => a.AuthenticateAsync(It.IsAny<Lidarr.Plugin.Qobuzarr.Models.Authentication.QobuzCredentials>()), Times.Once);
+            _mockApiClient.Verify(c => c.SetSession(fresh), Times.Once);
+        }
+
+        [Fact]
+        public async Task EnsureAuthenticatedAsync_NullSession_NoCreds_ThrowsActionableError()
+        {
+            // No cached session at all, and no credentials anywhere to re-auth with.
+            _mockAuthService.Setup(a => a.GetCachedSession())
+                .Returns((Lidarr.Plugin.Qobuzarr.Models.Authentication.QobuzSession)null);
+
+            var sut = CreateSut(credsFromSettings: null);
+
+            var ex = await Assert.ThrowsAsync<InvalidOperationException>(() => sut.EnsureAuthenticatedAsync());
+            ex.Message.Should().Contain("authentication", "the error must be actionable about credentials");
+            _mockAuthService.Verify(a => a.AuthenticateAsync(It.IsAny<Lidarr.Plugin.Qobuzarr.Models.Authentication.QobuzCredentials>()), Times.Never);
+        }
+
+        [Fact]
+        public async Task EnsureAuthenticatedAsync_ValidSession_DoesNotReAuthenticate()
+        {
+            var fresh = FreshSession();
+            _mockAuthService.Setup(a => a.GetCachedSession()).Returns(fresh);
+
+            var sut = CreateSut(credsFromSettings: null);
+
+            await sut.EnsureAuthenticatedAsync();
+
+            // A valid (not NeedsRefresh) session must never trigger a re-login.
+            _mockAuthService.Verify(a => a.AuthenticateAsync(It.IsAny<Lidarr.Plugin.Qobuzarr.Models.Authentication.QobuzCredentials>()), Times.Never);
+            _mockApiClient.Verify(c => c.SetSession(fresh), Times.Once);
+        }
+
+        [Fact]
+        public async Task EnsureAuthenticatedAsync_StaleSession_NoSettingsCreds_RebuildsTokenCredsFromSession()
+        {
+            // Download settings carry no credentials, but the stale session itself holds
+            // UserId+AuthToken+AppId+AppSecret — enough to rebuild token-auth credentials and re-auth.
+            var stale = SessionExpiringIn(TimeSpan.FromMinutes(10));
+            var fresh = FreshSession();
+            _mockAuthService.SetupSequence(a => a.GetCachedSession())
+                .Returns(stale)
+                .Returns(stale)
+                .Returns(fresh)
+                .Returns(fresh);
+            _mockAuthService.Setup(a => a.AuthenticateAsync(It.IsAny<Lidarr.Plugin.Qobuzarr.Models.Authentication.QobuzCredentials>()))
+                .ReturnsAsync(fresh);
+
+            var sut = CreateSut(credsFromSettings: null); // no settings creds -> must fall back to the session
+
+            await sut.EnsureAuthenticatedAsync();
+
+            _mockAuthService.Verify(a => a.AuthenticateAsync(It.IsAny<Lidarr.Plugin.Qobuzarr.Models.Authentication.QobuzCredentials>()), Times.Once);
+            _mockApiClient.Verify(c => c.SetSession(fresh), Times.Once);
+        }
+
+        [Fact]
+        public async Task Download_WhenSessionMissing_UsesSourceIndexerSettingsForReauth()
+        {
+            var fresh = FreshSession();
+            QobuzCredentials capturedCredentials = null;
+            QobuzDownloadItem queuedItem = null;
+
+            _mockAuthService.SetupSequence(a => a.GetCachedSession())
+                .Returns((QobuzSession)null)
+                .Returns((QobuzSession)null)
+                .Returns(fresh)
+                .Returns(fresh);
+            _mockAuthService
+                .Setup(a => a.AuthenticateAsync(It.IsAny<QobuzCredentials>()))
+                .Callback<QobuzCredentials>(c => capturedCredentials = c)
+                .ReturnsAsync(fresh);
+
+            var album = JsonConvert.DeserializeObject<QobuzAlbum>(SampleQobuzResponses.SampleAlbumResponse);
+            _mockApiClient
+                .Setup(c => c.GetAsync<QobuzAlbum>("/album/get", It.IsAny<Dictionary<string, string>>()))
+                .ReturnsAsync(album);
+            _mockTrackDownloadService
+                .Setup(s => s.DownloadAlbumAsync(
+                    It.IsAny<QobuzDownloadItem>(),
+                    It.IsAny<QobuzAlbum>(),
+                    It.IsAny<QobuzDownloadSettings>(),
+                    It.IsAny<System.Threading.CancellationToken>()))
+                .Returns(Task.CompletedTask);
+            _mockQueueService
+                .Setup(q => q.AddDownload(It.IsAny<QobuzDownloadItem>()))
+                .Callback<QobuzDownloadItem>(item => queuedItem = item);
+
+            var indexerSettings = new QobuzIndexerSettings
+            {
+                AuthMethod = (int)AuthenticationMethod.Email,
+                Email = "listener@example.com",
+                Password = "plain-password",
+                AppId = "123456789",
+                AppSecret = "app-secret"
+            };
+            var indexer = new Mock<IIndexer>();
+            indexer.SetupGet(i => i.Definition)
+                .Returns(new IndexerDefinition { Settings = indexerSettings });
+
+            var sut = CreateSut(credsFromSettings: null);
+
+            var downloadId = await sut.Download(CreateRemoteAlbum(), indexer.Object);
+            if (queuedItem?.DownloadTask != null)
+            {
+                await queuedItem.DownloadTask;
+            }
+
+            downloadId.Should().NotBeNullOrWhiteSpace();
+            capturedCredentials.Should().NotBeNull("download re-auth must use the source indexer's saved credentials");
+            capturedCredentials.Email.Should().Be("listener@example.com");
+            capturedCredentials.MD5Password.Should().Be(Lidarr.Plugin.Qobuzarr.Utilities.HashingUtility.ComputePasswordMD5Hash("plain-password"));
+            capturedCredentials.AppId.Should().Be("123456789");
+            capturedCredentials.AppSecret.Should().Be("app-secret");
+            _mockApiClient.Verify(c => c.SetSession(fresh), Times.Once);
+        }
+
+        [Fact]
+        public async Task Download_WhenCachedSessionBelongsToDifferentSourceCredentials_ReauthenticatesWithSourceIndexer()
+        {
+            var cachedForOtherIndexer = new QobuzSession
+            {
+                UserId = "11111111",
+                AuthToken = "token-account-a",
+                AppId = "123456789",
+                AppSecret = "abcdefghijklmnopqrstuvwxyz",
+                CreatedAt = DateTime.UtcNow,
+                ExpiresAt = DateTime.UtcNow.AddHours(24)
+            };
+            var freshForSourceIndexer = new QobuzSession
+            {
+                UserId = "22222222",
+                AuthToken = "token-account-b",
+                AppId = "123456789",
+                AppSecret = "abcdefghijklmnopqrstuvwxyz",
+                CreatedAt = DateTime.UtcNow,
+                ExpiresAt = DateTime.UtcNow.AddHours(24)
+            };
+            QobuzCredentials capturedCredentials = null;
+            QobuzDownloadItem queuedItem = null;
+
+            _mockAuthService.SetupSequence(a => a.GetCachedSession())
+                .Returns(cachedForOtherIndexer)
+                .Returns(cachedForOtherIndexer)
+                .Returns(freshForSourceIndexer)
+                .Returns(freshForSourceIndexer);
+            _mockAuthService
+                .Setup(a => a.AuthenticateAsync(It.IsAny<QobuzCredentials>()))
+                .Callback<QobuzCredentials>(c => capturedCredentials = c)
+                .ReturnsAsync(freshForSourceIndexer);
+
+            var album = JsonConvert.DeserializeObject<QobuzAlbum>(SampleQobuzResponses.SampleAlbumResponse);
+            _mockApiClient
+                .Setup(c => c.GetAsync<QobuzAlbum>("/album/get", It.IsAny<Dictionary<string, string>>()))
+                .ReturnsAsync(album);
+            _mockTrackDownloadService
+                .Setup(s => s.DownloadAlbumAsync(
+                    It.IsAny<QobuzDownloadItem>(),
+                    It.IsAny<QobuzAlbum>(),
+                    It.IsAny<QobuzDownloadSettings>(),
+                    It.IsAny<System.Threading.CancellationToken>()))
+                .Returns(Task.CompletedTask);
+            _mockQueueService
+                .Setup(q => q.AddDownload(It.IsAny<QobuzDownloadItem>()))
+                .Callback<QobuzDownloadItem>(item => queuedItem = item);
+
+            var indexerSettings = new QobuzIndexerSettings
+            {
+                AuthMethod = (int)AuthenticationMethod.Token,
+                Email = "stale@example.com",
+                Password = "stale-password",
+                UserId = "22222222",
+                AuthToken = "token-account-b",
+                AppId = "123456789",
+                AppSecret = "abcdefghijklmnopqrstuvwxyz"
+            };
+            var indexer = new Mock<IIndexer>();
+            indexer.SetupGet(i => i.Definition)
+                .Returns(new IndexerDefinition { Settings = indexerSettings });
+
+            var sut = CreateSut(credsFromSettings: null);
+
+            var downloadId = await sut.Download(CreateRemoteAlbum(), indexer.Object);
+            if (queuedItem?.DownloadTask != null)
+            {
+                await queuedItem.DownloadTask;
+            }
+
+            downloadId.Should().NotBeNullOrWhiteSpace();
+            capturedCredentials.Should().NotBeNull("a fresh session for another source indexer must not be reused");
+            capturedCredentials.UserId.Should().Be("22222222");
+            capturedCredentials.AuthToken.Should().Be("token-account-b");
+            capturedCredentials.Email.Should().BeNull("token auth was selected even though stale email fields remain");
+            _mockApiClient.Verify(c => c.SetSession(freshForSourceIndexer), Times.Once);
+            _mockApiClient.Verify(c => c.SetSession(cachedForOtherIndexer), Times.Never);
+        }
+
+        private static RemoteAlbum CreateRemoteAlbum()
+            => new RemoteAlbum
+            {
+                Artist = new Artist { Name = "Daft Punk", Id = 1 },
+                Albums = new List<Album>
+                {
+                    new Album
+                    {
+                        Title = "Random Access Memories",
+                        Id = 1,
+                        ReleaseDate = new DateTime(2013, 5, 17)
+                    }
+                },
+                Release = new ReleaseInfo
+                {
+                    Title = "Daft Punk - Random Access Memories",
+                    DownloadUrl = "qobuz://album/0060254788359",
+                    Guid = "qobuz-0060254788359",
+                    Size = 500000000
+                }
+            };
     }
 }

@@ -67,6 +67,14 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Clients
 
         protected virtual HostBridgeDownloadTrackerStore<QobuzDownloadItem> Tracker => _staticTracker;
 
+        // Single-flight gate for download-path re-authentication. Qobuz has no refresh token, so
+        // renewal is a full re-login (login-rate-limited + scrapes the web player). Serialize renewals
+        // so N concurrent downloads that all find the session stale trigger ONE re-auth, not N — mirrors
+        // QobuzPreRequestHandler._renewGate on the indexer path.
+        private readonly SemaphoreSlim _reauthGate = new SemaphoreSlim(1, 1);
+        private string? _authenticatedCredentialFingerprint;
+        private string? _authenticatedSessionFingerprint;
+
         private QobuzDownloadItem? _lastQueuedItem;
 
         public override string Name => QobuzarrConstants.PluginName;
@@ -171,7 +179,8 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Clients
                     StartedAt = DateTime.UtcNow,
                     OutputPath = outputPath,
                     DownloadRoot = downloadRoot,
-                    CancellationTokenSource = new CancellationTokenSource()
+                    CancellationTokenSource = new CancellationTokenSource(),
+                    ReauthCredentials = BuildReauthCredentialsFromIndexer(indexer)
                 };
                 // Status defaults to Queued (HostBridgeDownloadItem initial state = 0 = Queued)
 
@@ -446,7 +455,14 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Clients
                 var settings = GetEffectiveSettings();
 
                 // Ensure we have authentication
-                await EnsureAuthenticatedAsync().ConfigureAwait(false);
+                try
+                {
+                    await EnsureAuthenticatedAsync(downloadItem.ReauthCredentials).ConfigureAwait(false);
+                }
+                finally
+                {
+                    downloadItem.ReauthCredentials = null;
+                }
 
                 // Get album details
                 var album = await GetAlbumDetailsAsync(downloadItem.AlbumId).ConfigureAwait(false);
@@ -487,12 +503,32 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Clients
             }
         }
 
-        private async Task EnsureAuthenticatedAsync()
+        internal Task EnsureAuthenticatedAsync()
+        {
+            return EnsureAuthenticatedAsync(null);
+        }
+
+        internal async Task EnsureAuthenticatedAsync(QobuzCredentials? reauthCredentials)
         {
             var session = _authService.GetCachedSession();
-            if (session == null || session.NeedsRefresh())
+            var credentials = ResolveReauthCredentials(session, reauthCredentials);
+
+            // Self-heal a missing or about-to-expire session by re-authenticating, rather than
+            // throwing. NeedsRefresh() trips within 30 minutes of the synthetic 24h ExpiresAt, so
+            // every album grabbed in the last half-hour of the window would otherwise fail and never
+            // recover on the download path — unlike the indexer, which re-logs-in via
+            // QobuzPreRequestHandler. Single-flighted so concurrent downloads cause ONE re-login.
+            if (!CanUseCachedSession(session, credentials))
             {
-                throw new InvalidOperationException("No valid authentication session available");
+                session = await ReauthenticateAsync(session, credentials).ConfigureAwait(false);
+
+                if (!CanUseCachedSession(session, credentials))
+                {
+                    throw new InvalidOperationException(
+                        "No valid Qobuz authentication session available and automatic re-authentication " +
+                        "failed (no usable credentials). Re-enter your Qobuz credentials in " +
+                        "Settings -> Indexers -> Qobuzarr and save.");
+                }
             }
 
             _apiClient.SetSession(session);
@@ -506,6 +542,149 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Clients
                 _logger.Warn("Preferred quality exceeds subscription: will use {0} instead",
                     QualityFormatter.GetQualityName(maxQuality));
             }
+        }
+
+        /// <summary>
+        /// Single-flighted re-authentication for the download path. Resolves credentials, performs a
+        /// full re-login via the shared auth service (Qobuz has no refresh token), and returns the
+        /// freshly cached session. Returns the original session unchanged when no credentials are
+        /// available so the caller can surface an actionable error.
+        /// </summary>
+        private async Task<QobuzSession?> ReauthenticateAsync(QobuzSession? staleSession, QobuzCredentials? credentials)
+        {
+            if (credentials == null || !credentials.IsValid())
+            {
+                // No credentials to re-auth with — caller decides how to surface this.
+                return staleSession;
+            }
+
+            await _reauthGate.WaitAsync().ConfigureAwait(false);
+            try
+            {
+                // Recheck under the gate: another concurrent download may have already renewed it.
+                var current = _authService.GetCachedSession();
+                if (CanUseCachedSession(current, credentials))
+                {
+                    return current;
+                }
+
+                _logger.Debug("Download path re-authenticating with Qobuz (session was missing or about to expire)");
+                var newSession = await _authService.AuthenticateAsync(credentials).ConfigureAwait(false);
+                if (newSession != null)
+                {
+                    RememberAuthenticatedSession(credentials, newSession);
+
+                    // AuthenticateAsync already stores the session; re-read the cached copy so we
+                    // observe exactly what subsequent calls will use.
+                    var cached = _authService.GetCachedSession() ?? newSession;
+                    RememberAuthenticatedSession(credentials, cached);
+                    return cached;
+                }
+
+                return CanUseCachedSession(current, credentials) ? current : staleSession;
+            }
+            catch (Exception ex)
+            {
+                var classification = HttpExceptionClassifier.Classify(ex);
+                _logger.Warn("Download path re-authentication failed: {0}", classification.Hint);
+
+                var current = _authService.GetCachedSession();
+                return CanUseCachedSession(current, credentials) ? current : staleSession;
+            }
+            finally
+            {
+                _reauthGate.Release();
+            }
+        }
+
+        /// <summary>
+        /// Resolves the credentials to use for download-path re-authentication. Prefers credentials
+        /// built from settings (see <see cref="BuildReauthCredentialsFromSettings"/>); when none are
+        /// available it falls back to rebuilding token-auth credentials from the stale session, which
+        /// already carries UserId + AuthToken + AppId + AppSecret.
+        /// </summary>
+        private QobuzCredentials? ResolveReauthCredentials(QobuzSession? staleSession, QobuzCredentials? reauthCredentials)
+        {
+            var fromIndexer = QobuzCredentialFactory.Clone(reauthCredentials);
+            if (fromIndexer != null && fromIndexer.IsValid())
+            {
+                return fromIndexer;
+            }
+
+            var fromSettings = BuildReauthCredentialsFromSettings();
+            if (fromSettings != null && fromSettings.IsValid())
+            {
+                return QobuzCredentialFactory.Clone(fromSettings);
+            }
+
+            if (staleSession != null &&
+                !string.IsNullOrWhiteSpace(staleSession.UserId) &&
+                !string.IsNullOrWhiteSpace(staleSession.AuthToken))
+            {
+                return new QobuzCredentials
+                {
+                    UserId = staleSession.UserId,
+                    AuthToken = staleSession.AuthToken,
+                    AppId = staleSession.AppId,
+                    AppSecret = staleSession.AppSecret
+                };
+            }
+
+            return null;
+        }
+
+        private bool CanUseCachedSession(QobuzSession? session, QobuzCredentials? requestedCredentials)
+        {
+            if (session == null || session.NeedsRefresh())
+            {
+                return false;
+            }
+
+            if (requestedCredentials == null || !requestedCredentials.IsValid())
+            {
+                return true;
+            }
+
+            if (QobuzCredentialFactory.SessionMatchesCredentials(session, requestedCredentials))
+            {
+                RememberAuthenticatedSession(requestedCredentials, session);
+                return true;
+            }
+
+            var requestedFingerprint = QobuzCredentialFactory.CreateCredentialFingerprint(requestedCredentials);
+            var sessionFingerprint = QobuzCredentialFactory.CreateSessionFingerprint(session);
+            return requestedFingerprint != null &&
+                   sessionFingerprint != null &&
+                   string.Equals(Volatile.Read(ref _authenticatedCredentialFingerprint), requestedFingerprint, StringComparison.Ordinal) &&
+                   string.Equals(Volatile.Read(ref _authenticatedSessionFingerprint), sessionFingerprint, StringComparison.Ordinal);
+        }
+
+        private void RememberAuthenticatedSession(QobuzCredentials credentials, QobuzSession session)
+        {
+            var credentialFingerprint = QobuzCredentialFactory.CreateCredentialFingerprint(credentials);
+            var sessionFingerprint = QobuzCredentialFactory.CreateSessionFingerprint(session);
+            if (credentialFingerprint == null || sessionFingerprint == null)
+            {
+                return;
+            }
+
+            Volatile.Write(ref _authenticatedCredentialFingerprint, credentialFingerprint);
+            Volatile.Write(ref _authenticatedSessionFingerprint, sessionFingerprint);
+        }
+
+        /// <summary>
+        /// Builds re-authentication credentials from the effective download settings. The download
+        /// settings do not currently expose credential fields (authentication is configured on the
+        /// indexer), so the base implementation returns null; the re-auth path then falls back to the
+        /// cached session's own token credentials. Exposed as a virtual seam for tests and for forward
+        /// compatibility should credential fields ever be added to the download settings.
+        /// </summary>
+        protected virtual QobuzCredentials? BuildReauthCredentialsFromSettings() => null;
+
+        private static QobuzCredentials? BuildReauthCredentialsFromIndexer(IIndexer indexer)
+        {
+            return QobuzCredentialFactory.TryFromIndexerSettings(
+                indexer?.Definition?.Settings as QobuzIndexerSettings);
         }
 
         private async Task<QobuzAlbum> GetAlbumDetailsAsync(string albumId)
@@ -665,6 +844,7 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Clients
 
                 // Dispose the concurrency manager
                 _concurrencyManager?.Dispose();
+                _reauthGate.Dispose();
 
                 _logger.Debug("QobuzDownloadClient shutdown completed");
             }

@@ -4,6 +4,7 @@ using System.Threading.Tasks;
 using NzbDrone.Core.Download;
 using NzbDrone.Core.Indexers;
 using Lidarr.Plugin.Qobuzarr.Models;
+using Lidarr.Plugin.Qobuzarr.Models.Authentication;
 using Lidarr.Plugin.Qobuzarr.Constants;
 using Lidarr.Plugin.Qobuzarr.Download;
 using Lidarr.Plugin.Qobuzarr.Utilities;
@@ -38,6 +39,7 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Clients
         public string? DownloadRoot { get; set; }
         public CancellationTokenSource? CancellationTokenSource { get; set; }
         public QobuzAlbum? Album { get; set; }
+        internal QobuzCredentials? ReauthCredentials { get; set; }
 
         /// <summary>Bytes written to disk so far. Used for speed + ETA calculations.</summary>
         public long DownloadedSize { get; set; }
