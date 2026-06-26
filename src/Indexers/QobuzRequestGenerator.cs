@@ -218,12 +218,49 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
             }
         }
 
+        // Cap on the over-specific (combined / album-only) queries issued per search, to keep API
+        // calls bounded. The artist-only catalogue fallback is issued IN ADDITION to this cap (never
+        // truncated away) so a special-char/over-specific query can always degrade to the band's
+        // catalogue.
+        private const int MaxOverSpecificRequests = 3;
+
         private List<IndexerRequest> CreateIndexerRequests(List<string> queries, SearchCriteriaBase searchCriteria)
         {
             var requests = new List<IndexerRequest>();
             var session = _getSession?.Invoke();
 
-            foreach (var query in queries.Take(3)) // Limit to 3 queries for performance
+            // De-duplicate and drop blank queries while preserving best-first order.
+            var ordered = new List<string>();
+            foreach (var query in queries ?? Enumerable.Empty<string>())
+            {
+                if (!string.IsNullOrWhiteSpace(query) && !ordered.Contains(query, StringComparer.OrdinalIgnoreCase))
+                {
+                    ordered.Add(query);
+                }
+            }
+
+            var selected = ordered.Take(MaxOverSpecificRequests).ToList();
+
+            // Guarantee the artist-only fallback is always sent for album searches — the shipped
+            // "Bleu Jeans Bleu - Record n°V" bug was a special-char album query returning 0 results
+            // while the artist-only fallback had been truncated away by the request cap.
+            if (searchCriteria is AlbumSearchCriteria albumCriteria)
+            {
+                var artistName = albumCriteria.ArtistQuery;
+                if (string.IsNullOrWhiteSpace(artistName))
+                {
+                    artistName = albumCriteria.Artist?.Name;
+                }
+
+                var artistOnly = _queryBuilder.CleanQuery(artistName);
+                if (!string.IsNullOrWhiteSpace(artistOnly) &&
+                    !selected.Contains(artistOnly, StringComparer.OrdinalIgnoreCase))
+                {
+                    selected.Add(artistOnly);
+                }
+            }
+
+            foreach (var query in selected)
             {
                 try
                 {
