@@ -245,11 +245,22 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Clients
                     result.Add(_lastQueuedItem.ToDownloadClientItem(clientId, clientName));
                 }
 
-                // Merge any queue-service items not already captured.
+                // Merge any queue-service items not already captured — dedup by downloadId.
+                // A just-completed download can briefly live in BOTH the Tracker snapshot and the
+                // active-queue list; reporting it twice gives Lidarr two queue entries with the same
+                // downloadId, which wedges CompletedDownloadService at importPending (the completed
+                // download never imports). Skip queue items whose id was already captured above.
+                var capturedIds = new HashSet<string>(
+                    result.Select(r => r.DownloadId).Where(id => !string.IsNullOrEmpty(id)),
+                    StringComparer.OrdinalIgnoreCase);
                 var queued = _queueService.GetActiveDownloads() ?? Enumerable.Empty<QobuzDownloadItem>();
                 foreach (var q in queued)
                 {
-                    result.Add(q.ToDownloadClientItem(clientId, clientName));
+                    var ci = q.ToDownloadClientItem(clientId, clientName);
+                    if (string.IsNullOrEmpty(ci.DownloadId) || capturedIds.Add(ci.DownloadId))
+                    {
+                        result.Add(ci);
+                    }
                 }
 
                 return result;
