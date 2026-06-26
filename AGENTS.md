@@ -41,7 +41,7 @@ src/
 
 ### 1. QobuzApiClient God Class
 
-**Location**: `src/API/QobuzApiClient.cs` (598 LOC)
+**Location**: `src/API/QobuzApiClient.cs` (835 LOC)
 **Problem**: HTTP + auth + caching + rate limiting all in one class
 **Agent**: `@qobuzarr-architecture`
 

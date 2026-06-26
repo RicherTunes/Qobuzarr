@@ -66,7 +66,7 @@ Other constraints the install enforces:
 - Tag parses as a version (`v1.2.3`, `1.2.3`, or `1.2.3-prerelease`)
 - Optional `Minimum Lidarr Version: X.Y.Z.W` in release body must be <= host version
 
-Our release zip is named `Lidarr.Plugin.Qobuzarr-v<VERSION>.net8.0.zip` (`.github/workflows/release.yml`). Do not rename without keeping the `net8.0.zip` suffix.
+Our release zip MUST be named with the `net8.0.zip` suffix (e.g., `Lidarr.Plugin.Qobuzarr-v<VERSION>.net8.0.zip`). Do not rename without keeping the `net8.0.zip` suffix.
 
 **Verify a release is installable:**
 
@@ -120,12 +120,12 @@ The gate lives in `DownloadPolicy.IsAlbumDownloadSuccessful` (`successfulTracks 
 - `FileTokenStore<QobuzSession>` + `StreamingTokenManager<QobuzSession, QobuzCredentials>` — `src/Authentication/SessionManager.cs:86-90`. Common's canonical token-store stack with at-rest encryption (DPAPI on Windows, Keychain on macOS, Secret Service / DataProtection fallback on Linux). Session envelope persisted to `PluginConfigRoots.Resolve("Qobuzarr")/session.json`. The audit-mismatch axis "Qobuz uses custom JSON I/O for sessions" was a stale finding — the wave-8B `SecureSessionManager` rip-out already migrated to Common; this CLAUDE entry pins the evidence.
 - `BackendHealthCache` — `src/API/Http/QobuzHttpClient.cs:31` (fail-fast gate in `ExecuteAsync`), `src/API/Http/QobuzHttpClient.cs:104`
 - `AuthFailureGate` — `src/Integration/QobuzarrStreamingPlugin.cs:36` (singleton registration), `src/Integration/Bridge/BridgeQobuzApiClient.cs:35`
-- `HttpExceptionClassifier` — `src/API/AdaptiveQobuzApiClient.cs:39`, `src/Indexers/QobuzIndexer.cs:342` (Test() catch), `src/Download/Clients/QobuzDownloadClient.cs:405` (Test() catch). Wave-31 adoption: replaces generic "Test failed (ExceptionType)" with categorized actionable hints — Auth failures route to the "Authentication" field.
-- `DownloadPathValidator` — `src/Download/Clients/QobuzDownloadClient.cs:365` (Test() pre-check). Wave-31 adoption: syntactic path validation (traversal, relative, invalid chars) before filesystem probe.
-- `PluginLogContext` — `src/Indexers/QobuzIndexer.cs:193` (Search scope), `src/Indexers/QobuzIndexer.cs:298` (Test scope)
+- `HttpExceptionClassifier` — `src/API/AdaptiveQobuzApiClient.cs:39`, `src/Indexers/QobuzIndexer.cs:323` (Test() catch), `src/Download/Clients/QobuzDownloadClient.cs:424` (Test() catch). Wave-31 adoption: replaces generic "Test failed (ExceptionType)" with categorized actionable hints — Auth failures route to the "Authentication" field.
+- `DownloadPathValidator` — `src/Download/Clients/QobuzDownloadClient.cs:384` (Test() pre-check). Wave-31 adoption: syntactic path validation (traversal, relative, invalid chars) before filesystem probe.
+- `PluginLogContext` — `src/Indexers/QobuzIndexer.cs:174` (Search scope), `src/Indexers/QobuzIndexer.cs:279` (Test scope)
 - `WarnOnce` — `src/Indexers/QobuzIndexer.cs:58` (wire-warn gate)
 - `Scrub` — `src/Download/Services/AudioFileDownloader.cs:73` (`Scrub.Url`), `src/API/Signing/QobuzRequestSigner.cs:64` (`Scrub.Secret`)
-- `PrefixedReleaseGuidParser` — `src/Indexers/QobuzParser.cs:233`
+- `PrefixedReleaseGuidParser` — `src/Download/Clients/QobuzDownloadClient.cs:755`, `src/Download/Services/AlbumIdExtractor.cs:55` (`ExtractAlbumIdFromGuid`; the new `qobuz:album:{id}` GUID grammar is also documented in a comment at `src/Indexers/QobuzParser.cs:233`)
 - `BoundedConcurrentDictionary<TKey, TValue>` — available (Common v1.15.0+ exposes `ContainsKey`, `Values`, indexer setter, and `IEnumerable<KeyValuePair>` alongside the original v1.10.0 TryAdd/TryGetValue/AddOrUpdate/GetOrAdd surface). No qobuz call sites yet — `QobuzHttpClient._hostGates` (`src/API/Http/QobuzHttpClient.cs:40`) is domain-bounded by host count (1-2 hosts in practice) so adoption isn't required; revisit if user-controlled keys grow unboundedly.
 
 See `ext/Lidarr.Plugin.Common/CHANGELOG.md` for the full catalog and [`docs/ECOSYSTEM_PARITY_MATRIX.md`](ext/Lidarr.Plugin.Common/docs/ECOSYSTEM_PARITY_MATRIX.md) for the cross-plugin parity scorecard (30+ axes × 4 plugins).
