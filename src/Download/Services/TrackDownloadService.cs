@@ -154,7 +154,7 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Services
 
         private async Task DownloadSingleTrackAsync(QobuzDownloadItem downloadItem, QobuzAlbum album, QobuzTrack track, QobuzDownloadSettings settings, CancellationToken cancellationToken)
         {
-            string outputPath = null;
+            string outputPath = string.Empty;
             try
             {
                 // 1. Get streaming info from Qobuz API (need format before building path)
