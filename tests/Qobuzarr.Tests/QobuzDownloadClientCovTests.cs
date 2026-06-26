@@ -81,6 +81,14 @@ namespace Qobuzarr.Tests
     {
         private readonly Lidarr.Plugin.Qobuzarr.Models.Authentication.QobuzCredentials _credsFromSettings;
 
+        /// <summary>
+        /// Overrides the wall clock used by the download-path re-auth failure cooldown so tests can
+        /// drive the cooldown window deterministically. Null = use the real clock (existing tests).
+        /// </summary>
+        public DateTime? ClockOverrideUtc { get; set; }
+
+        protected override DateTime UtcNow => ClockOverrideUtc ?? base.UtcNow;
+
         public ReauthTestableQobuzDownloadClient(
             IQobuzAuthenticationService authService,
             IQobuzApiClient apiClient,
@@ -1061,6 +1069,109 @@ namespace Qobuzarr.Tests
             capturedCredentials.Email.Should().BeNull("token auth was selected even though stale email fields remain");
             _mockApiClient.Verify(c => c.SetSession(freshForSourceIndexer), Times.Once);
             _mockApiClient.Verify(c => c.SetSession(cachedForOtherIndexer), Times.Never);
+        }
+
+        // ----------------------------------------------------------------------------- //
+        // Negative-result re-auth cooldown (FIX): on a persistent login failure with a deep
+        // download queue, single-flight prevents SIMULTANEOUS re-logins but not REPEATED ones
+        // across queued items. Each item independently entered EnsureAuthenticatedAsync, rechecked
+        // (still stale) and called AuthenticateAsync again — up to N serialized full re-logins
+        // (email auth re-scrapes the web player each time), piling on login-rate-limit / ban
+        // pressure. After a failed attempt, subsequent items within a short cooldown window must
+        // fail fast with the SAME actionable error instead of re-attempting.
+        // ----------------------------------------------------------------------------- //
+
+        private static Lidarr.Plugin.Qobuzarr.Exceptions.QobuzApiException AuthFailure()
+            => new Lidarr.Plugin.Qobuzarr.Exceptions.QobuzApiException(
+                "HTTP 401: invalid credentials", "/user/login", System.Net.HttpStatusCode.Unauthorized);
+
+        [Fact]
+        public async Task EnsureAuthenticatedAsync_PersistentAuthFailure_ReAuthenticatesAtMostOncePerCooldownWindow()
+        {
+            // Arrange: a stale session that always needs refresh; AuthenticateAsync always fails
+            // (bad password / 429) so re-auth never succeeds.
+            var stale = SessionExpiringIn(TimeSpan.FromMinutes(10));
+            stale.NeedsRefresh().Should().BeTrue();
+            _mockAuthService.Setup(a => a.GetCachedSession()).Returns(stale);
+            _mockAuthService.Setup(a => a.AuthenticateAsync(It.IsAny<QobuzCredentials>()))
+                .ThrowsAsync(AuthFailure());
+
+            var sut = CreateSut(ValidCreds());
+            sut.ClockOverrideUtc = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+
+            // Act: simulate a deep queue — N items each call EnsureAuthenticatedAsync sequentially.
+            const int n = 8;
+            for (var i = 0; i < n; i++)
+            {
+                var ex = await Assert.ThrowsAsync<InvalidOperationException>(() => sut.EnsureAuthenticatedAsync());
+                ex.Message.Should().Contain("authentication",
+                    "every queued item must still surface the existing actionable error");
+            }
+
+            // Assert: ONE real re-login for the whole cooldown window, NOT N.
+            _mockAuthService.Verify(a => a.AuthenticateAsync(It.IsAny<QobuzCredentials>()), Times.Once);
+        }
+
+        [Fact]
+        public async Task EnsureAuthenticatedAsync_AfterCooldownExpires_RetriesReauth_AndSucceeds()
+        {
+            // Arrange: session stays stale until a successful AuthenticateAsync flips it fresh.
+            var stale = SessionExpiringIn(TimeSpan.FromMinutes(10));
+            var fresh = FreshSession();
+            var reauthSucceeded = false;
+            var allowSuccess = false;
+
+            _mockAuthService.Setup(a => a.GetCachedSession())
+                .Returns(() => reauthSucceeded ? fresh : stale);
+            _mockAuthService.Setup(a => a.AuthenticateAsync(It.IsAny<QobuzCredentials>()))
+                .Returns(() =>
+                {
+                    if (!allowSuccess)
+                    {
+                        throw AuthFailure();
+                    }
+                    reauthSucceeded = true;
+                    return Task.FromResult(fresh);
+                });
+
+            var sut = CreateSut(ValidCreds());
+            var t0 = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+            sut.ClockOverrideUtc = t0;
+
+            // First attempt fails and arms the cooldown.
+            await Assert.ThrowsAsync<InvalidOperationException>(() => sut.EnsureAuthenticatedAsync());
+            // Second attempt within the window is blocked — no new re-login.
+            await Assert.ThrowsAsync<InvalidOperationException>(() => sut.EnsureAuthenticatedAsync());
+            _mockAuthService.Verify(a => a.AuthenticateAsync(It.IsAny<QobuzCredentials>()), Times.Once);
+
+            // Window expires and the user has re-entered valid credentials.
+            sut.ClockOverrideUtc = t0.Add(TimeSpan.FromSeconds(61));
+            allowSuccess = true;
+
+            await sut.EnsureAuthenticatedAsync(); // must NOT be blocked by the now-stale cooldown
+
+            _mockAuthService.Verify(a => a.AuthenticateAsync(It.IsAny<QobuzCredentials>()), Times.Exactly(2));
+            _mockApiClient.Verify(c => c.SetSession(fresh), Times.Once);
+        }
+
+        [Fact]
+        public async Task EnsureAuthenticatedAsync_PreCancelledToken_ThrowsOperationCanceled_WithoutReauthenticating()
+        {
+            // A hung re-login must not serialize-stall all downloads: a cancelled token short-circuits
+            // the re-auth gate wait promptly instead of queueing behind the in-flight re-login.
+            var stale = SessionExpiringIn(TimeSpan.FromMinutes(10));
+            _mockAuthService.Setup(a => a.GetCachedSession()).Returns(stale);
+            _mockAuthService.Setup(a => a.AuthenticateAsync(It.IsAny<QobuzCredentials>()))
+                .ReturnsAsync(FreshSession());
+
+            var sut = CreateSut(ValidCreds());
+            using var cts = new System.Threading.CancellationTokenSource();
+            cts.Cancel();
+
+            await Assert.ThrowsAnyAsync<OperationCanceledException>(
+                () => sut.EnsureAuthenticatedAsync(null, cts.Token));
+
+            _mockAuthService.Verify(a => a.AuthenticateAsync(It.IsAny<QobuzCredentials>()), Times.Never);
         }
 
         private static RemoteAlbum CreateRemoteAlbum()

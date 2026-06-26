@@ -75,7 +75,17 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Clients
         private string? _authenticatedCredentialFingerprint;
         private string? _authenticatedSessionFingerprint;
 
+        // Negative-result re-auth cooldown. After a FAILED download-path re-login, subsequent queued
+        // items within this window fail fast (with the existing actionable error) instead of each
+        // performing another full re-login. Read/written only while _reauthGate is held. The window is
+        // aligned with the AuthFailureGate probe interval (60s) used on the indexer path for parity.
+        private static readonly TimeSpan ReauthFailureCooldown = TimeSpan.FromSeconds(60);
+        private DateTime? _lastReauthFailureUtc;
+
         private QobuzDownloadItem? _lastQueuedItem;
+
+        // Test seam for the download-path re-auth cooldown clock. Production uses the wall clock.
+        protected virtual DateTime UtcNow => DateTime.UtcNow;
 
         public override string Name => QobuzarrConstants.PluginName;
 
@@ -457,7 +467,9 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Clients
                 // Ensure we have authentication
                 try
                 {
-                    await EnsureAuthenticatedAsync(downloadItem.ReauthCredentials).ConfigureAwait(false);
+                    await EnsureAuthenticatedAsync(
+                        downloadItem.ReauthCredentials,
+                        downloadItem.CancellationTokenSource?.Token ?? CancellationToken.None).ConfigureAwait(false);
                 }
                 finally
                 {
@@ -505,10 +517,15 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Clients
 
         internal Task EnsureAuthenticatedAsync()
         {
-            return EnsureAuthenticatedAsync(null);
+            return EnsureAuthenticatedAsync(null, CancellationToken.None);
         }
 
-        internal async Task EnsureAuthenticatedAsync(QobuzCredentials? reauthCredentials)
+        internal Task EnsureAuthenticatedAsync(QobuzCredentials? reauthCredentials)
+        {
+            return EnsureAuthenticatedAsync(reauthCredentials, CancellationToken.None);
+        }
+
+        internal async Task EnsureAuthenticatedAsync(QobuzCredentials? reauthCredentials, CancellationToken cancellationToken)
         {
             var session = _authService.GetCachedSession();
             var credentials = ResolveReauthCredentials(session, reauthCredentials);
@@ -520,7 +537,7 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Clients
             // QobuzPreRequestHandler. Single-flighted so concurrent downloads cause ONE re-login.
             if (!CanUseCachedSession(session, credentials))
             {
-                session = await ReauthenticateAsync(session, credentials).ConfigureAwait(false);
+                session = await ReauthenticateAsync(session, credentials, cancellationToken).ConfigureAwait(false);
 
                 if (!CanUseCachedSession(session, credentials))
                 {
@@ -550,7 +567,7 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Clients
         /// freshly cached session. Returns the original session unchanged when no credentials are
         /// available so the caller can surface an actionable error.
         /// </summary>
-        private async Task<QobuzSession?> ReauthenticateAsync(QobuzSession? staleSession, QobuzCredentials? credentials)
+        private async Task<QobuzSession?> ReauthenticateAsync(QobuzSession? staleSession, QobuzCredentials? credentials, CancellationToken cancellationToken)
         {
             if (credentials == null || !credentials.IsValid())
             {
@@ -558,37 +575,63 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Clients
                 return staleSession;
             }
 
-            await _reauthGate.WaitAsync().ConfigureAwait(false);
+            // Thread the download's cancellation token so a cancelled item short-circuits the gate
+            // wait promptly instead of serialize-stalling behind an in-flight (possibly hung) re-login.
+            await _reauthGate.WaitAsync(cancellationToken).ConfigureAwait(false);
             try
             {
                 // Recheck under the gate: another concurrent download may have already renewed it.
                 var current = _authService.GetCachedSession();
                 if (CanUseCachedSession(current, credentials))
                 {
+                    _lastReauthFailureUtc = null; // session recovered out-of-band — clear the cooldown
+                    return current;
+                }
+
+                // Negative-result cooldown. Single-flight prevents SIMULTANEOUS re-logins, but with a
+                // deep queue each item still enters here serially and would re-attempt a full re-login
+                // (email auth re-scrapes the web player). On a persistent failure (bad password / 429)
+                // that is N serialized logins → login-rate-limit / ban pressure. After a recent FAILED
+                // attempt, fail fast for a short window with the same actionable error instead.
+                if (_lastReauthFailureUtc is { } failedAt && (UtcNow - failedAt) < ReauthFailureCooldown)
+                {
+                    _logger.Debug(
+                        "Skipping download-path re-authentication: an attempt failed {0:n0}s ago, within the {1:n0}s cooldown. " +
+                        "Returning the stale session so the caller surfaces the actionable error rather than re-logging-in per queued item.",
+                        (UtcNow - failedAt).TotalSeconds, ReauthFailureCooldown.TotalSeconds);
                     return current;
                 }
 
                 _logger.Debug("Download path re-authenticating with Qobuz (session was missing or about to expire)");
-                var newSession = await _authService.AuthenticateAsync(credentials).ConfigureAwait(false);
+
+                QobuzSession? newSession;
+                try
+                {
+                    newSession = await _authService.AuthenticateAsync(credentials).ConfigureAwait(false);
+                }
+                catch (Exception ex)
+                {
+                    // Arm the cooldown so the rest of the queue fails fast rather than each re-attempting.
+                    _lastReauthFailureUtc = UtcNow;
+                    var classification = HttpExceptionClassifier.Classify(ex);
+                    _logger.Warn("Download path re-authentication failed: {0}", classification.Hint);
+
+                    var afterFailure = _authService.GetCachedSession();
+                    return CanUseCachedSession(afterFailure, credentials) ? afterFailure : staleSession;
+                }
+
                 if (newSession != null)
                 {
-                    RememberAuthenticatedSession(credentials, newSession);
-
                     // AuthenticateAsync already stores the session; re-read the cached copy so we
                     // observe exactly what subsequent calls will use.
                     var cached = _authService.GetCachedSession() ?? newSession;
                     RememberAuthenticatedSession(credentials, cached);
+                    _lastReauthFailureUtc = null; // success clears the cooldown
                     return cached;
                 }
 
-                return CanUseCachedSession(current, credentials) ? current : staleSession;
-            }
-            catch (Exception ex)
-            {
-                var classification = HttpExceptionClassifier.Classify(ex);
-                _logger.Warn("Download path re-authentication failed: {0}", classification.Hint);
-
-                var current = _authService.GetCachedSession();
+                // A null result is also a failed attempt — arm the cooldown.
+                _lastReauthFailureUtc = UtcNow;
                 return CanUseCachedSession(current, credentials) ? current : staleSession;
             }
             finally
