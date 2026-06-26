@@ -69,6 +69,15 @@ namespace Qobuzarr.Tests
 
         protected override Lidarr.Plugin.Common.HostBridge.HostBridgeDownloadTrackerStore<Lidarr.Plugin.Qobuzarr.Download.Clients.QobuzDownloadItem> Tracker
             => _testTracker;
+
+        /// <summary>
+        /// Test seam: seed the per-instance Tracker so <c>GetItems()</c>'s
+        /// <c>Tracker.GetSnapshot()</c> source returns the given item. Lets a test reproduce
+        /// the "same download in both the Tracker snapshot and the queue-service active list"
+        /// race that the GetItems dedup guards against.
+        /// </summary>
+        public void SeedTracker(Lidarr.Plugin.Qobuzarr.Download.Clients.QobuzDownloadItem item)
+            => _testTracker.AddOrReplace(item);
     }
 
     /// <summary>
@@ -592,6 +601,48 @@ namespace Qobuzarr.Tests
             result.First().DownloadClientInfo.Id.Should().Be(42,
                 "Lidarr resolves the owning client via DownloadClientProvider.Get(DownloadClientInfo.Id); a hardcoded 0 wedges completed downloads");
             result.First().DownloadClientInfo.Name.Should().Be("Qobuzarr");
+        }
+
+        /// <summary>
+        /// Regression contract: <c>GetItems()</c> MUST NOT report the same download twice.
+        /// A just-completed download can briefly live in BOTH the Tracker snapshot and the
+        /// queue-service active-downloads list; emitting two <see cref="DownloadClientItem"/>s
+        /// with the same <c>DownloadId</c> gives Lidarr two queue entries for one download,
+        /// which wedges CompletedDownloadService at <c>importPending</c> — the completed
+        /// download never imports.
+        ///
+        /// Found 2026-06-26 driving real downloads on the live instance: Muse — The Wow! Signal
+        /// and Deep Purple — Guilt Trippin' each appeared twice in the queue with the same
+        /// downloadId and never imported (trackFileCount stayed 0) despite a clean manual-import
+        /// preview. Source: src/Download/Clients/QobuzDownloadClient.cs GetItems() dedup-by-id.
+        /// </summary>
+        [Fact]
+        public void GetItems_DedupsDownloadIdPresentInBothTrackerAndQueue()
+        {
+            // Arrange: the SAME downloadId lives in both GetItems sources — the Tracker
+            // snapshot and the queue-service active list (the just-completed-download race).
+            const string sharedId = "dup-1";
+            var sut = CreateSut();
+            sut.Definition = new DownloadClientDefinition { Id = 7, Name = "Qobuzarr" };
+
+            sut.SeedTracker(new QobuzDownloadItem
+            {
+                DownloadId = sharedId,
+                Artist = "Muse",
+                Title = "The Wow! Signal"
+            });
+            _mockQueueService.Setup(x => x.GetActiveDownloads())
+                .Returns(new List<QobuzDownloadItem>
+                {
+                    new QobuzDownloadItem { DownloadId = sharedId, Artist = "Muse", Title = "The Wow! Signal" }
+                });
+
+            // Act
+            var result = sut.GetItems().ToList();
+
+            // Assert: exactly one entry for the shared downloadId — never two.
+            result.Count(r => r.DownloadId == sharedId).Should().Be(1,
+                "a download present in both the Tracker snapshot and the active-queue list must be reported once; duplicate downloadIds wedge Lidarr's CompletedDownloadService at importPending");
         }
 
         /// <summary>
