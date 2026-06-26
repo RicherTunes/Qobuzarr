@@ -1,9 +1,11 @@
 name: CI
-# Gitea-primary lint CI (3 ecosystem gates). Build + unit tests stay LOCAL-ONLY (need Lidarr host
-# assemblies). The runner image has no pwsh, and the catthehacker container both can't be pulled on
-# this host ("No such image") and can't reach Gitea for in-container checkout (the #12 blocker). So
-# run on the bare runner (which reaches Gitea + has dotnet) and install PowerShell from the
-# self-contained release tarball — same proven pattern as Common/brainarr/tidalarr/amazonmusicarr.
+# Gitea-primary CI. The lint job runs fast Common policy gates; the verify job runs the same shared
+# local-ci pipeline developers use locally: host-assembly extraction (via the runner's mounted Docker
+# socket), build, package closure, and deterministic tests. The runner image has no pwsh, and the
+# catthehacker container both can't be pulled on this host ("No such image") and can't reach Gitea for
+# in-container checkout (the #12 blocker). So jobs run on the bare runner (which reaches Gitea) and
+# install PowerShell / .NET / the docker CLI from self-contained downloads — same proven pattern as
+# Common/brainarr/tidalarr.
 on:
   workflow_dispatch:
   push:
@@ -35,3 +37,55 @@ jobs:
       - name: Ecosystem parity gate
         shell: pwsh
         run: ./ext/Lidarr.Plugin.Common/scripts/ecosystem-parity-lint.ps1 -RepoPath . -CommonRoot ext/Lidarr.Plugin.Common -Mode ci
+
+  verify:
+    needs: lint
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    env:
+      DOTNET_VERSION: 8.0.x
+      DOTNET_CLI_TELEMETRY_OPTOUT: "1"
+      DOTNET_NOLOGO: "true"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - name: Common submodule pin guard
+        shell: bash
+        run: bash ext/Lidarr.Plugin.Common/scripts/repin-common-submodule.sh --verify-only --path ext/Lidarr.Plugin.Common
+      - name: Install PowerShell
+        shell: bash
+        run: |
+          set -e
+          curl -sSL https://github.com/PowerShell/PowerShell/releases/download/v7.4.6/powershell-7.4.6-linux-x64.tar.gz -o /tmp/pwsh.tgz
+          mkdir -p /opt/pwsh
+          tar -xzf /tmp/pwsh.tgz -C /opt/pwsh
+          chmod +x /opt/pwsh/pwsh
+          echo "/opt/pwsh" >> "$GITHUB_PATH"
+      - name: Install .NET SDK
+        shell: bash
+        run: |
+          set -e
+          curl -sSL https://dot.net/v1/dotnet-install.sh -o /tmp/dotnet-install.sh
+          bash /tmp/dotnet-install.sh --channel 8.0 --install-dir "$HOME/.dotnet"
+          echo "$HOME/.dotnet" >> "$GITHUB_PATH"
+          echo "$HOME/.dotnet/tools" >> "$GITHUB_PATH"
+          echo "DOTNET_ROOT=$HOME/.dotnet" >> "$GITHUB_ENV"
+          "$HOME/.dotnet/dotnet" --version
+      # act_runner executes ubuntu-latest jobs inside the configured Docker image.
+      # The Docker socket is mounted by the runner, but node:20-bookworm does not
+      # ship the docker CLI that verify-local.ps1 invokes.
+      - name: Install Docker CLI
+        shell: bash
+        run: |
+          set -e
+          if ! command -v docker >/dev/null 2>&1; then
+            apt-get update
+            apt-get install -y --no-install-recommends docker.io
+            rm -rf /var/lib/apt/lists/*
+          fi
+          docker --version
+          docker ps >/dev/null
+      - name: Full local-ci verification
+        shell: bash
+        run: pwsh ./scripts/verify-local.ps1
