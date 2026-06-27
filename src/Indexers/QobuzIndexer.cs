@@ -204,7 +204,14 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
                 var succeeded = 0;
                 Exception? lastError = null;
 
-                // Process each request in the chain
+                // Why this loop is bespoke rather than Common's SearchPlanExecutor.ExecuteAsync delegate:
+                // qobuz's per-request path interleaves concerns the generic delegate doesn't model —
+                // adaptive HTTP rate-limit accounting, ML-optimization metric logging per successful tier,
+                // the IndexerResponse/IParseIndexerResponse parser handshake, and per-release IndexerId
+                // stamping. Semantically it is AccumulateAll (every tier/variant attempted, results merged;
+                // no early stop), and it reuses the SAME all-failed contract as the executor via
+                // SearchPlanExecutor.ThrowAllFailed below — so the "all requests failed ⇒ surface, don't
+                // return a misleading empty" behavior stays identical to the consolidated plugins.
                 foreach (var tier in requestChain.GetAllTiers())
                 {
                     foreach (var request in tier)
