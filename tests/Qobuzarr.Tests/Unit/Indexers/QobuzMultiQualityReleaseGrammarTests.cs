@@ -101,7 +101,55 @@ namespace Qobuzarr.Tests.Unit.Indexers
             }
         }
 
+        // ── Multi-quality release builder (one ReleaseInfo per available quality) ────────────────
+
+        [Fact]
+        public void CdQualityAlbum_EmitsExactlyOneReleasePerNonHiResQuality()
+        {
+            var album = NewAlbum().AsCdQualityFlac().Build();
+            album.Version = null;
+
+            var releases = Parse(album);
+
+            QualityIdsFrom(releases).Should().BeEquivalentTo(new[]
+            {
+                (int)QobuzAudioQuality.MP3320,       // 5
+                (int)QobuzAudioQuality.FLACLossless, // 6
+            }, "a CD-quality album offers MP3 320 + FLAC lossless and no hi-res tiers");
+
+            releases.Should().HaveCount(2);
+            releases.Select(r => r.Guid).Should().OnlyHaveUniqueItems(
+                "each quality tier must carry a distinct, quality-suffixed GUID");
+        }
+
+        [Fact]
+        public void HiResAlbum_EmitsOneReleasePerQuality_IncludingHiResTiers()
+        {
+            var album = NewAlbum().AsHiResFlac().Build();
+            album.Version = null;
+
+            var releases = Parse(album);
+
+            QualityIdsFrom(releases).Should().BeEquivalentTo(new[]
+            {
+                (int)QobuzAudioQuality.MP3320,               // 5
+                (int)QobuzAudioQuality.FLACLossless,         // 6
+                (int)QobuzAudioQuality.FLACHiRes24Bit96kHz,  // 7
+                (int)QobuzAudioQuality.FLACHiRes24Bit192Khz, // 27
+            }, "a hi-res album adds the two hi-res FLAC tiers on top of MP3 + lossless");
+
+            releases.Should().HaveCount(4);
+            releases.Select(r => r.Guid).Should().OnlyHaveUniqueItems();
+        }
+
         // ── Helpers ────────────────────────────────────────────────────────────────────────────
+
+        private static List<int> QualityIdsFrom(IEnumerable<ReleaseInfo> releases) =>
+            releases
+                .Select(r => Regex.Match(r.Guid, @"quality=(\d+)$"))
+                .Where(m => m.Success)
+                .Select(m => int.Parse(m.Groups[1].Value))
+                .ToList();
 
         private static QobuzAlbumBuilder NewAlbum() =>
             QobuzAlbumBuilder.New()
