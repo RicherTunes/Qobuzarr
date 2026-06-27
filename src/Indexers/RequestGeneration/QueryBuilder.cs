@@ -34,6 +34,15 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers.RequestGeneration
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         }
 
+        /// <summary>
+        /// Test entry point: returns the SearchPlan this builder produces for (artist, album).
+        /// Exposes the REAL plan-construction path (same options as BuildAlbumSearchQueries) so
+        /// SearchTermProvenanceComplianceTestBase and SearchQuerySanitizerParityTestBase can assert
+        /// plan-shape without constructing a full generator.
+        /// </summary>
+        public static SearchPlan BuildPlanForTest(string artist, string album) =>
+            SearchQuerySanitizer.BuildPlan(artist, album, QueryOptions);
+
         public List<string> BuildAlbumSearchQueries(AlbumSearchCriteria searchCriteria)
         {
             var queries = new List<string>();

@@ -23,6 +23,7 @@ using Lidarr.Plugin.Common.Diagnostics;
 using Lidarr.Plugin.Common.Services.Diagnostics;
 using Lidarr.Plugin.Common.Observability;
 using Lidarr.Plugin.Common.Services.Bridge;
+using Lidarr.Plugin.Common.Services.Intelligence;
 using Lidarr.Plugin.Qobuzarr.Download;
 using NzbDrone.Core.Download;
 using Lidarr.Plugin.Common.Services;
@@ -257,12 +258,7 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
                 // empty result so Lidarr can distinguish "no matches" from "all requests failed".
                 // (A request that parses to zero releases does not throw, so genuine empty results
                 // are unaffected.) The outer catch rethrows it to Lidarr.
-                if (attempted > 0 && succeeded == 0 && lastError != null)
-                {
-                    throw new InvalidOperationException(
-                        $"All {attempted} Qobuz search request(s) failed; surfacing the error instead of an empty result.",
-                        lastError);
-                }
+                SearchPlanExecutor.ThrowAllFailed(attempted, succeeded, lastError, "Qobuz search");
 
                 _logger.Info($"{PluginLogContext.Current?.LinePrefix()}Retrieved {{0}} releases from Qobuz", releases.Count);
                 return releases;

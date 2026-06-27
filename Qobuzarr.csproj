@@ -211,7 +211,16 @@
     <ProjectReference Include="ext\Lidarr.Plugin.Common\src\Abstractions\Lidarr.Plugin.Abstractions.csproj" Condition="'$(UseCommonStubs)' != 'true' and Exists('ext\Lidarr.Plugin.Common\src\Abstractions\Lidarr.Plugin.Abstractions.csproj')">
       <Private>true</Private>
     </ProjectReference>
-    
+    <!-- LPC0003: bans HtmlEncode / Sanitize.DisplayText on search paths (shipped Beyoncé 0-result bug class).
+         OutputItemType=Analyzer: consumed as a Roslyn analyzer, not a runtime reference.
+         ReferenceOutputAssembly=false: the analyzer DLL is not added to the compile-time reference set. -->
+    <ProjectReference Include="ext\Lidarr.Plugin.Common\tools\Analyzers\Lidarr.Plugin.Analyzers\Lidarr.Plugin.Analyzers.csproj"
+                      Condition="'$(UseCommonStubs)' != 'true' and Exists('ext\Lidarr.Plugin.Common\tools\Analyzers\Lidarr.Plugin.Analyzers\Lidarr.Plugin.Analyzers.csproj')"
+                      OutputItemType="Analyzer"
+                      ReferenceOutputAssembly="false">
+      <PrivateAssets>all</PrivateAssets>
+    </ProjectReference>
+
     <!-- Fallback to NuGet package when submodule is unavailable and version is supplied -->
     <PackageReference Include="Lidarr.Plugin.Common" Version="$(CommonPackageVersion)" Condition="'$(UseCommonStubs)' != 'true' and '$(CommonPackageVersion)' != ''" />
     

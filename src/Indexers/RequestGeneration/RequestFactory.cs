@@ -168,23 +168,5 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers.RequestGeneration
             }
         }
 
-        public IndexerRequest CreateMockSearchRequest(AlbumSearchCriteria searchCriteria)
-        {
-            try
-            {
-                // Create a mock request for cached results
-                var mockUrl = $"{BASE_URL}{SEARCH_ENDPOINT}?query=cached&mock=true";
-                var mockHttpRequest = new HttpRequest(mockUrl);
-                var mockRequest = new IndexerRequest(mockHttpRequest);
-
-                _logger.Debug("Created mock search request for cached results");
-                return mockRequest;
-            }
-            catch (Exception ex)
-            {
-                _logger.Error(ex, "Error creating mock search request");
-                throw;
-            }
-        }
     }
 }

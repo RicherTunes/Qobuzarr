@@ -34,7 +34,6 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
         // ML optimization services (preserved from original)
         private readonly SmartQueryStrategy _smartQueryStrategy;
         private readonly SemanticQueryStrategy _semanticQueryStrategy;
-        private readonly QobuzSubstringCache _substringCache;
 
         // Context for parser integration
         private SearchCriteriaBase _currentSearchCriteria;
@@ -58,7 +57,6 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
             var useMLPredictions = patternLearningEngine != null && (settings?.IsMLPredictionEnabled() ?? false);
             _smartQueryStrategy = new SmartQueryStrategy(logger, patternLearningEngine, useMLPredictions);
             _semanticQueryStrategy = new SemanticQueryStrategy(logger);
-            _substringCache = new QobuzSubstringCache(logger);
         }
 
         public SearchCriteriaBase GetCurrentSearchCriteria()
@@ -73,14 +71,6 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
                 _currentSearchCriteria = searchCriteria;
                 _logger.Debug("Generating album search requests for: {0} - {1}",
                     searchCriteria.ArtistQuery, searchCriteria.AlbumQuery);
-
-                // Check substring cache first for optimization
-                var cachedResult = _substringCache?.FindCachedResults(searchCriteria.ArtistQuery, searchCriteria.AlbumQuery);
-                if (cachedResult != null && cachedResult.CachedData != null)
-                {
-                    _logger.Info("🎯 Using cached results for query optimization");
-                    return CreateCachedRequestChain(cachedResult, searchCriteria);
-                }
 
                 // Build search queries using decomposed service
                 var queries = _queryBuilder.BuildAlbumSearchQueries(searchCriteria);
@@ -274,23 +264,6 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
             }
 
             return requests;
-        }
-
-        private IndexerPageableRequestChain CreateCachedRequestChain(SubstringCacheResult cachedResult, AlbumSearchCriteria searchCriteria)
-        {
-            try
-            {
-                // Create mock request for cached results
-                var mockRequest = _requestFactory.CreateMockSearchRequest(searchCriteria);
-                var chain = new IndexerPageableRequestChain();
-                chain.Add(new[] { mockRequest });
-                return chain;
-            }
-            catch (Exception ex)
-            {
-                _logger.Error(ex, "Error creating cached request chain");
-                return new IndexerPageableRequestChain();
-            }
         }
 
         public int CalculateRelevanceScore(string query, string albumTitle, string artistName)
