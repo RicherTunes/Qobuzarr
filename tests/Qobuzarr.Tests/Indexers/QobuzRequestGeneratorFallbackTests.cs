@@ -89,5 +89,50 @@ namespace Qobuzarr.Tests
             queries.Should().Contain(q => q.Trim().Equals("Daft Punk", StringComparison.OrdinalIgnoreCase),
                 "the artist-only fallback is always issued");
         }
+
+        // Architecture-appropriate equivalent of the cross-plugin chain-completeness guard: qobuz
+        // intentionally CAPS the over-specific queries (Take(MaxOverSpecificRequests)) and appends the
+        // canonical artist-only fallback, so it does NOT issue every BuildPlan variant. The sanitizer also
+        // deliberately emits BOTH a cleaned variant AND a raw-preserving one (so an exact-match catalogue
+        // can still hit), so we do NOT require every query to be clean — we require the CLEAN degraded form
+        // to SURVIVE the cap. That clean form (plus the artist-only fallback above) is what stopped
+        // "Record n°V" returning zero.
+        [Fact]
+        public void SpecialCharAlbum_CapPreservesTheCleanSanitizedCombinedForm()
+        {
+            var queries = IssuedQueries(NewGenerator(), Criteria("Bleu Jeans Bleu", "Record n°V"));
+
+            queries.Should().NotBeEmpty();
+
+            queries.Should().Contain(
+                q => q.Replace(" ", string.Empty).Equals("BleuJeansBleuRecordnV", StringComparison.OrdinalIgnoreCase),
+                "the sanitized COMBINED form (degree sign dropped → 'Bleu Jeans Bleu Record nV') must survive the " +
+                "per-search cap so the special-char search has a clean degrade path — the Take(N) must not keep " +
+                "only the raw-preserving variant");
+        }
+
+        // codex adversarial review (Med): the per-search cap interacts with SmartQueryStrategy, which can
+        // mark a query "Simple" (QueryVariants=1) when it has NO QueryComplexityClassifier 'special' char
+        // ([&+/\-:'"()]) and no non-ASCII. ASCII punctuation OUTSIDE that set (e.g. ? ! . #) is still
+        // sanitizer-cleanable, so we must prove the cap+optimizer never strips the clean combined form to
+        // zero for those cases. Drives the REAL generator end-to-end.
+        [Theory]
+        [InlineData("Blur", "Music Is My Radar?", "Blur Music Is My Radar")]
+        [InlineData("Beatles", "Help!", "Beatles Help")]
+        [InlineData("Kendrick", "good.kid", "Kendrick good kid")]
+        [InlineData("Artist", "Song #1", "Artist Song 1")]
+        public void AsciiPunctuationAlbum_CapPreservesACleanCombinedForm(string artist, string album, string expectedCleanCombined)
+        {
+            var queries = IssuedQueries(NewGenerator(), Criteria(artist, album));
+
+            queries.Should().NotBeEmpty();
+
+            var wantCollapsed = expectedCleanCombined.Replace(" ", string.Empty);
+            queries.Should().Contain(
+                q => q.Replace(" ", string.Empty).Equals(wantCollapsed, StringComparison.OrdinalIgnoreCase),
+                $"the sanitized combined form ('{expectedCleanCombined}') must survive the cap + SmartQueryStrategy " +
+                $"optimization for ASCII-punctuation album '{album}' — otherwise a Simple-classified special-char " +
+                "search degrades to only the raw/over-specific query and can return zero");
+        }
     }
 }
