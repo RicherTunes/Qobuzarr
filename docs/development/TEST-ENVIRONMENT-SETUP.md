@@ -57,13 +57,15 @@ curl -sSL https://dot.net/v1/dotnet-install.sh | bash /dev/stdin --runtime aspne
 }
 ```
 
-### **Option C: GitHub Actions Validation (Current)**
+### **Option C: Run via Gitea CI**
 
-Tests run successfully in CI environment:
+The self-hosted Gitea CI runner has the correct .NET 8 environment. Push a branch
+and the `CI / verify` job (`pwsh scripts/verify-local.ps1`) will run the full
+test suite including host-assembly extraction.
 
-- ✅ All projects compile
-- ✅ CI has proper .NET 6.0 environment
-- ✅ Production validation through automated builds
+- ✅ All projects compile in CI
+- ✅ Deterministic test suite runs on every push/PR
+- ✅ Production validation through automated build + packaging closure
 
 ## Test Categories Status
 
@@ -135,7 +137,7 @@ dotnet build tests/QobuzCLI.Tests/QobuzCLI.Tests.csproj
 
 **CI/CD Pipeline**: ✅ **Fully Functional**
 
-- All builds pass on GitHub Actions
+- `CI / lint` and `CI / verify` both green on Gitea
 - Production deployment validated
 - Code quality continuously verified
 
