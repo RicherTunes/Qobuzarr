@@ -4,6 +4,7 @@ using System.Linq;
 using NzbDrone.Core.IndexerSearch.Definitions;
 using NzbDrone.Core.Indexers;
 using NLog;
+using Lidarr.Plugin.Common.Services.Intelligence;
 using Lidarr.Plugin.Qobuzarr.Models.Authentication;
 using Lidarr.Plugin.Qobuzarr.Indexers.RequestGeneration;
 using Lidarr.Plugin.Qobuzarr.Services;
@@ -219,21 +220,10 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
             var requests = new List<IndexerRequest>();
             var session = _getSession?.Invoke();
 
-            // De-duplicate and drop blank queries while preserving best-first order.
-            var ordered = new List<string>();
-            foreach (var query in queries ?? Enumerable.Empty<string>())
-            {
-                if (!string.IsNullOrWhiteSpace(query) && !ordered.Contains(query, StringComparer.OrdinalIgnoreCase))
-                {
-                    ordered.Add(query);
-                }
-            }
-
-            var selected = ordered.Take(MaxOverSpecificRequests).ToList();
-
             // Guarantee the artist-only fallback is always sent for album searches — the shipped
             // "Bleu Jeans Bleu - Record n°V" bug was a special-char album query returning 0 results
             // while the artist-only fallback had been truncated away by the request cap.
+            string? artistOnlyFallback = null;
             if (searchCriteria is AlbumSearchCriteria albumCriteria)
             {
                 var artistName = albumCriteria.ArtistQuery;
@@ -242,13 +232,13 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
                     artistName = albumCriteria.Artist?.Name;
                 }
 
-                var artistOnly = _queryBuilder.CleanQuery(artistName);
-                if (!string.IsNullOrWhiteSpace(artistOnly) &&
-                    !selected.Contains(artistOnly, StringComparer.OrdinalIgnoreCase))
-                {
-                    selected.Add(artistOnly);
-                }
+                artistOnlyFallback = _queryBuilder.CleanQuery(artistName);
             }
+
+            // Cap the over-specific queries (deduped, blank-dropped, best-first) but always preserve the
+            // artist-only fallback. Shared cross-plugin policy: Common's CappedSearchChain — see its
+            // fallback-survival tests for the Bleu Jeans Bleu regression coverage.
+            var selected = CappedSearchChain.Build(queries, artistOnlyFallback, MaxOverSpecificRequests);
 
             foreach (var query in selected)
             {
