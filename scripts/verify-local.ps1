@@ -38,7 +38,10 @@ try {
         CommonPath           = 'ext/Lidarr.Plugin.Common'
         LidarrDockerVersion  = 'pr-plugins-3.1.2.4913'
         BuildFlags           = @('-p:LidarrAssembliesPath={HOST_PATH}')
-        TestProjects         = @('tests/Qobuzarr.Tests/Qobuzarr.Tests.csproj')
+        TestProjects         = @(
+            'tests/Qobuzarr.Tests/Qobuzarr.Tests.csproj',
+            'tests/Qobuzarr.Parity.Tests/Qobuzarr.Parity.Tests.csproj'
+        )
         ExpectedContentsFile = 'packaging/expected-contents.txt'
         WarningBudget        = 1000
         WarningBudgetEnforce = $false
