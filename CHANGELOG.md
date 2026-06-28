@@ -1,3 +1,4 @@
+<!-- docval:ignore-workflow-refs -->
 # Changelog
 
 All notable changes to Qobuzarr will be documented in this file.

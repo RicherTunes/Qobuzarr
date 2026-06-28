@@ -1,3 +1,4 @@
+<!-- docval:ignore-workflow-refs -->
 # Plugin Development Guide
 
 > **⚠️ Aspirational extension points**: The interfaces and extension patterns below (e.g. `IQobuzAuthenticationProvider`, `ISecureCredentialProvider`, `IDownloadStrategy`, `IQobuzarrPlugin`, `ISecurityValidator`, `ISecurityMonitor`) are design documentation for planned extension points — they do not yet exist in the codebase. The existing `ISmartQueryStrategy` exists as a class (`SmartQueryStrategy`), not an interface. Use the current `src/` code as the ground truth for implemented APIs.

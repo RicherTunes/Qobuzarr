@@ -1,3 +1,4 @@
+<!-- docval:ignore-workflow-refs -->
 # Qobuzarr Performance Benchmarks
 
 This directory contains comprehensive performance benchmarks for measuring and validating the performance improvements achieved through the Qobuzarr plugin's optimizations.
