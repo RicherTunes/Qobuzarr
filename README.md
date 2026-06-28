@@ -265,7 +265,7 @@ Qobuzarr builds on [Lidarr.Plugin.Common](https://github.com/RicherTunes/Lidarr.
 - [Architecture Overview](https://github.com/RicherTunes/Lidarr.Plugin.Common/blob/main/wiki/Architecture-Overview.md) — shared service layer and DI patterns
 - [SDK and Extension Points](https://github.com/RicherTunes/Lidarr.Plugin.Common/blob/main/wiki/SDK-and-Extension-Points.md) — reusable base classes (`StreamingPlugin`, token stores, rate limiters)
 - [Shared Helpers Catalog](https://github.com/RicherTunes/Lidarr.Plugin.Common/blob/main/wiki/Shared-Helpers-Catalog.md) — quick-reference for every Common helper (`PluginLogContext`, `Scrub`, `WarnOnce`, `BackendHealthCache`, etc.)
-- [Versioning and Submodule Pinning](https://github.com/RicherTunes/Lidarr.Plugin.Common/blob/main/wiki/Versioning-and-Submodule-Pinning.md) — how the `ext-common-sha.txt` pin and nightly bump workflow work
+- [Versioning and Submodule Pinning](https://github.com/RicherTunes/Lidarr.Plugin.Common/blob/main/wiki/Versioning-and-Submodule-Pinning.md) — how the `ext-common-sha.txt` sentinel and manual re-pin process work (Gitea-primary; no scheduled auto-bump)
 - [Build Your First Plugin](https://github.com/RicherTunes/Lidarr.Plugin.Common/blob/main/docs/tutorials/BUILD_YOUR_FIRST_PLUGIN.md) — tutorial for creating a new streaming plugin
 - [Key Services Reference](https://github.com/RicherTunes/Lidarr.Plugin.Common/blob/main/docs/reference/KEY_SERVICES.md) — HTTP, auth, caching APIs
 
