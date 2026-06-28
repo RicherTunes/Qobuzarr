@@ -345,16 +345,15 @@ git clone --depth 1 --branch plugins https://github.com/Lidarr/Lidarr.git ext/Li
 - The `Directory.Build.props` and `ext/.editorconfig` files are configured to suppress these issues
 - If issues persist, delete and re-clone the Lidarr source using the setup scripts
 
-## GitHub Actions CI/CD
+## CI/CD (Gitea-primary)
 
-**Workflow**: `.github/workflows/build-docker.yml`
+**Workflow**: `.gitea/workflows/ci.yml`. GitHub Actions is out of credits, so CI runs on the Gitea instance; any `.github/workflows/*` are a non-running mirror retained for reference only.
 
-**Approach**: Extract plugins branch assemblies from `ghcr.io/hotio/lidarr:pr-plugins-3.1.2.4913` Docker image. This avoids NuGet feed issues and Central Package Management conflicts.
+**Jobs**:
+- **lint** — fast ecosystem gates (date-parsing, sync-over-async, ecosystem-parity), pwsh-only.
+- **verify** — full build + ILRepack package + packaging-closure + deterministic tests (incl. `Qobuzarr.Parity.Tests`) via `pwsh scripts/verify-local.ps1`.
 
-**CI/CD Scripts**:
-- **`download-lidarr-assemblies.sh`** / **`download-lidarr-assemblies.ps1`**: Download pre-built Lidarr assemblies
-- **`.github/workflows/ci.yml`**: Complete CI/CD pipeline with multi-platform builds
-- Security scanning, automated testing, and plugin packaging included
+**Approach**: `verify-local.ps1` extracts plugins-branch host assemblies from `ghcr.io/hotio/lidarr:pr-plugins-3.1.2.4913` (avoids NuGet feed / Central Package Management issues), then builds, packages, runs the packaging-closure check, and the deterministic test projects. The Common submodule is re-pinned **manually** when Common's main advances — there is no scheduled auto-bump on the Gitea-primary copy (see the submodule-pin section above).
 
 ## Development Practices
 
