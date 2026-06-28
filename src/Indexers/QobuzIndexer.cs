@@ -253,6 +253,10 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
 
                             succeeded++;
                         }
+                        catch (OperationCanceledException)
+                        {
+                            throw;
+                        }
                         catch (Exception ex)
                         {
                             lastError = ex;

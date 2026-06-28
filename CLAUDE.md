@@ -108,7 +108,7 @@ The gate lives in `DownloadPolicy.IsAlbumDownloadSuccessful` (`successfulTracks 
 `ext/Lidarr.Plugin.Common` is a git submodule pinned to a specific Common SHA. Two things must always agree on that SHA:
 
 1. **The submodule gitlink** — what `git ls-tree HEAD ext/Lidarr.Plugin.Common` reports (updated by `git add ext/Lidarr.Plugin.Common` after checking out a new Common commit).
-2. **`ext-common-sha.txt`** — a plaintext sentinel (40 hex chars + LF) at the repo root. CI's "Submodule Pinning" job (`.github/workflows/submodule-pin.yml`) fails the build if the gitlink and this file disagree.
+2. **`ext-common-sha.txt`** — a plaintext sentinel (40 hex chars + LF) at the repo root. The Gitea CI job (`.gitea/workflows/ci.yml`) validates that the gitlink and this file agree; a mismatch fails the build.
 
 **Why the sentinel exists**: the gitlink is invisible in a plain `git diff` (it shows only `-Subproject commit <sha>`), so the sentinel makes the pinned version greppable, reviewable in PRs, and assertable in tests (`VersionContractTests` cross-checks it against `plugin.json`'s `commonVersion`). Seeing `ext-common-sha.txt` dirtied in `git status` after a submodule bump is expected — commit it together with the gitlink.
 
