@@ -356,3 +356,6 @@ pkce_state.json
 # Claude Code per-developer local settings (never commit)
 .claude/settings.local.json
 settings.local.json
+
+# GLM delegate diff artifacts
+.glm-delegate-diff/
