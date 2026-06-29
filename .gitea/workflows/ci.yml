@@ -28,21 +28,9 @@ jobs:
           tar -xzf /tmp/pwsh.tgz -C /opt/pwsh
           chmod +x /opt/pwsh/pwsh
           echo "/opt/pwsh" >> "$GITHUB_PATH"
-      - name: Date-parsing gate
+      - name: Shared plugin lint gates
         shell: pwsh
-        run: ./ext/Lidarr.Plugin.Common/scripts/lint-date-parsing.ps1 -Path . -Mode ci
-      - name: Sync-over-async gate
-        shell: pwsh
-        run: ./ext/Lidarr.Plugin.Common/scripts/lint-sync-over-async.ps1 -Path . -Mode ci
-      - name: Ecosystem parity gate
-        shell: pwsh
-        run: ./ext/Lidarr.Plugin.Common/scripts/ecosystem-parity-lint.ps1 -RepoPath . -CommonRoot ext/Lidarr.Plugin.Common -Mode ci
-      - name: Doc-refs lint (self-test)
-        shell: pwsh
-        run: pwsh ext/Lidarr.Plugin.Common/scripts/lint-doc-script-refs.ps1 -RepoRoot . -SelfTest -CI
-      - name: Doc-refs lint
-        shell: pwsh
-        run: pwsh ext/Lidarr.Plugin.Common/scripts/lint-doc-script-refs.ps1 -RepoRoot . -CI
+        run: ./ext/Lidarr.Plugin.Common/scripts/ci/run-plugin-lint-gates.ps1 -RepoPath . -CommonRoot ext/Lidarr.Plugin.Common -Mode ci
 
   verify:
     needs: lint
