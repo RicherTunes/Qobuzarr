@@ -251,9 +251,18 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Clients
         {
             try
             {
-                // Remove from the process-wide tracker (handles optional data deletion).
-                Tracker.Remove(downloadId, deleteData, out var trackerItem,
-                    ex => _logger.Warn(ex, "Error deleting download data for {0}", downloadId));
+                // Remove from the process-wide tracker. CRITICAL: always pass deleteData:false
+                // here to suppress the synchronous Directory.Delete() inside
+                // HostBridgeDownloadTrackerStore.Remove(). That synchronous delete can fire while
+                // concurrent track downloads (Task.WhenAll in DownloadAlbumAsync) are still writing
+                // .partial files; on POSIX systems Directory.Delete(recursive:true) unlinks those
+                // files even while FileStream has them open, so File.Move(partialPath, filePath)
+                // subsequently throws FileNotFoundException → cascade failure across all in-flight
+                // tracks → AlbumDownloadException → Lidarr re-grabs → perpetual loop.
+                // All data cleanup is delegated to DownloadQueueService.RemoveDownload() below,
+                // which safely awaits the in-flight DownloadTask before touching the filesystem.
+                Tracker.Remove(downloadId, deleteData: false, out var trackerItem,
+                    ex => _logger.Warn(ex, "Error removing tracker entry for {0}", downloadId));
 
                 // Clear _lastQueuedItem sentinel if it matches.
                 if (_lastQueuedItem?.DownloadId == downloadId)
