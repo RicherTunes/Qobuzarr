@@ -223,7 +223,7 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
             // Guarantee the artist-only fallback is always sent for album searches — the shipped
             // "Bleu Jeans Bleu - Record n°V" bug was a special-char album query returning 0 results
             // while the artist-only fallback had been truncated away by the request cap.
-            string? artistOnlyFallback = null;
+            IReadOnlyList<string> artistOnlyFallbacks = Array.Empty<string>();
             if (searchCriteria is AlbumSearchCriteria albumCriteria)
             {
                 var artistName = albumCriteria.ArtistQuery;
@@ -232,13 +232,13 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
                     artistName = albumCriteria.Artist?.Name;
                 }
 
-                artistOnlyFallback = _queryBuilder.CleanQuery(artistName);
+                artistOnlyFallbacks = _queryBuilder.BuildArtistFallbackQueries(artistName);
             }
 
             // Cap the over-specific queries (deduped, blank-dropped, best-first) but always preserve the
-            // artist-only fallback. Shared cross-plugin policy: Common's CappedSearchChain — see its
+            // artist-only fallback tier. Shared cross-plugin policy: Common's CappedSearchChain — see its
             // fallback-survival tests for the Bleu Jeans Bleu regression coverage.
-            var selected = CappedSearchChain.Build(queries, artistOnlyFallback, MaxOverSpecificRequests);
+            var selected = CappedSearchChain.Build(queries, artistOnlyFallbacks, MaxOverSpecificRequests);
 
             foreach (var query in selected)
             {

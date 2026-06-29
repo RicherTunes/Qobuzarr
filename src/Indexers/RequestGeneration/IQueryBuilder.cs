@@ -21,6 +21,11 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers.RequestGeneration
         List<string> BuildArtistSearchQueries(ArtistSearchCriteria searchCriteria);
 
         /// <summary>
+        /// Builds the artist-only catalogue fallback tier for capped album searches.
+        /// </summary>
+        IReadOnlyList<string> BuildArtistFallbackQueries(string artistName);
+
+        /// <summary>
         /// Canonicalizes a single search term to its raw (NFC, control/symbol-aware) form.
         /// </summary>
         string CleanQuery(string query);

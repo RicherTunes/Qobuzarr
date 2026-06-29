@@ -57,6 +57,15 @@ public sealed class QobuzCappedSearchChainComplianceTests : CappedSearchChainCom
     }
 
     /// <summary>
+    /// Qobuz preserves the full artist-only sanitizer tier beyond the over-specific cap.
+    /// </summary>
+    protected override IReadOnlyList<string> GetExpectedArtistOnlyFallbackQueries(string artist, string album)
+    {
+        var queryBuilder = new QueryBuilder(LogManager.GetCurrentClassLogger());
+        return queryBuilder.BuildArtistFallbackQueries(artist);
+    }
+
+    /// <summary>
     /// Drives Qobuz's real query-building + capping pipeline and returns the resulting queries
     /// encoded as <c>qobuz://search?query=...</c> placeholder URIs for the compliance base to
     /// decode.  The pipeline mirrors <see cref="QobuzRequestGenerator.CreateIndexerRequests"/>:
@@ -90,8 +99,8 @@ public sealed class QobuzCappedSearchChainComplianceTests : CappedSearchChainCom
         queries = smartStrategy.BuildOptimizedQueries(artist, album, queries);
 
         // Step 3: compute artist-only fallback and apply the cap (same as generator)
-        var artistOnlyFallback = queryBuilder.CleanQuery(artist);
-        var selected = CappedSearchChain.Build(queries, artistOnlyFallback, MaxOverSpecificQueries);
+        var artistOnlyFallbacks = queryBuilder.BuildArtistFallbackQueries(artist);
+        var selected = CappedSearchChain.Build(queries, artistOnlyFallbacks, MaxOverSpecificQueries);
 
         // Return as placeholder URIs so the compliance base can decode and assert the queries
         return selected.Select(q => PlaceholderSearchUri.Build(PlaceholderScheme, q)).ToList();
