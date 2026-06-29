@@ -8,7 +8,7 @@ Primary CI runs on the self-hosted Gitea instance — no billing limits.
 ### Jobs
 
 **`CI / lint`** (every push + PR):
-Runs date-parsing, sync-over-async, and ecosystem-parity gates (PowerShell scripts from Common).
+Runs Common's shared plugin lint runner: date-parsing, sync-over-async, test-trait policy, ecosystem version contract, doc-reference checks, and repo-local plugin contract tests.
 
 **`CI / verify`** (runs after lint):
 Host-assembly extraction from Docker, full build, ILRepack package, packaging-closure check,
@@ -46,9 +46,17 @@ Lint gates run the scripts in `ext/Lidarr.Plugin.Common/scripts/`:
 
 - `lint-date-parsing.ps1` — catches `DateTime.Now` / `DateTime.Today` usage
 - `lint-sync-over-async.ps1` — catches `.Result` / `.GetAwaiter().GetResult()` patterns
+- `lint-test-traits.ps1` — keeps deterministic CI tests in the default lane and opt-in lanes explicitly tagged
 - `ecosystem-parity-lint.ps1` — checks parity matrix against Common
+- `lint-doc-script-refs.ps1` — catches stale script/workflow references in docs
+- `scripts/tests/*.ps1` — repo-local contract tests invoked by the shared runner
 
-Run the failing script locally with `-Mode ci` to see the exact violation.
+Run the shared runner locally to see the exact violation:
+
+```powershell
+pwsh ext/Lidarr.Plugin.Common/scripts/ci/run-plugin-lint-gates.ps1 `
+  -RepoPath . -CommonRoot ext/Lidarr.Plugin.Common -Mode ci
+```
 
 ### If `CI / verify` fails
 
