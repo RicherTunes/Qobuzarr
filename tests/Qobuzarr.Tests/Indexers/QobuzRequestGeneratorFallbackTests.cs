@@ -80,6 +80,19 @@ namespace Qobuzarr.Tests
         }
 
         [Fact]
+        public void SpecialCharArtist_IssuesArtistOnlyFallbackVariants()
+        {
+            var queries = IssuedQueries(NewGenerator(), Criteria("AC/DC", "Back in Black"));
+
+            queries.Should().Contain(q => q.Trim().Equals("AC/DC", StringComparison.OrdinalIgnoreCase),
+                "the exact artist-only catalogue fallback should survive the over-specific cap");
+            queries.Should().Contain(q => q.Trim().Equals("AC DC", StringComparison.OrdinalIgnoreCase),
+                "the spaced artist-only catalogue fallback should survive the over-specific cap for slash-separated artists");
+            queries.Should().Contain(q => q.Trim().Equals("ACDC", StringComparison.OrdinalIgnoreCase),
+                "the joined artist-only catalogue fallback should survive the over-specific cap for slash-separated artists");
+        }
+
+        [Fact]
         public void PlainAlbum_IssuesBothCombinedAndArtistOnly()
         {
             var queries = IssuedQueries(NewGenerator(), Criteria("Daft Punk", "Discovery"));

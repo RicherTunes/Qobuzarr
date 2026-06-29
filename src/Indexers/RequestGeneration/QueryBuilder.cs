@@ -124,6 +124,36 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers.RequestGeneration
             }
         }
 
+        public IReadOnlyList<string> BuildArtistFallbackQueries(string artistName)
+        {
+            var queries = new List<string>();
+
+            if (string.IsNullOrWhiteSpace(artistName))
+            {
+                return queries;
+            }
+
+            try
+            {
+                var sanitized = SearchQuerySanitizer.Sanitize(artistName, QueryOptions);
+                foreach (var variant in sanitized.Variants)
+                {
+                    AddQuery(queries, variant);
+                }
+
+                // Preserve the prior exact-fallback contract even if a future sanitizer option changes
+                // variant ordering or suppresses Original for a corner case.
+                AddQuery(queries, sanitized.Original, allowEmpty: true);
+                return queries;
+            }
+            catch (Exception ex)
+            {
+                _logger.Error(ex, "Error building artist fallback queries: {0}", artistName);
+                AddQuery(queries, artistName);
+                return queries;
+            }
+        }
+
         public string CleanQuery(string query)
         {
             if (string.IsNullOrWhiteSpace(query))
