@@ -1,3 +1,4 @@
+<!-- docval:ignore-workflow-refs -->
 # Protocol Investigation History (2025-08)
 
 > **Archived from CLAUDE.md on 2026-03-26.**

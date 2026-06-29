@@ -2,6 +2,8 @@
 name: release-automation
 description: Automate plugin releases, versioning, and changelog management. Use when working with releases, semantic versioning, release workflows, version bumping, CHANGELOG creation, or release note generation. Critical for establishing release process from scratch.
 ---
+<!-- docval:ignore-workflow-refs -->
+<!-- docval:ignore-script-refs -->
 
 # Release Automation Specialist
 

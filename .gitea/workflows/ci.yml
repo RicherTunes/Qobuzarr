@@ -37,6 +37,12 @@ jobs:
       - name: Ecosystem parity gate
         shell: pwsh
         run: ./ext/Lidarr.Plugin.Common/scripts/ecosystem-parity-lint.ps1 -RepoPath . -CommonRoot ext/Lidarr.Plugin.Common -Mode ci
+      - name: Doc-refs lint (self-test)
+        shell: pwsh
+        run: pwsh ext/Lidarr.Plugin.Common/scripts/lint-doc-script-refs.ps1 -RepoRoot . -SelfTest -CI
+      - name: Doc-refs lint
+        shell: pwsh
+        run: pwsh ext/Lidarr.Plugin.Common/scripts/lint-doc-script-refs.ps1 -RepoRoot . -CI
 
   verify:
     needs: lint
