@@ -286,6 +286,9 @@ ext/Lidarr/_output/            # Pre-built Lidarr assemblies (ONLY supported met
 
 ### Key Components
 - **QobuzIndexer** (`src/Indexers/QobuzIndexer.cs`): Implements `HttpIndexerBase<QobuzIndexerSettings>` for Lidarr search integration
+
+  **Intentional bespoke search loop (F6):** `QobuzIndexer` keeps its own capped search loop (around line 207) rather than delegating to Common's `SearchPlanExecutor` accumulate-all executor. This is deliberate: Qobuz must cap over-specific queries so results don't degrade when the catalog returns noise; the per-query cap + artist-only-fallback preservation behaviour is the defining contract. The contract is enforced by `QobuzCappedSearchChainComplianceTests` (subclasses Common's `CappedSearchChainComplianceTestBase`). Do not replace the bespoke loop with `SearchPlanExecutor` without also adopting Common's capped-chain executor variant and keeping the compliance tests green.
+
 - **QobuzDownloadClient** (`src/Download/Clients/QobuzDownloadClient.cs`): Implements `DownloadClientBase<QobuzDownloadSettings>` for Lidarr download integration
 - **Plugin Metadata** (`src/Constants/QobuzarrConstants.cs`): Centralized plugin information and constants
 - **Authentication Services** (`src/Authentication/`): Handle Qobuz session management
