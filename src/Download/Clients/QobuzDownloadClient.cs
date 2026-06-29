@@ -63,7 +63,10 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Clients
         // Exposed as a protected virtual property so test subclasses can inject a fresh
         // per-test store without the static accumulation contaminating test isolation.
         private static readonly HostBridgeDownloadTrackerStore<QobuzDownloadItem> _staticTracker =
-            new HostBridgeDownloadTrackerStore<QobuzDownloadItem>(TimeSpan.FromMinutes(30));
+            HostBridgeDownloadTrackerStore<QobuzDownloadItem>.ForPlugin(
+                "Qobuzarr",
+                completedRetention: TimeSpan.FromMinutes(30),
+                itemFactory: QobuzDownloadItem.FromHostBridgeDto);
 
         protected virtual HostBridgeDownloadTrackerStore<QobuzDownloadItem> Tracker => _staticTracker;
 
@@ -202,7 +205,17 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Clients
                 _queueService.AddDownload(downloadItem);
 
                 // Start download task asynchronously
-                downloadItem.DownloadTask = Task.Run(async () => await PerformDownloadAsync(downloadItem).ConfigureAwait(false));
+                downloadItem.DownloadTask = Task.Run(async () =>
+                {
+                    try
+                    {
+                        await PerformDownloadAsync(downloadItem).ConfigureAwait(false);
+                    }
+                    finally
+                    {
+                        Tracker.PersistSnapshot();
+                    }
+                });
 
                 _logger.Debug("Qobuz download queued with ID: {0}", downloadId);
                 return downloadId;
