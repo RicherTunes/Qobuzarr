@@ -54,6 +54,31 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Clients
         // HostBridgeDownloadItem status bridging ─────────────────────────────────────────
 
         /// <summary>
+        /// Reconstruct a Qobuz tracker item from Common's persisted base-item DTO.
+        /// Runtime-only handles such as cancellation sources, tasks, and provider album DTOs
+        /// cannot be restored after a Lidarr restart and intentionally remain null.
+        /// </summary>
+        public static QobuzDownloadItem FromHostBridgeDto(HostBridgeDownloadItemDto dto)
+        {
+            if (dto is null) throw new ArgumentNullException(nameof(dto));
+
+            var item = new QobuzDownloadItem
+            {
+                DownloadId = dto.DownloadId,
+                AlbumId = dto.AlbumId,
+                Title = dto.Title,
+                Artist = dto.Artist,
+                OutputPath = dto.OutputPath,
+                StartedAt = dto.StartedAt,
+                CompletedAt = dto.CompletedAt,
+                TotalSize = dto.TotalSize,
+            };
+            item.SetStatus(dto.Status);
+            item.SetProgress(dto.Progress);
+            return item;
+        }
+
+        /// <summary>
         /// Gets the Lidarr-host <see cref="DownloadItemStatus"/> by mapping from the
         /// thread-safe Common enum. Call sites that previously accessed <c>.Status</c>
         /// directly now call this helper at the Lidarr boundary.
