@@ -5,6 +5,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using NLog;
 using NzbDrone.Core.Download;
+using Lidarr.Plugin.Common.HostBridge;
 using Lidarr.Plugin.Qobuzarr.Configuration;
 using Lidarr.Plugin.Qobuzarr.Download.Clients;
 
@@ -78,17 +79,79 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Services
 
             if (deleteData && !string.IsNullOrWhiteSpace(removedItem.OutputPath))
             {
-                // Clean up files asynchronously to avoid blocking
+                // Capture fields before the item is potentially disposed/GC'd.
+                var capturedTask = removedItem.DownloadTask;
+                var capturedPath = removedItem.OutputPath;
+                var capturedRoot = removedItem.DownloadRoot ?? string.Empty;
+                var capturedId = downloadId;
+
+                // Clean up files asynchronously to avoid blocking.
+                // CRITICAL RACE GUARD: two races can cause an infinite Lidarr re-grab loop by
+                // deleting in-flight .partial files, causing File.Move → FileNotFoundException
+                // cascades across all concurrent track downloads:
+                //
+                //   Race 1 (same-attempt): RemoveItem is called while Task.WhenAll over all tracks
+                //   is still running. Without a wait, the 100ms delay fires cleanup while sibling
+                //   tracks are still writing .partial files → their File.Move throws.
+                //
+                //   Race 2 (cross-attempt / re-grab): Lidarr immediately re-grabs a failed album.
+                //   The new attempt (same output path) is already writing .partial files when the
+                //   old attempt's cleanup fires. Without a path-conflict check, cleanup deletes
+                //   the new attempt's files → it fails → Lidarr re-grabs again → infinite loop.
+                //
+                // Fix: await the removed item's DownloadTask first (Race 1), then skip cleanup
+                // if any active download in the queue is still targeting the same path (Race 2).
                 Task.Run(async () =>
                 {
                     try
                     {
-                        await _fileService.CleanupFailedDownloadAsync(removedItem.OutputPath, removedItem.DownloadRoot ?? string.Empty).ConfigureAwait(false);
-                        _logger.Debug("Cleaned up download data for: {0}", downloadId);
+                        // Phase 1 — wait for this item's own download task to complete.
+                        // Cancellation was already signalled by the caller; we just observe it.
+                        if (capturedTask != null && !capturedTask.IsCompleted)
+                        {
+                            try
+                            {
+                                await capturedTask.WaitAsync(TimeSpan.FromSeconds(30)).ConfigureAwait(false);
+                            }
+                            catch (TimeoutException)
+                            {
+                                _logger.Warn(
+                                    "Timed out (30 s) waiting for download task to complete before cleanup: {0}. " +
+                                    "Skipping cleanup to avoid deleting potentially-in-flight files.",
+                                    capturedId);
+                                return;
+                            }
+                            catch (Exception)
+                            {
+                                // Task ended with an exception (expected for failed/cancelled downloads).
+                            }
+                        }
+
+                        // Phase 2 — cross-attempt (re-grab) guard.
+                        // When Lidarr re-grabs a failed album it immediately queues a new
+                        // QobuzDownloadItem with the same OutputPath. If any active download is
+                        // now targeting capturedPath, skip cleanup to avoid nuking its in-flight
+                        // .partial files. The new download will manage its own cleanup lifecycle.
+                        var newDownloadAtSamePath = _activeDownloads.Values.Any(d =>
+                            string.Equals(d.OutputPath, capturedPath, StringComparison.OrdinalIgnoreCase) &&
+                            (d.GetStatus() == HostBridgeDownloadItemStatus.Downloading ||
+                             d.GetStatus() == HostBridgeDownloadItemStatus.Queued));
+
+                        if (newDownloadAtSamePath)
+                        {
+                            _logger.Warn(
+                                "Skipping cleanup of '{0}': a new download is already active at the same path. " +
+                                "The directory will be managed by the new download's lifecycle.",
+                                capturedPath);
+                            return;
+                        }
+
+                        await _fileService.CleanupFailedDownloadAsync(capturedPath, capturedRoot).ConfigureAwait(false);
+                        _logger.Debug("Cleaned up download data for: {0}", capturedId);
                     }
                     catch (Exception ex)
                     {
-                        _logger.Error(ex, "Failed to cleanup download data for: {0}", downloadId);
+                        _logger.Error(ex, "Failed to cleanup download data for: {0}", capturedId);
                     }
                 });
             }
