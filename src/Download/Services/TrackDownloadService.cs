@@ -260,10 +260,65 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Services
             }
         }
 
-        private async Task<long> DownloadToFileAsync(string url, string filePath, CancellationToken cancellationToken)
+        // Number of attempts for a single track download. Qobuz's CDN occasionally truncates a
+        // response mid-body (HttpIOException "response ended prematurely / ResponseEnded"); without a
+        // retry one truncated track fails the whole album, and Lidarr re-grabs into an infinite loop.
+        // Each retry resumes from the preserved ".partial" (Range request via ResumeHttpDownloader),
+        // so consecutive attempts make forward progress until the file is complete.
+        internal virtual int MaxDownloadAttempts => 4;
+
+        // Exponential backoff (1s, 2s, 4s, capped at 8s) between transient-failure retries.
+        internal virtual TimeSpan GetRetryDelay(int attempt) =>
+            TimeSpan.FromSeconds(Math.Min(8, Math.Pow(2, Math.Max(0, attempt - 1))));
+
+        private static bool IsTransientDownloadException(Exception ex, CancellationToken cancellationToken)
+        {
+            // An honored cancellation (host/user requested) is never retried.
+            if (cancellationToken.IsCancellationRequested)
+            {
+                return false;
+            }
+
+            return ex switch
+            {
+                HttpIOException => true,                       // e.g. ResponseEnded (truncated body)
+                HttpRequestException => true,                  // connection reset / DNS blip / 5xx surfaced by EnsureSuccess
+                System.Net.Sockets.SocketException => true,    // transport-level reset
+                TaskCanceledException => true,                 // per-request HttpClient timeout (token not cancelled — checked above)
+                IOException => true,                           // stream copy interrupted
+                _ => false,
+            };
+        }
+
+        internal async Task<long> DownloadToFileAsync(string url, string filePath, CancellationToken cancellationToken)
+        {
+            var partialPath = filePath + ".partial";
+            var maxAttempts = Math.Max(1, MaxDownloadAttempts);
+
+            for (var attempt = 1; ; attempt++)
+            {
+                try
+                {
+                    return await DownloadAttemptAsync(url, filePath, partialPath, cancellationToken).ConfigureAwait(false);
+                }
+                catch (Exception ex) when (attempt < maxAttempts && IsTransientDownloadException(ex, cancellationToken))
+                {
+                    _logger.Warn(ex,
+                        "Transient download failure for '{0}' (attempt {1}/{2}); resuming from partial after backoff",
+                        Path.GetFileName(filePath), attempt, maxAttempts);
+
+                    var delay = GetRetryDelay(attempt);
+                    if (delay > TimeSpan.Zero)
+                    {
+                        await Task.Delay(delay, cancellationToken).ConfigureAwait(false);
+                    }
+                }
+            }
+        }
+
+        internal virtual async Task<long> DownloadAttemptAsync(string url, string filePath, string partialPath, CancellationToken cancellationToken)
         {
             var httpClient = SharedSystemHttpClient.Instance;
-            var partialPath = filePath + ".partial";
             long existing = 0;
             if (File.Exists(partialPath))
             {
