@@ -40,7 +40,9 @@ try {
         BuildFlags           = @('-p:LidarrAssembliesPath={HOST_PATH}')
         TestProjects         = @(
             'tests/Qobuzarr.Tests/Qobuzarr.Tests.csproj',
-            'tests/Qobuzarr.Parity.Tests/Qobuzarr.Parity.Tests.csproj'
+            'tests/Qobuzarr.Parity.Tests/Qobuzarr.Parity.Tests.csproj',
+            'tests/Minimal.Tests/Minimal.Tests.csproj',
+            'tests/QobuzCLI.Tests/QobuzCLI.Tests.csproj'
         )
         ExpectedContentsFile = 'packaging/expected-contents.txt'
         WarningBudget        = 1000
@@ -53,6 +55,16 @@ try {
         Write-Host "  Ensure Common submodule is up to date:" -ForegroundColor Yellow
         Write-Host "  git submodule update --init ext/Lidarr.Plugin.Common" -ForegroundColor Yellow
         exit 1
+    }
+
+    # F4 test-project dropout guard: fail if any *.Tests.csproj on disk is neither
+    # run by this script nor explicitly skip-listed in .ci-test-skip.json.
+    $guard = Join-Path $config.CommonPath 'scripts/ci/verify-test-projects-gated.ps1'
+    if (Test-Path -LiteralPath $guard) {
+        & $guard -RepoRoot $repoRoot -RunProjects $config.TestProjects -CI
+        if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+    } else {
+        Write-Host "WARNING: test-project dropout guard not found at: $guard" -ForegroundColor Yellow
     }
 
     $runnerArgs = @{ Config = $config }
