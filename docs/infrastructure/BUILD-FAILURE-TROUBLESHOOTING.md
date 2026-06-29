@@ -6,8 +6,9 @@ This guide helps diagnose and resolve build failures in the Qobuzarr CI/CD pipel
 
 ## CI Status
 
-**Primary CI**: Gitea (`.gitea/workflows/ci.yml`) — two jobs:
+**Primary CI**: Gitea (`.gitea/workflows/ci.yml`) — three jobs:
 
+- **`CI / secret-scan`**: Gitleaks scan with pinned archive checksum verification.
 - **`CI / lint`**: Fast ecosystem gates (date-parsing, sync-over-async, ecosystem-parity scripts from Common).
 - **`CI / verify`**: Full pipeline — host-assembly extraction from Docker, build, ILRepack package, packaging-closure check, deterministic test suite — via `pwsh scripts/verify-local.ps1`.
 
@@ -133,7 +134,7 @@ Lidarr source code includes Sentry integration that tries to contact Sentry serv
 
 ## Build Method Comparison
 
-### **Primary CI: Gitea (`CI / lint` + `CI / verify`)**
+### **Primary CI: Gitea (`CI / secret-scan` + `CI / lint` + `CI / verify`)**
 
 ```yaml
 # Workflow: .gitea/workflows/ci.yml
@@ -192,7 +193,7 @@ Lidarr source code includes Sentry integration that tries to contact Sentry serv
 
 ### **Step 1: Check Primary CI Status**
 
-Check the Gitea Actions UI for the commit or PR — both `CI / lint` and `CI / verify` must be green.
+Check the Gitea Actions UI for the commit or PR — `CI / secret-scan`, `CI / lint`, and `CI / verify` must all be green.
 
 To reproduce locally (same pipeline CI runs):
 
@@ -245,7 +246,7 @@ For a faster rerun when host assemblies are already extracted:
 pwsh scripts/verify-local.ps1 -SkipExtract
 ```
 
-Then push; confirm `CI / lint` and `CI / verify` are both green in the Gitea Actions UI.
+Then push; confirm `CI / secret-scan`, `CI / lint`, and `CI / verify` are all green in the Gitea Actions UI.
 
 ## Maintenance Schedule
 
@@ -278,5 +279,5 @@ Then push; confirm `CI / lint` and `CI / verify` are both green in the Gitea Act
 
 ---
 
-**Primary CI**: Gitea (`.gitea/workflows/ci.yml`) — `CI / lint` + `CI / verify`
+**Primary CI**: Gitea (`.gitea/workflows/ci.yml`) — `CI / secret-scan` + `CI / lint` + `CI / verify`
 **Local equivalent**: `pwsh scripts/verify-local.ps1`

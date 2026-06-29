@@ -60,8 +60,9 @@ curl -sSL https://dot.net/v1/dotnet-install.sh | bash /dev/stdin --runtime aspne
 ### **Option C: Run via Gitea CI**
 
 The self-hosted Gitea CI runner has the correct .NET 8 environment. Push a branch
-and the `CI / verify` job (`pwsh scripts/verify-local.ps1`) will run the full
-test suite including host-assembly extraction.
+and the `CI / secret-scan`, `CI / lint`, and `CI / verify` jobs will run. The
+`CI / verify` job (`pwsh scripts/verify-local.ps1`) runs the full test suite
+including host-assembly extraction after the policy gates pass.
 
 - ✅ All projects compile in CI
 - ✅ Deterministic test suite runs on every push/PR
@@ -137,7 +138,7 @@ dotnet build tests/QobuzCLI.Tests/QobuzCLI.Tests.csproj
 
 **CI/CD Pipeline**: ✅ **Fully Functional**
 
-- `CI / lint` and `CI / verify` both green on Gitea
+- `CI / secret-scan`, `CI / lint`, and `CI / verify` all green on Gitea
 - Production deployment validated
 - Code quality continuously verified
 

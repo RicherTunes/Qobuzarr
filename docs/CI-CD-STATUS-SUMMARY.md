@@ -10,11 +10,14 @@ Primary CI runs on the self-hosted Gitea instance — no billing limits.
 **`CI / lint`** (every push + PR):
 Runs Common's shared plugin lint runner: date-parsing, sync-over-async, test-trait policy, ecosystem version contract, doc-reference checks, and repo-local plugin contract tests.
 
-**`CI / verify`** (runs after lint):
+**`CI / secret-scan`** (every push + PR):
+Downloads the pinned Gitleaks release, verifies the archive checksum, and runs `gitleaks detect --redact --exit-code 1`.
+
+**`CI / verify`** (runs after lint and secret-scan):
 Host-assembly extraction from Docker, full build, ILRepack package, packaging-closure check,
 deterministic test suite — via `pwsh scripts/verify-local.ps1`.
 
-Both jobs must be green before a PR can merge.
+All three jobs must be green before a PR can merge. Branch protection should require `CI / secret-scan`, `CI / lint`, and `CI / verify` directly.
 
 ## Local Verification
 
@@ -49,6 +52,7 @@ Lint gates run the scripts in `ext/Lidarr.Plugin.Common/scripts/`:
 - `lint-test-traits.ps1` — keeps deterministic CI tests in the default lane and opt-in lanes explicitly tagged
 - `ecosystem-parity-lint.ps1` — checks parity matrix against Common
 - `lint-doc-script-refs.ps1` — catches stale script/workflow references in docs
+- `lint-gitea-secret-scan.ps1` — verifies the Gitea workflow keeps Gitleaks and checksum verification inside the `secret-scan` job
 - `scripts/tests/*.ps1` — repo-local contract tests invoked by the shared runner
 
 Run the shared runner locally to see the exact violation:
