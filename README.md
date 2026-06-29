@@ -50,14 +50,12 @@
 
 1. **Download the latest release**:
 
-   ```bash
-   wget https://github.com/RicherTunes/qobuzarr/releases/latest/download/Qobuzarr.zip
-   ```
+   Download the latest `*-net8.0.zip` asset from [GitHub Releases](https://github.com/RicherTunes/qobuzarr/releases/latest). The asset name is versioned, for example `qobuzarr-VERSION-net8.0.zip`.
 
 2. **Install to Lidarr**:
 
    ```bash
-   unzip Qobuzarr.zip -d /path/to/lidarr/plugins/
+   unzip qobuzarr-VERSION-net8.0.zip -d /path/to/lidarr/plugins/RicherTunes/Qobuzarr/
    ```
 
 3. **Restart Lidarr**:
@@ -259,6 +257,12 @@ The [docs/](docs/) tree is organised by audience — see [docs/README.md](docs/R
 
 Qobuzarr builds on [Lidarr.Plugin.Common](https://github.com/RicherTunes/Lidarr.Plugin.Common), a shared library providing foundation plumbing (OAuth token stores, streaming API builders, download orchestration, adaptive rate-limiting, structured-logging helpers) for all RicherTunes Lidarr streaming plugins.
 
+**Ecosystem contract:**
+
+- Common is vendored at `ext/Lidarr.Plugin.Common`; the exact pin is tracked by `ext-common-sha.txt` and must be committed with the submodule gitlink.
+- Gitea is the primary CI surface (`.gitea/workflows/ci.yml`): `CI / lint` runs Common's shared plugin lint runner; `CI / verify` runs `scripts/verify-local.ps1`, which delegates to `ext/Lidarr.Plugin.Common/scripts/local-ci.ps1`.
+- Search uses Common's `SearchQuerySanitizer` for special-character variants and a Qobuz-specific capped chain guarded by Common TestKit compliance tests.
+
 **Common wiki pages** (cross-repo links):
 
 - [Common — Home](https://github.com/RicherTunes/Lidarr.Plugin.Common/blob/main/wiki/Home.md) — project overview and ecosystem context
@@ -274,6 +278,8 @@ Qobuzarr builds on [Lidarr.Plugin.Common](https://github.com/RicherTunes/Lidarr.
 Qobuzarr shares its Common library and architectural patterns with:
 
 - **[Tidalarr](https://github.com/RicherTunes/tidalarr)** — Tidal streaming plugin
+- **[Amazonmusicarr](https://github.com/RicherTunes/amazonmusicarr)** — Amazon Music streaming plugin
+- **[AppleMusicarr](https://github.com/RicherTunes/applemusicarr)** — Apple Music import-list/indexer/download-client plugin
 - **[Brainarr](https://github.com/RicherTunes/brainarr)** — AI-powered music recommendations
 
 ## Contributing
