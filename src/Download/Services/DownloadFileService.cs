@@ -120,15 +120,15 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Services
             }
         }
 
-        public async Task CleanupFailedDownloadAsync(string path, string downloadRoot)
+        public Task CleanupFailedDownloadAsync(string path, string downloadRoot)
         {
             try
             {
                 // F-10: root-contained recursive delete. SafeDirectoryCleanup refuses to delete the root
                 // itself or anything that resolves outside it (canonical-form check), so a hostile or
-                // mis-derived OutputPath can never turn cleanup into a data-loss primitive.
-                await Task.Delay(QobuzConstants.Timing.FileOperations.FileSystemStabilizationDelayMs).ConfigureAwait(false);
-
+                // mis-derived OutputPath can never turn cleanup into a data-loss primitive. Tracker-aware
+                // stabilization belongs to the download client so it can re-check same-path ownership
+                // immediately before calling this contained delete.
                 var result = SafeDirectoryCleanup.DeleteTreeUnderRoot(path, downloadRoot);
                 if (result.Deleted)
                 {
@@ -148,6 +148,8 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Services
                 _logger.Error(ex, "Error during cleanup of failed download: {0}", path);
                 // Don't rethrow - cleanup failure shouldn't break the download process
             }
+
+            return Task.CompletedTask;
         }
 
         public bool ValidateDownloadPath(string path)
