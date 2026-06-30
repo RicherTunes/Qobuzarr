@@ -71,6 +71,16 @@ namespace Qobuzarr.Tests
 
         protected override QobuzDownloadSettings GetEffectiveSettings() => _settings;
 
+        internal TimeSpan? GracefulShutdownTimeoutOverride { get; set; }
+
+        protected override TimeSpan GracefulShutdownTimeout
+            => GracefulShutdownTimeoutOverride ?? base.GracefulShutdownTimeout;
+
+        internal Func<Task>? StabilizeBeforeCleanupDeleteOverride { get; set; }
+
+        protected override Task StabilizeBeforeCleanupDeleteAsync()
+            => StabilizeBeforeCleanupDeleteOverride?.Invoke() ?? base.StabilizeBeforeCleanupDeleteAsync();
+
         protected override Lidarr.Plugin.Common.HostBridge.HostBridgeDownloadTrackerStore<Lidarr.Plugin.Qobuzarr.Download.Clients.QobuzDownloadItem> Tracker
             => _testTracker;
 
@@ -88,6 +98,15 @@ namespace Qobuzarr.Tests
         /// </summary>
         public Lidarr.Plugin.Qobuzarr.Download.Clients.QobuzDownloadItem GetTrackedItem(string downloadId)
             => _testTracker.TryGet(downloadId, out var item) ? item : null;
+
+        public void SetLastQueuedItem(Lidarr.Plugin.Qobuzarr.Download.Clients.QobuzDownloadItem? item)
+        {
+            var field = typeof(QobuzDownloadClient).GetField(
+                "_lastQueuedItem",
+                System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+            field.Should().NotBeNull();
+            field!.SetValue(this, item);
+        }
     }
 
     /// <summary>
@@ -642,6 +661,34 @@ namespace Qobuzarr.Tests
                 "retained completed tracker entries are not active downloads");
         }
 
+        [Fact]
+        public async Task DisposeAsync_StopsWaitingAfterGracefulShutdownTimeout()
+        {
+            // Arrange: a non-cooperative active download task can outlive cancellation. Dispose must
+            // stop waiting at the graceful-shutdown budget instead of hanging Lidarr shutdown.
+            var neverCompletes = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            using var cts = new System.Threading.CancellationTokenSource();
+            var downloadItem = new QobuzDownloadItem
+            {
+                DownloadId = "non-cooperative-id",
+                CancellationTokenSource = cts,
+                DownloadTask = neverCompletes.Task
+            };
+            downloadItem.SetHostStatus(DownloadItemStatus.Downloading);
+            _mockConcurrencyManager.Setup(x => x.Dispose());
+            var sut = CreateSut();
+            sut.GracefulShutdownTimeoutOverride = TimeSpan.FromMilliseconds(50);
+            sut.SeedTracker(downloadItem);
+
+            // Act
+            var disposeTask = sut.DisposeAsync().AsTask();
+            await disposeTask.WaitAsync(TimeSpan.FromSeconds(2));
+
+            // Assert
+            disposeTask.IsCompletedSuccessfully.Should().BeTrue();
+            cts.IsCancellationRequested.Should().BeTrue();
+        }
+
         /// <summary>
         /// RemoveItem cancels a downloading item's CancellationTokenSource (the cancel source of
         /// truth that PerformDownloadAsync observes). Wave C: the item is resolved from the tracker.
@@ -669,6 +716,63 @@ namespace Qobuzarr.Tests
 
             // Assert
             downloadItem.CancellationTokenSource.IsCancellationRequested.Should().BeTrue();
+        }
+
+        [Theory]
+        [InlineData(false)]
+        [InlineData(true)]
+        public async Task RemoveItem_CancelsQueuedItems(bool deleteData)
+        {
+            // Arrange: Common inserts the item into the tracker while its status is still Queued.
+            // A user remove during that window must cancel the same CTS that the background work
+            // will observe once it starts.
+            using var cts = new System.Threading.CancellationTokenSource();
+            var downloadItem = new QobuzDownloadItem
+            {
+                DownloadId = "queued-id",
+                CancellationTokenSource = cts,
+                DownloadTask = Task.CompletedTask
+            };
+            downloadItem.SetHostStatus(DownloadItemStatus.Queued);
+            var sut = CreateSut();
+            sut.SeedTracker(downloadItem);
+
+            // Act
+            sut.RemoveItem(new DownloadClientItem { DownloadId = "queued-id" }, deleteData);
+            if (sut.PendingCleanupTask != null)
+            {
+                await sut.PendingCleanupTask.WaitAsync(TimeSpan.FromSeconds(5));
+            }
+
+            // Assert
+            cts.IsCancellationRequested.Should().BeTrue(
+                "queued downloads are active work and must observe RemoveItem cancellation");
+            sut.GetTrackedItem("queued-id").Should().BeNull();
+        }
+
+        [Fact]
+        public void GetItems_DoesNotReturnLastQueuedItemAfterTrackerRetentionEvictsIt()
+        {
+            // Arrange: Common evicts old terminal items as a side-effect of GetSnapshot().
+            // The legacy _lastQueuedItem fallback must not resurrect an evicted terminal item.
+            var sut = CreateSut();
+            var evicted = new QobuzDownloadItem
+            {
+                DownloadId = "evicted-id",
+                Artist = "Artist",
+                Title = "Old Album",
+                CompletedAt = DateTime.UtcNow.AddHours(-2)
+            };
+            evicted.SetHostStatus(DownloadItemStatus.Completed);
+            sut.SeedTracker(evicted);
+            sut.SetLastQueuedItem(evicted);
+
+            // Act
+            var items = sut.GetItems().ToList();
+
+            // Assert
+            items.Should().BeEmpty("the tracker retention sweep is authoritative once it evicts a terminal item");
+            sut.GetTrackedItem("evicted-id").Should().BeNull();
         }
 
         /// <summary>

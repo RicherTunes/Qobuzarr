@@ -46,8 +46,9 @@ namespace Qobuzarr.Tests.Unit.Download.Services
             public SyntheticTrackDownloadService(
                 CommonDownloadResult result,
                 Action<QobuzTrackClassifier>? seedClassifier = null,
-                Action<IProgress<CommonDownloadProgress>>? reportProgress = null)
-                : base(Mock.Of<IQobuzApiClient>(), Mock.Of<IConcurrencyManager>(), Mock.Of<IDownloadSummary>(), Log)
+                Action<IProgress<CommonDownloadProgress>>? reportProgress = null,
+                IDownloadSummary? downloadSummary = null)
+                : base(Mock.Of<IQobuzApiClient>(), Mock.Of<IConcurrencyManager>(), downloadSummary ?? Mock.Of<IDownloadSummary>(), Log)
             {
                 _result = result;
                 _seedClassifier = seedClassifier;
@@ -217,6 +218,31 @@ namespace Qobuzarr.Tests.Unit.Download.Services
 
             url.Should().BeEmpty();
             classifier.SkippedCount.Should().Be(0, "a non-preview error is a failure, not a skip");
+        }
+
+        [Fact]
+        public async Task DownloadAlbumAsync_LogsBriefSummaryInsteadOfRegeneratingFullReportPerAlbum()
+        {
+            var album = MakeAlbum(2);
+            var item = MakeItem();
+            var result = SyntheticResult(successful: 2, total: 2);
+            var summary = new Mock<IDownloadSummary>(MockBehavior.Strict);
+            summary.Setup(s => s.RecordAlbumResult(
+                    It.IsAny<string>(),
+                    It.IsAny<string>(),
+                    It.IsAny<int>(),
+                    It.IsAny<int>(),
+                    It.IsAny<int>(),
+                    It.IsAny<int>(),
+                    It.IsAny<long>()));
+            summary.Setup(s => s.GetBriefSummary()).Returns("Downloaded 1/1 albums");
+            var sut = new SyntheticTrackDownloadService(result, downloadSummary: summary.Object);
+
+            await sut.DownloadAlbumAsync(item, album, new QobuzDownloadSettings(), CancellationToken.None);
+
+            summary.Verify(s => s.GetBriefSummary(), Times.Once);
+            summary.Verify(s => s.GenerateReport(), Times.Never,
+                "full cumulative reports are too noisy and O(n) per album when several downloads complete concurrently");
         }
 
         [Fact]

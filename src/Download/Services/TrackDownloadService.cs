@@ -107,11 +107,10 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Services
                     downloadItem.QualityFallbackExample ?? "fallback quality");
             }
 
-            // Wave C: the bespoke queue service (whose ActiveDownloadCount gated this report) was
-            // removed. TrackDownloadService has no view of the process-wide tracker (it is static
-            // on the download client), so emit the cumulative summary after each album completes.
-            var summaryReport = _downloadSummary.GenerateReport();
-            _logger.Info(summaryReport);
+            // Wave C removed the bespoke queue service that previously knew when all active
+            // downloads were finished. Avoid regenerating and logging the full cumulative report
+            // after every album; the track service only emits a compact progress line.
+            _logger.Info(_downloadSummary.GetBriefSummary());
 
             var policy = settings.GetDownloadPolicy();
             var isSuccessful = policy.IsAlbumDownloadSuccessful(totalTracks, successfulTracks, skippedTracks);

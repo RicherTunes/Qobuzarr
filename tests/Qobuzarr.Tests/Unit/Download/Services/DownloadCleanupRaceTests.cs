@@ -135,6 +135,38 @@ namespace Qobuzarr.Tests.Unit.Download.Services
         }
 
         [Fact]
+        public async Task RemoveItem_WhenSamePathDownloadAppearsDuringCleanupStabilization_SkipsCleanup()
+        {
+            var outputPath = CreateAlbumDirectory();
+            try
+            {
+                var sut = BuildClient();
+                sut.SeedTracker(BuildItem("attempt-A", outputPath, Task.CompletedTask));
+
+                var finalGuardReached = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+                sut.StabilizeBeforeCleanupDeleteOverride = () =>
+                {
+                    sut.SeedTracker(BuildItem("attempt-B", outputPath, new TaskCompletionSource().Task));
+                    finalGuardReached.SetResult();
+                    return Task.CompletedTask;
+                };
+
+                sut.RemoveItem(new DownloadClientItem { DownloadId = "attempt-A" }, deleteData: true);
+                await sut.PendingCleanupTask!.WaitAsync(TimeSpan.FromSeconds(5));
+
+                await finalGuardReached.Task.WaitAsync(TimeSpan.FromSeconds(1));
+                Directory.Exists(outputPath).Should().BeTrue(
+                    "cleanup must re-check the tracker after the stabilization window because a replacement attempt can appear after the first guard");
+                sut.GetTrackedItem("attempt-A").Should().BeNull();
+                sut.GetTrackedItem("attempt-B").Should().NotBeNull();
+            }
+            finally
+            {
+                DeleteIfExists(outputPath);
+            }
+        }
+
+        [Fact]
         public async Task RemoveItem_WhenNoActiveDownloadAtSamePath_RunsCleanupNormally()
         {
             var outputPath = CreateAlbumDirectory();
@@ -215,6 +247,37 @@ namespace Qobuzarr.Tests.Unit.Download.Services
             finally
             {
                 DeleteIfExists(testRoot);
+            }
+        }
+
+        [Fact]
+        public async Task RemoveItem_RestoredItemWithoutDownloadRoot_DoesNotDeleteUsingChangedSettingsRoot()
+        {
+            var outputPath = CreateAlbumDirectory();
+            try
+            {
+                var sut = BuildClient();
+                var item = new QobuzDownloadItem
+                {
+                    DownloadId = "restored-no-root",
+                    OutputPath = outputPath,
+                    DownloadRoot = null,
+                    DownloadTask = Task.CompletedTask,
+                    CompletedAt = DateTime.UtcNow
+                };
+                item.SetHostStatus(DownloadItemStatus.Failed);
+                sut.SeedTracker(item);
+
+                sut.RemoveItem(new DownloadClientItem { DownloadId = "restored-no-root" }, deleteData: true);
+                await sut.PendingCleanupTask!.WaitAsync(TimeSpan.FromSeconds(5));
+
+                Directory.Exists(outputPath).Should().BeTrue(
+                    "a restored tracker item lacks the original root, so cleanup must fail closed instead of re-deriving a possibly changed settings root");
+                sut.GetTrackedItem("restored-no-root").Should().BeNull();
+            }
+            finally
+            {
+                DeleteIfExists(outputPath);
             }
         }
 

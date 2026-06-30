@@ -67,6 +67,11 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Clients
 
         protected virtual HostBridgeDownloadTrackerStore<QobuzDownloadItem> Tracker => _staticTracker;
 
+        protected virtual TimeSpan GracefulShutdownTimeout => TimeSpan.FromSeconds(30);
+
+        protected virtual Task StabilizeBeforeCleanupDeleteAsync()
+            => Task.Delay(QobuzConstants.Timing.FileOperations.FileSystemStabilizationDelayMs);
+
         // Centralised fire-and-forget download enqueue (Wave A). Replaces the bespoke
         // snapshot → Guid → tracker-insert → Task.Run pattern with Common's orchestrator,
         // shared by every RicherTunes streaming plugin. logger:null — the plugin's own
@@ -301,7 +306,15 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Clients
 
                 if (result.Count == 0 && _lastQueuedItem != null)
                 {
-                    result.Add(_lastQueuedItem.ToDownloadClientItem(clientId, clientName));
+                    if (!string.IsNullOrWhiteSpace(_lastQueuedItem.DownloadId) &&
+                        Tracker.TryGet(_lastQueuedItem.DownloadId, out var liveFallback))
+                    {
+                        result.Add(liveFallback.ToDownloadClientItem(clientId, clientName));
+                    }
+                    else
+                    {
+                        _lastQueuedItem = null;
+                    }
                 }
 
                 return result;
@@ -338,12 +351,11 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Clients
                     _lastQueuedItem = null;
                 }
 
-                // Cancel in-flight download if it's still running. The item's own
+                // Cancel active work if it's queued or downloading. The item's own
                 // CancellationTokenSource is the cancel source of truth that PerformDownloadAsync
                 // observes — signalling it lets the in-flight .partial writes unwind/finish so the
                 // Phase-1 await below completes promptly.
-                if (trackerItem != null &&
-                    trackerItem.GetStatus() == HostBridgeDownloadItemStatus.Downloading)
+                if (trackerItem != null && IsActiveTrackerItem(trackerItem))
                 {
                     trackerItem.Cancel();
                 }
@@ -450,6 +462,17 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Clients
                     return;
                 }
 
+                await StabilizeBeforeCleanupDeleteAsync().ConfigureAwait(false);
+
+                if (HasActiveDownloadAtSameOutputPath(downloadId, removed.OutputPath))
+                {
+                    _logger.Debug(
+                        "Skipping cleanup for {0}; another active download took ownership of output path {1}",
+                        downloadId,
+                        removed.OutputPath);
+                    return;
+                }
+
                 await _fileService.CleanupFailedDownloadAsync(removed.OutputPath, cleanupRoot)
                     .ConfigureAwait(false);
                 _logger.Debug("Removed download item and cleaned up data: {0}", downloadId);
@@ -467,15 +490,7 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Clients
                 return item.DownloadRoot;
             }
 
-            try
-            {
-                return GetEffectiveSettings()?.DownloadPath;
-            }
-            catch (Exception ex)
-            {
-                _logger.Debug(ex, "Could not resolve fallback download root for cleanup");
-                return null;
-            }
+            return null;
         }
 
         private bool HasActiveDownloadAtSameOutputPath(string removedDownloadId, string outputPath)
@@ -1076,12 +1091,13 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Clients
 
                 if (downloadTasks.Any())
                 {
-                    using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(30));
                     try
                     {
-                        await Task.WhenAll(downloadTasks).ConfigureAwait(false);
+                        await Task.WhenAll(downloadTasks)
+                            .WaitAsync(GracefulShutdownTimeout)
+                            .ConfigureAwait(false);
                     }
-                    catch (OperationCanceledException)
+                    catch (TimeoutException)
                     {
                         _logger.Debug("Some downloads did not complete within graceful shutdown timeout");
                     }
