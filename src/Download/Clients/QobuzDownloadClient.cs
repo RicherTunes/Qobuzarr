@@ -33,7 +33,6 @@ using Lidarr.Plugin.Qobuzarr.Models.Authentication;
 using Lidarr.Plugin.Qobuzarr.Utilities;
 using Lidarr.Plugin.Qobuzarr.Exceptions;
 using Lidarr.Plugin.Qobuzarr.Download.Services;
-using Lidarr.Plugin.Qobuzarr.Download.Orchestration;
 using Lidarr.Plugin.Qobuzarr.Constants;
 using Lidarr.Plugin.Qobuzarr.Services.Http;
 using Lidarr.Plugin.Common.HostBridge;
@@ -50,10 +49,8 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Clients
         private readonly IQobuzAuthenticationService _authService;
         private readonly IQobuzApiClient _apiClient;
         private readonly IHttpClient _httpClient;
-        private readonly IDownloadQueueService _queueService;
         private readonly IDownloadFileService _fileService;
         private readonly IConcurrencyManager _concurrencyManager;
-        private readonly IDownloadOrchestrator _orchestrator;
         private readonly IDownloadSummary _downloadSummary;
         private readonly IBatchProcessor _batchProcessor;
         private readonly Lidarr.Plugin.Qobuzarr.Download.Services.ITrackDownloadService _trackDownloadService;
@@ -105,10 +102,8 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Clients
         public QobuzDownloadClient(IQobuzAuthenticationService authService,
                                   IQobuzApiClient apiClient,
                                   IHttpClient httpClient,
-                                  IDownloadQueueService queueService,
                                   IDownloadFileService fileService,
                                   IConcurrencyManager concurrencyManager,
-                                  IDownloadOrchestrator orchestrator,
                                   IDownloadSummary downloadSummary,
                                   IBatchProcessor batchProcessor,
                                   Lidarr.Plugin.Qobuzarr.Download.Services.ITrackDownloadService trackDownloadService,
@@ -122,10 +117,8 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Clients
             _authService = authService ?? throw new ArgumentNullException(nameof(authService));
             _apiClient = apiClient ?? throw new ArgumentNullException(nameof(apiClient));
             _httpClient = httpClient ?? throw new ArgumentNullException(nameof(httpClient));
-            _queueService = queueService ?? throw new ArgumentNullException(nameof(queueService));
             _fileService = fileService ?? throw new ArgumentNullException(nameof(fileService));
             _concurrencyManager = concurrencyManager ?? throw new ArgumentNullException(nameof(concurrencyManager));
-            _orchestrator = orchestrator ?? throw new ArgumentNullException(nameof(orchestrator));
             _downloadSummary = downloadSummary ?? throw new ArgumentNullException(nameof(downloadSummary));
             _batchProcessor = batchProcessor ?? throw new ArgumentNullException(nameof(batchProcessor));
             _trackDownloadService = trackDownloadService ?? throw new ArgumentNullException(nameof(trackDownloadService));
@@ -196,9 +189,9 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Clients
 
                 // The orchestrator owns the fire-and-forget Task.Run, so we expose the in-flight
                 // work as a TaskCompletionSource. QobuzDownloadItem.DownloadTask must stay set:
-                // DownloadQueueService.RemoveDownload(deleteData:true) awaits it before cleanup
-                // (the Race-1 guard against deleting in-flight .partial files → infinite re-grab
-                // loop) and DisposeAsync awaits it for graceful shutdown.
+                // RemoveItem(deleteData:true) awaits it before cleanup (the Race-1 guard against
+                // deleting in-flight .partial files → infinite re-grab loop) and DisposeAsync
+                // awaits it for graceful shutdown.
                 var workCompletion = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
 
                 // HostBridgeDownloadOrchestrator (Wave A): snapshot → generate downloadId →
@@ -227,10 +220,11 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Clients
                         };
                         // Status defaults to Queued (HostBridgeDownloadItem initial state = 0 = Queued)
 
-                        // Side effects preserved from the bespoke pattern: register the item (with
-                        // its generated downloadId) with the queue service and remember it as the
-                        // last queued item. Run inside the factory so they happen before Task.Run.
-                        _queueService.AddDownload(downloadItem);
+                        // The orchestrator inserts the item into the process-wide tracker
+                        // (Tracker.AddOrReplace) before scheduling the background work, so the
+                        // tracker is the single source of truth (Wave C). We only remember it as
+                        // the last queued item for the GetItems() fallback. Run inside the factory
+                        // so the assignment happens before Task.Run.
                         _lastQueuedItem = downloadItem;
                         return downloadItem;
                     },
@@ -274,11 +268,10 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Clients
         {
             try
             {
-                // CleanupOldDownloads is still called for the queue service side.
-                CleanupOldDownloads();
-
                 // Tracker.GetSnapshot() runs the 30-min retention sweep on completed/failed
-                // items as a side-effect, then returns all still-live entries.
+                // items as a side-effect, then returns all still-live entries. Wave C: the
+                // process-wide tracker is the SINGLE source of truth — the bespoke queue
+                // service (and its separate active-downloads list) was removed.
                 var snapshot = Tracker.GetSnapshot();
                 var result = new List<DownloadClientItem>();
 
@@ -291,32 +284,24 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Clients
                 var clientId = Definition?.Id ?? 0;
                 var clientName = Definition?.Name ?? Name;
 
+                // Dedup by downloadId. The tracker is keyed by downloadId so the snapshot cannot
+                // itself contain duplicates, but the dedup is retained defensively: reporting the
+                // same downloadId twice gives Lidarr two queue entries for one download, which
+                // wedges CompletedDownloadService at importPending (the completed download never
+                // imports).
+                var capturedIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
                 foreach (var item in snapshot)
                 {
-                    result.Add(item.ToDownloadClientItem(clientId, clientName));
+                    var ci = item.ToDownloadClientItem(clientId, clientName);
+                    if (string.IsNullOrEmpty(ci.DownloadId) || capturedIds.Add(ci.DownloadId))
+                    {
+                        result.Add(ci);
+                    }
                 }
 
                 if (result.Count == 0 && _lastQueuedItem != null)
                 {
                     result.Add(_lastQueuedItem.ToDownloadClientItem(clientId, clientName));
-                }
-
-                // Merge any queue-service items not already captured — dedup by downloadId.
-                // A just-completed download can briefly live in BOTH the Tracker snapshot and the
-                // active-queue list; reporting it twice gives Lidarr two queue entries with the same
-                // downloadId, which wedges CompletedDownloadService at importPending (the completed
-                // download never imports). Skip queue items whose id was already captured above.
-                var capturedIds = new HashSet<string>(
-                    result.Select(r => r.DownloadId).Where(id => !string.IsNullOrEmpty(id)),
-                    StringComparer.OrdinalIgnoreCase);
-                var queued = _queueService.GetActiveDownloads() ?? Enumerable.Empty<QobuzDownloadItem>();
-                foreach (var q in queued)
-                {
-                    var ci = q.ToDownloadClientItem(clientId, clientName);
-                    if (string.IsNullOrEmpty(ci.DownloadId) || capturedIds.Add(ci.DownloadId))
-                    {
-                        result.Add(ci);
-                    }
                 }
 
                 return result;
@@ -333,22 +318,19 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Clients
             RemoveItem(item.DownloadId, deleteData);
         }
 
+        // Test seam: the most-recently-scheduled deferred-cleanup task (deleteData:true path).
+        // Production never awaits it (cleanup is fire-and-forget); tests await it to make the
+        // two-phase cleanup-race behaviour deterministic instead of polling on wall-clock time.
+        internal Task? LastCleanupTask { get; private set; }
+
         private void RemoveItem(string downloadId, bool deleteData)
         {
             try
             {
-                // Remove from the process-wide tracker. CRITICAL: always pass deleteData:false
-                // here to suppress the synchronous Directory.Delete() inside
-                // HostBridgeDownloadTrackerStore.Remove(). That synchronous delete can fire while
-                // concurrent track downloads (Task.WhenAll in DownloadAlbumAsync) are still writing
-                // .partial files; on POSIX systems Directory.Delete(recursive:true) unlinks those
-                // files even while FileStream has them open, so File.Move(partialPath, filePath)
-                // subsequently throws FileNotFoundException → cascade failure across all in-flight
-                // tracks → AlbumDownloadException → Lidarr re-grabs → perpetual loop.
-                // All data cleanup is delegated to DownloadQueueService.RemoveDownload() below,
-                // which safely awaits the in-flight DownloadTask before touching the filesystem.
-                Tracker.Remove(downloadId, deleteData: false, out var trackerItem,
-                    ex => _logger.Warn(ex, "Error removing tracker entry for {0}", downloadId));
+                // Snapshot the tracked item BEFORE removing it: deferred cleanup needs its
+                // DownloadTask (Race-1) and OutputPath, while GetItems() must keep seeing the item
+                // until cleanup has either deleted or intentionally preserved its data.
+                Tracker.TryGet(downloadId, out var trackerItem);
 
                 // Clear _lastQueuedItem sentinel if it matches.
                 if (_lastQueuedItem?.DownloadId == downloadId)
@@ -356,33 +338,193 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Clients
                     _lastQueuedItem = null;
                 }
 
-                // Cancel in-flight download if it's still running.
+                // Cancel in-flight download if it's still running. The item's own
+                // CancellationTokenSource is the cancel source of truth that PerformDownloadAsync
+                // observes — signalling it lets the in-flight .partial writes unwind/finish so the
+                // Phase-1 await below completes promptly.
                 if (trackerItem != null &&
                     trackerItem.GetStatus() == HostBridgeDownloadItemStatus.Downloading)
                 {
                     trackerItem.Cancel();
                 }
 
-                // Also remove from the queue service (which has its own dict).
-                if (_queueService.TryGetDownload(downloadId, out var queueItem))
+                if (!deleteData)
                 {
-                    if (queueItem.GetStatus() == HostBridgeDownloadItemStatus.Downloading)
-                    {
-                        queueItem.Cancel();
-                    }
-                    _queueService.RemoveDownload(downloadId, deleteData);
+                    // No filesystem work — remove synchronously so the item disappears from
+                    // GetItems() immediately. Common's Remove() with deleteData:false performs no
+                    // Directory.Delete.
+                    Tracker.Remove(downloadId, deleteData: false, out _,
+                        ex => _logger.Warn(ex, "Error removing tracker entry for {0}", downloadId));
                     _logger.Debug("Removed download item: {0}", downloadId);
+                    return;
                 }
-                else if (trackerItem != null)
-                {
-                    _logger.Debug("Removed download item from tracker: {0}", downloadId);
-                }
+
+                // deleteData == true: defer the actual delete behind the in-flight download task so
+                // we never delete in-flight .partial files (Race-1: deleting them mid-write makes
+                // File.Move(partial, final) throw FileNotFoundException across every concurrent
+                // track → AlbumDownloadException → Lidarr re-grabs → perpetual loop). After the
+                // task settles, RemoveAndCleanupAsync removes the tracker entry, applies the
+                // same-output active-download guard (Race-2), then deletes through Qobuz's
+                // root-contained cleanup service. Fire-and-forget on the thread pool.
+                LastCleanupTask = Task.Run(() => RemoveAndCleanupAsync(downloadId, trackerItem));
             }
             catch (Exception ex)
             {
                 _logger.Error(ex, "Error removing download item: {0}", downloadId);
             }
         }
+
+        /// <summary>
+        /// Deferred two-phase cleanup for <c>RemoveItem(deleteData:true)</c>.
+        /// Phase 1 (Race-1, qobuz-owned): await the removed item's <see cref="QobuzDownloadItem.DownloadTask"/>
+        /// (30s budget) so in-flight <c>.partial</c> writes complete or observe cancellation before any
+        /// filesystem delete; on timeout the tracker entry is removed but the data is left intact.
+        /// Phase 2 (Race-2 + delete): remove the tracker entry, skip the delete when another tracked
+        /// download is still active at the same <c>OutputPath</c>, then delete through Qobuz's
+        /// root-contained cleanup service.
+        /// </summary>
+        internal async Task RemoveAndCleanupAsync(string downloadId, QobuzDownloadItem? trackerItem)
+        {
+            try
+            {
+                // Phase 1 — wait for THIS item's own download task to finish.
+                var task = trackerItem?.DownloadTask;
+                if (task != null && !task.IsCompleted)
+                {
+                    try
+                    {
+                        await task.WaitAsync(TimeSpan.FromSeconds(30)).ConfigureAwait(false);
+                    }
+                    catch (TimeoutException)
+                    {
+                        _logger.Warn(
+                            "Timed out (30s) waiting for download task to complete before cleanup: {0}. " +
+                            "Removing the tracker entry but skipping data deletion to avoid nuking " +
+                            "potentially in-flight files.",
+                            downloadId);
+                        Tracker.Remove(downloadId, deleteData: false, out _,
+                            ex => _logger.Warn(ex, "Error removing tracker entry for {0}", downloadId));
+                        return;
+                    }
+                    catch (Exception)
+                    {
+                        // Task ended faulted/cancelled (expected for failed/cancelled downloads).
+                        // The .partial writes have stopped, so it is safe to proceed to the delete.
+                    }
+                }
+
+                // Phase 2 — remove the tracker entry, keep Common's same-path active-download
+                // guard locally, then delete through Qobuz's root-contained cleanup service.
+                // Do not call Tracker.Remove(deleteData:true): Common's generic delete cannot know
+                // Qobuz's configured download root and would bypass the F-10 containment guard.
+                var removedFromTracker = Tracker.Remove(downloadId, deleteData: false, out var removed,
+                    ex => _logger.Warn(ex, "Error removing tracker entry for {0}", downloadId));
+                if (!removedFromTracker || removed is null)
+                {
+                    _logger.Debug("Download item was already removed before cleanup: {0}", downloadId);
+                    return;
+                }
+
+                if (string.IsNullOrWhiteSpace(removed.OutputPath))
+                {
+                    _logger.Debug("Download item had no output path to clean up: {0}", downloadId);
+                    return;
+                }
+
+                if (HasActiveDownloadAtSameOutputPath(downloadId, removed.OutputPath))
+                {
+                    _logger.Debug(
+                        "Skipping cleanup for {0}; another active download owns output path {1}",
+                        downloadId,
+                        removed.OutputPath);
+                    return;
+                }
+
+                var cleanupRoot = ResolveCleanupRoot(removed);
+                if (string.IsNullOrWhiteSpace(cleanupRoot))
+                {
+                    _logger.Warn(
+                        "Skipping cleanup for {0}; no download root is available for output path {1}",
+                        downloadId,
+                        removed.OutputPath);
+                    return;
+                }
+
+                await _fileService.CleanupFailedDownloadAsync(removed.OutputPath, cleanupRoot)
+                    .ConfigureAwait(false);
+                _logger.Debug("Removed download item and cleaned up data: {0}", downloadId);
+            }
+            catch (Exception ex)
+            {
+                _logger.Error(ex, "Failed to clean up download data for: {0}", downloadId);
+            }
+        }
+
+        private string? ResolveCleanupRoot(QobuzDownloadItem item)
+        {
+            if (!string.IsNullOrWhiteSpace(item.DownloadRoot))
+            {
+                return item.DownloadRoot;
+            }
+
+            try
+            {
+                return GetEffectiveSettings()?.DownloadPath;
+            }
+            catch (Exception ex)
+            {
+                _logger.Debug(ex, "Could not resolve fallback download root for cleanup");
+                return null;
+            }
+        }
+
+        private bool HasActiveDownloadAtSameOutputPath(string removedDownloadId, string outputPath)
+        {
+            foreach (var other in Tracker.GetSnapshot())
+            {
+                if (other is null ||
+                    string.Equals(other.DownloadId, removedDownloadId, StringComparison.OrdinalIgnoreCase) ||
+                    string.IsNullOrWhiteSpace(other.OutputPath) ||
+                    !IsActiveTrackerItem(other))
+                {
+                    continue;
+                }
+
+                if (SameOutputDirectory(other.OutputPath, outputPath))
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        private static bool IsActiveTrackerItem(QobuzDownloadItem item)
+            => item.GetStatus() is HostBridgeDownloadItemStatus.Queued
+                or HostBridgeDownloadItemStatus.Downloading;
+
+        private static bool SameOutputDirectory(string left, string right)
+        {
+            if (string.IsNullOrWhiteSpace(left) || string.IsNullOrWhiteSpace(right))
+            {
+                return false;
+            }
+
+            try
+            {
+                var comparison = OperatingSystem.IsWindows() || OperatingSystem.IsMacOS()
+                    ? StringComparison.OrdinalIgnoreCase
+                    : StringComparison.Ordinal;
+                return string.Equals(NormalizeOutputDirectory(left), NormalizeOutputDirectory(right), comparison);
+            }
+            catch (Exception ex) when (ex is ArgumentException or IOException or NotSupportedException or PathTooLongException)
+            {
+                return false;
+            }
+        }
+
+        private static string NormalizeOutputDirectory(string path)
+            => Path.TrimEndingDirectorySeparator(Path.GetFullPath(path));
 
         // Maintain backward compatibility with tests that reflect this method
         private string BuildOutputPath(RemoteAlbum remoteAlbum)
@@ -513,21 +655,6 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Clients
                 IsLocalhost = true,
                 OutputRootFolders = new List<OsPath> { new OsPath(settings.DownloadPath ?? "") }
             };
-        }
-
-        // Maintain backward compatibility with tests
-        private void CleanupOldDownloads()
-        {
-            try
-            {
-                _queueService.CleanupCompletedDownloads(QobuzConstants.Download.CleanupCutoff);
-
-                // Leave in-memory items intact for now; queue service handles real cleanup.
-            }
-            catch (Exception ex)
-            {
-                _logger.Debug(ex, "CleanupOldDownloads encountered an error");
-            }
         }
 
         private async Task PerformDownloadAsync(QobuzDownloadItem downloadItem)
@@ -931,8 +1058,11 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Clients
             {
                 _logger.Debug("Starting graceful shutdown of QobuzDownloadClient");
 
-                // Cancel all active downloads through queue service
-                var activeDownloads = _queueService.GetActiveDownloads().ToList();
+                // Cancel active downloads only. The tracker also retains terminal items briefly so
+                // Lidarr can import them; mutating those to Failed during disposal loses that signal.
+                var activeDownloads = Tracker.GetSnapshot()
+                    .Where(IsActiveTrackerItem)
+                    .ToList();
                 foreach (var download in activeDownloads)
                 {
                     download.Cancel();

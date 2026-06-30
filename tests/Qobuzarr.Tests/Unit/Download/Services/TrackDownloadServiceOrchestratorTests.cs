@@ -47,7 +47,7 @@ namespace Qobuzarr.Tests.Unit.Download.Services
                 CommonDownloadResult result,
                 Action<QobuzTrackClassifier>? seedClassifier = null,
                 Action<IProgress<CommonDownloadProgress>>? reportProgress = null)
-                : base(Mock.Of<IQobuzApiClient>(), Mock.Of<IConcurrencyManager>(), Mock.Of<IDownloadSummary>(), Mock.Of<IDownloadQueueService>(), Log)
+                : base(Mock.Of<IQobuzApiClient>(), Mock.Of<IConcurrencyManager>(), Mock.Of<IDownloadSummary>(), Log)
             {
                 _result = result;
                 _seedClassifier = seedClassifier;
@@ -254,7 +254,7 @@ namespace Qobuzarr.Tests.Unit.Download.Services
         // ── helpers ──────────────────────────────────────────────────────────────────────────────
 
         private static TrackDownloadService MakeService(IQobuzApiClient api)
-            => new TrackDownloadService(api, Mock.Of<IConcurrencyManager>(), Mock.Of<IDownloadSummary>(), Mock.Of<IDownloadQueueService>(), Log);
+            => new TrackDownloadService(api, Mock.Of<IConcurrencyManager>(), Mock.Of<IDownloadSummary>(), Log);
 
         private static QobuzAlbum MakeAlbum(int trackCount)
         {
