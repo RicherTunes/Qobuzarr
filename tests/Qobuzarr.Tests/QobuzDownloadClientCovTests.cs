@@ -18,7 +18,6 @@ using NzbDrone.Core.Music;
 using NzbDrone.Core.Parser.Model;
 using Lidarr.Plugin.Qobuzarr.Download.Clients;
 using Lidarr.Plugin.Qobuzarr.Download.Services;
-using Lidarr.Plugin.Qobuzarr.Download.Orchestration;
 using Lidarr.Plugin.Qobuzarr.Download;
 using Lidarr.Plugin.Qobuzarr.Authentication;
 using Lidarr.Plugin.Qobuzarr.API;
@@ -44,10 +43,8 @@ namespace Qobuzarr.Tests
             IQobuzAuthenticationService authService,
             IQobuzApiClient apiClient,
             IHttpClient httpClient,
-            IDownloadQueueService queueService,
             IDownloadFileService fileService,
             IConcurrencyManager concurrencyManager,
-            IDownloadOrchestrator orchestrator,
             IDownloadSummary downloadSummary,
             IBatchProcessor batchProcessor,
             Lidarr.Plugin.Qobuzarr.Download.Services.ITrackDownloadService trackDownloadService,
@@ -57,27 +54,64 @@ namespace Qobuzarr.Tests
             ILocalizationService localizationService,
             Logger logger,
             QobuzDownloadSettings settings = null)
-            : base(authService, apiClient, httpClient, queueService, fileService,
-                   concurrencyManager, orchestrator, downloadSummary, batchProcessor,
+            : base(authService, apiClient, httpClient, fileService,
+                   concurrencyManager, downloadSummary, batchProcessor,
                    trackDownloadService, configService, diskProvider, remotePathMappingService,
                    localizationService, logger)
         {
             _settings = settings ?? new QobuzDownloadSettings();
         }
 
+        /// <summary>
+        /// Test seam: await the most-recently-scheduled deferred cleanup task (the
+        /// <c>RemoveItem(deleteData:true)</c> fire-and-forget) so cleanup-race assertions are
+        /// deterministic rather than wall-clock polled.
+        /// </summary>
+        public System.Threading.Tasks.Task? PendingCleanupTask => LastCleanupTask;
+
         protected override QobuzDownloadSettings GetEffectiveSettings() => _settings;
+
+        internal TimeSpan? GracefulShutdownTimeoutOverride { get; set; }
+
+        protected override TimeSpan GracefulShutdownTimeout
+            => GracefulShutdownTimeoutOverride ?? base.GracefulShutdownTimeout;
+
+        internal Func<Task>? StabilizeBeforeCleanupDeleteOverride { get; set; }
+
+        protected override Task StabilizeBeforeCleanupDeleteAsync()
+            => StabilizeBeforeCleanupDeleteOverride?.Invoke() ?? base.StabilizeBeforeCleanupDeleteAsync();
+
+        internal Func<Lidarr.Plugin.Qobuzarr.Download.Clients.QobuzDownloadItem, Task>? BeforeCleanupDeleteInsideLifecycleGateOverride { get; set; }
+
+        protected override Task BeforeCleanupDeleteInsideLifecycleGateAsync(Lidarr.Plugin.Qobuzarr.Download.Clients.QobuzDownloadItem removed)
+            => BeforeCleanupDeleteInsideLifecycleGateOverride?.Invoke(removed) ?? base.BeforeCleanupDeleteInsideLifecycleGateAsync(removed);
 
         protected override Lidarr.Plugin.Common.HostBridge.HostBridgeDownloadTrackerStore<Lidarr.Plugin.Qobuzarr.Download.Clients.QobuzDownloadItem> Tracker
             => _testTracker;
 
         /// <summary>
         /// Test seam: seed the per-instance Tracker so <c>GetItems()</c>'s
-        /// <c>Tracker.GetSnapshot()</c> source returns the given item. Lets a test reproduce
-        /// the "same download in both the Tracker snapshot and the queue-service active list"
-        /// race that the GetItems dedup guards against.
+        /// <c>Tracker.GetSnapshot()</c> source returns the given item. This keeps host-contract
+        /// tests on the same tracker-backed path production uses.
         /// </summary>
         public void SeedTracker(Lidarr.Plugin.Qobuzarr.Download.Clients.QobuzDownloadItem item)
             => _testTracker.AddOrReplace(item);
+
+        /// <summary>
+        /// Test seam: resolve a tracked item by id (Wave C — the tracker is the single source of
+        /// truth, replacing the old queue-service capture used to await an item's DownloadTask).
+        /// </summary>
+        public Lidarr.Plugin.Qobuzarr.Download.Clients.QobuzDownloadItem GetTrackedItem(string downloadId)
+            => _testTracker.TryGet(downloadId, out var item) ? item : null;
+
+        public void SetLastQueuedItem(Lidarr.Plugin.Qobuzarr.Download.Clients.QobuzDownloadItem? item)
+        {
+            var field = typeof(QobuzDownloadClient).GetField(
+                "_lastQueuedItem",
+                System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+            field.Should().NotBeNull();
+            field!.SetValue(this, item);
+        }
     }
 
     /// <summary>
@@ -102,10 +136,8 @@ namespace Qobuzarr.Tests
             IQobuzAuthenticationService authService,
             IQobuzApiClient apiClient,
             IHttpClient httpClient,
-            IDownloadQueueService queueService,
             IDownloadFileService fileService,
             IConcurrencyManager concurrencyManager,
-            IDownloadOrchestrator orchestrator,
             IDownloadSummary downloadSummary,
             IBatchProcessor batchProcessor,
             Lidarr.Plugin.Qobuzarr.Download.Services.ITrackDownloadService trackDownloadService,
@@ -115,8 +147,8 @@ namespace Qobuzarr.Tests
             ILocalizationService localizationService,
             Logger logger,
             Lidarr.Plugin.Qobuzarr.Models.Authentication.QobuzCredentials credsFromSettings = null)
-            : base(authService, apiClient, httpClient, queueService, fileService,
-                   concurrencyManager, orchestrator, downloadSummary, batchProcessor,
+            : base(authService, apiClient, httpClient, fileService,
+                   concurrencyManager, downloadSummary, batchProcessor,
                    trackDownloadService, configService, diskProvider, remotePathMappingService,
                    localizationService, logger)
         {
@@ -136,10 +168,8 @@ namespace Qobuzarr.Tests
         private readonly Mock<IQobuzAuthenticationService> _mockAuthService;
         private readonly Mock<IQobuzApiClient> _mockApiClient;
         private readonly Mock<IHttpClient> _mockClient;
-        private readonly Mock<IDownloadQueueService> _mockQueueService;
         private readonly Mock<IDownloadFileService> _mockFileService;
         private readonly Mock<IConcurrencyManager> _mockConcurrencyManager;
-        private readonly Mock<IDownloadOrchestrator> _mockOrchestrator;
         private readonly Mock<IDownloadSummary> _mockDownloadSummary;
         private readonly Mock<IBatchProcessor> _mockBatchProcessor;
         private readonly Mock<Lidarr.Plugin.Qobuzarr.Download.Services.ITrackDownloadService> _mockTrackDownloadService;
@@ -149,10 +179,8 @@ namespace Qobuzarr.Tests
             _mockAuthService = new Mock<IQobuzAuthenticationService>();
             _mockApiClient = new Mock<IQobuzApiClient>();
             _mockClient = new Mock<IHttpClient>();
-            _mockQueueService = new Mock<IDownloadQueueService>();
             _mockFileService = new Mock<IDownloadFileService>();
             _mockConcurrencyManager = new Mock<IConcurrencyManager>();
-            _mockOrchestrator = new Mock<IDownloadOrchestrator>();
             _mockDownloadSummary = new Mock<IDownloadSummary>();
             _mockBatchProcessor = new Mock<IBatchProcessor>();
             _mockTrackDownloadService = new Mock<Lidarr.Plugin.Qobuzarr.Download.Services.ITrackDownloadService>();
@@ -164,10 +192,8 @@ namespace Qobuzarr.Tests
                 _mockAuthService.Object,
                 _mockApiClient.Object,
                 _mockClient.Object,
-                _mockQueueService.Object,
                 _mockFileService.Object,
                 _mockConcurrencyManager.Object,
-                _mockOrchestrator.Object,
                 _mockDownloadSummary.Object,
                 _mockBatchProcessor.Object,
                 _mockTrackDownloadService.Object,
@@ -179,9 +205,7 @@ namespace Qobuzarr.Tests
         }
 
         /// <summary>
-        /// Covers line 81: throw ArgumentNullException for null authService.
-        /// Source: src/Download/Clients/QobuzDownloadClient.cs:81
-        /// Constructor validates authService is not null.
+        /// Constructor throws ArgumentNullException for null authService.
         /// </summary>
         [Fact]
         public void Constructor_NullAuthService_ThrowsArgumentNullException()
@@ -192,10 +216,8 @@ namespace Qobuzarr.Tests
                     null,
                     _mockApiClient.Object,
                     _mockClient.Object,
-                    _mockQueueService.Object,
                     _mockFileService.Object,
                     _mockConcurrencyManager.Object,
-                    _mockOrchestrator.Object,
                     _mockDownloadSummary.Object,
                     _mockBatchProcessor.Object,
                     _mockTrackDownloadService.Object,
@@ -209,9 +231,7 @@ namespace Qobuzarr.Tests
         }
 
         /// <summary>
-        /// Covers line 82: throw ArgumentNullException for null apiClient.
-        /// Source: src/Download/Clients/QobuzDownloadClient.cs:82
-        /// Constructor validates apiClient is not null.
+        /// Constructor throws ArgumentNullException for null apiClient.
         /// </summary>
         [Fact]
         public void Constructor_NullApiClient_ThrowsArgumentNullException()
@@ -222,10 +242,8 @@ namespace Qobuzarr.Tests
                     _mockAuthService.Object,
                     null,
                     _mockClient.Object,
-                    _mockQueueService.Object,
                     _mockFileService.Object,
                     _mockConcurrencyManager.Object,
-                    _mockOrchestrator.Object,
                     _mockDownloadSummary.Object,
                     _mockBatchProcessor.Object,
                     _mockTrackDownloadService.Object,
@@ -239,9 +257,7 @@ namespace Qobuzarr.Tests
         }
 
         /// <summary>
-        /// Covers line 83: throw ArgumentNullException for null httpClient.
-        /// Source: src/Download/Clients/QobuzDownloadClient.cs:83
-        /// Constructor validates httpClient is not null.
+        /// Constructor throws ArgumentNullException for null httpClient.
         /// </summary>
         [Fact]
         public void Constructor_NullHttpClient_ThrowsArgumentNullException()
@@ -252,10 +268,8 @@ namespace Qobuzarr.Tests
                     _mockAuthService.Object,
                     _mockApiClient.Object,
                     null,
-                    _mockQueueService.Object,
                     _mockFileService.Object,
                     _mockConcurrencyManager.Object,
-                    _mockOrchestrator.Object,
                     _mockDownloadSummary.Object,
                     _mockBatchProcessor.Object,
                     _mockTrackDownloadService.Object,
@@ -269,39 +283,7 @@ namespace Qobuzarr.Tests
         }
 
         /// <summary>
-        /// Covers line 84: throw ArgumentNullException for null queueService.
-        /// Source: src/Download/Clients/QobuzDownloadClient.cs:84
-        /// Constructor validates queueService is not null.
-        /// </summary>
-        [Fact]
-        public void Constructor_NullQueueService_ThrowsArgumentNullException()
-        {
-            // Act & Assert
-            var ex = Assert.Throws<ArgumentNullException>(() =>
-                new QobuzDownloadClient(
-                    _mockAuthService.Object,
-                    _mockApiClient.Object,
-                    _mockClient.Object,
-                    null,
-                    _mockFileService.Object,
-                    _mockConcurrencyManager.Object,
-                    _mockOrchestrator.Object,
-                    _mockDownloadSummary.Object,
-                    _mockBatchProcessor.Object,
-                    _mockTrackDownloadService.Object,
-                    MockConfigService.Object,
-                    MockDiskProvider.Object,
-                    MockRemotePathMappingService.Object,
-                    MockLocalizationService.Object,
-                    MockLogger.Object));
-
-            ex.ParamName.Should().Be("queueService");
-        }
-
-        /// <summary>
-        /// Covers line 85: throw ArgumentNullException for null fileService.
-        /// Source: src/Download/Clients/QobuzDownloadClient.cs:85
-        /// Constructor validates fileService is not null.
+        /// Constructor throws ArgumentNullException for null fileService.
         /// </summary>
         [Fact]
         public void Constructor_NullFileService_ThrowsArgumentNullException()
@@ -312,10 +294,8 @@ namespace Qobuzarr.Tests
                     _mockAuthService.Object,
                     _mockApiClient.Object,
                     _mockClient.Object,
-                    _mockQueueService.Object,
                     null,
                     _mockConcurrencyManager.Object,
-                    _mockOrchestrator.Object,
                     _mockDownloadSummary.Object,
                     _mockBatchProcessor.Object,
                     _mockTrackDownloadService.Object,
@@ -329,9 +309,7 @@ namespace Qobuzarr.Tests
         }
 
         /// <summary>
-        /// Covers line 86: throw ArgumentNullException for null concurrencyManager.
-        /// Source: src/Download/Clients/QobuzDownloadClient.cs:86
-        /// Constructor validates concurrencyManager is not null.
+        /// Constructor throws ArgumentNullException for null concurrencyManager.
         /// </summary>
         [Fact]
         public void Constructor_NullConcurrencyManager_ThrowsArgumentNullException()
@@ -342,10 +320,8 @@ namespace Qobuzarr.Tests
                     _mockAuthService.Object,
                     _mockApiClient.Object,
                     _mockClient.Object,
-                    _mockQueueService.Object,
                     _mockFileService.Object,
                     null,
-                    _mockOrchestrator.Object,
                     _mockDownloadSummary.Object,
                     _mockBatchProcessor.Object,
                     _mockTrackDownloadService.Object,
@@ -359,39 +335,7 @@ namespace Qobuzarr.Tests
         }
 
         /// <summary>
-        /// Covers line 87: throw ArgumentNullException for null orchestrator.
-        /// Source: src/Download/Clients/QobuzDownloadClient.cs:87
-        /// Constructor validates orchestrator is not null.
-        /// </summary>
-        [Fact]
-        public void Constructor_NullOrchestrator_ThrowsArgumentNullException()
-        {
-            // Act & Assert
-            var ex = Assert.Throws<ArgumentNullException>(() =>
-                new QobuzDownloadClient(
-                    _mockAuthService.Object,
-                    _mockApiClient.Object,
-                    _mockClient.Object,
-                    _mockQueueService.Object,
-                    _mockFileService.Object,
-                    _mockConcurrencyManager.Object,
-                    null,
-                    _mockDownloadSummary.Object,
-                    _mockBatchProcessor.Object,
-                    _mockTrackDownloadService.Object,
-                    MockConfigService.Object,
-                    MockDiskProvider.Object,
-                    MockRemotePathMappingService.Object,
-                    MockLocalizationService.Object,
-                    MockLogger.Object));
-
-            ex.ParamName.Should().Be("orchestrator");
-        }
-
-        /// <summary>
-        /// Covers line 88: throw ArgumentNullException for null downloadSummary.
-        /// Source: src/Download/Clients/QobuzDownloadClient.cs:88
-        /// Constructor validates downloadSummary is not null.
+        /// Constructor throws ArgumentNullException for null downloadSummary.
         /// </summary>
         [Fact]
         public void Constructor_NullDownloadSummary_ThrowsArgumentNullException()
@@ -402,10 +346,8 @@ namespace Qobuzarr.Tests
                     _mockAuthService.Object,
                     _mockApiClient.Object,
                     _mockClient.Object,
-                    _mockQueueService.Object,
                     _mockFileService.Object,
                     _mockConcurrencyManager.Object,
-                    _mockOrchestrator.Object,
                     null,
                     _mockBatchProcessor.Object,
                     _mockTrackDownloadService.Object,
@@ -419,9 +361,7 @@ namespace Qobuzarr.Tests
         }
 
         /// <summary>
-        /// Covers line 89: throw ArgumentNullException for null batchProcessor.
-        /// Source: src/Download/Clients/QobuzDownloadClient.cs:89
-        /// Constructor validates batchProcessor is not null.
+        /// Constructor throws ArgumentNullException for null batchProcessor.
         /// </summary>
         [Fact]
         public void Constructor_NullBatchProcessor_ThrowsArgumentNullException()
@@ -432,10 +372,8 @@ namespace Qobuzarr.Tests
                     _mockAuthService.Object,
                     _mockApiClient.Object,
                     _mockClient.Object,
-                    _mockQueueService.Object,
                     _mockFileService.Object,
                     _mockConcurrencyManager.Object,
-                    _mockOrchestrator.Object,
                     _mockDownloadSummary.Object,
                     null,
                     _mockTrackDownloadService.Object,
@@ -449,9 +387,7 @@ namespace Qobuzarr.Tests
         }
 
         /// <summary>
-        /// Covers line 90: throw ArgumentNullException for null trackDownloadService.
-        /// Source: src/Download/Clients/QobuzDownloadClient.cs:90
-        /// Constructor validates trackDownloadService is not null.
+        /// Constructor throws ArgumentNullException for null trackDownloadService.
         /// </summary>
         [Fact]
         public void Constructor_NullTrackDownloadService_ThrowsArgumentNullException()
@@ -462,10 +398,8 @@ namespace Qobuzarr.Tests
                     _mockAuthService.Object,
                     _mockApiClient.Object,
                     _mockClient.Object,
-                    _mockQueueService.Object,
                     _mockFileService.Object,
                     _mockConcurrencyManager.Object,
-                    _mockOrchestrator.Object,
                     _mockDownloadSummary.Object,
                     _mockBatchProcessor.Object,
                     null,
@@ -525,16 +459,12 @@ namespace Qobuzarr.Tests
         }
 
         /// <summary>
-        /// Covers lines 173-208: GetItems returns empty list when queue service throws.
-        /// Source: src/Download/Clients/QobuzDownloadClient.cs:203-207
-        /// When an exception occurs, GetItems catches it and returns an empty list.
+        /// GetItems returns an empty (non-null) list when the tracker has no items.
         /// </summary>
         [Fact]
-        public void GetItems_WhenQueueServiceThrows_ReturnsEmptyList()
+        public void GetItems_WithNoTrackedDownloads_ReturnsEmptyList()
         {
             // Arrange
-            _mockQueueService.Setup(x => x.GetActiveDownloads())
-                .Throws(new InvalidOperationException("Queue service error"));
             var sut = CreateSut();
 
             // Act
@@ -546,22 +476,21 @@ namespace Qobuzarr.Tests
         }
 
         /// <summary>
-        /// Covers lines 173-208: GetItems returns items from active downloads.
-        /// Source: src/Download/Clients/QobuzDownloadClient.cs:183-187
+        /// GetItems returns items seeded into the process-wide tracker (single source of truth).
         /// </summary>
         [Fact]
-        public void GetItems_WithActiveDownloads_ReturnsItems()
+        public void GetItems_WithTrackedDownloads_ReturnsItems()
         {
             // Arrange
-            _mockQueueService.Setup(x => x.GetActiveDownloads())
-                .Returns(new List<QobuzDownloadItem>());
             var sut = CreateSut();
+            sut.SeedTracker(new QobuzDownloadItem { DownloadId = "x", Artist = "A", Title = "B" });
 
             // Act
-            var result = sut.GetItems();
+            var result = sut.GetItems().ToList();
 
             // Assert
             result.Should().NotBeNull();
+            result.Should().ContainSingle(r => r.DownloadId == "x");
         }
 
         /// <summary>
@@ -578,17 +507,14 @@ namespace Qobuzarr.Tests
         [Fact]
         public void GetItems_ReturnsItemsCarryingRegisteredClientId_NotZero()
         {
-            // Arrange: one in-flight item flowing through the queue-service source.
-            var item = new QobuzDownloadItem
+            // Arrange: one in-flight item flowing through the tracker (single source of truth).
+            var sut = CreateSut();
+            sut.SeedTracker(new QobuzDownloadItem
             {
                 DownloadId = "dl-1",
                 Artist = "Daft Punk",
                 Title = "Random Access Memories"
-            };
-            _mockQueueService.Setup(x => x.GetActiveDownloads())
-                .Returns(new List<QobuzDownloadItem> { item });
-
-            var sut = CreateSut();
+            });
             // Mirror how Lidarr registers a download client: a non-zero Definition.Id/Name.
             sut.Definition = new DownloadClientDefinition { Id = 42, Name = "Qobuzarr" };
 
@@ -605,9 +531,8 @@ namespace Qobuzarr.Tests
 
         /// <summary>
         /// Regression contract: <c>GetItems()</c> MUST NOT report the same download twice.
-        /// A just-completed download can briefly live in BOTH the Tracker snapshot and the
-        /// queue-service active-downloads list; emitting two <see cref="DownloadClientItem"/>s
-        /// with the same <c>DownloadId</c> gives Lidarr two queue entries for one download,
+        /// Emitting two <see cref="DownloadClientItem"/>s with the same <c>DownloadId</c>
+        /// gives Lidarr two queue entries for one download,
         /// which wedges CompletedDownloadService at <c>importPending</c> — the completed
         /// download never imports.
         ///
@@ -617,10 +542,12 @@ namespace Qobuzarr.Tests
         /// preview. Source: src/Download/Clients/QobuzDownloadClient.cs GetItems() dedup-by-id.
         /// </summary>
         [Fact]
-        public void GetItems_DedupsDownloadIdPresentInBothTrackerAndQueue()
+        public void GetItems_ReportsTrackedDownloadIdExactlyOnce()
         {
-            // Arrange: the SAME downloadId lives in both GetItems sources — the Tracker
-            // snapshot and the queue-service active list (the just-completed-download race).
+            // Wave C: the process-wide tracker is the single source of truth (the bespoke queue
+            // service was removed), so a downloadId can no longer appear twice across two sources.
+            // GetItems still dedups defensively; one tracked item must surface as exactly one entry.
+            // Duplicate downloadIds wedge Lidarr's CompletedDownloadService at importPending.
             const string sharedId = "dup-1";
             var sut = CreateSut();
             sut.Definition = new DownloadClientDefinition { Id = 7, Name = "Qobuzarr" };
@@ -631,18 +558,13 @@ namespace Qobuzarr.Tests
                 Artist = "Muse",
                 Title = "The Wow! Signal"
             });
-            _mockQueueService.Setup(x => x.GetActiveDownloads())
-                .Returns(new List<QobuzDownloadItem>
-                {
-                    new QobuzDownloadItem { DownloadId = sharedId, Artist = "Muse", Title = "The Wow! Signal" }
-                });
 
             // Act
             var result = sut.GetItems().ToList();
 
-            // Assert: exactly one entry for the shared downloadId — never two.
+            // Assert: exactly one entry for the downloadId — never two.
             result.Count(r => r.DownloadId == sharedId).Should().Be(1,
-                "a download present in both the Tracker snapshot and the active-queue list must be reported once; duplicate downloadIds wedge Lidarr's CompletedDownloadService at importPending");
+                "a tracked download must be reported once; duplicate downloadIds wedge Lidarr's CompletedDownloadService at importPending");
         }
 
         /// <summary>
@@ -672,8 +594,6 @@ namespace Qobuzarr.Tests
         public void Dispose_DisposesGracefully()
         {
             // Arrange
-            _mockQueueService.Setup(x => x.GetActiveDownloads())
-                .Returns(new List<QobuzDownloadItem>());
             _mockConcurrencyManager.Setup(x => x.Dispose());
             var sut = CreateSut();
 
@@ -689,8 +609,6 @@ namespace Qobuzarr.Tests
         public async Task DisposeAsync_DisposesGracefully()
         {
             // Arrange
-            _mockQueueService.Setup(x => x.GetActiveDownloads())
-                .Returns(new List<QobuzDownloadItem>());
             _mockConcurrencyManager.Setup(x => x.Dispose());
             var sut = CreateSut();
 
@@ -705,17 +623,16 @@ namespace Qobuzarr.Tests
         [Fact]
         public async Task DisposeAsync_CancelsActiveDownloads()
         {
-            // Arrange
+            // Arrange — the in-flight item lives in the process-wide tracker (single source).
             var downloadItem = new QobuzDownloadItem
             {
                 DownloadId = "test-id",
                 CancellationTokenSource = new System.Threading.CancellationTokenSource()
             };
             downloadItem.SetHostStatus(DownloadItemStatus.Downloading);
-            _mockQueueService.Setup(x => x.GetActiveDownloads())
-                .Returns(new List<QobuzDownloadItem> { downloadItem });
             _mockConcurrencyManager.Setup(x => x.Dispose());
             var sut = CreateSut();
+            sut.SeedTracker(downloadItem);
 
             // Act
             await sut.DisposeAsync();
@@ -724,9 +641,62 @@ namespace Qobuzarr.Tests
             downloadItem.CancellationTokenSource.IsCancellationRequested.Should().BeTrue();
         }
 
+        [Fact]
+        public async Task DisposeAsync_DoesNotCancelRetainedCompletedDownloads()
+        {
+            // Arrange: Common retains terminal items briefly so Lidarr can import them. Graceful
+            // shutdown must only cancel active work, not mutate a retained completed item to Failed.
+            using var cts = new System.Threading.CancellationTokenSource();
+            var downloadItem = new QobuzDownloadItem
+            {
+                DownloadId = "completed-id",
+                CancellationTokenSource = cts
+            };
+            downloadItem.SetHostStatus(DownloadItemStatus.Completed);
+            _mockConcurrencyManager.Setup(x => x.Dispose());
+            var sut = CreateSut();
+            sut.SeedTracker(downloadItem);
+
+            // Act
+            await sut.DisposeAsync();
+
+            // Assert
+            downloadItem.GetHostStatus().Should().Be(DownloadItemStatus.Completed);
+            cts.IsCancellationRequested.Should().BeFalse(
+                "retained completed tracker entries are not active downloads");
+        }
+
+        [Fact]
+        public async Task DisposeAsync_StopsWaitingAfterGracefulShutdownTimeout()
+        {
+            // Arrange: a non-cooperative active download task can outlive cancellation. Dispose must
+            // stop waiting at the graceful-shutdown budget instead of hanging Lidarr shutdown.
+            var neverCompletes = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            using var cts = new System.Threading.CancellationTokenSource();
+            var downloadItem = new QobuzDownloadItem
+            {
+                DownloadId = "non-cooperative-id",
+                CancellationTokenSource = cts,
+                DownloadTask = neverCompletes.Task
+            };
+            downloadItem.SetHostStatus(DownloadItemStatus.Downloading);
+            _mockConcurrencyManager.Setup(x => x.Dispose());
+            var sut = CreateSut();
+            sut.GracefulShutdownTimeoutOverride = TimeSpan.FromMilliseconds(50);
+            sut.SeedTracker(downloadItem);
+
+            // Act
+            var disposeTask = sut.DisposeAsync().AsTask();
+            await disposeTask.WaitAsync(TimeSpan.FromSeconds(2));
+
+            // Assert
+            disposeTask.IsCompletedSuccessfully.Should().BeTrue();
+            cts.IsCancellationRequested.Should().BeTrue();
+        }
+
         /// <summary>
-        /// Covers lines 210-255: RemoveItem cancels downloading items.
-        /// Source: src/Download/Clients/QobuzDownloadClient.cs:231-233
+        /// RemoveItem cancels a downloading item's CancellationTokenSource (the cancel source of
+        /// truth that PerformDownloadAsync observes). Wave C: the item is resolved from the tracker.
         /// </summary>
         [Fact]
         public void RemoveItem_CancelsDownloadingItems()
@@ -738,11 +708,8 @@ namespace Qobuzarr.Tests
                 CancellationTokenSource = new System.Threading.CancellationTokenSource()
             };
             downloadItem.SetHostStatus(DownloadItemStatus.Downloading);
-            _mockQueueService.Setup(x => x.TryGetDownload("test-id", out downloadItem))
-                .Returns(true);
-            _mockQueueService.Setup(x => x.RemoveDownload("test-id", false))
-                .Returns(true);
             var sut = CreateSut();
+            sut.SeedTracker(downloadItem);
 
             var clientItem = new DownloadClientItem
             {
@@ -756,17 +723,70 @@ namespace Qobuzarr.Tests
             downloadItem.CancellationTokenSource.IsCancellationRequested.Should().BeTrue();
         }
 
+        [Theory]
+        [InlineData(false)]
+        [InlineData(true)]
+        public async Task RemoveItem_CancelsQueuedItems(bool deleteData)
+        {
+            // Arrange: Common inserts the item into the tracker while its status is still Queued.
+            // A user remove during that window must cancel the same CTS that the background work
+            // will observe once it starts.
+            using var cts = new System.Threading.CancellationTokenSource();
+            var downloadItem = new QobuzDownloadItem
+            {
+                DownloadId = "queued-id",
+                CancellationTokenSource = cts,
+                DownloadTask = Task.CompletedTask
+            };
+            downloadItem.SetHostStatus(DownloadItemStatus.Queued);
+            var sut = CreateSut();
+            sut.SeedTracker(downloadItem);
+
+            // Act
+            sut.RemoveItem(new DownloadClientItem { DownloadId = "queued-id" }, deleteData);
+            if (sut.PendingCleanupTask != null)
+            {
+                await sut.PendingCleanupTask.WaitAsync(TimeSpan.FromSeconds(5));
+            }
+
+            // Assert
+            cts.IsCancellationRequested.Should().BeTrue(
+                "queued downloads are active work and must observe RemoveItem cancellation");
+            sut.GetTrackedItem("queued-id").Should().BeNull();
+        }
+
+        [Fact]
+        public void GetItems_DoesNotReturnLastQueuedItemAfterTrackerRetentionEvictsIt()
+        {
+            // Arrange: Common evicts old terminal items as a side-effect of GetSnapshot().
+            // The legacy _lastQueuedItem fallback must not resurrect an evicted terminal item.
+            var sut = CreateSut();
+            var evicted = new QobuzDownloadItem
+            {
+                DownloadId = "evicted-id",
+                Artist = "Artist",
+                Title = "Old Album",
+                CompletedAt = DateTime.UtcNow.AddHours(-2)
+            };
+            evicted.SetHostStatus(DownloadItemStatus.Completed);
+            sut.SeedTracker(evicted);
+            sut.SetLastQueuedItem(evicted);
+
+            // Act
+            var items = sut.GetItems().ToList();
+
+            // Assert
+            items.Should().BeEmpty("the tracker retention sweep is authoritative once it evicts a terminal item");
+            sut.GetTrackedItem("evicted-id").Should().BeNull();
+        }
+
         /// <summary>
-        /// Covers lines 210-255: RemoveItem handles items not in queue.
-        /// Source: src/Download/Clients/QobuzDownloadClient.cs:240-249
+        /// RemoveItem handles items that are not tracked (no-op, no throw).
         /// </summary>
         [Fact]
-        public void RemoveItem_HandlesItemsNotInQueue()
+        public void RemoveItem_HandlesItemsNotTracked()
         {
             // Arrange
-            QobuzDownloadItem nullItem = null;
-            _mockQueueService.Setup(x => x.TryGetDownload("unknown-id", out nullItem))
-                .Returns(false);
             var sut = CreateSut();
 
             var clientItem = new DownloadClientItem
@@ -779,32 +799,34 @@ namespace Qobuzarr.Tests
         }
 
         /// <summary>
-        /// Covers lines 210-255: RemoveItem with DownloadClientItem overload.
-        /// Source: src/Download/Clients/QobuzDownloadClient.cs:210-213
+        /// RemoveItem with deleteData:true (DownloadClientItem overload) completes its deferred
+        /// cleanup without throwing.
         /// </summary>
         [Fact]
-        public void RemoveItem_WithDownloadClientItem_DelegatesToRemoveItem()
+        public async Task RemoveItem_WithDownloadClientItem_DelegatesToRemoveItem()
         {
             // Arrange
             var downloadItem = new QobuzDownloadItem
             {
                 DownloadId = "test-id",
+                DownloadTask = Task.CompletedTask,
                 CancellationTokenSource = new System.Threading.CancellationTokenSource()
             };
             // Status defaults to Queued
-            _mockQueueService.Setup(x => x.TryGetDownload("test-id", out downloadItem))
-                .Returns(true);
-            _mockQueueService.Setup(x => x.RemoveDownload("test-id", true))
-                .Returns(true);
             var sut = CreateSut();
+            sut.SeedTracker(downloadItem);
 
             var clientItem = new DownloadClientItem
             {
                 DownloadId = "test-id"
             };
 
-            // Act & Assert - should not throw
+            // Act & Assert - should not throw; await the deferred cleanup for determinism.
             sut.RemoveItem(clientItem, true);
+            if (sut.PendingCleanupTask != null)
+            {
+                await sut.PendingCleanupTask;
+            }
         }
     }
 
@@ -822,10 +844,8 @@ namespace Qobuzarr.Tests
         private readonly Mock<IQobuzAuthenticationService> _mockAuthService = new();
         private readonly Mock<IQobuzApiClient> _mockApiClient = new();
         private readonly Mock<IHttpClient> _mockClient = new();
-        private readonly Mock<IDownloadQueueService> _mockQueueService = new();
         private readonly Mock<IDownloadFileService> _mockFileService = new();
         private readonly Mock<IConcurrencyManager> _mockConcurrencyManager = new();
-        private readonly Mock<IDownloadOrchestrator> _mockOrchestrator = new();
         private readonly Mock<IDownloadSummary> _mockDownloadSummary = new();
         private readonly Mock<IBatchProcessor> _mockBatchProcessor = new();
         private readonly Mock<Lidarr.Plugin.Qobuzarr.Download.Services.ITrackDownloadService> _mockTrackDownloadService = new();
@@ -837,10 +857,8 @@ namespace Qobuzarr.Tests
                 _mockAuthService.Object,
                 _mockApiClient.Object,
                 _mockClient.Object,
-                _mockQueueService.Object,
                 _mockFileService.Object,
                 _mockConcurrencyManager.Object,
-                _mockOrchestrator.Object,
                 _mockDownloadSummary.Object,
                 _mockBatchProcessor.Object,
                 _mockTrackDownloadService.Object,
@@ -986,7 +1004,6 @@ namespace Qobuzarr.Tests
         {
             var fresh = FreshSession();
             QobuzCredentials capturedCredentials = null;
-            QobuzDownloadItem queuedItem = null;
 
             _mockAuthService.SetupSequence(a => a.GetCachedSession())
                 .Returns((QobuzSession)null)
@@ -1009,9 +1026,6 @@ namespace Qobuzarr.Tests
                     It.IsAny<QobuzDownloadSettings>(),
                     It.IsAny<System.Threading.CancellationToken>()))
                 .Returns(Task.CompletedTask);
-            _mockQueueService
-                .Setup(q => q.AddDownload(It.IsAny<QobuzDownloadItem>()))
-                .Callback<QobuzDownloadItem>(item => queuedItem = item);
 
             var indexerSettings = new QobuzIndexerSettings
             {
@@ -1028,6 +1042,7 @@ namespace Qobuzarr.Tests
             var sut = CreateSut(credsFromSettings: null);
 
             var downloadId = await sut.Download(CreateRemoteAlbum(), indexer.Object);
+            var queuedItem = sut.GetTrackedItem(downloadId);
             if (queuedItem?.DownloadTask != null)
             {
                 await queuedItem.DownloadTask;
@@ -1064,7 +1079,6 @@ namespace Qobuzarr.Tests
                 ExpiresAt = DateTime.UtcNow.AddHours(24)
             };
             QobuzCredentials capturedCredentials = null;
-            QobuzDownloadItem queuedItem = null;
 
             _mockAuthService.SetupSequence(a => a.GetCachedSession())
                 .Returns(cachedForOtherIndexer)
@@ -1087,9 +1101,6 @@ namespace Qobuzarr.Tests
                     It.IsAny<QobuzDownloadSettings>(),
                     It.IsAny<System.Threading.CancellationToken>()))
                 .Returns(Task.CompletedTask);
-            _mockQueueService
-                .Setup(q => q.AddDownload(It.IsAny<QobuzDownloadItem>()))
-                .Callback<QobuzDownloadItem>(item => queuedItem = item);
 
             var indexerSettings = new QobuzIndexerSettings
             {
@@ -1108,6 +1119,7 @@ namespace Qobuzarr.Tests
             var sut = CreateSut(credsFromSettings: null);
 
             var downloadId = await sut.Download(CreateRemoteAlbum(), indexer.Object);
+            var queuedItem = sut.GetTrackedItem(downloadId);
             if (queuedItem?.DownloadTask != null)
             {
                 await queuedItem.DownloadTask;
@@ -1222,7 +1234,9 @@ namespace Qobuzarr.Tests
             await Assert.ThrowsAnyAsync<OperationCanceledException>(
                 () => sut.EnsureAuthenticatedAsync(null, cts.Token));
 
+            _mockAuthService.Verify(a => a.GetCachedSession(), Times.Never);
             _mockAuthService.Verify(a => a.AuthenticateAsync(It.IsAny<QobuzCredentials>()), Times.Never);
+            _mockApiClient.Verify(c => c.SetSession(It.IsAny<QobuzSession>()), Times.Never);
         }
 
         private static RemoteAlbum CreateRemoteAlbum()

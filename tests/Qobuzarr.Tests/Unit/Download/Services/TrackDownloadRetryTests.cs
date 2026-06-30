@@ -28,14 +28,12 @@ namespace Qobuzarr.Tests.Unit.Download.Services
             IQobuzApiClient Api,
             IConcurrencyManager Concurrency,
             IDownloadSummary Summary,
-            IDownloadQueueService Queue,
             Logger Logger);
 
         private static DepsForTest MakeDeps() => new(
             Mock.Of<IQobuzApiClient>(),
             Mock.Of<IConcurrencyManager>(),
             Mock.Of<IDownloadSummary>(),
-            Mock.Of<IDownloadQueueService>(),
             LogManager.GetLogger("TrackDownloadRetryTests"));
 
         private sealed class FakeTrackDownloadService : TrackDownloadService
@@ -54,7 +52,7 @@ namespace Qobuzarr.Tests.Unit.Download.Services
                 int maxAttempts,
                 Func<Exception>? transientFactory = null,
                 Exception? nonTransient = null)
-                : base(deps.Api, deps.Concurrency, deps.Summary, deps.Queue, deps.Logger)
+                : base(deps.Api, deps.Concurrency, deps.Summary, deps.Logger)
             {
                 _succeedOnAttempt = succeedOnAttempt;
                 MaxDownloadAttempts = maxAttempts;

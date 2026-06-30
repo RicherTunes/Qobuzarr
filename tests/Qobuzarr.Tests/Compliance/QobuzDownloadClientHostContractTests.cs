@@ -16,7 +16,6 @@ using Lidarr.Plugin.Qobuzarr.API;
 using Lidarr.Plugin.Qobuzarr.Authentication;
 using Lidarr.Plugin.Qobuzarr.Download;
 using Lidarr.Plugin.Qobuzarr.Download.Clients;
-using Lidarr.Plugin.Qobuzarr.Download.Orchestration;
 using Lidarr.Plugin.Qobuzarr.Download.Services;
 using Xunit;
 
@@ -88,11 +87,12 @@ namespace Qobuzarr.Tests.Compliance
 
         protected override IReadOnlyList<HostDownloadItemView> DuplicateDownloadId(string downloadId)
         {
-            // The SAME downloadId lives in both GetItems sources — the Tracker snapshot and the
-            // queue-service active list (the just-completed-download race). GetItems must report
-            // it once; two entries with the same id wedge Lidarr's CompletedDownloadService at
-            // importPending (the completed download never imports).
-            var (sut, queue) = BuildClient();
+            // Wave C: the process-wide tracker is the single source of truth (the bespoke queue
+            // service was removed), so a download can no longer appear twice across two sources.
+            // GetItems still dedups by downloadId defensively; seeding the tracker once must yield
+            // exactly one entry — two entries with the same id wedge Lidarr's
+            // CompletedDownloadService at importPending (the completed download never imports).
+            var sut = BuildClient();
 
             sut.SeedTracker(new QobuzDownloadItem
             {
@@ -100,11 +100,6 @@ namespace Qobuzarr.Tests.Compliance
                 Artist = "Muse",
                 Title = "The Wow! Signal",
             });
-            queue.Setup(x => x.GetActiveDownloads())
-                .Returns(new List<QobuzDownloadItem>
-                {
-                    new QobuzDownloadItem { DownloadId = downloadId, Artist = "Muse", Title = "The Wow! Signal" }
-                });
 
             return sut.GetItems().Select(ToView).ToList();
         }
@@ -117,7 +112,7 @@ namespace Qobuzarr.Tests.Compliance
         /// </summary>
         private static HostDownloadItemView ProjectThroughGetItems(QobuzDownloadItem seed)
         {
-            var (sut, _) = BuildClient();
+            var sut = BuildClient();
             sut.SeedTracker(seed);
             var dto = sut.GetItems().Single(i => i.DownloadId == seed.DownloadId);
             return ToView(dto);
@@ -130,19 +125,14 @@ namespace Qobuzarr.Tests.Compliance
             dto.CanMoveFiles,
             dto.CanBeRemoved);
 
-        private static (TestableQobuzDownloadClient sut, Mock<IDownloadQueueService> queue) BuildClient()
+        private static TestableQobuzDownloadClient BuildClient()
         {
-            var queue = new Mock<IDownloadQueueService>();
-            queue.Setup(x => x.GetActiveDownloads()).Returns(new List<QobuzDownloadItem>());
-
             var sut = new TestableQobuzDownloadClient(
                 new Mock<IQobuzAuthenticationService>().Object,
                 new Mock<IQobuzApiClient>().Object,
                 new Mock<IHttpClient>().Object,
-                queue.Object,
                 new Mock<IDownloadFileService>().Object,
                 new Mock<IConcurrencyManager>().Object,
-                new Mock<IDownloadOrchestrator>().Object,
                 new Mock<IDownloadSummary>().Object,
                 new Mock<IBatchProcessor>().Object,
                 new Mock<ITrackDownloadService>().Object,
@@ -153,7 +143,7 @@ namespace Qobuzarr.Tests.Compliance
                 LogManager.GetCurrentClassLogger());
 
             sut.Definition = new DownloadClientDefinition { Id = ClientId, Name = "Qobuzarr" };
-            return (sut, queue);
+            return sut;
         }
     }
 }
