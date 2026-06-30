@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -45,8 +46,9 @@ namespace Qobuzarr.Tests.Unit.Download.Services
             public SyntheticTrackDownloadService(
                 CommonDownloadResult result,
                 Action<QobuzTrackClassifier>? seedClassifier = null,
-                Action<IProgress<CommonDownloadProgress>>? reportProgress = null)
-                : base(Mock.Of<IQobuzApiClient>(), Mock.Of<IConcurrencyManager>(), Mock.Of<IDownloadSummary>(), Mock.Of<IDownloadQueueService>(), Log)
+                Action<IProgress<CommonDownloadProgress>>? reportProgress = null,
+                IDownloadSummary? downloadSummary = null)
+                : base(Mock.Of<IQobuzApiClient>(), Mock.Of<IConcurrencyManager>(), downloadSummary ?? Mock.Of<IDownloadSummary>(), Log)
             {
                 _result = result;
                 _seedClassifier = seedClassifier;
@@ -218,10 +220,67 @@ namespace Qobuzarr.Tests.Unit.Download.Services
             classifier.SkippedCount.Should().Be(0, "a non-preview error is a failure, not a skip");
         }
 
+        [Fact]
+        public async Task DownloadAlbumAsync_LogsBriefSummaryInsteadOfRegeneratingFullReportPerAlbum()
+        {
+            var album = MakeAlbum(2);
+            var item = MakeItem();
+            var result = SyntheticResult(successful: 2, total: 2);
+            var summary = new Mock<IDownloadSummary>(MockBehavior.Strict);
+            summary.Setup(s => s.RecordAlbumResult(
+                    It.IsAny<string>(),
+                    It.IsAny<string>(),
+                    It.IsAny<int>(),
+                    It.IsAny<int>(),
+                    It.IsAny<int>(),
+                    It.IsAny<int>(),
+                    It.IsAny<long>()));
+            summary.Setup(s => s.GetBriefSummary()).Returns("Downloaded 1/1 albums");
+            var sut = new SyntheticTrackDownloadService(result, downloadSummary: summary.Object);
+
+            await sut.DownloadAlbumAsync(item, album, new QobuzDownloadSettings(), CancellationToken.None);
+
+            summary.Verify(s => s.GetBriefSummary(), Times.Once);
+            summary.Verify(s => s.GenerateReport(), Times.Never,
+                "full cumulative reports are too noisy and O(n) per album when several downloads complete concurrently");
+        }
+
+        [Fact]
+        public async Task DownloadAlbumAsync_HttpLoopbackStreamUrl_IsBlockedByProductionUriPolicy()
+        {
+            var api = new Mock<IQobuzApiClient>();
+            api.Setup(a => a.GetStreamingInfoAsync("t1", It.IsAny<int>(), It.IsAny<CancellationToken>()))
+               .ReturnsAsync(new QobuzStreamResponse { Url = "http://127.0.0.1:9/internal.flac", FormatId = 6 });
+            var sut = MakeService(api.Object);
+            var outputPath = Path.Combine(Path.GetTempPath(), "qobuzarr-ssrf-" + Guid.NewGuid().ToString("N"));
+            var item = MakeItem(outputPath);
+
+            try
+            {
+                var act = async () => await sut.DownloadAlbumAsync(item, MakeAlbum(1), new QobuzDownloadSettings { PreferredQuality = 6 }, CancellationToken.None);
+
+                var ex = await act.Should().ThrowAsync<AlbumDownloadException>();
+                ex.Which.FailedTracks.Should().Be(1);
+                ex.Which.TrackResults.Should().ContainSingle(r =>
+                    !r.Success &&
+                    r.Message != null &&
+                    r.Message.Contains("Unsafe stream URL", StringComparison.Ordinal));
+                Directory.EnumerateFiles(outputPath, "*", SearchOption.AllDirectories)
+                    .Should().BeEmpty("blocked stream URLs must fail before any media file is created");
+            }
+            finally
+            {
+                if (Directory.Exists(outputPath))
+                {
+                    Directory.Delete(outputPath, recursive: true);
+                }
+            }
+        }
+
         // ── helpers ──────────────────────────────────────────────────────────────────────────────
 
         private static TrackDownloadService MakeService(IQobuzApiClient api)
-            => new TrackDownloadService(api, Mock.Of<IConcurrencyManager>(), Mock.Of<IDownloadSummary>(), Mock.Of<IDownloadQueueService>(), Log);
+            => new TrackDownloadService(api, Mock.Of<IConcurrencyManager>(), Mock.Of<IDownloadSummary>(), Log);
 
         private static QobuzAlbum MakeAlbum(int trackCount)
         {
@@ -240,8 +299,8 @@ namespace Qobuzarr.Tests.Unit.Download.Services
             };
         }
 
-        private static QobuzDownloadItem MakeItem()
-            => new QobuzDownloadItem { AlbumId = "alb", Title = "Album", Artist = "Artist", OutputPath = "out", TotalSize = 1000 };
+        private static QobuzDownloadItem MakeItem(string? outputPath = null)
+            => new QobuzDownloadItem { AlbumId = "alb", Title = "Album", Artist = "Artist", OutputPath = outputPath ?? "out", TotalSize = 1000 };
 
         private sealed class QueuingSynchronizationContext : SynchronizationContext
         {

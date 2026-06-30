@@ -45,7 +45,6 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Services
         private readonly IQobuzApiClient _apiClient;
         private readonly IConcurrencyManager _concurrencyManager;
         private readonly IDownloadSummary _downloadSummary;
-        private readonly IDownloadQueueService _queueService;
         private readonly ILyricsEnricher? _lyricsEnricher;
         private readonly Logger _logger;
 
@@ -53,14 +52,12 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Services
             IQobuzApiClient apiClient,
             IConcurrencyManager concurrencyManager,
             IDownloadSummary downloadSummary,
-            IDownloadQueueService queueService,
             Logger logger,
             ILyricsEnricher? lyricsEnricher = null)
         {
             _apiClient = apiClient ?? throw new ArgumentNullException(nameof(apiClient));
             _concurrencyManager = concurrencyManager ?? throw new ArgumentNullException(nameof(concurrencyManager));
             _downloadSummary = downloadSummary ?? throw new ArgumentNullException(nameof(downloadSummary));
-            _queueService = queueService ?? throw new ArgumentNullException(nameof(queueService));
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
             _lyricsEnricher = lyricsEnricher;
         }
@@ -110,11 +107,10 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Services
                     downloadItem.QualityFallbackExample ?? "fallback quality");
             }
 
-            if (_queueService.ActiveDownloadCount == 0)
-            {
-                var summaryReport = _downloadSummary.GenerateReport();
-                _logger.Info(summaryReport);
-            }
+            // Wave C removed the bespoke queue service that previously knew when all active
+            // downloads were finished. Avoid regenerating and logging the full cumulative report
+            // after every album; the track service only emits a compact progress line.
+            _logger.Info(_downloadSummary.GetBriefSummary());
 
             var policy = settings.GetDownloadPolicy();
             var isSuccessful = policy.IsAlbumDownloadSuccessful(totalTracks, successfulTracks, skippedTracks);
