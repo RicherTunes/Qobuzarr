@@ -16,6 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `packaging-gates`: opt out of the canonical-Abstractions sidecar (`require-canonical-abstractions: false`) — Qobuzarr internalizes Abstractions via ILRepack, so the gate now validates the internalized package it actually ships. See Common #549.
 
 ### Dependencies
+- `ext/Lidarr.Plugin.Common` re-pinned to **`52a344b`** — picks up the `BoundedConcurrentDictionary` concurrency-cap fix used by Qobuzarr's query-complexity cache. The Common regression covers the near-capacity concurrent `GetOrAdd` race where the cache could settle above its advertised bound.
 - `ext/Lidarr.Plugin.Common` re-pinned to **`24b43c1`** — picks up the `PathTraversalGuard` trailing-separator fix (#552), the `.NET 8` runtime guardrail `includedFrameworks` probe (#548), and the opt-in canonical-Abstractions packaging gate (#549). `ext-common-sha.txt` updated accordingly.
 - `ext/Lidarr.Plugin.Common` bumped to **v1.17.0** (`639d573`) Wave-23 — picks up the Wave-21 parity helpers. Qobuzarr doesn't consume these today (custom GUID grammar + own path-traversal logic), but the bump keeps the ecosystem lockstep.
 - `ext-common-sha.txt` aligned to `639d573` (was `f90ecef`, then `936556e` after Wave-22).
