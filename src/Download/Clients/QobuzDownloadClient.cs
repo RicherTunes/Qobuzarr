@@ -70,6 +70,13 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Clients
 
         protected virtual HostBridgeDownloadTrackerStore<QobuzDownloadItem> Tracker => _staticTracker;
 
+        // Centralised fire-and-forget download enqueue (Wave A). Replaces the bespoke
+        // snapshot → Guid → tracker-insert → Task.Run pattern with Common's orchestrator,
+        // shared by every RicherTunes streaming plugin. logger:null — the plugin's own
+        // PluginLogContext already covers the surrounding scope. Static so it is shared
+        // across Lidarr's client re-instantiation cycles (mirrors the Tidalarr pattern).
+        private static readonly HostBridgeDownloadOrchestrator _downloadOrchestrator = new(logger: null);
+
         // Single-flight gate for download-path re-authentication. Qobuz has no refresh token, so
         // renewal is a full re-login (login-rate-limited + scrapes the web player). Serialize renewals
         // so N concurrent downloads that all find the session stale trigger ONE re-auth, not N — mirrors
@@ -152,6 +159,9 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Clients
             using var _scope = PluginLogContext.Push("Qobuzarr", "Download");
             try
             {
+                // ── Pre-flight (synchronous; any failure throws BEFORE the download is enqueued
+                //    so the host sees the error instead of a phantom queued item) ──
+
                 // AuthFailureGate pre-flight: abort immediately if credentials are known bad,
                 // rather than queueing a download that will fail at the first API call.
                 if (IsAuthShortCircuited(_apiClient.Gate))
@@ -173,49 +183,82 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Clients
                     throw new InvalidOperationException("Could not extract album ID from release");
                 }
 
-                // Generate unique download ID
-                var downloadId = Guid.NewGuid().ToString("N");
-
-                // Create download item with file service integration
+                // Resolve everything the background work needs BEFORE enqueue.
                 var outputPath = BuildOutputPath(remoteAlbum);
+                var effectiveSettings = GetEffectiveSettings();
                 // Capture the configured download root for root-contained failed-download cleanup (F-10).
                 // base.Settings can rely on Definition (not set in some unit-test paths), so resolve defensively.
                 string? downloadRoot = null;
-                try { downloadRoot = GetEffectiveSettings()?.DownloadPath; }
+                try { downloadRoot = effectiveSettings?.DownloadPath; }
                 catch (Exception ex) { _logger.Debug(ex, "Could not resolve download root for cleanup containment"); }
-                var downloadItem = new QobuzDownloadItem
-                {
-                    DownloadId = downloadId,
-                    AlbumId = albumId,
-                    Title = remoteAlbum.Albums?.FirstOrDefault()?.Title ?? "Unknown Album",
-                    Artist = remoteAlbum.Artist?.Name ?? "Unknown Artist",
-                    StartedAt = DateTime.UtcNow,
-                    OutputPath = outputPath,
-                    DownloadRoot = downloadRoot,
-                    CancellationTokenSource = new CancellationTokenSource(),
-                    ReauthCredentials = BuildReauthCredentialsFromIndexer(indexer)
-                };
-                // Status defaults to Queued (HostBridgeDownloadItem initial state = 0 = Queued)
+                var artist = remoteAlbum.Artist?.Name ?? "Unknown Artist";
+                var reauthCredentials = BuildReauthCredentialsFromIndexer(indexer);
 
-                // Register with the process-wide tracker store (survives re-instantiation).
-                Tracker.AddOrReplace(downloadItem);
-                _lastQueuedItem = downloadItem;
+                // The orchestrator owns the fire-and-forget Task.Run, so we expose the in-flight
+                // work as a TaskCompletionSource. QobuzDownloadItem.DownloadTask must stay set:
+                // DownloadQueueService.RemoveDownload(deleteData:true) awaits it before cleanup
+                // (the Race-1 guard against deleting in-flight .partial files → infinite re-grab
+                // loop) and DisposeAsync awaits it for graceful shutdown.
+                var workCompletion = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
 
-                // Add to queue service
-                _queueService.AddDownload(downloadItem);
-
-                // Start download task asynchronously
-                downloadItem.DownloadTask = Task.Run(async () =>
-                {
-                    try
+                // HostBridgeDownloadOrchestrator (Wave A): snapshot → generate downloadId →
+                // itemFactory → insert into tracker → fire-and-forget doWork → return id.
+                var downloadId = await _downloadOrchestrator.StartTrackedDownloadAsync<QobuzDownloadItem, QobuzDownloadSettings>(
+                    settings: effectiveSettings,
+                    tracker: Tracker,
+                    // Identity snapshotter: PerformDownloadAsync reads its own settings via
+                    // GetEffectiveSettings() internally rather than the passed snapshot, so there is
+                    // no live-settings field to isolate here — a pass-through is correct. (Wave A.)
+                    snapshotter: static s => s,
+                    itemFactory: (_, id) =>
                     {
-                        await PerformDownloadAsync(downloadItem).ConfigureAwait(false);
-                    }
-                    finally
+                        var downloadItem = new QobuzDownloadItem
+                        {
+                            DownloadId = id,
+                            AlbumId = albumId,
+                            Title = albumTitle,
+                            Artist = artist,
+                            StartedAt = DateTime.UtcNow,
+                            OutputPath = outputPath,
+                            DownloadRoot = downloadRoot,
+                            CancellationTokenSource = new CancellationTokenSource(),
+                            ReauthCredentials = reauthCredentials,
+                            DownloadTask = workCompletion.Task
+                        };
+                        // Status defaults to Queued (HostBridgeDownloadItem initial state = 0 = Queued)
+
+                        // Side effects preserved from the bespoke pattern: register the item (with
+                        // its generated downloadId) with the queue service and remember it as the
+                        // last queued item. Run inside the factory so they happen before Task.Run.
+                        _queueService.AddDownload(downloadItem);
+                        _lastQueuedItem = downloadItem;
+                        return downloadItem;
+                    },
+                    doWork: async (_, _, item, _) =>
                     {
-                        Tracker.PersistSnapshot();
-                    }
-                });
+                        try
+                        {
+                            await PerformDownloadAsync(item).ConfigureAwait(false);
+                        }
+                        finally
+                        {
+                            // Signal DownloadTask completion. The orchestrator persists the tracker
+                            // itself (see its finally → tracker.PersistSnapshot()), so we don't.
+                            workCompletion.TrySetResult();
+                        }
+                    },
+                    new HostBridgeDownloadStartOptions<QobuzDownloadItem>
+                    {
+                        // Cancellation source of truth stays the item's own CancellationTokenSource:
+                        // RemoveItem(downloadId) → trackerItem.Cancel() → CTS.Cancel(), and
+                        // PerformDownloadAsync observes item.CancellationTokenSource.Token. Registering
+                        // it here links the orchestrator's effective token to the same CTS so the
+                        // orchestrator also observes cancellation. The item owns CTS disposal
+                        // (QobuzDownloadItem.Dispose), so the registration carries no dispose action.
+                        RegisterCancellation = (_, item) =>
+                            new HostBridgeDownloadCancellationRegistration(
+                                item.CancellationTokenSource?.Token ?? CancellationToken.None)
+                    }).ConfigureAwait(false);
 
                 _logger.Debug("Qobuz download queued with ID: {0}", downloadId);
                 return downloadId;

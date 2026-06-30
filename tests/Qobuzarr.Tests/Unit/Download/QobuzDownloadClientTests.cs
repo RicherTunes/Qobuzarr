@@ -573,6 +573,125 @@ namespace Qobuzarr.Tests.Unit.Download
             items.Select(x => x.DownloadId).Should().Contain(downloadId2);
         }
 
+        // ───────────────────────────────────────────────────────────────────────────
+        // Wave A: HostBridgeDownloadOrchestrator adoption — behavior-contract guards.
+        // These pin the live-proven behavior the orchestrator refactor must preserve:
+        //   1. the item is visible in GetItems() the instant Download() returns (the
+        //      orchestrator inserts into the tracker BEFORE scheduling the work — no race);
+        //   2. Download() registers the item with the queue service and sets _lastQueuedItem;
+        //   3. RemoveItem() still cancels the in-flight item's own CancellationTokenSource
+        //      (the cancel source-of-truth that PerformDownloadAsync observes).
+        // ───────────────────────────────────────────────────────────────────────────
+
+        [Fact]
+        public async Task Download_ItemIsVisibleInGetItems_BeforeWorkCompletes_NoPreInsertRace()
+        {
+            // Arrange: block the track download so the item is genuinely still in-flight when
+            // we poll GetItems() right after Download() returns. If the orchestrator inserted
+            // into the tracker only AFTER scheduling Task.Run, this poll could miss the item.
+            var entered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            _mockTrackDownloadService.DownloadAlbumAsync(
+                Arg.Any<QobuzDownloadItem>(),
+                Arg.Any<QobuzAlbum>(),
+                Arg.Any<QobuzDownloadSettings>(),
+                Arg.Any<CancellationToken>())
+                .Returns(async ci =>
+                {
+                    entered.TrySetResult();
+                    var ct = ci.ArgAt<CancellationToken>(3);
+                    await Task.Delay(Timeout.Infinite, ct);
+                });
+
+            var remoteAlbum = CreateTestRemoteAlbum();
+
+            // Act
+            var downloadId = await _downloadClient.Download(remoteAlbum, Substitute.For<IIndexer>());
+            var itemsImmediately = _downloadClient.GetItems().ToList();
+
+            // Assert: visible immediately, keyed by the generated downloadId.
+            downloadId.Should().NotBeNullOrEmpty();
+            itemsImmediately.Select(i => i.DownloadId).Should().Contain(downloadId);
+
+            // Cleanup: release the blocked background work.
+            _lastQueuedDownload?.CancellationTokenSource?.Cancel();
+            if (_lastQueuedDownload?.DownloadTask != null)
+            {
+                try { await _lastQueuedDownload.DownloadTask; } catch { /* cancelled */ }
+            }
+        }
+
+        [Fact]
+        public async Task Download_RegistersItemWithQueueService_AndSetsLastQueuedItem()
+        {
+            // Arrange
+            var remoteAlbum = CreateTestRemoteAlbum();
+
+            // Act
+            var downloadId = await _downloadClient.Download(remoteAlbum, Substitute.For<IIndexer>());
+            if (_lastQueuedDownload?.DownloadTask != null)
+            {
+                try { await _lastQueuedDownload.DownloadTask; } catch { /* not relevant here */ }
+            }
+
+            // Assert: the item carrying the generated downloadId was registered with the queue service.
+            _mockQueueService.Received(1).AddDownload(
+                Arg.Is<QobuzDownloadItem>(i => i.DownloadId == downloadId));
+            _lastQueuedDownload.Should().NotBeNull();
+            _lastQueuedDownload!.DownloadId.Should().Be(downloadId);
+
+            // Assert: the private _lastQueuedItem sentinel points at the same item.
+            var field = typeof(QobuzDownloadClient).GetField(
+                "_lastQueuedItem",
+                System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+            field.Should().NotBeNull();
+            var lastQueuedItem = field!.GetValue(_downloadClient) as QobuzDownloadItem;
+            lastQueuedItem.Should().NotBeNull();
+            lastQueuedItem!.DownloadId.Should().Be(downloadId);
+        }
+
+        [Fact]
+        public async Task RemoveItem_CancelsInFlightDownloadCancellationTokenSource()
+        {
+            // Arrange: block the track download so the item is genuinely in-flight (Downloading)
+            // when RemoveItem fires — that is the only state in which cancellation is signalled.
+            var entered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            _mockTrackDownloadService.DownloadAlbumAsync(
+                Arg.Any<QobuzDownloadItem>(),
+                Arg.Any<QobuzAlbum>(),
+                Arg.Any<QobuzDownloadSettings>(),
+                Arg.Any<CancellationToken>())
+                .Returns(async ci =>
+                {
+                    entered.TrySetResult();
+                    var ct = ci.ArgAt<CancellationToken>(3);
+                    await Task.Delay(Timeout.Infinite, ct);
+                });
+
+            var remoteAlbum = CreateTestRemoteAlbum();
+            var downloadId = await _downloadClient.Download(remoteAlbum, Substitute.For<IIndexer>());
+
+            // Ensure the background work reached the in-flight state.
+            await entered.Task.WaitAsync(TimeSpan.FromSeconds(10));
+            var inFlight = _lastQueuedDownload;
+            inFlight.Should().NotBeNull();
+            inFlight!.CancellationTokenSource.Should().NotBeNull(
+                "Download() must build the item with its own CancellationTokenSource (the cancel source of truth)");
+            inFlight.CancellationTokenSource!.IsCancellationRequested.Should().BeFalse();
+
+            // Act
+            _downloadClient.RemoveItem(new DownloadClientItem { DownloadId = downloadId }, false);
+
+            // Assert: the item's own CancellationTokenSource was cancelled, so PerformDownloadAsync
+            // (which observes item.CancellationTokenSource.Token) unwinds the in-flight download.
+            inFlight.CancellationTokenSource!.IsCancellationRequested.Should().BeTrue();
+
+            // Cleanup: let the cancelled work unwind.
+            if (inFlight.DownloadTask != null)
+            {
+                try { await inFlight.DownloadTask; } catch { /* cancelled */ }
+            }
+        }
+
         private RemoteAlbum CreateTestRemoteAlbum(string albumTitle = "Random Access Memories")
         {
             return new RemoteAlbum
