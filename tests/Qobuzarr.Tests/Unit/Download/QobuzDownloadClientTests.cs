@@ -81,6 +81,11 @@ namespace Qobuzarr.Tests.Unit.Download
             protected override Lidarr.Plugin.Common.HostBridge.HostBridgeDownloadTrackerStore<QobuzDownloadItem> Tracker
                 => _testTracker;
 
+            internal Func<QobuzDownloadItem, CancellationToken, Task>? BeforeDownloadWorkerSideEffectsOverride { get; set; }
+
+            protected override Task BeforeDownloadWorkerSideEffectsAsync(QobuzDownloadItem downloadItem, CancellationToken cancellationToken)
+                => BeforeDownloadWorkerSideEffectsOverride?.Invoke(downloadItem, cancellationToken) ?? Task.CompletedTask;
+
             public QobuzDownloadItem? GetTrackedItem(string downloadId)
                 => _testTracker.TryGet(downloadId, out var item) ? item : null;
 
@@ -671,6 +676,47 @@ namespace Qobuzarr.Tests.Unit.Download
             {
                 try { await inFlight.DownloadTask; } catch { /* cancelled */ }
             }
+        }
+
+        [Fact]
+        public async Task RemoveItem_WhenStillQueued_CancelsBeforeWorkerDoesAuthApiDirectoryOrTrackWork()
+        {
+            // Arrange: hold the real Download() worker in the queued window after Common has
+            // inserted the item but before Qobuz performs auth/API/filesystem side effects.
+            var workerEntered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            var releaseWorker = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            _downloadClient.BeforeDownloadWorkerSideEffectsOverride = (_, _) =>
+            {
+                workerEntered.TrySetResult();
+                return releaseWorker.Task;
+            };
+
+            var remoteAlbum = CreateTestRemoteAlbum();
+            var downloadId = await _downloadClient.Download(remoteAlbum, Substitute.For<IIndexer>());
+            await workerEntered.Task.WaitAsync(TimeSpan.FromSeconds(10));
+
+            var queued = _downloadClient.GetTrackedItem(downloadId);
+            queued.Should().NotBeNull();
+            queued!.GetStatus().Should().Be(Lidarr.Plugin.Common.HostBridge.HostBridgeDownloadItemStatus.Queued);
+
+            // Act: remove while the item is still queued, then let the worker continue.
+            _downloadClient.RemoveItem(new DownloadClientItem { DownloadId = downloadId }, deleteData: false);
+            releaseWorker.TrySetResult();
+            await queued.DownloadTask!.WaitAsync(TimeSpan.FromSeconds(5));
+
+            // Assert: the queued cancel is not just a token flip; the production worker observes
+            // it before auth, album lookup, output directory creation, or track download.
+            queued.CancellationTokenSource!.IsCancellationRequested.Should().BeTrue();
+            _mockAuthService.DidNotReceive().GetCachedSession();
+            _ = _mockApiClient.DidNotReceive().GetAsync<QobuzAlbum>(
+                Arg.Any<string>(),
+                Arg.Any<Dictionary<string, string>>());
+            _mockFileService.DidNotReceive().EnsureOutputDirectory(Arg.Any<string>());
+            _ = _mockTrackDownloadService.DidNotReceive().DownloadAlbumAsync(
+                Arg.Any<QobuzDownloadItem>(),
+                Arg.Any<QobuzAlbum>(),
+                Arg.Any<QobuzDownloadSettings>(),
+                Arg.Any<CancellationToken>());
         }
 
         private RemoteAlbum CreateTestRemoteAlbum(string albumTitle = "Random Access Memories")

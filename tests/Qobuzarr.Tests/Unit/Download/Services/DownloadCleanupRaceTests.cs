@@ -1,9 +1,14 @@
 using System;
 using System.IO;
+using System.Linq;
 using System.Threading.Tasks;
 using FluentAssertions;
 using Moq;
 using NzbDrone.Core.Download;
+using NzbDrone.Core.Indexers;
+using NzbDrone.Core.MediaFiles;
+using NzbDrone.Core.Music;
+using NzbDrone.Core.Parser.Model;
 using Xunit;
 using Lidarr.Plugin.Common.HostBridge;
 using Lidarr.Plugin.Qobuzarr.API;
@@ -24,6 +29,35 @@ namespace Qobuzarr.Tests.Unit.Download.Services
     /// </summary>
     public class DownloadCleanupRaceTests : TestFixtureBase
     {
+        private sealed class FixedOutputPathFileService : IDownloadFileService
+        {
+            private readonly IDownloadFileService _inner;
+
+            public FixedOutputPathFileService(IDownloadFileService inner, string outputPath)
+            {
+                _inner = inner;
+                OutputPath = outputPath;
+            }
+
+            public string OutputPath { get; }
+
+            public string BuildOutputPath(RemoteAlbum remoteAlbum, QobuzDownloadSettings settings)
+                => OutputPath;
+
+            public void EnsureOutputDirectory(string path)
+                => Directory.CreateDirectory(path);
+
+            public Task CleanupFailedDownloadAsync(string path, string downloadRoot)
+                => _inner.CleanupFailedDownloadAsync(path, downloadRoot);
+
+            public bool ValidateDownloadPath(string path) => true;
+
+            public long? GetAvailableDiskSpace(string path) => long.MaxValue;
+
+            public string CreateUniqueDownloadDirectory(string basePath, string albumName)
+                => Path.Combine(basePath, albumName);
+        }
+
         private Qobuzarr.Tests.TestableQobuzDownloadClient BuildClient(IDownloadFileService? fileService = null)
             => new Qobuzarr.Tests.TestableQobuzDownloadClient(
                 new Mock<IQobuzAuthenticationService>().Object,
@@ -77,6 +111,29 @@ namespace Qobuzarr.Tests.Unit.Download.Services
             {
                 Directory.Delete(path, recursive: true);
             }
+        }
+
+        private static RemoteAlbum MakeRemoteAlbum()
+        {
+            return new RemoteAlbum
+            {
+                Artist = new Artist { Name = "Artist", Id = 1 },
+                Albums =
+                [
+                    new Album
+                    {
+                        Title = "Album",
+                        Id = 1,
+                        ArtistMetadata = new ArtistMetadata { Name = "Artist" }
+                    }
+                ],
+                Release = new ReleaseInfo
+                {
+                    DownloadUrl = "qobuz://album/replacement-album",
+                    Guid = "qobuz://album/replacement-album",
+                    Title = "Artist - Album"
+                }
+            };
         }
 
         [Fact]
@@ -163,6 +220,102 @@ namespace Qobuzarr.Tests.Unit.Download.Services
             finally
             {
                 DeleteIfExists(outputPath);
+            }
+        }
+
+        [Fact]
+        public async Task RemoveItem_ReplacementDownloadStartedAfterFinalGuard_WaitsForCleanupLifecycleGate()
+        {
+            var outputPath = CreateAlbumDirectory();
+            try
+            {
+                var innerFileService = new DownloadFileService(
+                    MockDiskProvider.Object,
+                    MockRemotePathMappingService.Object,
+                    MockLogger.Object);
+                var fixedPathFileService = new FixedOutputPathFileService(innerFileService, outputPath);
+                var sut = BuildClient(fixedPathFileService);
+                sut.SeedTracker(BuildItem("attempt-A", outputPath, Task.CompletedTask));
+                sut.StabilizeBeforeCleanupDeleteOverride = () => Task.CompletedTask;
+
+                Task<string>? replacementDownload = null;
+                sut.BeforeCleanupDeleteInsideLifecycleGateOverride = async _ =>
+                {
+                    replacementDownload = sut.Download(MakeRemoteAlbum(), Mock.Of<IIndexer>());
+                    await Task.Delay(150);
+                    replacementDownload.IsCompleted.Should().BeFalse(
+                        "a replacement Download() must not add a same-path tracker item after cleanup's final guard and before delete");
+                };
+
+                sut.RemoveItem(new DownloadClientItem { DownloadId = "attempt-A" }, deleteData: true);
+                await sut.PendingCleanupTask!.WaitAsync(TimeSpan.FromSeconds(5));
+
+                Directory.Exists(outputPath).Should().BeFalse(
+                    "cleanup owns the path lifecycle until the contained delete finishes");
+                replacementDownload.Should().NotBeNull();
+                var replacementId = await replacementDownload!.WaitAsync(TimeSpan.FromSeconds(5));
+                replacementId.Should().NotBeNullOrWhiteSpace();
+                var replacementItem = sut.GetTrackedItem(replacementId);
+                replacementItem.Should().NotBeNull(
+                    "replacement download may enqueue after cleanup releases the lifecycle gate");
+                if (replacementItem!.DownloadTask != null)
+                {
+                    await replacementItem.DownloadTask.WaitAsync(TimeSpan.FromSeconds(5));
+                }
+            }
+            finally
+            {
+                DeleteIfExists(outputPath);
+            }
+        }
+
+        [Fact]
+        public async Task RemoveItem_CleanupLifecycleGate_DoesNotBlockUnrelatedOutputPath()
+        {
+            var cleanupPath = CreateAlbumDirectory();
+            var unrelatedPath = CreateAlbumDirectory();
+            try
+            {
+                var innerFileService = new DownloadFileService(
+                    MockDiskProvider.Object,
+                    MockRemotePathMappingService.Object,
+                    MockLogger.Object);
+                var cleanupFileService = new FixedOutputPathFileService(innerFileService, cleanupPath);
+                var unrelatedFileService = new FixedOutputPathFileService(innerFileService, unrelatedPath);
+                var cleanupClient = BuildClient(cleanupFileService);
+                var unrelatedClient = BuildClient(unrelatedFileService);
+                cleanupClient.SeedTracker(BuildItem("attempt-A", cleanupPath, Task.CompletedTask));
+                cleanupClient.StabilizeBeforeCleanupDeleteOverride = () => Task.CompletedTask;
+
+                Task<string>? unrelatedDownload = null;
+                var unrelatedCompletedInsideCleanupGate = false;
+                cleanupClient.BeforeCleanupDeleteInsideLifecycleGateOverride = async _ =>
+                {
+                    unrelatedDownload = unrelatedClient.Download(MakeRemoteAlbum(), Mock.Of<IIndexer>());
+                    unrelatedCompletedInsideCleanupGate = await Task.WhenAny(
+                        unrelatedDownload,
+                        Task.Delay(TimeSpan.FromSeconds(1))) == unrelatedDownload;
+                };
+
+                cleanupClient.RemoveItem(new DownloadClientItem { DownloadId = "attempt-A" }, deleteData: true);
+                await cleanupClient.PendingCleanupTask!.WaitAsync(TimeSpan.FromSeconds(5));
+
+                unrelatedCompletedInsideCleanupGate.Should().BeTrue(
+                    "cleanup for one output path must not serialize enqueue for a different output path");
+                Directory.Exists(cleanupPath).Should().BeFalse();
+                unrelatedDownload.Should().NotBeNull();
+                var unrelatedId = await unrelatedDownload!.WaitAsync(TimeSpan.FromSeconds(5));
+                unrelatedId.Should().NotBeNullOrWhiteSpace();
+                var unrelatedItem = unrelatedClient.GetTrackedItem(unrelatedId);
+                if (unrelatedItem?.DownloadTask != null)
+                {
+                    await unrelatedItem.DownloadTask.WaitAsync(TimeSpan.FromSeconds(5));
+                }
+            }
+            finally
+            {
+                DeleteIfExists(cleanupPath);
+                DeleteIfExists(unrelatedPath);
             }
         }
 

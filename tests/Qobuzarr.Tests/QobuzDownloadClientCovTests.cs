@@ -81,6 +81,11 @@ namespace Qobuzarr.Tests
         protected override Task StabilizeBeforeCleanupDeleteAsync()
             => StabilizeBeforeCleanupDeleteOverride?.Invoke() ?? base.StabilizeBeforeCleanupDeleteAsync();
 
+        internal Func<Lidarr.Plugin.Qobuzarr.Download.Clients.QobuzDownloadItem, Task>? BeforeCleanupDeleteInsideLifecycleGateOverride { get; set; }
+
+        protected override Task BeforeCleanupDeleteInsideLifecycleGateAsync(Lidarr.Plugin.Qobuzarr.Download.Clients.QobuzDownloadItem removed)
+            => BeforeCleanupDeleteInsideLifecycleGateOverride?.Invoke(removed) ?? base.BeforeCleanupDeleteInsideLifecycleGateAsync(removed);
+
         protected override Lidarr.Plugin.Common.HostBridge.HostBridgeDownloadTrackerStore<Lidarr.Plugin.Qobuzarr.Download.Clients.QobuzDownloadItem> Tracker
             => _testTracker;
 
@@ -1229,7 +1234,9 @@ namespace Qobuzarr.Tests
             await Assert.ThrowsAnyAsync<OperationCanceledException>(
                 () => sut.EnsureAuthenticatedAsync(null, cts.Token));
 
+            _mockAuthService.Verify(a => a.GetCachedSession(), Times.Never);
             _mockAuthService.Verify(a => a.AuthenticateAsync(It.IsAny<QobuzCredentials>()), Times.Never);
+            _mockApiClient.Verify(c => c.SetSession(It.IsAny<QobuzSession>()), Times.Never);
         }
 
         private static RemoteAlbum CreateRemoteAlbum()
