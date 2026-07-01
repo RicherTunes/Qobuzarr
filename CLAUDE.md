@@ -496,9 +496,9 @@ The project uses [Central Package Management](https://learn.microsoft.com/en-us/
 
 **Restart**: Always restart Lidarr after plugin deployment
 
-## Local Verification (Billing-Blocked CI)
+## Local Verification
 
-When GitHub Actions billing is blocked, run the merge-critical verification pipeline locally:
+Run the merge-critical verification pipeline locally before pushing CI-sensitive changes:
 
 ```bash
 pwsh scripts/verify-local.ps1                    # Full pipeline (extract + build + package + closure + E2E)

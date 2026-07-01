@@ -18,13 +18,14 @@
            RepackPlugin target.  Enabling the NuGet package's automatic target
            at the same time causes double-merge failures and obj/ file locks
            on Windows.
-         - The pipeline is billing-blocked (no green CI), so enabling ILRepack
-           without end-to-end verification would be risky.
+         - This flag needs a dedicated end-to-end verification change. Enabling
+           the NuGet package's automatic target casually can reintroduce
+           double-merge or obj/ file-lock failures.
 
          WHEN TO RECONSIDER:
-         - Once CI billing is restored and a full verify-local.ps1 pass is
-           green with ILRepackEnabled=true, flip this flag and remove the
-           override.  Track progress under the "ILRepack" heading in
+         - In a dedicated PR, require a full Gitea/local verify-local.ps1 pass
+           with ILRepackEnabled=true, then flip this flag and remove the
+           override. Track progress under the "ILRepack" heading in
            docs/TECH-DEBT-TRACKER.md.  -->
     <ILRepackEnabled>false</ILRepackEnabled>
   </PropertyGroup>

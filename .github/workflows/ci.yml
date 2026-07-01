@@ -1,5 +1,5 @@
 # GitHub Actions mirror of .gitea/workflows/ci.yml (dual-platform CI parity).
-# Billing-blocked as of 2026-07; validated to build once Actions billing is restored.
+# Gitea remains the primary merge gate; every job below is guarded to run only on github.com.
 # Keep in sync with the .gitea copy -- patch both in the same PR.
 #
 # Jobs mirrored : secret-scan, lint, verify
