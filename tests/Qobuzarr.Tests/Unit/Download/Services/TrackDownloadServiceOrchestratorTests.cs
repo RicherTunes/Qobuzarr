@@ -14,6 +14,8 @@ using Lidarr.Plugin.Qobuzarr.Exceptions;
 using Lidarr.Plugin.Qobuzarr.Models;
 using Moq;
 using NLog;
+using NLog.Config;
+using NLog.Targets;
 using Xunit;
 using CommonDownloadProgress = Lidarr.Plugin.Common.Interfaces.DownloadProgress;
 using CommonDownloadResult = Lidarr.Plugin.Common.Interfaces.DownloadResult;
@@ -47,8 +49,9 @@ namespace Qobuzarr.Tests.Unit.Download.Services
                 CommonDownloadResult result,
                 Action<QobuzTrackClassifier>? seedClassifier = null,
                 Action<IProgress<CommonDownloadProgress>>? reportProgress = null,
-                IDownloadSummary? downloadSummary = null)
-                : base(Mock.Of<IQobuzApiClient>(), Mock.Of<IConcurrencyManager>(), downloadSummary ?? Mock.Of<IDownloadSummary>(), Log)
+                IDownloadSummary? downloadSummary = null,
+                Logger? logger = null)
+                : base(Mock.Of<IQobuzApiClient>(), Mock.Of<IConcurrencyManager>(), downloadSummary ?? Mock.Of<IDownloadSummary>(), logger ?? Log)
             {
                 _result = result;
                 _seedClassifier = seedClassifier;
@@ -246,6 +249,51 @@ namespace Qobuzarr.Tests.Unit.Download.Services
         }
 
         [Fact]
+        public async Task DownloadAlbumAsync_FullAlbumQualityFallback_LogsWarning()
+        {
+            var (logger, memory, factory) = CreateMemoryLogger();
+            try
+            {
+                var album = MakeAlbum(2);
+                var item = MakeItem();
+                item.RecordQualityFallback(requestedFormatId: 7, actualFormatId: 6);
+                item.RecordQualityFallback(requestedFormatId: 7, actualFormatId: 6);
+                var sut = new SyntheticTrackDownloadService(SyntheticResult(successful: 2, total: 2), logger: logger);
+
+                await sut.DownloadAlbumAsync(item, album, new QobuzDownloadSettings(), CancellationToken.None);
+
+                memory.Logs.Should().Contain(l => l.Contains("Warn|Quality fallback used for 2/2 tracks", StringComparison.Ordinal));
+                memory.Logs.Should().NotContain(l => l.Contains("Info|Quality fallback used for 2/2 tracks", StringComparison.Ordinal));
+            }
+            finally
+            {
+                factory.Shutdown();
+            }
+        }
+
+        [Fact]
+        public async Task DownloadAlbumAsync_PartialAlbumQualityFallback_LogsInfo()
+        {
+            var (logger, memory, factory) = CreateMemoryLogger();
+            try
+            {
+                var album = MakeAlbum(2);
+                var item = MakeItem();
+                item.RecordQualityFallback(requestedFormatId: 7, actualFormatId: 6);
+                var sut = new SyntheticTrackDownloadService(SyntheticResult(successful: 2, total: 2), logger: logger);
+
+                await sut.DownloadAlbumAsync(item, album, new QobuzDownloadSettings(), CancellationToken.None);
+
+                memory.Logs.Should().Contain(l => l.Contains("Info|Quality fallback used for 1/2 tracks", StringComparison.Ordinal));
+                memory.Logs.Should().NotContain(l => l.Contains("Warn|Quality fallback used for 1/2 tracks", StringComparison.Ordinal));
+            }
+            finally
+            {
+                factory.Shutdown();
+            }
+        }
+
+        [Fact]
         public async Task DownloadAlbumAsync_HttpLoopbackStreamUrl_IsBlockedByProductionUriPolicy()
         {
             var api = new Mock<IQobuzApiClient>();
@@ -281,6 +329,17 @@ namespace Qobuzarr.Tests.Unit.Download.Services
 
         private static TrackDownloadService MakeService(IQobuzApiClient api)
             => new TrackDownloadService(api, Mock.Of<IConcurrencyManager>(), Mock.Of<IDownloadSummary>(), Log);
+
+        private static (Logger Logger, MemoryTarget Memory, LogFactory Factory) CreateMemoryLogger()
+        {
+            var factory = new LogFactory();
+            var config = new LoggingConfiguration(factory);
+            var memory = new MemoryTarget("quality-fallback-memory") { Layout = "${level}|${message}" };
+            config.AddTarget(memory);
+            config.LoggingRules.Add(new LoggingRule("*", LogLevel.Debug, memory));
+            factory.Configuration = config;
+            return (factory.GetLogger("QualityFallbackLogger"), memory, factory);
+        }
 
         private static QobuzAlbum MakeAlbum(int trackCount)
         {
