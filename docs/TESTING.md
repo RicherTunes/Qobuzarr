@@ -193,12 +193,13 @@ When a test is flaky or blocked by external issues:
 
 ## Known Issues
 
-### GitHub Actions Not Used for CI
+### Gitea Primary, GitHub Mirror
 
-GitHub Actions is out of credits ecosystem-wide. Primary CI runs on the self-hosted
-Gitea instance (`.gitea/workflows/ci.yml`). The `.github/workflows/` directory is empty
-— any reference to it as an active CI source is stale. Test locally using the commands
-above, or check the Gitea Actions UI for commit/PR status.
+Primary CI runs on the self-hosted Gitea instance (`.gitea/workflows/ci.yml`).
+The repo also carries `.github/workflows/ci.yml` as a guarded GitHub mirror.
+The mirror must keep the same core gates as Gitea, but Gitea remains the
+authoritative merge surface. Test locally using the commands above, or check
+the Gitea Actions UI for commit/PR status.
 
 ### Known Build Warnings
 
