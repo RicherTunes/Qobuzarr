@@ -80,4 +80,4 @@ pwsh ext/Lidarr.Plugin.Common/scripts/ci/run-plugin-lint-gates.ps1 `
 
 - **Docker image pin**: `ghcr.io/hotio/lidarr:pr-plugins-3.1.2.4913` — update when a new Lidarr plugins-branch release is available (search the entire repo for the old tag and update all hits).
 - **Common submodule pin**: re-pin manually when Common's `main` advances — see `ext-common-sha.txt` and the submodule-pin section in CLAUDE.md.
-- **GitHub mirror**: `.github/` contains `dependabot.yml`, `CODEOWNERS`, `FUNDING.yml`, and other non-workflow files that are still active. The `.github/workflows/` directory is empty — any reference to it as an active CI source is stale.
+- **GitHub mirror**: `.github/workflows/ci.yml` is a guarded GitHub mirror of the Gitea CI contract. It must keep the shared lint runner, submodule pin guard, Gitleaks scan, and `scripts/verify-local.ps1`; Gitea remains authoritative for merges.
