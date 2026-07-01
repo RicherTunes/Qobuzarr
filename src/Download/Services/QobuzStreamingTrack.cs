@@ -60,6 +60,22 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Services
                 Artist = new StreamingArtist { Name = album.Artist?.Name ?? string.Empty },
             };
 
+            // Carry the Qobuz cover-art URLs so Common's SimpleDownloadOrchestrator can fetch + embed
+            // the album cover into each downloaded file. Without this the orchestrator's
+            // GetBestCoverArtUrl() returns empty and albums arrive art-less. Mirrors the mapping in
+            // QobuzIndexerAdapter.MapToStreamingAlbum (the indexer path already populates these).
+            if (album.Image is not null)
+            {
+                if (!string.IsNullOrEmpty(album.Image.Small))
+                    carrier.Album.CoverArtUrls["small"] = album.Image.Small;
+                if (!string.IsNullOrEmpty(album.Image.Medium))
+                    carrier.Album.CoverArtUrls["medium"] = album.Image.Medium;
+                if (!string.IsNullOrEmpty(album.Image.Large))
+                    carrier.Album.CoverArtUrls["large"] = album.Image.Large;
+                if (!string.IsNullOrEmpty(album.Image.ExtraLarge))
+                    carrier.Album.CoverArtUrls["extralarge"] = album.Image.ExtraLarge;
+            }
+
             return carrier;
         }
     }
