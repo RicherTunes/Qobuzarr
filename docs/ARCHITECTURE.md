@@ -1198,14 +1198,10 @@ graph TB
 ```mermaid
 classDiagram
     class AdaptiveRateLimiter {
-        -double currentLimit
-        -TimeSpan backoffPeriod
-        -RateLimitHistory history
-        
-        +CheckRateLimit() bool
-        +UpdateLimit(response) void
-        +CalculateOptimalRate() double
-        +GetBackoffTime() TimeSpan
+        +AdaptiveRateLimiter()
+        +WaitIfNeededAsync(endpoint, cancellationToken) Task~bool~
+        +RecordResponse(endpoint, response) void
+        +GetGlobalStats() GlobalRateLimitStats
     }
     
     class AdaptiveConcurrencyManager {
@@ -1240,6 +1236,7 @@ classDiagram
         +ExportTelemetry() TelemetryData
     }
     
+    AdaptiveRateLimiter --|> NamedServiceRateLimiter
     AdaptiveRateLimiter --> PerformanceMonitoringService
     AdaptiveConcurrencyManager --> PerformanceMonitoringService
     AdaptiveBatchDownloadService --> PerformanceMonitoringService
