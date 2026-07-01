@@ -1,4 +1,5 @@
 > ⚠️ Historical (flagged 2026-05-31): describes a past state; some details below no longer match the current code.
+> Current rate-limiter status: Qobuzarr's `AdaptiveRateLimiter` is a plugin auto-registration adapter over Common `NamedServiceRateLimiter`.
 
 # Qobuzarr to Lidarr.Plugin.Common Migration Analysis
 

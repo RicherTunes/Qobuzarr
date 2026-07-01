@@ -262,6 +262,8 @@ Qobuzarr builds on [Lidarr.Plugin.Common](https://github.com/RicherTunes/Lidarr.
 - Common is vendored at `ext/Lidarr.Plugin.Common`; the exact pin is tracked by `ext-common-sha.txt` and must be committed with the submodule gitlink.
 - Gitea is the primary CI surface (`.gitea/workflows/ci.yml`): `CI / secret-scan` runs Gitleaks with checksum verification, `CI / lint` runs Common's shared plugin lint runner, and `CI / verify` runs `scripts/verify-local.ps1`, which delegates to `ext/Lidarr.Plugin.Common/scripts/local-ci.ps1`.
 - Search uses Common's `SearchQuerySanitizer` for special-character variants and a Qobuz-specific capped chain guarded by Common TestKit compliance tests.
+- `AdaptiveRateLimiter` is a plugin-assembly adapter for Lidarr auto-registration over Common's `NamedServiceRateLimiter`.
+- `InputSanitizer` is a compatibility facade: shared helpers delegate to Common `Sanitize` where contracts align, while Qobuz-specific auth/path/metadata validators remain local.
 
 **Common wiki pages** (cross-repo links):
 

@@ -168,7 +168,7 @@ Console.WriteLine($"Security Score: {result.SecurityScore}/100 ({result.Security
 
 **Primary Classes**:
 
-- [`InputSanitizer`](../../src/Security/InputSanitizer.cs)
+- [`InputSanitizer`](../../src/Security/InputSanitizer.cs) - compatibility facade over Common `Sanitize` for shared helpers, with local Qobuz validators for auth, paths, and metadata
 - [`MetadataSanitizer`](../../src/Security/MetadataSanitizer.cs)
 
 ```csharp

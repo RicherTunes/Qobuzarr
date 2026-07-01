@@ -1,5 +1,7 @@
 # Qobuzarr Service Consolidation Plan
 
+> Historical note: Qobuzarr's current `AdaptiveRateLimiter` is no longer a standalone local implementation; it is a plugin auto-registration adapter over Common `NamedServiceRateLimiter`.
+
 ## Executive Summary
 
 The Qobuzarr codebase contains **113 service classes** spread across multiple projects, with significant overlapping responsibilities and redundant implementations. This consolidation plan identifies **40+ services** that can be merged, **25+ services** that should move to the shared library, and **15+ adapter services** that can be simplified or eliminated.
