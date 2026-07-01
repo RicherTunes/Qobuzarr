@@ -99,12 +99,21 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Services
             _downloadSummary.RecordAlbumResult(downloadItem.Artist, downloadItem.Title, successfulTracks, skippedTracks, failedTracks, totalTracks, bytesDownloaded);
             LogAlbumDownloadSummary(downloadItem.Artist, downloadItem.Title, album, successfulTracks, skippedTracks, failedTracks, totalTracks, bytesDownloaded);
 
-            // Per-album quality-fallback summary (replaces per-track Info spam from GetStreamingInfoAsync)
+            // Per-album quality-fallback summary (replaces per-track Info spam from GetStreamingInfoAsync).
+            // Warn when the WHOLE album fell back (the requested tier is entirely unavailable — an
+            // operational signal worth surfacing in Lidarr's activity UI); Info for a partial fallback.
             if (downloadItem.QualityFallbackCount > 0)
             {
-                _logger.Info("Quality fallback used for {0}/{1} tracks ({2})",
-                    downloadItem.QualityFallbackCount, totalTracks,
-                    downloadItem.QualityFallbackExample ?? "fallback quality");
+                const string msg = "Quality fallback used for {0}/{1} tracks ({2})";
+                var example = downloadItem.QualityFallbackExample ?? "fallback quality";
+                if (totalTracks > 0 && downloadItem.QualityFallbackCount >= totalTracks)
+                {
+                    _logger.Warn(msg, downloadItem.QualityFallbackCount, totalTracks, example);
+                }
+                else
+                {
+                    _logger.Info(msg, downloadItem.QualityFallbackCount, totalTracks, example);
+                }
             }
 
             // Wave C removed the bespoke queue service that previously knew when all active
