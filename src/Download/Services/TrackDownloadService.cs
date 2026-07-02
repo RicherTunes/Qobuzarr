@@ -9,6 +9,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Lidarr.Plugin.Qobuzarr.Download;
 using Lidarr.Plugin.Abstractions.Models;
+using Lidarr.Plugin.Common.Services.Diagnostics;
 using Lidarr.Plugin.Common.Services.Download;
 using Lidarr.Plugin.Common.Services.Lyrics;
 using NLog;
@@ -20,6 +21,7 @@ using Lidarr.Plugin.Qobuzarr.Services.Http;
 using Lidarr.Plugin.Qobuzarr.Utilities;
 using Lidarr.Plugin.Common.Utilities;
 using CommonResults = Lidarr.Plugin.Common.Interfaces;
+using QobuzApiException = Lidarr.Plugin.Qobuzarr.API.QobuzApiException;
 
 namespace Lidarr.Plugin.Qobuzarr.Download.Services
 {
@@ -239,7 +241,7 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Services
         {
             try
             {
-                var streamingInfo = await _apiClient.GetStreamingInfoAsync(trackId, settings.PreferredQuality, cancellationToken).ConfigureAwait(false);
+                var streamingInfo = await GetStreamingInfoWithRetryAsync(trackId, settings, cancellationToken).ConfigureAwait(false);
                 var streamUrl = streamingInfo?.Url;
                 if (string.IsNullOrEmpty(streamUrl))
                 {
@@ -295,6 +297,87 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Services
                 _logger.Error(ex, "Failed to resolve stream for track {0}", trackId);
                 return (string.Empty, string.Empty);
             }
+        }
+
+        // Number of attempts for resolving a track's stream URL (GetStreamingInfoAsync). Qobuz
+        // occasionally returns a transient 5xx/408/429 or the request times out / drops at the network
+        // layer before a stream URL is ever obtained. Unlike the byte-download retry below (which resumes
+        // an already-in-progress file), a resolution failure has nothing to resume — the whole call is
+        // simply retried. Distinct from QobuzHttpClient.ExecuteAsync's own HTTP-status retry loop: that
+        // layer only retries responses it can classify by status code (an HttpException carrying a
+        // Response); raw transport exceptions (timeout, socket reset, DNS blip) bypass that loop entirely
+        // and previously propagated straight out as a hard per-track failure with zero retry.
+        internal virtual int MaxStreamResolveAttempts => 3;
+
+        // Exponential backoff (1s, 2s, capped at 4s) between transient stream-resolution retries. Shorter
+        // cap than the byte-download retry (8s) since a stalled stream-URL resolution blocks the whole
+        // track before any bytes have moved.
+        internal virtual TimeSpan GetStreamResolveRetryDelay(int attempt) =>
+            TimeSpan.FromSeconds(Math.Min(4, Math.Pow(2, Math.Max(0, attempt - 1))));
+
+        /// <summary>
+        /// Wraps <see cref="IQobuzApiClient.GetStreamingInfoAsync"/> in bounded retry-with-backoff for
+        /// transient failures only. Non-transient failures (auth/4xx, a classified
+        /// <see cref="TrackUnavailableException"/>, an honored cancellation) are rethrown immediately by
+        /// the <c>when</c> filter below so <see cref="ResolveStreamAsync"/>'s existing catch blocks keep
+        /// handling them unchanged.
+        /// </summary>
+        private async Task<QobuzStreamResponse> GetStreamingInfoWithRetryAsync(
+            string trackId,
+            QobuzDownloadSettings settings,
+            CancellationToken cancellationToken)
+        {
+            var maxAttempts = Math.Max(1, MaxStreamResolveAttempts);
+
+            for (var attempt = 1; ; attempt++)
+            {
+                try
+                {
+                    return await _apiClient.GetStreamingInfoAsync(trackId, settings.PreferredQuality, cancellationToken).ConfigureAwait(false);
+                }
+                catch (Exception ex) when (attempt < maxAttempts && IsTransientStreamResolutionException(ex, cancellationToken))
+                {
+                    _logger.Warn(ex,
+                        "Transient failure resolving stream URL for track {0} (attempt {1}/{2}); retrying after backoff",
+                        trackId, attempt, maxAttempts);
+
+                    var delay = GetStreamResolveRetryDelay(attempt);
+                    if (delay > TimeSpan.Zero)
+                    {
+                        await Task.Delay(delay, cancellationToken).ConfigureAwait(false);
+                    }
+                }
+            }
+        }
+
+        /// <summary>
+        /// Classifies a stream-resolution failure as transient (worth a bounded retry) or not.
+        /// Deliberately excludes: an honored cancellation, a classified <see cref="TrackUnavailableException"/>
+        /// (a business-rule rejection — preview/restricted/etc. — retrying would just re-confirm the same
+        /// permanent answer), and auth/4xx <see cref="QobuzApiException"/>s (a wrong credential or a
+        /// genuinely missing resource will never succeed on retry).
+        /// </summary>
+        internal static bool IsTransientStreamResolutionException(Exception ex, CancellationToken cancellationToken)
+        {
+            if (cancellationToken.IsCancellationRequested)
+            {
+                return false;
+            }
+
+            if (ex is TrackUnavailableException)
+            {
+                return false;
+            }
+
+            if (ex is QobuzApiException apiEx)
+            {
+                // 408 (timeout), 429 (rate limited) and 5xx (server error) are worth retrying; everything
+                // else (401/403 auth, 404 not found, and unrecognized 4xx) is not.
+                return apiEx.StatusCode == 408 || apiEx.StatusCode == 429 || apiEx.StatusCode >= 500;
+            }
+
+            var (category, _) = HttpExceptionClassifier.Classify(ex);
+            return category is HttpFailureCategory.Network or HttpFailureCategory.Timeout or HttpFailureCategory.RateLimit or HttpFailureCategory.Server;
         }
 
         private static IEnumerable<TrackDownloadResult> MapTrackResults(CommonResults.DownloadResult result, QobuzTrackClassifier classifier)
