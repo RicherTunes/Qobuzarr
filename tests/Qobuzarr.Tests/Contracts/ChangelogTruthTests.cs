@@ -41,6 +41,9 @@ public class ChangelogTruthTests
     private static readonly Regex VersionToken =
         new(@"\d+\.\d+\.\d+(?:-[A-Za-z0-9]+)?", RegexOptions.Compiled);
 
+    private static readonly Regex ShaToken =
+        new(@"\b[0-9a-f]{7,40}\b", RegexOptions.Compiled | RegexOptions.IgnoreCase);
+
     [Fact]
     public void Changelog_NewestCommonVersionMention_MatchesPluginJson()
     {
@@ -59,6 +62,26 @@ public class ChangelogTruthTests
             "add one (e.g. in the newest [Unreleased]/Dependencies entry) so this guard can check it.");
 
         Assert.Equal(pluginCommonVersion, newestMention);
+    }
+
+    [Fact]
+    public void Changelog_NewestCommonPinMention_MatchesExtCommonSha()
+    {
+        var shaPath = LocateRepoFile("ext-common-sha.txt");
+        var changelogPath = LocateRepoFile("CHANGELOG.md");
+        Skip.If(shaPath is null || changelogPath is null,
+            "ext-common-sha.txt or CHANGELOG.md not found — only enforced for repo-rooted runs");
+
+        var pinnedSha = File.ReadAllText(shaPath!).Trim();
+        Assert.Matches("^[0-9a-f]{40}$", pinnedSha);
+
+        var newestMention = FindNewestCommonPinMention(changelogPath!);
+        Assert.False(newestMention is null,
+            "CHANGELOG.md has no line mentioning 'ext/Lidarr.Plugin.Common' with a parseable SHA token — " +
+            "add one in the newest [Unreleased]/Dependencies entry so this guard can check the pin.");
+
+        Assert.True(pinnedSha.StartsWith(newestMention!, StringComparison.OrdinalIgnoreCase),
+            $"CHANGELOG.md says Common pin {newestMention}, but ext-common-sha.txt pins {pinnedSha}.");
     }
 
     /// <summary>
@@ -81,6 +104,30 @@ public class ChangelogTruthTests
             }
 
             return matches[matches.Count - 1].Value;
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    /// Returns the first SHA-shaped token on the newest ext/Lidarr.Plugin.Common line.
+    /// </summary>
+    private static string? FindNewestCommonPinMention(string changelogPath)
+    {
+        foreach (var line in File.ReadLines(changelogPath))
+        {
+            if (line.IndexOf("ext/Lidarr.Plugin.Common", StringComparison.OrdinalIgnoreCase) < 0)
+            {
+                continue;
+            }
+
+            var match = ShaToken.Match(line);
+            if (!match.Success)
+            {
+                continue;
+            }
+
+            return match.Value;
         }
 
         return null;
