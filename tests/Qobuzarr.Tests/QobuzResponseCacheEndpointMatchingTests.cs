@@ -18,7 +18,7 @@ namespace Qobuzarr.Tests
     /// "/track/get" pattern is a prefix of the signed, short-lived streaming endpoint
     /// "track/getFileUrl", so the moment a leading slash appeared it would have cached an expiring
     /// stream URL. These tests pin the real endpoint strings (verified against the call sites in
-    /// QobuzApiClient / QobuzIndexerAdapter / LidarrAlbumRetriever) to the intended behaviour.
+    /// QobuzApiClient / QobuzIndexerAdapter) to the intended behaviour.
     /// </summary>
     public class QobuzResponseCacheEndpointMatchingTests
     {
