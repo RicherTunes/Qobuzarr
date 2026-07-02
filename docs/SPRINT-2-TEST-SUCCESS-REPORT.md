@@ -40,7 +40,7 @@
 
 ### **Service Migration Test Issues**
 ```
-✅ QobuzQualityManagerTests type mismatches resolved
+✅ Service migration coverage moved to current API/download architecture tests
 ✅ LidarrQualityProfileItem proper type usage
 ✅ Test fixture compatibility with consolidated services
 ```
