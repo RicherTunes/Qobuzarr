@@ -185,7 +185,7 @@ Generated: 2025-08-23
 - Applied across all user input points:
   - Authentication (QobuzAuthenticationService)
   - Search operations (QobuzSearchService)
-  - File downloads (QobuzTrackDownloader)
+  - File downloads (`QobuzDownloadClient`, `QobuzDownloadOrchestrator`, `TrackDownloadService`)
   - Settings access (QobuzIndexerSettings)
 
 **Result**: Plugin now has robust defense against:

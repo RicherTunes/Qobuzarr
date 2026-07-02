@@ -113,7 +113,6 @@ namespace Qobuzarr.Tests.Unit.Download
         private readonly IDownloadSummary _mockDownloadSummary;
         private readonly ITrackDownloadService _mockTrackDownloadService;
         private readonly IBatchProcessor _mockBatchProcessor;
-        // REMOVED: IQobuzTrackDownloaderFactory has been deleted
         private readonly TestableQobuzDownloadClient _downloadClient;
         private readonly QobuzSession _testSession;
 
@@ -146,7 +145,6 @@ namespace Qobuzarr.Tests.Unit.Download
             _mockDownloadSummary = Substitute.For<IDownloadSummary>();
             _mockTrackDownloadService = Substitute.For<ITrackDownloadService>();
             _mockBatchProcessor = Substitute.For<IBatchProcessor>();
-            // REMOVED: IQobuzTrackDownloaderFactory mock creation
 
             _downloadClient = new TestableQobuzDownloadClient(
                 _mockAuthService,
