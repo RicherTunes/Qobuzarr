@@ -514,6 +514,11 @@ namespace Qobuzarr.Tests
                 "the host HttpException embeds the credential-bearing login URL");
             exception.Message.Should().NotContain("leak-probe@example.com");
             exception.Message.Should().NotContain("d41d8cd98f00b204e9800998ecf8427e");
+            exception.Message.Should().NotContain("test_app_id");
+            exception.Message.Should().NotContain("test_app_secret");
+            exception.Message.Should().NotContain("email=");
+            exception.Message.Should().NotContain("password=");
+            exception.Message.Should().NotContain("app_id=");
             exception.Message.Should().NotContain("user/login");
             exception.Message.Should().Contain("401");
         }
