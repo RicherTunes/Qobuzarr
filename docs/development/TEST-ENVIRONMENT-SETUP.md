@@ -76,11 +76,11 @@ including host-assembly extraction after the policy gates pass.
 
 - `QobuzDownloadClientTests` - Core download functionality
 - `QobuzApiClientTests` - API client functionality
-<!-- TODO(docval): QobuzQualityManagerTests disabled as of 2026-05-31 - service consolidated/removed -->
+- `QobuzApiClientCovTests` and `AdaptiveQobuzApiClientClassifierTests` - API behavior, retry classification, and Common rate-limit decorator coverage
 
 **Integration Tests:**
 
-- `ServiceIntegrationTests` - Cross-service functionality
+- `QobuzDownloadClientIntegrationTests` - Download-client wiring against extracted Lidarr host assemblies
 - `SecurityIntegrationTests` - Security framework validation
 
 **Performance Tests:**
@@ -105,8 +105,7 @@ including host-assembly extraction after the policy gates pass.
 
 ```
 ✅ CLI service adapter integration
-✅ Consolidated service test coverage
-<!-- TODO(docval): QobuzQualityManagerTests disabled as of 2026-05-31 - service consolidated/removed -->
+✅ Common-backed API, download, suppression, and architecture guard coverage
 ```
 
 ## Development Workflow
