@@ -150,6 +150,39 @@ namespace Qobuzarr.Tests.Unit.Download.Services
             ex.FailedTracks.Should().Be(1);
         }
 
+        // ── permanently-restricted tracks STILL throw (Option C: completion policy is unchanged) ──
+        //
+        // Live-confirmed bug: a permanently-restricted track (purchase-only / subscription gate) makes
+        // DownloadAlbumAsync throw AlbumDownloadException exactly like any other deficit, and Lidarr's
+        // blocklist provably never fires for it on the live instance (55+ failures, 0 blocklist entries) —
+        // so depending on blocklist-driven fallback, or changing this method to report Completed instead,
+        // would NOT reliably stop the loop. DownloadAlbumAsync's completion decision is therefore
+        // deliberately left untouched by this fix; the loop is broken further upstream instead (see
+        // QobuzDownloadClient.PerformDownloadAsync's AlbumDownloadException catch, which records the
+        // album id in RestrictedReleaseSuppressionStore so the indexer stops offering it — see
+        // QobuzParserSuppressionTests). This pins that DownloadAlbumAsync keeps throwing regardless of
+        // whether the deficit is permanent, so a future change doesn't accidentally reintroduce the
+        // Completed-for-incomplete anti-pattern (the Aphex-Twin regression).
+
+        [Fact]
+        public async Task DownloadAlbumAsync_PermanentlyRestrictedDeficit_StillThrowsAlbumDownloadException()
+        {
+            var album = MakeAlbum(20);
+            var result = SyntheticResult(successful: 19, total: 20);
+            var sut = new SyntheticTrackDownloadService(
+                result,
+                seedClassifier: c => c.RecordSkipped("t20", TrackUnavailableReason.Restricted));
+
+            var act = async () => await sut.DownloadAlbumAsync(MakeItem(), album, new QobuzDownloadSettings(), CancellationToken.None);
+
+            var ex = (await act.Should().ThrowAsync<AlbumDownloadException>(
+                "the completion policy is unchanged by the suppression fix — Failed is still reported so " +
+                "Lidarr can blocklist + fall back when a different edition/source genuinely could help")).Which;
+            ex.TrackResults.Should().ContainSingle(r => r.TrackId == "t20" && r.Reason == TrackUnavailableReason.Restricted,
+                "the classified reason must reach AlbumDownloadException.TrackResults so the download client " +
+                "can decide whether to suppress the release");
+        }
+
         // ── stream resolution / re-auth path ──────────────────────────────────────────────────────
 
         [Fact]
@@ -221,6 +254,27 @@ namespace Qobuzarr.Tests.Unit.Download.Services
 
             url.Should().BeEmpty();
             classifier.SkippedCount.Should().Be(0, "a non-preview error is a failure, not a skip");
+        }
+
+        [Fact]
+        public async Task ResolveStreamAsync_RestrictedTrackUnavailableException_IsRecordedWithReason()
+        {
+            // Bug: only PreviewOnly/NoQualityAvailable were ever recorded on the classifier; a Restricted
+            // TrackUnavailableException (purchase/subscription/geo gate — see QobuzApiClient.GetStreamingInfoAsync)
+            // fell into the same "no reason recorded" bucket as a genuinely-unknown hard failure. That erases the
+            // distinction the download client needs after DownloadAlbumAsync throws: only purchase/subscription
+            // restrictions are terminal enough to suppress; geo/transient/unknown still stay on the normal path.
+            var api = new Mock<IQobuzApiClient>();
+            api.Setup(a => a.GetStreamingInfoAsync(It.IsAny<string>(), It.IsAny<int>(), It.IsAny<CancellationToken>()))
+               .ThrowsAsync(new TrackUnavailableException("t1", "Content restricted (TrackRestrictedByPurchaseCredentials)", TrackUnavailableReason.Restricted));
+            var sut = MakeService(api.Object);
+            var classifier = new QobuzTrackClassifier();
+
+            var (url, _) = await sut.ResolveStreamAsync("t1", new QobuzDownloadSettings(), MakeItem(), classifier, CancellationToken.None);
+
+            url.Should().BeEmpty();
+            classifier.GetReason("t1").Should().Be(TrackUnavailableReason.Restricted,
+                "the album-level permanent-only decision needs the reason recorded for every classified unavailability, not just previews");
         }
 
         [Fact]

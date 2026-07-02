@@ -20,8 +20,10 @@ using Lidarr.Plugin.Qobuzarr.Download;
 using Lidarr.Plugin.Qobuzarr.Download.Clients;
 using Lidarr.Plugin.Qobuzarr.Download.Services;
 using Lidarr.Plugin.Qobuzarr.Abstractions;
+using Lidarr.Plugin.Qobuzarr.Exceptions;
 using Lidarr.Plugin.Qobuzarr.Models;
 using Lidarr.Plugin.Qobuzarr.Models.Authentication;
+using Lidarr.Plugin.Qobuzarr.Services;
 using Qobuzarr.Tests.Fixtures;
 using Qobuzarr.Tests.TestData;
 
@@ -81,6 +83,11 @@ namespace Qobuzarr.Tests.Unit.Download
             protected override Lidarr.Plugin.Common.HostBridge.HostBridgeDownloadTrackerStore<QobuzDownloadItem> Tracker
                 => _testTracker;
 
+            public IRestrictedReleaseSuppressionStore? ReleaseSuppressionStoreOverride { get; set; }
+
+            protected override IRestrictedReleaseSuppressionStore ReleaseSuppressionStore
+                => ReleaseSuppressionStoreOverride ?? base.ReleaseSuppressionStore;
+
             internal Func<QobuzDownloadItem, CancellationToken, Task>? BeforeDownloadWorkerSideEffectsOverride { get; set; }
 
             protected override Task BeforeDownloadWorkerSideEffectsAsync(QobuzDownloadItem downloadItem, CancellationToken cancellationToken)
@@ -109,6 +116,26 @@ namespace Qobuzarr.Tests.Unit.Download
         // REMOVED: IQobuzTrackDownloaderFactory has been deleted
         private readonly TestableQobuzDownloadClient _downloadClient;
         private readonly QobuzSession _testSession;
+
+        private sealed class RecordingSuppressionStore : IRestrictedReleaseSuppressionStore
+        {
+            public List<(string AlbumId, string TrackId, TrackUnavailableReason Reason)> Records { get; } = new();
+
+            public bool IsSuppressed(string albumId) => false;
+
+            public Task SuppressAsync(
+                string albumId,
+                string trackId,
+                TrackUnavailableReason reason,
+                CancellationToken cancellationToken = default)
+            {
+                Records.Add((albumId, trackId, reason));
+                return Task.CompletedTask;
+            }
+
+            public Task<bool> ClearAsync(string albumId, CancellationToken cancellationToken = default)
+                => Task.FromResult(false);
+        }
 
         public QobuzDownloadClientTests()
         {
@@ -276,6 +303,133 @@ namespace Qobuzarr.Tests.Unit.Download
             downloadItem.Should().NotBeNull();
             downloadItem.Status.Should().Be(DownloadItemStatus.Completed);
             downloadItem.Message.Should().Contain("quality fallback used for 2 track(s)");
+        }
+
+        [Fact]
+        public async Task Download_WithPermanentTrackRestriction_RecordsReleaseSuppressionAndStillFails()
+        {
+            var suppression = new RecordingSuppressionStore();
+            _downloadClient.ReleaseSuppressionStoreOverride = suppression;
+
+            var albumException = new AlbumDownloadException(
+                "0060254788359",
+                "Random Access Memories",
+                totalTracks: 20,
+                successfulTracks: 19,
+                skippedTracks: 0,
+                failedTracks: 1,
+                trackResults: new[]
+                {
+                    new TrackDownloadResult
+                    {
+                        Success = false,
+                        TrackId = "restricted-track",
+                        Reason = TrackUnavailableReason.Restricted,
+                        Message = "Content restricted (TrackRestrictedByPurchaseCredentials)",
+                    },
+                });
+
+            _mockTrackDownloadService.DownloadAlbumAsync(
+                Arg.Any<QobuzDownloadItem>(),
+                Arg.Any<QobuzAlbum>(),
+                Arg.Any<QobuzDownloadSettings>(),
+                Arg.Any<CancellationToken>())
+                .Returns(Task.FromException(albumException));
+
+            var downloadId = await _downloadClient.Download(CreateTestRemoteAlbum(), Substitute.For<IIndexer>());
+
+            var tracked = await AwaitTrackedDownloadIgnoringErrorsAsync(downloadId);
+
+            tracked.GetHostStatus().Should().Be(DownloadItemStatus.Failed);
+            suppression.Records.Should().ContainSingle(record =>
+                record.AlbumId == "0060254788359" &&
+                record.TrackId == "restricted-track" &&
+                record.Reason == TrackUnavailableReason.Restricted);
+        }
+
+        [Fact]
+        public async Task Download_WithOnlyUnclassifiedDeficit_DoesNotRecordReleaseSuppression()
+        {
+            // An unclassified deficit (Reason == null) is symptomatic of a genuine edition mismatch or an
+            // unexpected error, not a proven-permanent restriction. Lidarr still needs the chance to
+            // blocklist + fall back to another edition/source, so suppression must NOT fire.
+            var suppression = new RecordingSuppressionStore();
+            _downloadClient.ReleaseSuppressionStoreOverride = suppression;
+
+            var albumException = new AlbumDownloadException(
+                "0060254788359",
+                "Random Access Memories",
+                totalTracks: 20,
+                successfulTracks: 18,
+                skippedTracks: 0,
+                failedTracks: 2,
+                trackResults: new[]
+                {
+                    new TrackDownloadResult { Success = false, TrackId = "unknown-track", Reason = null },
+                });
+
+            _mockTrackDownloadService.DownloadAlbumAsync(
+                Arg.Any<QobuzDownloadItem>(),
+                Arg.Any<QobuzAlbum>(),
+                Arg.Any<QobuzDownloadSettings>(),
+                Arg.Any<CancellationToken>())
+                .Returns(Task.FromException(albumException));
+
+            var downloadId = await _downloadClient.Download(CreateTestRemoteAlbum(), Substitute.For<IIndexer>());
+            var tracked = await AwaitTrackedDownloadIgnoringErrorsAsync(downloadId);
+
+            tracked.GetHostStatus().Should().Be(DownloadItemStatus.Failed);
+            suppression.Records.Should().BeEmpty();
+        }
+
+        [Fact]
+        public async Task Download_WithOnlyRegionalRestrictionDeficit_DoesNotRecordReleaseSuppression()
+        {
+            // Geo-restriction is deliberately excluded from suppression eligibility
+            // (TrackUnavailableReasonExtensions.IsPermanentlyUnavailable) — availability can change (VPN,
+            // catalog rollout by region), so permanently hiding the release is a worse failure mode than
+            // the bounded re-grab it would otherwise cause.
+            var suppression = new RecordingSuppressionStore();
+            _downloadClient.ReleaseSuppressionStoreOverride = suppression;
+
+            var albumException = new AlbumDownloadException(
+                "geo-album-id",
+                "Geo Restricted Album",
+                totalTracks: 10,
+                successfulTracks: 9,
+                skippedTracks: 0,
+                failedTracks: 1,
+                trackResults: new[]
+                {
+                    new TrackDownloadResult { Success = false, TrackId = "geo-track", Reason = TrackUnavailableReason.RegionalRestriction },
+                });
+
+            _mockTrackDownloadService.DownloadAlbumAsync(
+                Arg.Any<QobuzDownloadItem>(),
+                Arg.Any<QobuzAlbum>(),
+                Arg.Any<QobuzDownloadSettings>(),
+                Arg.Any<CancellationToken>())
+                .Returns(Task.FromException(albumException));
+
+            var downloadId = await _downloadClient.Download(CreateTestRemoteAlbum(), Substitute.For<IIndexer>());
+            var tracked = await AwaitTrackedDownloadIgnoringErrorsAsync(downloadId);
+
+            tracked.GetHostStatus().Should().Be(DownloadItemStatus.Failed);
+            suppression.Records.Should().BeEmpty();
+        }
+
+        [Fact]
+        public async Task Download_SuccessfulAlbum_NeverTouchesReleaseSuppressionStore()
+        {
+            var suppression = new RecordingSuppressionStore();
+            _downloadClient.ReleaseSuppressionStoreOverride = suppression;
+
+            var remoteAlbum = CreateTestRemoteAlbum();
+            var downloadId = await _downloadClient.Download(remoteAlbum, Substitute.For<IIndexer>());
+            var tracked = await AwaitTrackedDownloadAsync(downloadId);
+
+            tracked.GetHostStatus().Should().Be(DownloadItemStatus.Completed);
+            suppression.Records.Should().BeEmpty();
         }
 
         [Fact]

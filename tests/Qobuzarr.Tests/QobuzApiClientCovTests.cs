@@ -13,6 +13,7 @@ using Xunit;
 using Lidarr.Plugin.Qobuzarr.API;
 using Lidarr.Plugin.Qobuzarr.API.Http;
 using Lidarr.Plugin.Qobuzarr.API.Caching;
+using Lidarr.Plugin.Qobuzarr.Download;
 using Lidarr.Plugin.Qobuzarr.Models;
 using Lidarr.Plugin.Qobuzarr.Models.Authentication;
 using Lidarr.Plugin.Qobuzarr.Services.Interfaces;
@@ -212,11 +213,20 @@ namespace Qobuzarr.Tests
         #endregion
 
         #region GetStreamingInfoAsync - Line 451: Non-Fallback Restrictions
+        //
+        // These restrictions must surface as a CLASSIFIED TrackUnavailableException (not an opaque
+        // InvalidOperationException) so the download-path catch in TrackDownloadService.ResolveStreamAsync
+        // can distinguish a terminal restriction (purchase-only / subscription tier — no retry or re-grab
+        // will ever fetch it) from geo, transient, or unknown failures. Live-confirmed
+        // bug: a raw InvalidOperationException("Content restricted (TrackRestrictedByPurchaseCredentials)")
+        // reached the generic catch as an opaque hard failure, indistinguishable from a network blip or a
+        // genuine edition mismatch — the album was reported Failed every time, Lidarr re-grabbed the
+        // identical release (every quality tier carries the same restricted track id), and the loop never
+        // terminated (3 albums, 55+ cycles, ~145GB wasted EACH).
 
         [Fact]
-        public async Task GetStreamingInfoAsync_WithNonFallbackRestrictions_ShouldThrowInvalidOperationException()
+        public async Task GetStreamingInfoAsync_WithGeoRestriction_ThrowsTrackUnavailableException_WithRegionalRestrictionReason()
         {
-            // Line 451: throw new InvalidOperationException(message) when IsQualityFallbackOnly() is false
             var client = CreateClient();
 
             _mockSessionManager.Setup(x => x.GetCurrentSessionAsync(default))
@@ -255,16 +265,20 @@ namespace Qobuzarr.Tests
                 .ReturnsAsync(response);
 
             // Act & Assert
-            var exception = await Assert.ThrowsAsync<InvalidOperationException>(
+            var exception = await Assert.ThrowsAsync<TrackUnavailableException>(
                 () => client.GetStreamingInfoAsync("track123", 6));
 
-            exception.Message.Should().Be("Content not available in your region");
+            exception.Message.Should().Contain("Content not available in your region");
+            exception.TrackId.Should().Be("track123");
+            exception.Reason.Should().Be(TrackUnavailableReason.RegionalRestriction);
+            exception.Reason.IsPermanentlyUnavailable().Should().BeFalse(
+                "geo-blocking is deliberately excluded from suppression — availability can change " +
+                "(VPN, catalog rollout by region) and permanently hiding the release is worse than a bounded retry");
         }
 
         [Fact]
-        public async Task GetStreamingInfoAsync_WithSubscriptionRestriction_ShouldThrowInvalidOperationException()
+        public async Task GetStreamingInfoAsync_WithSubscriptionRestriction_ThrowsTrackUnavailableException_WithSubscriptionRestrictionReason()
         {
-            // Test another restriction code path at line 451
             var client = CreateClient();
 
             _mockSessionManager.Setup(x => x.GetCurrentSessionAsync(default))
@@ -302,10 +316,162 @@ namespace Qobuzarr.Tests
                 .ReturnsAsync(response);
 
             // Act & Assert
-            var exception = await Assert.ThrowsAsync<InvalidOperationException>(
+            var exception = await Assert.ThrowsAsync<TrackUnavailableException>(
                 () => client.GetStreamingInfoAsync("track123", 7));
 
-            exception.Message.Should().Be("Hi-Res requires premium subscription");
+            exception.Message.Should().Contain("Hi-Res requires premium subscription");
+            exception.Reason.Should().Be(TrackUnavailableReason.SubscriptionRestriction);
+            exception.Reason.IsPermanentlyUnavailable().Should().BeTrue();
+        }
+
+        [Fact]
+        public async Task GetStreamingInfoAsync_WithTrackRestrictedByPurchaseCredentials_ThrowsTrackUnavailableException_WithRestrictedReason()
+        {
+            // Reproduces the EXACT live-confirmed message
+            // ("Content restricted (TrackRestrictedByPurchaseCredentials)") — Qobuz's purchase-only gate.
+            // No Reason/human message is supplied by the API for this code in the wild, so
+            // QobuzStreamRestriction.GetRestrictionMessage() falls through to the Code-based default
+            // "Content restricted ({Code})" formatting — reproduced here by leaving Reason unset.
+            var client = CreateClient();
+
+            _mockSessionManager.Setup(x => x.GetCurrentSessionAsync(default))
+                .ReturnsAsync(_validSession);
+
+            _mockResponseCache.Setup(x => x.Get<QobuzStreamResponse>(
+                It.IsAny<string>(), It.IsAny<Dictionary<string, string>>()))
+                .Returns((QobuzStreamResponse?)null);
+
+            var requestBuilder = new HttpRequestBuilder("https://api.qobuz.com/track/getFileUrl");
+            _mockHttpClient.Setup(x => x.BuildRequest(It.IsAny<string>(), It.IsAny<string>()))
+                .Returns(requestBuilder);
+
+            var restrictedResponse = new QobuzStreamResponse
+            {
+                Url = string.Empty,
+                FormatId = 27,
+                MimeType = "audio/flac",
+                Sample = false,
+                Restrictions = new List<QobuzStreamRestriction>
+                {
+                    new QobuzStreamRestriction
+                    {
+                        Code = "TrackRestrictedByPurchaseCredentials",
+                    }
+                }
+            };
+
+            var response = HttpTestHelpers.CreateResponse(
+                JsonConvert.SerializeObject(restrictedResponse),
+                HttpStatusCode.OK);
+
+            _mockHttpClient.Setup(x => x.ExecuteAsync(It.IsAny<HttpRequest>(), default))
+                .ReturnsAsync(response);
+
+            // Act & Assert
+            var exception = await Assert.ThrowsAsync<TrackUnavailableException>(
+                () => client.GetStreamingInfoAsync("track123", 27));
+
+            exception.Message.Should().Contain("Content restricted (TrackRestrictedByPurchaseCredentials)");
+            exception.Reason.Should().Be(TrackUnavailableReason.Restricted);
+            exception.Reason.IsPermanentlyUnavailable().Should().BeTrue(
+                "purchase-only content will never be fetchable by re-grabbing the same catalog entry");
+        }
+
+        [Fact]
+        public async Task GetStreamingInfoAsync_WithFormatRestrictedBySubscription_ThrowsTrackUnavailableException_WithSubscriptionRestrictionReason()
+        {
+            // The other named live restriction code from the bug report.
+            var client = CreateClient();
+
+            _mockSessionManager.Setup(x => x.GetCurrentSessionAsync(default))
+                .ReturnsAsync(_validSession);
+
+            _mockResponseCache.Setup(x => x.Get<QobuzStreamResponse>(
+                It.IsAny<string>(), It.IsAny<Dictionary<string, string>>()))
+                .Returns((QobuzStreamResponse?)null);
+
+            var requestBuilder = new HttpRequestBuilder("https://api.qobuz.com/track/getFileUrl");
+            _mockHttpClient.Setup(x => x.BuildRequest(It.IsAny<string>(), It.IsAny<string>()))
+                .Returns(requestBuilder);
+
+            var restrictedResponse = new QobuzStreamResponse
+            {
+                Url = string.Empty,
+                FormatId = 27,
+                MimeType = "audio/flac",
+                Sample = false,
+                Restrictions = new List<QobuzStreamRestriction>
+                {
+                    new QobuzStreamRestriction
+                    {
+                        Code = "FormatRestrictedBySubscription",
+                    }
+                }
+            };
+
+            var response = HttpTestHelpers.CreateResponse(
+                JsonConvert.SerializeObject(restrictedResponse),
+                HttpStatusCode.OK);
+
+            _mockHttpClient.Setup(x => x.ExecuteAsync(It.IsAny<HttpRequest>(), default))
+                .ReturnsAsync(response);
+
+            // Act & Assert
+            var exception = await Assert.ThrowsAsync<TrackUnavailableException>(
+                () => client.GetStreamingInfoAsync("track123", 27));
+
+            exception.Message.Should().Contain("Content restricted (FormatRestrictedBySubscription)");
+            exception.Reason.Should().Be(TrackUnavailableReason.SubscriptionRestriction);
+            exception.Reason.IsPermanentlyUnavailable().Should().BeTrue();
+        }
+
+        [Fact]
+        public async Task GetStreamingInfoAsync_WithTemporaryReasonCode_ThrowsTrackUnavailableException_ButIsNotPermanent()
+        {
+            // ReasonCode "TEMP" is explicitly documented (QobuzStreamRestriction.GetRestrictionMessage) as
+            // "Temporarily unavailable" — this must NOT be classified as permanently unavailable, or the
+            // album-completion carve-out would wrongly stop retrying something that could resolve on its own.
+            var client = CreateClient();
+
+            _mockSessionManager.Setup(x => x.GetCurrentSessionAsync(default))
+                .ReturnsAsync(_validSession);
+
+            _mockResponseCache.Setup(x => x.Get<QobuzStreamResponse>(
+                It.IsAny<string>(), It.IsAny<Dictionary<string, string>>()))
+                .Returns((QobuzStreamResponse?)null);
+
+            var requestBuilder = new HttpRequestBuilder("https://api.qobuz.com/track/getFileUrl");
+            _mockHttpClient.Setup(x => x.BuildRequest(It.IsAny<string>(), It.IsAny<string>()))
+                .Returns(requestBuilder);
+
+            var restrictedResponse = new QobuzStreamResponse
+            {
+                Url = string.Empty,
+                FormatId = 6,
+                MimeType = "audio/flac",
+                Sample = false,
+                Restrictions = new List<QobuzStreamRestriction>
+                {
+                    new QobuzStreamRestriction
+                    {
+                        ReasonCode = "TEMP",
+                    }
+                }
+            };
+
+            var response = HttpTestHelpers.CreateResponse(
+                JsonConvert.SerializeObject(restrictedResponse),
+                HttpStatusCode.OK);
+
+            _mockHttpClient.Setup(x => x.ExecuteAsync(It.IsAny<HttpRequest>(), default))
+                .ReturnsAsync(response);
+
+            // Act & Assert
+            var exception = await Assert.ThrowsAsync<TrackUnavailableException>(
+                () => client.GetStreamingInfoAsync("track123", 6));
+
+            exception.Reason.IsPermanentlyUnavailable().Should().BeFalse(
+                "a restriction explicitly documented as temporary must keep the normal Failed+blocklist+retry path");
         }
 
         #endregion
