@@ -40,6 +40,7 @@ namespace Qobuzarr.Tests.Unit.Download.Services
             public string? Album;
             public int Duration;
             public bool AllowLrclibFallback;
+            public bool Disposed;
             public Func<Task>? OnEnrich;
 
             public async Task TryEnrichAsync(string audioFilePath, string artistName, string trackName, string albumName, int durationSeconds, bool allowLrclibFallback, CancellationToken cancellationToken = default)
@@ -53,7 +54,7 @@ namespace Qobuzarr.Tests.Unit.Download.Services
                 if (OnEnrich != null) await OnEnrich();
             }
 
-            public void Dispose() { }
+            public void Dispose() { Disposed = true; }
         }
 
         private (string path, QobuzStreamingTrack carrier) MakeCarrier()
@@ -122,6 +123,56 @@ namespace Qobuzarr.Tests.Unit.Download.Services
             var result = await sut.PostProcessAsync(path, carrier, null, CancellationToken.None);
 
             result.Should().Be(path, "a lyrics failure must never fail the download");
+        }
+
+        [Fact]
+        public async Task PostProcess_WhenNoEnricherInjected_UsesFactoryToConstructInvokeAndDisposeIt()
+        {
+            // Production path: no shared ILyricsEnricher is injected (Common's LyricsEnricher is internalized,
+            // so DryIoc never auto-registers it), so the post-processor must construct one per track via the
+            // fallback factory, invoke it with the track context, and dispose it. This pins the exact delivery
+            // path that unit tests previously skipped (all others inject a mock) — the gap that made a lyrics
+            // regression only observable live.
+            var (path, carrier) = MakeCarrier();
+            var made = new RecordingLyricsEnricher();
+            var factoryCalls = 0;
+            var settings = new QobuzDownloadSettings { SaveSyncedLyrics = true, UseLRCLIB = true };
+            var sut = new QobuzLyricsPostProcessor(
+                settings,
+                lyricsEnricher: null,
+                logger: null,
+                enricherFactory: () => { factoryCalls++; return made; });
+
+            var result = await sut.PostProcessAsync(path, carrier, null, CancellationToken.None);
+
+            result.Should().Be(path);
+            factoryCalls.Should().Be(1, "no enricher was injected, so the fallback factory must be used");
+            made.Calls.Should().Be(1);
+            made.Artist.Should().Be("Daft Punk");
+            made.Track.Should().Be("One More Time");
+            made.AllowLrclibFallback.Should().BeTrue();
+            made.Disposed.Should().BeTrue("a factory-constructed enricher is owned and must be disposed");
+        }
+
+        [Fact]
+        public async Task PostProcess_WhenEnricherInjected_DoesNotUseFactoryNorDisposeInjected()
+        {
+            // The caller-owned injected enricher must be used as-is and NOT disposed (ownership stays with the caller).
+            var (path, carrier) = MakeCarrier();
+            var injected = new RecordingLyricsEnricher();
+            var factoryCalls = 0;
+            var settings = new QobuzDownloadSettings { SaveSyncedLyrics = true, UseLRCLIB = true };
+            var sut = new QobuzLyricsPostProcessor(
+                settings,
+                lyricsEnricher: injected,
+                logger: null,
+                enricherFactory: () => { factoryCalls++; return new RecordingLyricsEnricher(); });
+
+            await sut.PostProcessAsync(path, carrier, null, CancellationToken.None);
+
+            factoryCalls.Should().Be(0, "an injected enricher takes precedence over the fallback factory");
+            injected.Calls.Should().Be(1);
+            injected.Disposed.Should().BeFalse("an injected (caller-owned) enricher must not be disposed by the post-processor");
         }
 
         [Fact]
