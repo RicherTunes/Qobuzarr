@@ -126,6 +126,16 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Services
 
             if (!isSuccessful)
             {
+                // Album-completion contract (CLAUDE.md "Album-completion contract"): ALWAYS report Failed
+                // on any deficit, even when the deficit is a permanently-restricted track that no retry
+                // will ever fix. Reporting Failed here is what lets Lidarr blocklist the grabbed release
+                // and fall back to another edition/source when one exists (the Aphex-Twin contract). The
+                // re-grab loop for a permanently-restricted track is broken further upstream instead: once
+                // this exception's TrackResults show a terminal restriction (see
+                // TrackUnavailableReasonExtensions.IsPermanentlyUnavailable), QobuzDownloadClient records
+                // the album id in RestrictedReleaseSuppressionStore so the indexer stops offering releases
+                // for it in future searches — without ever changing what gets reported to Lidarr for this
+                // grab. See QobuzDownloadClient.PerformDownloadAsync's AlbumDownloadException catch.
                 var exception = new AlbumDownloadException(
                     album.Id,
                     album.GetFullTitle(),
@@ -249,10 +259,23 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Services
             }
             catch (TrackUnavailableException ex)
             {
+                // Record the reason for EVERY classified unavailability, not just preview/no-quality.
+                // DownloadAlbumAsync's album-completion decision needs to know WHY every deficit track
+                // failed to distinguish a permanently-hopeless album (a purchase-only/subscription-tier
+                // restriction — no retry or re-grab will ever fix it) from a recoverable
+                // one (a genuine edition mismatch or transient failure, which must stay Failed so Lidarr
+                // blocklists + falls back). Previously only Preview/NoQuality were recorded here, so a
+                // Restricted track (e.g. the raw "TrackRestrictedByPurchaseCredentials" restriction) fell
+                // into the same "no reason recorded" bucket as a genuinely unknown hard failure.
+                classifier.RecordSkipped(trackId, ex.Reason);
+
                 if (ex.Reason == TrackUnavailableReason.PreviewOnly || ex.Reason == TrackUnavailableReason.NoQualityAvailable)
                 {
-                    classifier.RecordSkipped(trackId, ex.Reason);
                     _logger.Warn("Skipping track {0}: {1}", trackId, ex.GetUserFriendlyMessage());
+                }
+                else if (ex.Reason.IsPermanentlyUnavailable())
+                {
+                    _logger.Warn("Track {0} permanently unavailable ({1}): {2}", trackId, ex.Reason, ex.GetUserFriendlyMessage());
                 }
                 else
                 {

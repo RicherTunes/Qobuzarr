@@ -34,6 +34,7 @@ using Lidarr.Plugin.Qobuzarr.Utilities;
 using Lidarr.Plugin.Qobuzarr.Exceptions;
 using Lidarr.Plugin.Qobuzarr.Download.Services;
 using Lidarr.Plugin.Qobuzarr.Constants;
+using Lidarr.Plugin.Qobuzarr.Services;
 using Lidarr.Plugin.Qobuzarr.Services.Http;
 using Lidarr.Plugin.Common.HostBridge;
 using Lidarr.Plugin.Common.Observability;
@@ -66,6 +67,9 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Clients
                 itemFactory: QobuzDownloadItem.FromHostBridgeDto);
 
         protected virtual HostBridgeDownloadTrackerStore<QobuzDownloadItem> Tracker => _staticTracker;
+
+        protected virtual IRestrictedReleaseSuppressionStore ReleaseSuppressionStore
+            => RestrictedReleaseSuppressionStore.Shared;
 
         protected virtual TimeSpan GracefulShutdownTimeout => TimeSpan.FromSeconds(30);
 
@@ -869,10 +873,62 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Clients
                 downloadItem.Message = "Download was cancelled";
                 _logger.Info("⚠️ Download cancelled: {0} - {1}", downloadItem.Artist, downloadItem.Title);
             }
+            catch (AlbumDownloadException ex)
+            {
+                await TryRecordTerminalReleaseSuppressionAsync(downloadItem, ex).ConfigureAwait(false);
+                downloadItem.SetFailed($"Download failed: {ex.Message}");
+                _logger.Error(ex, "Download failed: {0} - {1}", downloadItem.Artist, downloadItem.Title);
+            }
             catch (Exception ex)
             {
                 downloadItem.SetFailed($"Download failed: {ex.Message}");
                 _logger.Error(ex, "Download failed: {0} - {1}", downloadItem.Artist, downloadItem.Title);
+            }
+        }
+
+        private async Task TryRecordTerminalReleaseSuppressionAsync(
+            QobuzDownloadItem downloadItem,
+            AlbumDownloadException exception)
+        {
+            var terminal = exception.TrackResults.FirstOrDefault(result =>
+                !result.Success &&
+                result.Reason.HasValue &&
+                result.Reason.Value.IsPermanentlyUnavailable());
+
+            if (terminal?.Reason == null)
+            {
+                return;
+            }
+
+            var albumId = string.IsNullOrWhiteSpace(exception.AlbumId)
+                ? downloadItem.AlbumId
+                : exception.AlbumId;
+
+            if (string.IsNullOrWhiteSpace(albumId))
+            {
+                return;
+            }
+
+            try
+            {
+                await ReleaseSuppressionStore.SuppressAsync(
+                    albumId,
+                    terminal.TrackId ?? string.Empty,
+                    terminal.Reason.Value,
+                    CancellationToken.None).ConfigureAwait(false);
+
+                _logger.Warn(
+                    "Suppressed Qobuz album {0} from future searches after terminal track restriction ({1}: {2})",
+                    albumId,
+                    terminal.TrackId,
+                    terminal.Reason.Value);
+            }
+            catch (Exception storeException)
+            {
+                _logger.Warn(
+                    storeException,
+                    "Failed to record terminal Qobuz release suppression for album {0}; preserving original download failure",
+                    albumId);
             }
         }
 

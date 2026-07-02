@@ -27,6 +27,7 @@ using Lidarr.Plugin.Common.Services.Intelligence;
 using Lidarr.Plugin.Qobuzarr.Download;
 using NzbDrone.Core.Download;
 using Lidarr.Plugin.Common.Services;
+using QobuzSuppressionStore = Lidarr.Plugin.Qobuzarr.Services.RestrictedReleaseSuppressionStore;
 
 namespace Lidarr.Plugin.Qobuzarr.Indexers
 {
@@ -152,7 +153,7 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
         {
             if (_parser == null)
             {
-                _parser = new QobuzParser(GetSettingsSafe(), _logger);
+                _parser = new QobuzParser(GetSettingsSafe(), _logger, QobuzSuppressionStore.Shared);
             }
 
             // Update context from request generator if available

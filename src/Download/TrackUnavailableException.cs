@@ -131,4 +131,40 @@ namespace Lidarr.Plugin.Qobuzarr.Download
         /// </summary>
         Unknown
     }
+
+    /// <summary>
+    /// Classification helpers for <see cref="TrackUnavailableReason"/>.
+    /// </summary>
+    public static class TrackUnavailableReasonExtensions
+    {
+        /// <summary>
+        /// True when the reason is a Qobuz rights gate that will NEVER lift for a re-grab of the exact
+        /// same catalog entry: purchase-only content or an insufficient subscription tier. Used solely to
+        /// decide whether an album-download failure should cause the album's release to be suppressed
+        /// from future indexer searches (see <c>RestrictedReleaseSuppressionStore</c> /
+        /// <c>QobuzDownloadClient.PerformDownloadAsync</c>) — it does NOT change the album-completion
+        /// decision (an incomplete album still always reports Failed; see CLAUDE.md "Album-completion
+        /// contract"). Lidarr's blocklist provably does not fire for this failure mode on the live
+        /// instance (55+ failures, 0 blocklist entries), so suppression happens independently, purely by
+        /// the qobuz indexer refusing to offer the album again — not by relying on blocklist.
+        ///
+        /// <para><see cref="TrackUnavailableReason.RegionalRestriction"/> (geo) is deliberately EXCLUDED
+        /// even though it is also a rights gate: geo-availability can change (VPN, catalog rollout by
+        /// region), and permanently hiding a release that might become available is a worse failure mode
+        /// than the bounded re-grab loop it would otherwise cause. <see cref="TrackUnavailableReason.PreviewOnly"/>
+        /// and <see cref="TrackUnavailableReason.NoQualityAvailable"/> are excluded — already handled as a
+        /// distinct "skip" concept elsewhere, out of scope for this fix.
+        /// <see cref="TrackUnavailableReason.ApiError"/>, <see cref="TrackUnavailableReason.NotStreamable"/>,
+        /// and <see cref="TrackUnavailableReason.Unknown"/> are excluded because they may be transient
+        /// (network blip, temporary Qobuz-side issue) or symptomatic of a genuine edition mismatch (the
+        /// Aphex-Twin case) — suppressing on them risks permanently hiding an album that could actually
+        /// succeed via a different edition.</para>
+        /// </summary>
+        public static bool IsPermanentlyUnavailable(this TrackUnavailableReason reason) => reason switch
+        {
+            TrackUnavailableReason.SubscriptionRestriction => true,
+            TrackUnavailableReason.Restricted => true,
+            _ => false,
+        };
+    }
 }
