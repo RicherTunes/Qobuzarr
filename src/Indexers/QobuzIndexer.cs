@@ -27,6 +27,7 @@ using Lidarr.Plugin.Common.Services.Intelligence;
 using Lidarr.Plugin.Qobuzarr.Download;
 using NzbDrone.Core.Download;
 using Lidarr.Plugin.Common.Services;
+using QobuzSuppressionServices = Lidarr.Plugin.Qobuzarr.Services;
 using QobuzSuppressionStore = Lidarr.Plugin.Qobuzarr.Services.RestrictedReleaseSuppressionStore;
 
 namespace Lidarr.Plugin.Qobuzarr.Indexers
@@ -62,6 +63,9 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
 
         // Warn-once gate for constructor wire-up failures (process-global, single fixed key)
         private static readonly WarnOnce _wireWarn = new();
+
+        protected virtual QobuzSuppressionServices.IRestrictedReleaseSuppressionStore ReleaseSuppressionStore
+            => QobuzSuppressionStore.Shared;
 
         public QobuzIndexer(
             IHttpClient httpClient,
@@ -153,7 +157,7 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
         {
             if (_parser == null)
             {
-                _parser = new QobuzParser(GetSettingsSafe(), _logger, QobuzSuppressionStore.Shared);
+                _parser = new QobuzParser(GetSettingsSafe(), _logger, ReleaseSuppressionStore);
             }
 
             // Update context from request generator if available

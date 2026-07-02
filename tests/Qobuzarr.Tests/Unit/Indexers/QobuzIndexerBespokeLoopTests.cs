@@ -1,8 +1,11 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using FluentAssertions;
 using Moq;
+using Newtonsoft.Json;
 using NLog;
 using NzbDrone.Common.Http;
 using NzbDrone.Core.Configuration;
@@ -11,11 +14,15 @@ using NzbDrone.Core.Parser;
 using NzbDrone.Core.Parser.Model;
 using Xunit;
 using Lidarr.Plugin.Common.Services.Bridge;
+using Lidarr.Plugin.Qobuzarr.Download;
 using Lidarr.Plugin.Qobuzarr.Authentication;
 using Lidarr.Plugin.Qobuzarr.API;
 using Lidarr.Plugin.Qobuzarr.Indexers;
+using Lidarr.Plugin.Qobuzarr.Models;
 using Lidarr.Plugin.Qobuzarr.Models.Authentication;
+using Lidarr.Plugin.Qobuzarr.Services;
 using Lidarr.Plugin.Qobuzarr.Security;
+using Qobuzarr.Tests.Builders;
 using Qobuzarr.Tests.Helpers;
 
 namespace Qobuzarr.Tests.Unit.Indexers;
@@ -170,6 +177,41 @@ public sealed class QobuzIndexerBespokeLoopTests
         await act.Should().ThrowAsync<OperationCanceledException>();
     }
 
+    [Fact]
+    public async Task FetchReleases_BaseParserPathUsesSuppressionStore()
+    {
+        // Arrange: no test parser override. This exercises FetchReleases -> base GetParser()
+        // -> QobuzParser.ParseResponse, proving the production parser path is suppression-aware.
+        var suppressed = QobuzAlbumBuilder.New()
+            .WithId("suppressed-album")
+            .WithTitle("Suppression Test Album")
+            .WithArtist("Suppression Artist", "suppression-artist")
+            .AsHiResFlac()
+            .Build();
+
+        var allowed = QobuzAlbumBuilder.New()
+            .WithId("allowed-album")
+            .WithTitle("Allowed Album")
+            .WithArtist("Allowed Artist", "allowed-artist")
+            .AsCdQualityFlac()
+            .Build();
+
+        var req = MakeDummyRequest();
+        _httpClientMock
+            .Setup(x => x.ExecuteAsync(It.IsAny<HttpRequest>()))
+            .ReturnsAsync(HttpTestHelpers.CreateResponse(SearchResponseJson(suppressed, allowed), request: req.HttpRequest));
+
+        var indexer = CreateIndexer();
+        indexer.SetSuppressionStore(new FakeSuppressionStore("suppressed-album"));
+
+        // Act
+        var result = await indexer.CallFetchReleases(_ => ChainWith(req));
+
+        // Assert
+        result.Should().NotBeEmpty();
+        result.Should().OnlyContain(r => r.Guid.Contains("allowed-album"));
+    }
+
     // ── helpers ─────────────────────────────────────────────────────────────
 
     private ExposedQobuzIndexer CreateIndexer()
@@ -193,6 +235,15 @@ public sealed class QobuzIndexerBespokeLoopTests
 
     private static IndexerRequest MakeDummyRequest()
         => new(new HttpRequest("http://test.invalid/search"));
+
+    private static string SearchResponseJson(params QobuzAlbum[] albums)
+        => JsonConvert.SerializeObject(new QobuzAlbumSearchResponse
+        {
+            Albums = new QobuzSearchResultContainer<QobuzAlbum>
+            {
+                Items = albums.ToList(),
+            },
+        });
 }
 
 /// <summary>
@@ -202,6 +253,7 @@ public sealed class QobuzIndexerBespokeLoopTests
 internal sealed class ExposedQobuzIndexer : QobuzIndexer
 {
     private IParseIndexerResponse? _testParser;
+    private IRestrictedReleaseSuppressionStore? _suppressionStore;
 
     public ExposedQobuzIndexer(
         IHttpClient httpClient,
@@ -217,10 +269,38 @@ internal sealed class ExposedQobuzIndexer : QobuzIndexer
 
     public void SetTestParser(IParseIndexerResponse parser) => _testParser = parser;
 
+    public void SetSuppressionStore(IRestrictedReleaseSuppressionStore suppressionStore)
+        => _suppressionStore = suppressionStore;
+
+    protected override IRestrictedReleaseSuppressionStore ReleaseSuppressionStore
+        => _suppressionStore ?? base.ReleaseSuppressionStore;
+
     public override IParseIndexerResponse GetParser()
         => _testParser ?? base.GetParser();
 
     public Task<IList<ReleaseInfo>> CallFetchReleases(
         Func<IIndexerRequestGenerator, IndexerPageableRequestChain> selector)
         => FetchReleases(selector);
+}
+
+internal sealed class FakeSuppressionStore : IRestrictedReleaseSuppressionStore
+{
+    private readonly HashSet<string> _suppressed;
+
+    public FakeSuppressionStore(params string[] suppressed)
+    {
+        _suppressed = new HashSet<string>(suppressed, StringComparer.OrdinalIgnoreCase);
+    }
+
+    public bool IsSuppressed(string albumId) => _suppressed.Contains(albumId);
+
+    public Task SuppressAsync(
+        string albumId,
+        string trackId,
+        TrackUnavailableReason reason,
+        CancellationToken cancellationToken = default)
+        => Task.CompletedTask;
+
+    public Task<bool> ClearAsync(string albumId, CancellationToken cancellationToken = default)
+        => Task.FromResult(false);
 }

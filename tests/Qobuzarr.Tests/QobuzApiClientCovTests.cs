@@ -462,6 +462,76 @@ namespace Qobuzarr.Tests
         }
 
         [Fact]
+        public async Task GetStreamingInfoAsync_WhenTemporaryCodeAndPurchaseReasonShareRestriction_ClassifiesPurchaseRestriction()
+        {
+            var exception = await ActWithRestriction(new QobuzStreamRestriction
+            {
+                ReasonCode = "TEMP",
+                Reason = "Content restricted (TrackRestrictedByPurchaseCredentials)",
+            });
+
+            exception.Message.Should().Contain("TrackRestrictedByPurchaseCredentials");
+            exception.Reason.Should().Be(TrackUnavailableReason.Restricted);
+            exception.Reason.IsPermanentlyUnavailable().Should().BeTrue(
+                "Qobuz may include a terminal human reason on the same restriction object as a generic code");
+        }
+
+        [Fact]
+        public async Task GetStreamingInfoAsync_WhenGeoCodeAndSubscriptionReasonShareRestriction_ClassifiesSubscriptionRestriction()
+        {
+            var exception = await ActWithRestriction(new QobuzStreamRestriction
+            {
+                Code = "GeoRestricted",
+                Reason = "FormatRestrictedBySubscription",
+                CountryCodes = new[] { "US" },
+            });
+
+            exception.Message.Should().Contain("FormatRestrictedBySubscription");
+            exception.Reason.Should().Be(TrackUnavailableReason.SubscriptionRestriction);
+            exception.Reason.IsPermanentlyUnavailable().Should().BeTrue(
+                "subscription-tier restrictions are terminal even when the same payload object also carries geo metadata");
+        }
+
+        [Fact]
+        public async Task GetStreamingInfoAsync_WhenTemporaryRestrictionPrecedesPurchaseRestriction_ClassifiesPurchaseRestriction()
+        {
+            var exception = await ActWithRestrictions(
+                new QobuzStreamRestriction
+                {
+                    ReasonCode = "TEMP",
+                },
+                new QobuzStreamRestriction
+                {
+                    Code = "TrackRestrictedByPurchaseCredentials",
+                });
+
+            exception.Message.Should().Contain("TrackRestrictedByPurchaseCredentials");
+            exception.Reason.Should().Be(TrackUnavailableReason.Restricted);
+            exception.Reason.IsPermanentlyUnavailable().Should().BeTrue(
+                "a permanent purchase-only signal must not be masked by an earlier temporary record");
+        }
+
+        [Fact]
+        public async Task GetStreamingInfoAsync_WhenGeoRestrictionPrecedesSubscriptionRestriction_ClassifiesSubscriptionRestriction()
+        {
+            var exception = await ActWithRestrictions(
+                new QobuzStreamRestriction
+                {
+                    Code = "GeoRestricted",
+                    CountryCodes = new[] { "US" },
+                },
+                new QobuzStreamRestriction
+                {
+                    Code = "FormatRestrictedBySubscription",
+                });
+
+            exception.Message.Should().Contain("FormatRestrictedBySubscription");
+            exception.Reason.Should().Be(TrackUnavailableReason.SubscriptionRestriction);
+            exception.Reason.IsPermanentlyUnavailable().Should().BeTrue(
+                "subscription-tier restrictions are terminal even when Qobuz also returns a geo record");
+        }
+
+        [Fact]
         public async Task GetStreamingInfoAsync_WithTemporaryReasonCode_ThrowsTrackUnavailableException_ButIsNotPermanent()
         {
             // ReasonCode "TEMP" is explicitly documented (QobuzStreamRestriction.GetRestrictionMessage) as
@@ -1400,6 +1470,9 @@ namespace Qobuzarr.Tests
         }
 
         private async Task<TrackUnavailableException> ActWithRestriction(QobuzStreamRestriction restriction)
+            => await ActWithRestrictions(restriction);
+
+        private async Task<TrackUnavailableException> ActWithRestrictions(params QobuzStreamRestriction[] restrictions)
         {
             var client = CreateClient();
 
@@ -1420,7 +1493,7 @@ namespace Qobuzarr.Tests
                 FormatId = 27,
                 MimeType = "audio/flac",
                 Sample = false,
-                Restrictions = new List<QobuzStreamRestriction> { restriction },
+                Restrictions = new List<QobuzStreamRestriction>(restrictions),
             };
 
             var response = HttpTestHelpers.CreateResponse(

@@ -592,8 +592,8 @@ namespace Lidarr.Plugin.Qobuzarr.API
                     // forever (every quality tier carries the same restricted track id). Classifying the
                     // reason here lets the album-completion decision tell "hopeless" apart from
                     // "recoverable" without changing what gets thrown for anything else.
-                    var restriction = streamingInfo.Restrictions?.FirstOrDefault(r => r.HasRestrictions());
-                    var message = streamingInfo.GetRestrictionMessage() ?? "Qobuz stream is restricted.";
+                    var restriction = SelectRestrictionForFailure(streamingInfo.Restrictions);
+                    var message = restriction?.GetRestrictionMessage() ?? "Qobuz stream is restricted.";
                     throw new TrackUnavailableException(trackId, message, ClassifyRestrictionReason(restriction));
                 }
             }
@@ -620,7 +620,7 @@ namespace Lidarr.Plugin.Qobuzarr.API
 
         /// <summary>
         /// Maps a Qobuz stream restriction to a <see cref="TrackUnavailableReason"/>. Only restriction
-        /// codes Qobuz is known to use for rights gates are classified specifically. Only purchase-only
+        /// codes and messages Qobuz is known to use for rights gates are classified specifically. Only purchase-only
         /// content and insufficient subscription tier are later treated as terminal suppression candidates
         /// (see <see cref="TrackUnavailableReasonExtensions.IsPermanentlyUnavailable"/>); geo-blocks are
         /// classified as regional but deliberately not permanent.
@@ -635,20 +635,29 @@ namespace Lidarr.Plugin.Qobuzarr.API
             var reasonCode = NormalizeRestrictionValue(restriction?.ReasonCode);
             var reason = NormalizeRestrictionValue(restriction?.Reason);
 
-            if (EqualsRestriction(code, "GeoRestricted"))
+            if (EqualsRestriction(code, "TrackRestrictedByPurchaseCredentials") ||
+                ContainsRestriction(reason, "TrackRestrictedByPurchaseCredentials") ||
+                ContainsRestriction(reason, "purchase credentials") ||
+                ContainsRestriction(reason, "purchase-only"))
             {
-                return TrackUnavailableReason.RegionalRestriction;
+                return TrackUnavailableReason.Restricted;
             }
 
             if (EqualsRestriction(code, "SubscriptionRestricted") ||
-                EqualsRestriction(code, "FormatRestrictedBySubscription"))
+                EqualsRestriction(code, "FormatRestrictedBySubscription") ||
+                EqualsRestriction(reasonCode, "SUB") ||
+                ContainsRestriction(reason, "SubscriptionRestricted") ||
+                ContainsRestriction(reason, "FormatRestrictedBySubscription") ||
+                ContainsRestriction(reason, "subscription tier") ||
+                ContainsRestriction(reason, "requires premium subscription") ||
+                ContainsRestriction(reason, "higher subscription"))
             {
                 return TrackUnavailableReason.SubscriptionRestriction;
             }
 
-            if (EqualsRestriction(code, "TrackRestrictedByPurchaseCredentials"))
+            if (EqualsRestriction(code, "GeoRestricted"))
             {
-                return TrackUnavailableReason.Restricted;
+                return TrackUnavailableReason.RegionalRestriction;
             }
 
             if (EqualsRestriction(reasonCode, "GEO"))
@@ -656,31 +665,10 @@ namespace Lidarr.Plugin.Qobuzarr.API
                 return TrackUnavailableReason.RegionalRestriction;
             }
 
-            if (EqualsRestriction(reasonCode, "SUB"))
-            {
-                return TrackUnavailableReason.SubscriptionRestriction;
-            }
-
             if (EqualsRestriction(reasonCode, "TEMP") ||
                 ContainsRestriction(reason, "temporarily unavailable"))
             {
                 return TrackUnavailableReason.ApiError; // explicitly temporary — never permanent
-            }
-
-            if (ContainsRestriction(reason, "TrackRestrictedByPurchaseCredentials") ||
-                ContainsRestriction(reason, "purchase credentials") ||
-                ContainsRestriction(reason, "purchase-only"))
-            {
-                return TrackUnavailableReason.Restricted;
-            }
-
-            if (ContainsRestriction(reason, "SubscriptionRestricted") ||
-                ContainsRestriction(reason, "FormatRestrictedBySubscription") ||
-                ContainsRestriction(reason, "subscription tier") ||
-                ContainsRestriction(reason, "requires premium subscription") ||
-                ContainsRestriction(reason, "higher subscription"))
-            {
-                return TrackUnavailableReason.SubscriptionRestriction;
             }
 
             if (ContainsRestriction(reason, "not available in your region") ||
@@ -690,6 +678,18 @@ namespace Lidarr.Plugin.Qobuzarr.API
             }
 
             return TrackUnavailableReason.Unknown;
+        }
+
+        private static QobuzStreamRestriction? SelectRestrictionForFailure(IEnumerable<QobuzStreamRestriction>? restrictions)
+        {
+            var restricted = restrictions?.Where(r => r.HasRestrictions()).ToList();
+            if (restricted is not { Count: > 0 })
+            {
+                return null;
+            }
+
+            return restricted.FirstOrDefault(r => ClassifyRestrictionReason(r).IsPermanentlyUnavailable())
+                ?? restricted[0];
         }
 
         private static string NormalizeRestrictionValue(string? value)
