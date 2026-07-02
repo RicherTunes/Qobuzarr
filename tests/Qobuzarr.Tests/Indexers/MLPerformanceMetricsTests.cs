@@ -2,6 +2,7 @@ using System;
 using System.Threading;
 using System.Threading.Tasks;
 using Lidarr.Plugin.Qobuzarr.Indexers;
+using Lidarr.Plugin.Common.TestKit.Helpers;
 using NLog;
 using Xunit;
 using Xunit.Abstractions;
@@ -18,21 +19,11 @@ namespace Qobuzarr.Tests.Indexers
         {
             _output = output;
 
-            // Setup NLog for testing on an ISOLATED LogFactory — assigning the
-            // process-global LogManager.Configuration here clobbered the shared
-            // "testMemory" target installed by NLogTestLogger.Create(), flaking
-            // parallel log-assertion tests (e.g. QobuzAppSecretLogScrubTests).
-            var factory = new LogFactory();
-            var config = new NLog.Config.LoggingConfiguration(factory);
-            var consoleTarget = new NLog.Targets.ConsoleTarget("console")
-            {
-                Layout = "${time} ${level} ${message}"
-            };
-            config.AddTarget(consoleTarget);
-            config.AddRule(LogLevel.Debug, LogLevel.Fatal, consoleTarget);
-            factory.Configuration = config;
-
-            _logger = factory.GetLogger(nameof(MLPerformanceMetricsTests));
+            // Isolated logger — never mutate the process-global LogManager.Configuration.
+            // Assigning it here raced parallel log-capture tests (e.g. QobuzAppSecretLogScrubTests)
+            // that read the shared "testMemory" target, deterministically wiping their capture.
+            // This test never asserts on captured logs, so a no-op isolated logger suffices.
+            _logger = NLogTestLogger.CreateNullLogger();
             _metrics = new MLPerformanceMetrics(_logger);
         }
 
