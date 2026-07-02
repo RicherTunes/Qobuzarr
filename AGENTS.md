@@ -28,7 +28,7 @@ dotnet test --filter "Category!=Integration&Category!=Performance"
 
 ```
 src/
-├── API/              # Qobuz API client (~836 lines, refactored with delegating components)
+├── API/              # Qobuz API client (~816 lines, refactored with delegating components)
 ├── Authentication/   # Dynamic auth extraction from web player
 ├── Download/         # Download orchestration
 ├── Indexers/         # Search with ML optimization
@@ -41,14 +41,14 @@ src/
 
 ### 1. QobuzApiClient God Class
 
-**Location**: `src/API/QobuzApiClient.cs` (835 LOC)
+**Location**: `src/API/QobuzApiClient.cs` (816 LOC)
 **Problem**: HTTP + auth + caching + rate limiting all in one class
 **Agent**: `@qobuzarr-architecture`
 
 ### 2. Manual DI in Download Client
 
-**Location**: `src/Download/Clients/QobuzDownloadClient.cs:571`
-**Status**: Verified - no manual `CreateTrackDownloaderFactory()` method found at this line; download client uses proper DI injection
+**Location**: `src/Download/Clients/QobuzDownloadClient.cs`
+**Status**: Verified - no manual `CreateTrackDownloaderFactory()` method found; download client uses constructor-provided dependencies
 
 ### 3. Disabled Tests
 
