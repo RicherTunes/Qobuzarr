@@ -26,12 +26,21 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Services
     {
         private readonly QobuzDownloadSettings _settings;
         private readonly ILyricsEnricher? _lyricsEnricher;
+        private readonly Func<ILyricsEnricher> _enricherFactory;
         private readonly Logger _logger;
 
-        public QobuzLyricsPostProcessor(QobuzDownloadSettings settings, ILyricsEnricher? lyricsEnricher = null, Logger? logger = null)
+        public QobuzLyricsPostProcessor(
+            QobuzDownloadSettings settings,
+            ILyricsEnricher? lyricsEnricher = null,
+            Logger? logger = null,
+            Func<ILyricsEnricher>? enricherFactory = null)
         {
             _settings = settings ?? throw new ArgumentNullException(nameof(settings));
             _lyricsEnricher = lyricsEnricher;
+            // Fallback used only when no shared enricher is injected (the production case — Common's
+            // LyricsEnricher is internalized so DryIoc doesn't auto-register it). Injectable so the
+            // production construct-invoke-dispose path is unit-testable rather than only observable live.
+            _enricherFactory = enricherFactory ?? (() => new LyricsEnricher());
             _logger = logger ?? LogManager.GetCurrentClassLogger();
         }
 
@@ -66,7 +75,7 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Services
 
             var enricher = _lyricsEnricher;
             var ownsEnricher = enricher is null;
-            enricher ??= new LyricsEnricher();
+            enricher ??= _enricherFactory();
             try
             {
                 await enricher.TryEnrichAsync(

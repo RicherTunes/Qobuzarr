@@ -38,6 +38,19 @@ namespace Qobuzarr.Tests.Unit.Security
         }
 
         [Fact]
+        public void SanitizeVersion_WithScriptTagsUsingAttributesAndCaseVariants_ShouldRemoveClosedBlocks()
+        {
+            var malicious = "<SCRIPT type=\"text/javascript\">alert('XSS')</SCRIPT> Deluxe <script>evil()</script>Edition";
+            var result = MetadataSanitizer.SanitizeVersion(malicious);
+
+            result.Should().NotContain("<SCRIPT");
+            result.Should().NotContain("<script");
+            result.Should().NotContain("alert");
+            result.Should().NotContain("evil");
+            result.Should().Be("Deluxe Edition");
+        }
+
+        [Fact]
         public void SanitizeVersion_WithJavaScriptUrl_ShouldReturnSafeDefault()
         {
             var malicious = "javascript:alert('XSS')";
