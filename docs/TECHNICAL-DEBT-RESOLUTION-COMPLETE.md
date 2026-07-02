@@ -18,7 +18,7 @@ The comprehensive technical debt resolution initiative has been **successfully c
 
 ### 🔧 **Phase 2A+2B: Service Consolidation (COMPLETED)**
 - ✅ **QobuzValidationService**: Migrated to `IQobuzQualityManager`
-- ✅ **QobuzApiService**: Migrated to `IQobuzQualityManager`
+- ✅ **Legacy API wrapper removal**: `QobuzApiService` was superseded; stream URL resolution now flows through `IQobuzApiClient`
 - ✅ **LidarrAlbumRetriever**: Migrated to `IQobuzQualityManager` (complex migration)
 - ✅ **Namespace Conflicts**: Resolved between Core.QobuzQuality vs Consolidated.QobuzQuality
 - ✅ **Unit Tests**: Created comprehensive `QobuzQualityManagerTests.cs`

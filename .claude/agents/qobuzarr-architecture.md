@@ -69,21 +69,18 @@ public class QobuzApiClient : IQobuzApiClient { }            // Orchestration on
 **Eliminate manual service instantiation:**
 
 ```csharp
-// ❌ CURRENT: Manual instantiation breaks DI
-private QobuzTrackDownloaderFactory CreateTrackDownloaderFactory(IQobuzLogger logger)
-{
-    var qualityFallbackProvider = new QualityFallbackProvider();
-    var streamUrlProvider = new StreamUrlProvider(_apiClient, logger, qualityFallbackProvider);
-    // ... manual dependency graph construction
-    return new QobuzTrackDownloaderFactory(deps...);
-}
+// ❌ BAD: Manually recreate stream URL or downloader provider graphs in callers
+var url = BuildTrackFileUrl(trackId, formatId, appSecret);
+var bytes = await httpClient.GetByteArrayAsync(url);
 
 // ✅ TARGET: Proper DI injection
 public QobuzDownloadClient(
-    IQobuzTrackDownloaderFactory trackDownloaderFactory,  // Injected by container
+    ITrackDownloadService trackDownloadService,
+    ITrackDownloadOrchestrator downloadOrchestrator,
     // ... other dependencies
 ) {
-    _trackDownloaderFactory = trackDownloaderFactory;
+    _trackDownloadService = trackDownloadService;
+    _downloadOrchestrator = downloadOrchestrator;
 }
 ```
 
@@ -142,8 +139,9 @@ public class QobuzDownloadService
 public class QobuzApiClient : IQobuzApiClient { }         // Singleton
 public class QobuzAuthenticationService : IQobuzAuthenticationService { }  // Singleton
 
-// Transient factories
-public class QobuzTrackDownloaderFactory : IQobuzTrackDownloaderFactory { }  // Transient
+// Scoped/transient download pipeline services
+public class TrackDownloadService : ITrackDownloadService { }
+public class QobuzDownloadOrchestrator : ITrackDownloadOrchestrator { }
 ```
 
 ## CODE ORGANIZATION PATTERNS

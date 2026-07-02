@@ -135,7 +135,7 @@ class Program
 
         // Rate limiter removed - now integrated into plugin's API client
         services.AddSingleton<DownloadProgressTracker>();
-        // PluginMetadataService removed - using plugin's QobuzTrackDownloader.ApplyBasicMetadata instead
+        // PluginMetadataService removed; metadata is applied by the plugin download pipeline.
         services.AddSingleton<DownloadOrchestrator>();
         services.AddSingleton<DownloadErrorAnalyzer>();
 
