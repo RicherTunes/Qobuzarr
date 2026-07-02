@@ -73,17 +73,11 @@ Runs on every PR and push to main branches:
 dotnet test --settings tests/Default.runsettings --filter "$CI_TEST_FILTER"
 ```
 
-### Integration Tests (Manual Workflow)
+### Integration Tests (Manual)
 
-Run via `workflow_dispatch` at `.github/workflows/integration-tests.yml`:
-
-```yaml
-workflow_dispatch:
-  inputs:
-    lidarr_version:
-      description: 'Lidarr plugins branch version'
-      default: 'pr-plugins-3.1.2.4913'
-```
+There is no automated integration test workflow on Gitea CI — integration tests
+are run manually via `scripts/run-integration-tests.ps1` (see the
+[Local Integration Runner](#local-integration-runner-recommended) section below).
 
 **How it works:**
 
@@ -92,7 +86,7 @@ workflow_dispatch:
 3. Runs tests with `Category=Integration` filter
 
 **LidarrAssembliesPath Override:**
-The csproj conditionally sets `LidarrAssembliesPath` only when empty, allowing CI to override:
+The csproj conditionally sets `LidarrAssembliesPath` only when empty:
 
 ```xml
 <!-- In Qobuzarr.Tests.csproj -->
@@ -101,10 +95,10 @@ The csproj conditionally sets `LidarrAssembliesPath` only when empty, allowing C
 </PropertyGroup>
 ```
 
-CI overrides with:
+Override at the command line:
 
 ```bash
-dotnet test -p:LidarrAssembliesPath="${GITHUB_WORKSPACE}/ext/lidarr-assemblies" ...
+dotnet test -p:LidarrAssembliesPath="$(pwd)/ext/lidarr-assemblies" ...
 ```
 
 ### Local Integration Runner (Recommended)
@@ -199,13 +193,13 @@ When a test is flaky or blocked by external issues:
 
 ## Known Issues
 
-### GitHub Actions CI Unavailable
+### Gitea Primary, GitHub Mirror
 
-GitHub Actions workflows fail with billing/spending limit errors while repositories are private.
-
-**Workaround:** Test locally using the commands above.
-
-**Resolution:** Will be fixed when repositories are made public.
+Primary CI runs on the self-hosted Gitea instance (`.gitea/workflows/ci.yml`).
+The repo also carries `.github/workflows/ci.yml` as a guarded GitHub mirror.
+The mirror must keep the same core gates as Gitea, but Gitea remains the
+authoritative merge surface. Test locally using the commands above, or check
+the Gitea Actions UI for commit/PR status.
 
 ### Known Build Warnings
 

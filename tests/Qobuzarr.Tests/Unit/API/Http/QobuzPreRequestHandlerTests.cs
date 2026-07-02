@@ -1,5 +1,7 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using FluentAssertions;
 using Lidarr.Plugin.Common.Services.Http;
@@ -14,6 +16,38 @@ namespace Qobuzarr.Tests.Unit.API.Http
 {
     public class QobuzPreRequestHandlerTests
     {
+        // LOOP-011 (#23): when many requests find the session invalid at once, exactly ONE re-login must
+        // run (single-flight) -- not N parallel full re-auths (each scrapes the web player + hits the login
+        // rate limit). Before the SemaphoreSlim + recheck-under-gate fix, all concurrent callers re-authed.
+        [Fact]
+        public async Task EnsureValidSession_ConcurrentInvalid_ReauthenticatesExactlyOnce()
+        {
+            QobuzSession current = new QobuzSession { AuthToken = "stale", AppId = "a", ExpiresAt = DateTime.UtcNow.AddHours(-1) };
+            var authCalls = 0;
+
+            var authService = new Mock<IQobuzAuthenticationService>();
+            authService.Setup(x => x.GetCachedSession()).Returns(() => Volatile.Read(ref current));
+            authService.Setup(x => x.ValidateSessionAsync(It.IsAny<QobuzSession>()))
+                .ReturnsAsync((QobuzSession s) => s != null && s.AuthToken == "valid");
+            authService.Setup(x => x.AuthenticateAsync(It.IsAny<QobuzCredentials>()))
+                .Returns(async (QobuzCredentials _) =>
+                {
+                    Interlocked.Increment(ref authCalls);
+                    await Task.Delay(60).ConfigureAwait(false); // widen the race window
+                    return new QobuzSession { AuthToken = "valid", AppId = "a", ExpiresAt = DateTime.UtcNow.AddHours(1) };
+                });
+            authService.Setup(x => x.StoreSession(It.IsAny<QobuzSession>()))
+                .Callback((QobuzSession s) => Volatile.Write(ref current, s));
+
+            var signer = new Mock<IRequestSigner>();
+            Func<Task<QobuzCredentials>> creds = () => Task.FromResult(new QobuzCredentials());
+            var sut = new QobuzPreRequestHandler(authService.Object, signer.Object, creds, LogManager.GetCurrentClassLogger());
+
+            await Task.WhenAll(Enumerable.Range(0, 20).Select(_ => Task.Run(() => sut.EnsureValidSessionAsync())));
+
+            authCalls.Should().Be(1, "single-flight must collapse N concurrent renewals into one re-auth");
+        }
+
         [Fact]
         public void InjectAuthParameters_WithCachedSession_AddsAppIdAndUserAuthToken()
         {

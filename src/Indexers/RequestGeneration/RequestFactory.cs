@@ -1,13 +1,12 @@
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using NzbDrone.Core.IndexerSearch.Definitions;
 using NzbDrone.Core.Indexers;
 using NzbDrone.Common.Http;
 using NLog;
 using Lidarr.Plugin.Qobuzarr.Models.Authentication;
 using Lidarr.Plugin.Qobuzarr.Configuration;
-using Lidarr.Plugin.Common.Base;
+using Lidarr.Plugin.Common.Services.Intelligence;
 
 namespace Lidarr.Plugin.Qobuzarr.Indexers.RequestGeneration
 {
@@ -47,16 +46,13 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers.RequestGeneration
                     throw new InvalidOperationException("Qobuz session is not available. Configure credentials and click Test on the indexer.");
                 }
 
-                // Compose query parameters (TrevTV's approach - no auth in query params)
-                var parameters = new Dictionary<string, string>
-                {
-                    ["query"] = query,
-                    ["limit"] = PAGE_SIZE.ToString(),
-                    ["offset"] = "0",
-                    ["format_id"] = "7" // Hi-Res default; kept consistent with previous behavior
-                };
-
-                var url = StreamingIndexerHelpers.BuildSearchUrl(BASE_URL, SEARCH_ENDPOINT, parameters);
+                // Percent-encode the (already-canonicalized) search term via the sanitizer's single
+                // transport-encoding entry point. NEVER HTML-encode a search term — that was the
+                // shipped "Beyoncé" -> "Beyonc&#233;" 0-result bug. The remaining params are constant
+                // ASCII so no further escaping is required.
+                var encodedQuery = SearchQuerySanitizer.ToQueryParameterValue(query);
+                var url = $"{BASE_URL}{SEARCH_ENDPOINT}?query={encodedQuery}" +
+                          $"&limit={PAGE_SIZE}&offset=0&format_id=7"; // Hi-Res default; kept consistent with previous behavior
 
                 var httpRequest = new HttpRequest(url);
                 httpRequest.Method = System.Net.Http.HttpMethod.Get;
@@ -172,23 +168,5 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers.RequestGeneration
             }
         }
 
-        public IndexerRequest CreateMockSearchRequest(AlbumSearchCriteria searchCriteria)
-        {
-            try
-            {
-                // Create a mock request for cached results
-                var mockUrl = $"{BASE_URL}{SEARCH_ENDPOINT}?query=cached&mock=true";
-                var mockHttpRequest = new HttpRequest(mockUrl);
-                var mockRequest = new IndexerRequest(mockHttpRequest);
-
-                _logger.Debug("Created mock search request for cached results");
-                return mockRequest;
-            }
-            catch (Exception ex)
-            {
-                _logger.Error(ex, "Error creating mock search request");
-                throw;
-            }
-        }
     }
 }

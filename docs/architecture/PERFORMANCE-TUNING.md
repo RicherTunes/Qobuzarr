@@ -261,37 +261,10 @@ CREATE INDEX idx_albums_combined ON albums(artist_name, title);
 ### Implementing Adaptive Rate Limiting
 
 ```csharp
-public class AdaptiveRateLimiter
+// Qobuzarr adapter; implementation lives in Common's NamedServiceRateLimiter.
+public class AdaptiveRateLimiter : NamedServiceRateLimiter
 {
-    private int _currentRate = 60;
-    private int _throttleCount = 0;
-    
-    public async Task<T> ExecuteAsync<T>(Func<Task<T>> operation)
-    {
-        var delay = CalculateDelay();
-        if (delay > 0)
-        {
-            await Task.Delay(delay);
-        }
-        
-        try
-        {
-            var result = await operation();
-            _throttleCount = Math.Max(0, _throttleCount - 1);
-            return result;
-        }
-        catch (RateLimitException)
-        {
-            _throttleCount++;
-            _currentRate = Math.Max(10, _currentRate - 5);
-            throw;
-        }
-    }
-    
-    private int CalculateDelay()
-    {
-        return (60000 / _currentRate) * (1 + _throttleCount * 0.5);
-    }
+    public AdaptiveRateLimiter() : base("Qobuz") { }
 }
 ```
 

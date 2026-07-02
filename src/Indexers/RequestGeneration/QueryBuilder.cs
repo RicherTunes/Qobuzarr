@@ -1,32 +1,32 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text.RegularExpressions;
 using NzbDrone.Core.IndexerSearch.Definitions;
-using NzbDrone.Common.Extensions;
 using NLog;
+using Lidarr.Plugin.Common.Services.Intelligence;
 
 namespace Lidarr.Plugin.Qobuzarr.Indexers.RequestGeneration
 {
     /// <summary>
     /// Builds search queries from Lidarr search criteria.
-    /// Extracted from QobuzRequestGenerator to follow Single Responsibility Principle.
+    ///
+    /// Delegates all query canonicalization and variant generation to Common's
+    /// <see cref="SearchQuerySanitizer"/>. The previous bespoke regex (which mapped a degree sign
+    /// to a space — splitting "Record n°V" into "Record n V" so Qobuz's tokenizer couldn't match)
+    /// is replaced by the shared sanitizer, which emits BOTH the symbol-removed-adjacent form
+    /// ("Record nV") and the spaced separator form ("AC DC"), and guarantees a non-truncated
+    /// artist-only fallback tier.
     /// </summary>
     public class QueryBuilder : IQueryBuilder
     {
         private readonly Logger _logger;
 
-        // Regex patterns for query processing
-        private static readonly Regex YearPattern = new Regex(@"\b(19|20)\d{2}\b", RegexOptions.Compiled);
-        private static readonly Regex SpecialCharsPattern = new Regex(@"[^\w\s\-\.\(\)\[\]]", RegexOptions.Compiled);
-        private static readonly Regex MultiSpacePattern = new Regex(@"\s+", RegexOptions.Compiled);
-
-        // Common album title suffixes to remove
-        private static readonly string[] AlbumSuffixes =
+        // Emit promo/edition-suffix-stripped fallbacks (replaces the old ExtractCoreAlbumTitle pass)
+        // on top of the cross-plugin defaults; the roman/number crosswalk stays off to avoid
+        // over-folding real titles.
+        private static readonly SanitizerOptions QueryOptions = new SanitizerOptions
         {
-            "(Deluxe Edition)", "(Deluxe)", "(Expanded Edition)", "(Remastered)",
-            "(Remaster)", "(Anniversary Edition)", "(Special Edition)", "(Bonus Track Version)",
-            "(Collector's Edition)", "(Limited Edition)", "[Deluxe]", "[Remastered]"
+            StripVersionSuffix = true,
         };
 
         public QueryBuilder(Logger logger)
@@ -34,14 +34,23 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers.RequestGeneration
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         }
 
+        /// <summary>
+        /// Test entry point: returns the SearchPlan this builder produces for (artist, album).
+        /// Exposes the REAL plan-construction path (same options as BuildAlbumSearchQueries) so
+        /// SearchTermProvenanceComplianceTestBase and SearchQuerySanitizerParityTestBase can assert
+        /// plan-shape without constructing a full generator.
+        /// </summary>
+        public static SearchPlan BuildPlanForTest(string artist, string album) =>
+            SearchQuerySanitizer.BuildPlan(artist, album, QueryOptions);
+
         public List<string> BuildAlbumSearchQueries(AlbumSearchCriteria searchCriteria)
         {
             var queries = new List<string>();
 
             try
             {
-                var artistName = searchCriteria.ArtistQuery?.Trim();
-                var albumTitle = searchCriteria.AlbumQuery?.Trim();
+                var artistName = ResolveArtist(searchCriteria);
+                var albumTitle = ResolveAlbum(searchCriteria);
 
                 if (string.IsNullOrWhiteSpace(artistName) && string.IsNullOrWhiteSpace(albumTitle))
                 {
@@ -49,54 +58,24 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers.RequestGeneration
                     return queries;
                 }
 
-                // Primary search: Artist + Album
-                if (!string.IsNullOrWhiteSpace(artistName) && !string.IsNullOrWhiteSpace(albumTitle))
+                // Ordered fallback tiers: combined -> artist-only -> album-only. The artist-only tier
+                // is never truncated, so an over-specific/special-char album query degrades to the
+                // band's catalogue (Lidarr matches the wanted album from it).
+                var plan = SearchQuerySanitizer.BuildPlan(artistName, albumTitle, QueryOptions);
+                foreach (var tier in plan.Tiers)
                 {
-                    var primaryQuery = $"{CleanQuery(artistName)} {CleanQuery(albumTitle)}";
-                    queries.Add(primaryQuery);
-
-                    // Add query with core album title (without suffixes)
-                    var coreAlbumTitle = ExtractCoreAlbumTitle(albumTitle);
-                    if (coreAlbumTitle != albumTitle)
+                    foreach (var variant in tier)
                     {
-                        var coreQuery = $"{CleanQuery(artistName)} {CleanQuery(coreAlbumTitle)}";
-                        if (!queries.Contains(coreQuery))
-                        {
-                            queries.Add(coreQuery);
-                        }
-                    }
-
-                    // Add title case variants for better matching
-                    var titleCaseArtist = ApplyTitleCase(artistName);
-                    var titleCaseAlbum = ApplyTitleCase(albumTitle);
-                    if (titleCaseArtist != artistName || titleCaseAlbum != albumTitle)
-                    {
-                        var titleCaseQuery = $"{CleanQuery(titleCaseArtist)} {CleanQuery(titleCaseAlbum)}";
-                        if (!queries.Contains(titleCaseQuery))
-                        {
-                            queries.Add(titleCaseQuery);
-                        }
+                        AddQuery(queries, variant);
                     }
                 }
 
-                // Fallback: Album only
-                if (!string.IsNullOrWhiteSpace(albumTitle))
-                {
-                    var albumOnlyQuery = CleanQuery(albumTitle);
-                    if (!queries.Contains(albumOnlyQuery))
-                    {
-                        queries.Add(albumOnlyQuery);
-                    }
-                }
-
-                // Fallback: Artist only  
+                // Always record the artist-only catalogue fallback slot, even when the artist
+                // canonicalizes to no usable signal (e.g. a symbol-only band name) — request
+                // creation skips blank queries, but downstream callers rely on its presence.
                 if (!string.IsNullOrWhiteSpace(artistName))
                 {
-                    var artistOnlyQuery = CleanQuery(artistName);
-                    if (!queries.Contains(artistOnlyQuery))
-                    {
-                        queries.Add(artistOnlyQuery);
-                    }
+                    AddQuery(queries, CleanQuery(artistName), allowEmpty: true);
                 }
 
                 _logger.Debug("Generated {0} search queries for album: {1} - {2}",
@@ -117,7 +96,7 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers.RequestGeneration
 
             try
             {
-                var artistName = searchCriteria.ArtistQuery?.Trim();
+                var artistName = (searchCriteria?.ArtistQuery ?? searchCriteria?.Artist?.Name)?.Trim();
 
                 if (string.IsNullOrWhiteSpace(artistName))
                 {
@@ -125,20 +104,14 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers.RequestGeneration
                     return queries;
                 }
 
-                // Primary artist query
-                var primaryQuery = CleanQuery(artistName);
-                queries.Add(primaryQuery);
-
-                // Title case variant
-                var titleCaseArtist = ApplyTitleCase(artistName);
-                if (titleCaseArtist != artistName)
+                var sanitized = SearchQuerySanitizer.Sanitize(artistName, QueryOptions);
+                foreach (var variant in sanitized.Variants)
                 {
-                    var titleCaseQuery = CleanQuery(titleCaseArtist);
-                    if (!queries.Contains(titleCaseQuery))
-                    {
-                        queries.Add(titleCaseQuery);
-                    }
+                    AddQuery(queries, variant);
                 }
+
+                // Preserve the prior contract: the cleaned artist string is always present.
+                AddQuery(queries, CleanQuery(artistName), allowEmpty: true);
 
                 _logger.Debug("Generated {0} search queries for artist: {1}", queries.Count, artistName);
 
@@ -151,6 +124,36 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers.RequestGeneration
             }
         }
 
+        public IReadOnlyList<string> BuildArtistFallbackQueries(string artistName)
+        {
+            var queries = new List<string>();
+
+            if (string.IsNullOrWhiteSpace(artistName))
+            {
+                return queries;
+            }
+
+            try
+            {
+                var sanitized = SearchQuerySanitizer.Sanitize(artistName, QueryOptions);
+                foreach (var variant in sanitized.Variants)
+                {
+                    AddQuery(queries, variant);
+                }
+
+                // Preserve the prior exact-fallback contract even if a future sanitizer option changes
+                // variant ordering or suppresses Original for a corner case.
+                AddQuery(queries, sanitized.Original, allowEmpty: true);
+                return queries;
+            }
+            catch (Exception ex)
+            {
+                _logger.Error(ex, "Error building artist fallback queries: {0}", artistName);
+                AddQuery(queries, artistName);
+                return queries;
+            }
+        }
+
         public string CleanQuery(string query)
         {
             if (string.IsNullOrWhiteSpace(query))
@@ -158,16 +161,7 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers.RequestGeneration
 
             try
             {
-                // Remove special characters except basic punctuation
-                var cleaned = SpecialCharsPattern.Replace(query, " ");
-
-                // Normalize multiple spaces to single space
-                cleaned = MultiSpacePattern.Replace(cleaned, " ");
-
-                // Trim whitespace
-                cleaned = cleaned.Trim();
-
-                return cleaned;
+                return SearchQuerySanitizer.Sanitize(query, QueryOptions).Original;
             }
             catch (Exception ex)
             {
@@ -176,115 +170,43 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers.RequestGeneration
             }
         }
 
-        public string ApplyTitleCase(string text)
+        // Lidarr's AlbumSearchCriteria.ArtistQuery/AlbumQuery are backed by the flattened
+        // AlbumTitle/Artist.Name; fall back to the Artist/Albums entities so the criteria is read
+        // robustly regardless of which surface the caller populated.
+        private static string ResolveArtist(AlbumSearchCriteria searchCriteria)
         {
-            if (string.IsNullOrWhiteSpace(text))
-                return text;
-
-            try
+            var artist = searchCriteria?.ArtistQuery;
+            if (string.IsNullOrWhiteSpace(artist))
             {
-                var words = text.Split(' ', StringSplitOptions.RemoveEmptyEntries);
-                var result = new List<string>();
-
-                foreach (var word in words)
-                {
-                    if (word.Length == 0) continue;
-
-                    // Skip articles and prepositions for title case
-                    var lowerWord = word.ToLowerInvariant();
-                    if (IsArticleOrPreposition(lowerWord) && result.Count > 0)
-                    {
-                        result.Add(lowerWord);
-                    }
-                    else
-                    {
-                        // Capitalize first letter, lowercase the rest
-                        var titleCased = char.ToUpperInvariant(word[0]) +
-                            (word.Length > 1 ? word.Substring(1).ToLowerInvariant() : "");
-                        result.Add(titleCased);
-                    }
-                }
-
-                return string.Join(" ", result);
+                artist = searchCriteria?.Artist?.Name;
             }
-            catch (Exception ex)
-            {
-                _logger.Error(ex, "Error applying title case to: {0}", text);
-                return text; // Return original if processing fails
-            }
+
+            return artist?.Trim();
         }
 
-        public string ExtractCoreAlbumTitle(string albumTitle)
+        private static string ResolveAlbum(AlbumSearchCriteria searchCriteria)
         {
-            if (string.IsNullOrWhiteSpace(albumTitle))
-                return albumTitle;
-
-            try
+            var album = searchCriteria?.AlbumQuery;
+            if (string.IsNullOrWhiteSpace(album))
             {
-                var coreTitle = albumTitle;
-
-                // Remove common album suffixes
-                foreach (var suffix in AlbumSuffixes)
-                {
-                    if (coreTitle.EndsWith(suffix, StringComparison.OrdinalIgnoreCase))
-                    {
-                        coreTitle = coreTitle.Substring(0, coreTitle.Length - suffix.Length).Trim();
-                        break; // Only remove one suffix
-                    }
-                }
-
-                // Remove trailing parentheses content if it looks like edition info
-                var parenMatch = Regex.Match(coreTitle, @"\s*\([^)]*(?:edition|deluxe|remaster|bonus)\)[^)]*$", RegexOptions.IgnoreCase);
-                if (parenMatch.Success)
-                {
-                    coreTitle = coreTitle.Substring(0, parenMatch.Index).Trim();
-                }
-
-                return string.IsNullOrWhiteSpace(coreTitle) ? albumTitle : coreTitle;
+                album = searchCriteria?.Albums?.FirstOrDefault()?.Title;
             }
-            catch (Exception ex)
-            {
-                _logger.Error(ex, "Error extracting core album title from: {0}", albumTitle);
-                return albumTitle; // Return original if extraction fails
-            }
+
+            return album?.Trim();
         }
 
-        public bool TryExtractYear(string query, out int year)
+        private static void AddQuery(List<string> queries, string query, bool allowEmpty = false)
         {
-            year = 0;
+            if (query == null)
+                return;
 
-            try
+            if (!allowEmpty && string.IsNullOrWhiteSpace(query))
+                return;
+
+            if (!queries.Contains(query, StringComparer.OrdinalIgnoreCase))
             {
-                var match = YearPattern.Match(query);
-                if (match.Success && int.TryParse(match.Value, out year))
-                {
-                    // Validate year is reasonable (1950-2030)
-                    if (year >= 1950 && year <= 2030)
-                    {
-                        return true;
-                    }
-                }
-
-                year = 0;
-                return false;
+                queries.Add(query);
             }
-            catch (Exception ex)
-            {
-                _logger.Error(ex, "Error extracting year from query: {0}", query);
-                year = 0;
-                return false;
-            }
-        }
-
-        private bool IsArticleOrPreposition(string word)
-        {
-            var articlesAndPrepositions = new[]
-            {
-                "a", "an", "the", "and", "or", "but", "in", "on", "at", "to",
-                "for", "of", "with", "by", "from", "up", "about", "into", "through"
-            };
-
-            return articlesAndPrepositions.Contains(word);
         }
     }
 }

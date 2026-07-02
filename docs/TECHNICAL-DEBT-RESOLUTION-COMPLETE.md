@@ -18,10 +18,10 @@ The comprehensive technical debt resolution initiative has been **successfully c
 
 ### 🔧 **Phase 2A+2B: Service Consolidation (COMPLETED)**
 - ✅ **QobuzValidationService**: Migrated to `IQobuzQualityManager`
-- ✅ **QobuzApiService**: Migrated to `IQobuzQualityManager`
+- ✅ **Legacy API wrapper removal**: `QobuzApiService` was superseded; stream URL resolution now flows through `IQobuzApiClient`
 - ✅ **LidarrAlbumRetriever**: Migrated to `IQobuzQualityManager` (complex migration)
 - ✅ **Namespace Conflicts**: Resolved between Core.QobuzQuality vs Consolidated.QobuzQuality
-- ✅ **Unit Tests**: Created comprehensive `QobuzQualityManagerTests.cs`
+- ✅ **Guard Coverage**: Current API/download, stream-surface, and terminal-suppression tests cover the consolidated paths
 
 ### 📚 **Phase 3: Documentation & Polish (COMPLETED)**
 - ✅ **Documentation Consolidation**: Reduced from 37 files in `docs/temp/` to 0
@@ -39,7 +39,7 @@ The comprehensive technical debt resolution initiative has been **successfully c
 - 46+ service classes creating maintenance overhead
 
 **After:**
-- **Unified Quality Management**: Single `IQobuzQualityManager` consolidates all functionality
+- **Unified Quality Contracts**: Shared quality-related contracts and current API/download seams replace removed local wrappers
 - **Clean Dependencies**: Simplified constructor injection patterns
 - **Batch Operations**: 60% API call reduction through intelligent batching
 - **Service Count**: Major consolidation without functionality loss
@@ -47,7 +47,7 @@ The comprehensive technical debt resolution initiative has been **successfully c
 ### 🧪 **Test Coverage: B+ → A-**
 
 **Achievements:**
-- ✅ **New Unit Tests**: Comprehensive `QobuzQualityManagerTests.cs` covering consolidated functionality
+- ✅ **Current Unit Tests**: API decorator, download orchestration, stream-surface, and terminal-suppression tests cover consolidated functionality
 - ✅ **Test Fixes**: Resolved Moq/NSubstitute mixing issues
 - ✅ **Build Integration**: All tests compile (main functional tests working)
 - ✅ **Migration Validation**: Service migrations verified through testing

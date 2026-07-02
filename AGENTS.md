@@ -28,7 +28,7 @@ dotnet test --filter "Category!=Integration&Category!=Performance"
 
 ```
 src/
-├── API/              # Qobuz API client (~836 lines, refactored with delegating components)
+├── API/              # Qobuz API facade plus delegating HTTP/signing/cache components
 ├── Authentication/   # Dynamic auth extraction from web player
 ├── Download/         # Download orchestration
 ├── Indexers/         # Search with ML optimization
@@ -39,16 +39,16 @@ src/
 
 ## Critical Architecture Issues
 
-### 1. QobuzApiClient God Class
+### 1. QobuzApiClient Coordination Surface
 
-**Location**: `src/API/QobuzApiClient.cs` (598 LOC)
-**Problem**: HTTP + auth + caching + rate limiting all in one class
+**Location**: `src/API/QobuzApiClient.cs`
+**Status**: Still large, but core HTTP transport, signing, backend health, and cache behavior now live in delegating API components. Keep new cross-cutting behavior in those components or Common seams rather than adding more responsibilities to this facade.
 **Agent**: `@qobuzarr-architecture`
 
 ### 2. Manual DI in Download Client
 
-**Location**: `src/Download/Clients/QobuzDownloadClient.cs:571`
-**Status**: Verified - no manual `CreateTrackDownloaderFactory()` method found at this line; download client uses proper DI injection
+**Location**: `src/Download/Clients/QobuzDownloadClient.cs`
+**Status**: Verified - no manual `CreateTrackDownloaderFactory()` method found; download client uses constructor-provided dependencies
 
 ### 3. Disabled Tests
 
@@ -78,7 +78,7 @@ Dynamic credential extraction from Qobuz web player:
 - Extracts app secrets via regex
 - Multi-fallback authentication strategies
 
-**Key file**: `src/Authentication/QobuzAuthenticationService.cs` (447 LOC)
+**Key file**: `src/Authentication/QobuzAuthenticationService.cs`
 **Agent**: `@qobuzarr-security`
 
 ## Available Agents

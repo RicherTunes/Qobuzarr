@@ -1,6 +1,6 @@
 using System;
 using System.Collections.Generic;
-using System.Text.RegularExpressions;
+using System.Text;
 using NLog;
 using Lidarr.Plugin.Common.Services.Intelligence;
 
@@ -21,14 +21,12 @@ namespace Lidarr.Plugin.Qobuzarr.Security
     {
         private static readonly Logger Logger = LogManager.GetCurrentClassLogger();
 
-        private static readonly TimeSpan RegexTimeout = TimeSpan.FromMilliseconds(250);
-
         // Pre-pass to remove script tags before dangerous-pattern detection so that
         // "<script>alert('XSS')</script>Deluxe" yields "Deluxe", not the safe default.
-        private static readonly Regex ScriptTagRegex = new(
-            @"<script[^>]*>.*?</script>",
-            RegexOptions.Compiled | RegexOptions.IgnoreCase | RegexOptions.Singleline,
-            RegexTimeout);
+        // This is deliberately not regex-based: CI observed platform-specific fallback behavior
+        // for an otherwise recoverable "script + version" value.
+        private const string ScriptOpenMarker = "<script";
+        private const string ScriptCloseMarker = "</script>";
 
         // Dangerous patterns that indicate potential attacks and should result in a safe default.
         // Note: Path traversal is handled via normalization/replacement, not rejection, to avoid false positives.
@@ -67,7 +65,7 @@ namespace Lidarr.Plugin.Qobuzarr.Security
             {
                 // Strip script tags (with content) first so the dangerous-pattern check
                 // does not misfire on legitimately-prefixed content that follows.
-                var prePass = ScriptTagRegex.Replace(version, "");
+                var prePass = RemoveClosedScriptBlocks(version);
 
                 // Reject clearly malicious inputs before common's pipeline normalizes
                 // characters (e.g. ':' -> '-') in ways that would defeat detection.
@@ -101,9 +99,9 @@ namespace Lidarr.Plugin.Qobuzarr.Security
 
                 return sanitized;
             }
-            catch (RegexMatchTimeoutException)
+            catch (ArgumentException)
             {
-                Logger.Warn("Regex timeout while sanitizing version string, returning safe default");
+                Logger.Warn("Invalid version string while sanitizing, returning safe default");
                 return "Version";
             }
         }
@@ -150,6 +148,46 @@ namespace Lidarr.Plugin.Qobuzarr.Security
             }
 
             return false;
+        }
+
+        private static string RemoveClosedScriptBlocks(string input)
+        {
+            if (input.IndexOf(ScriptOpenMarker, StringComparison.OrdinalIgnoreCase) < 0)
+            {
+                return input;
+            }
+
+            var builder = new StringBuilder(input.Length);
+            var cursor = 0;
+
+            while (cursor < input.Length)
+            {
+                var open = input.IndexOf(ScriptOpenMarker, cursor, StringComparison.OrdinalIgnoreCase);
+                if (open < 0)
+                {
+                    builder.Append(input, cursor, input.Length - cursor);
+                    break;
+                }
+
+                var openEnd = input.IndexOf('>', open);
+                if (openEnd < 0)
+                {
+                    builder.Append(input, cursor, input.Length - cursor);
+                    break;
+                }
+
+                var close = input.IndexOf(ScriptCloseMarker, openEnd + 1, StringComparison.OrdinalIgnoreCase);
+                if (close < 0)
+                {
+                    builder.Append(input, cursor, input.Length - cursor);
+                    break;
+                }
+
+                builder.Append(input, cursor, open - cursor);
+                cursor = close + ScriptCloseMarker.Length;
+            }
+
+            return builder.ToString();
         }
     }
 }

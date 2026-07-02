@@ -2,8 +2,8 @@ using System;
 using System.Threading;
 using FluentAssertions;
 using Lidarr.Plugin.Qobuzarr.Indexers;
+using Lidarr.Plugin.Common.TestKit.Helpers;
 using NLog;
-using NLog.Targets;
 using Xunit;
 
 namespace Qobuzarr.Tests.Indexers
@@ -14,19 +14,17 @@ namespace Qobuzarr.Tests.Indexers
     /// </summary>
     public class MLPerformanceMetricsLogGateTests : IDisposable
     {
-        private readonly MemoryTarget _memoryTarget;
         private readonly Logger _logger;
         private readonly MLPerformanceMetrics _metrics;
 
         public MLPerformanceMetricsLogGateTests()
         {
-            _memoryTarget = new MemoryTarget("test-gate-log") { Layout = "${message}" };
-            var config = new NLog.Config.LoggingConfiguration();
-            config.AddTarget(_memoryTarget);
-            config.AddRule(LogLevel.Debug, LogLevel.Fatal, _memoryTarget);
-            LogManager.Configuration = config;
-
-            _logger = LogManager.GetCurrentClassLogger();
+            // Isolated logger — never mutate the process-global LogManager.Configuration.
+            // Assigning/nulling it here raced parallel log-capture tests (e.g.
+            // QobuzAppSecretLogScrubTests) that read the shared "testMemory" target,
+            // deterministically wiping their capture. This test asserts only on
+            // GetPerformanceSummary() values, never on captured log output.
+            _logger = NLogTestLogger.CreateNullLogger();
             _metrics = new MLPerformanceMetrics(_logger);
         }
 
@@ -124,7 +122,6 @@ namespace Qobuzarr.Tests.Indexers
         public void Dispose()
         {
             _metrics?.Dispose();
-            LogManager.Configuration = null;
         }
     }
 }

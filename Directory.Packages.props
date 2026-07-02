@@ -17,7 +17,7 @@
   <ItemGroup>
     <!-- Core Framework -->
     <PackageVersion Include="Newtonsoft.Json" Version="13.0.3" />
-    <!-- CRITICAL: NLog MUST match Lidarr host version (5.4.0).
+    <!-- CRITICAL: NLog MUST match the extracted Lidarr host version (currently 5.4.0).
          NLog.Logger types cross the plugin boundary via constructors and ILogger<T> injection.
          Version mismatch causes "Could not load file or assembly 'NLog, Version=6.0.0.0'" at runtime.
          Do NOT upgrade without verifying the Lidarr host version first (check ext/Lidarr/_output/*/NLog.dll). -->

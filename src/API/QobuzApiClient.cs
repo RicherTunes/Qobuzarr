@@ -8,6 +8,7 @@ using Newtonsoft.Json;
 using NzbDrone.Common.Http;
 using NzbDrone.Common.Cache;
 using NLog;
+using Lidarr.Plugin.Qobuzarr.Download;
 using Lidarr.Plugin.Qobuzarr.Models;
 using Lidarr.Plugin.Qobuzarr.Models.Authentication;
 using Lidarr.Plugin.Qobuzarr.Configuration;
@@ -580,8 +581,20 @@ namespace Lidarr.Plugin.Qobuzarr.API
                 }
                 else
                 {
-                    var message = streamingInfo.GetRestrictionMessage() ?? "Qobuz stream is restricted.";
-                    throw new InvalidOperationException(message);
+                    // Route through the classified TrackUnavailableException seam instead of an opaque
+                    // InvalidOperationException. Live-confirmed bug: an unclassified restriction (e.g.
+                    // "Content restricted (TrackRestrictedByPurchaseCredentials)") reached
+                    // TrackDownloadService.ResolveStreamAsync's generic catch as an indistinguishable hard
+                    // failure — identical to a transient network error or a genuine edition mismatch. That
+                    // made every incomplete album (even one incomplete only because of a purchase-only or
+                    // subscription-tier restriction that no retry or re-grab will ever fetch)
+                    // report Failed the same way, so Lidarr blocklisted + re-grabbed the identical release
+                    // forever (every quality tier carries the same restricted track id). Classifying the
+                    // reason here lets the album-completion decision tell "hopeless" apart from
+                    // "recoverable" without changing what gets thrown for anything else.
+                    var restriction = SelectRestrictionForFailure(streamingInfo.Restrictions);
+                    var message = restriction?.GetRestrictionMessage() ?? "Qobuz stream is restricted.";
+                    throw new TrackUnavailableException(trackId, message, ClassifyRestrictionReason(restriction));
                 }
             }
 
@@ -604,6 +617,89 @@ namespace Lidarr.Plugin.Qobuzarr.API
 
             return streamingInfo;
         }
+
+        /// <summary>
+        /// Maps a Qobuz stream restriction to a <see cref="TrackUnavailableReason"/>. Only restriction
+        /// codes and messages Qobuz is known to use for rights gates are classified specifically. Only purchase-only
+        /// content and insufficient subscription tier are later treated as terminal suppression candidates
+        /// (see <see cref="TrackUnavailableReasonExtensions.IsPermanentlyUnavailable"/>); geo-blocks are
+        /// classified as regional but deliberately not permanent.
+        /// Anything unrecognized — including the API's own explicit "TEMP" reason code — falls back to
+        /// <see cref="TrackUnavailableReason.Unknown"/> / <see cref="TrackUnavailableReason.ApiError"/> so
+        /// the album-completion decision never wrongly treats a possibly-transient restriction as
+        /// unfixable.
+        /// </summary>
+        private static TrackUnavailableReason ClassifyRestrictionReason(QobuzStreamRestriction? restriction)
+        {
+            var code = NormalizeRestrictionValue(restriction?.Code);
+            var reasonCode = NormalizeRestrictionValue(restriction?.ReasonCode);
+            var reason = NormalizeRestrictionValue(restriction?.Reason);
+
+            if (EqualsRestriction(code, "TrackRestrictedByPurchaseCredentials") ||
+                ContainsRestriction(reason, "TrackRestrictedByPurchaseCredentials") ||
+                ContainsRestriction(reason, "purchase credentials") ||
+                ContainsRestriction(reason, "purchase-only"))
+            {
+                return TrackUnavailableReason.Restricted;
+            }
+
+            if (EqualsRestriction(code, "SubscriptionRestricted") ||
+                EqualsRestriction(code, "FormatRestrictedBySubscription") ||
+                EqualsRestriction(reasonCode, "SUB") ||
+                ContainsRestriction(reason, "SubscriptionRestricted") ||
+                ContainsRestriction(reason, "FormatRestrictedBySubscription") ||
+                ContainsRestriction(reason, "subscription tier") ||
+                ContainsRestriction(reason, "requires premium subscription") ||
+                ContainsRestriction(reason, "higher subscription"))
+            {
+                return TrackUnavailableReason.SubscriptionRestriction;
+            }
+
+            if (EqualsRestriction(code, "GeoRestricted"))
+            {
+                return TrackUnavailableReason.RegionalRestriction;
+            }
+
+            if (EqualsRestriction(reasonCode, "GEO"))
+            {
+                return TrackUnavailableReason.RegionalRestriction;
+            }
+
+            if (EqualsRestriction(reasonCode, "TEMP") ||
+                ContainsRestriction(reason, "temporarily unavailable"))
+            {
+                return TrackUnavailableReason.ApiError; // explicitly temporary — never permanent
+            }
+
+            if (ContainsRestriction(reason, "not available in your region") ||
+                ContainsRestriction(reason, "not available in your country"))
+            {
+                return TrackUnavailableReason.RegionalRestriction;
+            }
+
+            return TrackUnavailableReason.Unknown;
+        }
+
+        private static QobuzStreamRestriction? SelectRestrictionForFailure(IEnumerable<QobuzStreamRestriction>? restrictions)
+        {
+            var restricted = restrictions?.Where(r => r.HasRestrictions()).ToList();
+            if (restricted is not { Count: > 0 })
+            {
+                return null;
+            }
+
+            return restricted.FirstOrDefault(r => ClassifyRestrictionReason(r).IsPermanentlyUnavailable())
+                ?? restricted[0];
+        }
+
+        private static string NormalizeRestrictionValue(string? value)
+            => string.IsNullOrWhiteSpace(value) ? string.Empty : value.Trim();
+
+        private static bool EqualsRestriction(string actual, string expected)
+            => string.Equals(actual, expected, StringComparison.OrdinalIgnoreCase);
+
+        private static bool ContainsRestriction(string actual, string expected)
+            => actual.IndexOf(expected, StringComparison.OrdinalIgnoreCase) >= 0;
 
         /// <summary>
         /// Gets detailed metadata for a track

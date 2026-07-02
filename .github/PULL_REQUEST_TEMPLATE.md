@@ -156,11 +156,11 @@ This PR builds upon the foundational work of [TrevTV's Lidarr.Plugin.Qobuz](http
 
 ---
 
-## Pre-Merge Verification (CI billing blocked — manual verification required)
+## Pre-Merge Verification
 
 ### Required (attach evidence or explain skip)
-- [ ] `dotnet build` succeeds (0 errors)
-- [ ] `dotnet test --blame-hang-timeout 30s` — test count and failures noted below
+- [ ] Gitea CI is green for `secret-scan`, `lint`, and `verify`
+- [ ] `pwsh scripts/verify-local.ps1` succeeds locally for CI-sensitive changes
 - [ ] Runtime sandbox tests pass (`--filter "Category=Runtime"`)
 - [ ] No new `net6.0` references introduced
 

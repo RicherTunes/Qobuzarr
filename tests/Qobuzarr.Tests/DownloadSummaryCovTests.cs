@@ -1,4 +1,8 @@
+using System;
+using System.Collections.Concurrent;
+using System.Linq;
 using System.Threading;
+using System.Threading.Tasks;
 using FluentAssertions;
 using Lidarr.Plugin.Qobuzarr.Download;
 using Xunit;
@@ -178,6 +182,60 @@ namespace Qobuzarr.Tests
             var brief = s.GetBriefSummary();
             brief.Should().Contain("Downloaded 1/2 albums");
             brief.Should().Contain("KB"); // 2048 bytes -> 2.0 KB
+        }
+
+        [Fact]
+        public async Task ConcurrentRecordAndReport_DoesNotThrowOrLoseResults()
+        {
+            var s = new DownloadSummary();
+            for (var i = 0; i < 10_000; i++)
+            {
+                s.RecordAlbumResult("Seed", $"Album{i}", 1, 0, 1, 2, 100);
+            }
+
+            var errors = new ConcurrentQueue<Exception>();
+            using var start = new ManualResetEventSlim(false);
+
+            var writers = Enumerable.Range(0, 4).Select(worker => Task.Run(() =>
+            {
+                start.Wait();
+                try
+                {
+                    for (var i = 0; i < 5_000; i++)
+                    {
+                        s.RecordAlbumResult("Writer", $"Album{worker}-{i}", 2, 0, 0, 2, 200);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    errors.Enqueue(ex);
+                }
+            })).ToArray();
+
+            var readers = Enumerable.Range(0, 4).Select(reader => Task.Run(() =>
+            {
+                start.Wait();
+                try
+                {
+                    for (var i = 0; i < 50; i++)
+                    {
+                        _ = s.GenerateReport();
+                        _ = s.GetBriefSummary();
+                        _ = s.GetAverageSpeed();
+                    }
+                }
+                catch (Exception ex)
+                {
+                    errors.Enqueue(ex);
+                }
+            })).ToArray();
+
+            start.Set();
+            await Task.WhenAll(writers.Concat(readers));
+
+            errors.Should().BeEmpty("download summaries are shared across concurrent album downloads");
+            s.GetTotalAlbums().Should().Be(30_000);
+            s.GetTotalBytesDownloaded().Should().Be(5_000_000);
         }
     }
 }
