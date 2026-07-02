@@ -299,14 +299,12 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Services
             }
         }
 
-        // Number of attempts for resolving a track's stream URL (GetStreamingInfoAsync). Qobuz
-        // occasionally returns a transient 5xx/408/429 or the request times out / drops at the network
-        // layer before a stream URL is ever obtained. Unlike the byte-download retry below (which resumes
+        // Number of attempts for resolving a track's stream URL (GetStreamingInfoAsync). The HTTP API
+        // client already owns Retry-After/backoff for classified response statuses like 408/429/5xx; this
+        // outer retry is only for raw transport failures that escape that layer before any stream URL is
+        // obtained (timeout, socket reset, DNS blip). Unlike the byte-download retry below (which resumes
         // an already-in-progress file), a resolution failure has nothing to resume — the whole call is
-        // simply retried. Distinct from QobuzHttpClient.ExecuteAsync's own HTTP-status retry loop: that
-        // layer only retries responses it can classify by status code (an HttpException carrying a
-        // Response); raw transport exceptions (timeout, socket reset, DNS blip) bypass that loop entirely
-        // and previously propagated straight out as a hard per-track failure with zero retry.
+        // simply retried.
         internal virtual int MaxStreamResolveAttempts => 3;
 
         // Exponential backoff (1s, 2s, capped at 4s) between transient stream-resolution retries. Shorter
@@ -354,8 +352,8 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Services
         /// Classifies a stream-resolution failure as transient (worth a bounded retry) or not.
         /// Deliberately excludes: an honored cancellation, a classified <see cref="TrackUnavailableException"/>
         /// (a business-rule rejection — preview/restricted/etc. — retrying would just re-confirm the same
-        /// permanent answer), and auth/4xx <see cref="QobuzApiException"/>s (a wrong credential or a
-        /// genuinely missing resource will never succeed on retry).
+        /// permanent answer), and <see cref="QobuzApiException"/>s whose inner API transport layer already
+        /// spent the HTTP-status retry budget.
         /// </summary>
         internal static bool IsTransientStreamResolutionException(Exception ex, CancellationToken cancellationToken)
         {
@@ -369,11 +367,9 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Services
                 return false;
             }
 
-            if (ex is QobuzApiException apiEx)
+            if (ex is QobuzApiException)
             {
-                // 408 (timeout), 429 (rate limited) and 5xx (server error) are worth retrying; everything
-                // else (401/403 auth, 404 not found, and unrecognized 4xx) is not.
-                return apiEx.StatusCode == 408 || apiEx.StatusCode == 429 || apiEx.StatusCode >= 500;
+                return false;
             }
 
             var (category, _) = HttpExceptionClassifier.Classify(ex);

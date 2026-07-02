@@ -53,7 +53,7 @@ namespace Qobuzarr.Tests.Unit.Download.Services
         [InlineData(500)]
         [InlineData(429)]
         [InlineData(408)]
-        public async Task ResolveStreamAsync_TransientServerError_RetriesThenSucceeds(int statusCode)
+        public async Task ResolveStreamAsync_ApiStatusFailure_IsNotRetriedAgainAtTrackLayer(int statusCode)
         {
             var api = new Mock<IQobuzApiClient>();
             var attempts = 0;
@@ -61,20 +61,16 @@ namespace Qobuzarr.Tests.Unit.Download.Services
                .Returns(() =>
                {
                    attempts++;
-                   if (attempts == 1)
-                   {
-                       throw new Lidarr.Plugin.Qobuzarr.API.QobuzApiException("transient", statusCode, "ServerError");
-                   }
-                   return Task.FromResult(new QobuzStreamResponse { Url = "https://cdn.qobuz/x", FormatId = 7 });
+                   throw new Lidarr.Plugin.Qobuzarr.API.QobuzApiException("transient", statusCode, "ServerError");
                });
 
             var sut = new FakeStreamResolveService(api.Object, maxAttempts: 3);
 
             var (url, ext) = await sut.ResolveStreamAsync("t1", new QobuzDownloadSettings { PreferredQuality = 7 }, MakeItem(), new QobuzTrackClassifier(), CancellationToken.None);
 
-            url.Should().Be("https://cdn.qobuz/x");
-            ext.Should().Be(".flac");
-            attempts.Should().Be(2, "the first transient failure should be retried and the second attempt succeeds");
+            url.Should().BeEmpty();
+            ext.Should().BeEmpty();
+            attempts.Should().Be(1, "QobuzHttpClient already owns retry/backoff for classified API HTTP status failures");
         }
 
         [Fact]
@@ -128,7 +124,7 @@ namespace Qobuzarr.Tests.Unit.Download.Services
         }
 
         [Fact]
-        public async Task ResolveStreamAsync_TransientFailure_ExhaustsRetriesThenReturnsEmpty()
+        public async Task ResolveStreamAsync_TransientNetworkFailure_ExhaustsRetriesThenReturnsEmpty()
         {
             var api = new Mock<IQobuzApiClient>();
             var attempts = 0;
@@ -136,7 +132,7 @@ namespace Qobuzarr.Tests.Unit.Download.Services
                .Returns(() =>
                {
                    attempts++;
-                   throw new Lidarr.Plugin.Qobuzarr.API.QobuzApiException("still down", 503, "ServerError");
+                   throw new HttpRequestException("still down");
                });
 
             var sut = new FakeStreamResolveService(api.Object, maxAttempts: 3);
