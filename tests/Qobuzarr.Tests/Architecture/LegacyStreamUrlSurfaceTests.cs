@@ -83,6 +83,37 @@ namespace Qobuzarr.Tests.Architecture
         }
 
         [Fact]
+        public void ActiveArchitectureDocs_DoNotDescribeRemovedLidarrIntegrationServicesAsCurrent()
+        {
+            var repoRoot = FindRepositoryRoot();
+            var activeDocs = new[]
+            {
+                "CLAUDE.md",
+                "docs/ARCHITECTURE.md",
+                "docs/architecture/API-REFERENCE.md",
+            };
+            var misleadingSnippets = new[]
+            {
+                "AudioFileDownloader",
+                "### LidarrQueueManager",
+                "class LidarrQueueManager",
+                "AdaptiveConcurrencyManager",
+            };
+
+            var offenders = activeDocs
+                .Select(relativePath => (relativePath, text: File.ReadAllText(Path.Combine(repoRoot, relativePath))))
+                .SelectMany(doc => misleadingSnippets
+                    .Where(snippet => doc.text.Contains(snippet, StringComparison.Ordinal))
+                    .Select(snippet => $"{doc.relativePath}: {snippet}"))
+                .ToArray();
+
+            offenders.Should().BeEmpty(
+                "active architecture documentation should describe the Common-backed QobuzDownloadClient, " +
+                "TrackDownloadService, ConcurrencyManager, and Common HostBridgeDownloadOrchestrator pipeline " +
+                "instead of deleted Qobuz-local service implementations");
+        }
+
+        [Fact]
         public void ProductionSource_DoesNotReintroduceLegacyStreamUrlTypes()
         {
             var repoRoot = FindRepositoryRoot();

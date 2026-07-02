@@ -586,26 +586,26 @@ public class LidarrContextOptimizer
 - **Smart Artist Matching**: Uses Lidarr's artist aliases and variations
 - **Album Metadata Enhancement**: Enriches searches with existing Lidarr album data
 
-### LidarrQueueManager
+### Queue DTO Compatibility
 
-**New in v0.0.12**: Advanced queue management for Lidarr integration.
+The old concrete queue manager has been removed. Qobuzarr keeps only the queue DTO and
+interface compatibility types needed by QobuzCLI compile-time adapters; runtime downloads
+flow through `QobuzDownloadClient`, `QobuzDownloadOrchestrator`, and Common's host bridge.
 
 ```csharp
-public class LidarrQueueManager : ILidarrQueueManager
+public interface ILidarrQueueManager
 {
-    Task<QueueStatus> GetQueueStatusAsync();
-    Task<List<QueueItem>> GetPendingItemsAsync(QueueFilter filter = null);<!-- TODO(docval): QueueFilter type not found as of 2026-05-31 -->
-    Task<bool> AddToQueueAsync(QobuzAlbum album, QueuePriority priority = QueuePriority.Normal);<!-- TODO(docval): QueuePriority enum not found; AddToQueueAsync signature different as of 2026-05-31 -->
-    Task<QueueProcessingResult> ProcessQueueAsync(QueueProcessingOptions options);<!-- TODO(docval): QueueProcessingResult and QueueProcessingOptions types not found as of 2026-05-31 -->
+    QueueStatus GetQueueStatus();
+    QueueStatistics GetQueueStatistics();
 }
 ```
 
-**Advanced Queue Features:**
+**Current queue behavior:**
 
-- **Priority-Based Processing**: High, Normal, Low priority queues
-- **Intelligent Scheduling**: Optimal processing order based on dependencies
-- **Progress Tracking**: Real-time progress updates for queue processing
-- **Error Recovery**: Automatic retry and error handling strategies
+- **Lidarr-owned queue**: Lidarr owns queued download-client items.
+- **Common host bridge**: Common persists host-bridge download item state.
+- **Plugin concurrency**: `ConcurrencyManager` gates plugin-side track work.
+- **Compatibility DTOs**: `QueueStatus` and `QueueStatistics` remain for QobuzCLI references.
 
 ## Performance Services API
 
@@ -631,26 +631,25 @@ public class AdaptiveRateLimiter : NamedServiceRateLimiter
 
 Qobuzarr does not define a local rate-limiting algorithm. Common `NamedServiceRateLimiter` owns the adaptive limits, backoff, and statistics behavior.
 
-### AdaptiveConcurrencyManager
+### ConcurrencyManager
 
-**New in v0.0.12**: Dynamic concurrency management for optimal performance.
+Thread-safe plugin-side concurrency gate used by the active download pipeline.
 
 ```csharp
-public class AdaptiveConcurrencyManager
+public class ConcurrencyManager : IConcurrencyManager
 {
-    Task<T> ExecuteAsync<T>(Func<Task<T>> operation, ConcurrencyContext context);<!-- TODO(docval): ConcurrencyContext type not found; ExecuteAsync signature different as of 2026-05-31 -->
-    void UpdatePerformanceMetrics(OperationResult result);<!-- TODO(docval): OperationResult type not found as of 2026-05-31 -->
+    Task<IDisposable> AcquireSlotAsync(CancellationToken cancellationToken = default);
+    void UpdateConcurrencyLimit(int newLimit);
     ConcurrencyStatistics GetStatistics();
-    void SetConcurrencyLimits(ConcurrencyLimits limits);<!-- TODO(docval): ConcurrencyLimits type not found as of 2026-05-31 -->
 }
 ```
 
-**Adaptive Algorithms:**
+**Concurrency behavior:**
 
-- **Performance-Based Adjustment**: Increases/decreases based on response times
-- **Error-Rate Monitoring**: Reduces concurrency on high error rates
-- **Memory Pressure Response**: Adapts to available system memory
-- **Network Condition Awareness**: Adjusts based on network performance
+- **Single semaphore model**: Avoids replacing semaphores while work is in flight.
+- **Runtime limit updates**: Increases release permits; decreases drain or defer permits safely.
+- **Cancellation-aware acquire**: Waiting callers can cancel without leaking slots.
+- **Statistics**: Exposes current/active slot counts and recent acquisition data.
 
 ### MemoryHealthMonitor
 

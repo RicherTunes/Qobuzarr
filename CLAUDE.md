@@ -138,7 +138,7 @@ Pinned by Common `TerminalReleaseSuppressionStoreTests` (persistence/bounds/TTL/
 - `DownloadPathValidator` — `src/Download/Clients/QobuzDownloadClient.cs:760` (Test() pre-check). Wave-31 adoption: syntactic path validation (traversal, relative, invalid chars) before filesystem probe.
 - `PluginLogContext` — `src/Indexers/QobuzIndexer.cs:180` (Search scope), `src/Indexers/QobuzIndexer.cs:291` (Test scope)
 - `WarnOnce` — `src/Indexers/QobuzIndexer.cs:58` (wire-warn gate)
-- `Scrub` — `src/Download/Services/AudioFileDownloader.cs:73` (`Scrub.Url`), `src/API/Signing/QobuzRequestSigner.cs:64` (`Scrub.Secret`)
+- `Scrub` — `src/API/Http/QobuzHttpClient.cs:289` (`Scrub.Url`), `src/API/Signing/QobuzRequestSigner.cs:64` (`Scrub.Secret`)
 - `PrefixedReleaseGuidParser` — `src/Download/Clients/QobuzDownloadClient.cs:1173`, `src/Download/Services/AlbumIdExtractor.cs:55` (`ExtractAlbumIdFromGuid`; the new `qobuz:album:{id}` GUID grammar is also documented in a comment at `src/Indexers/QobuzParser.cs:256`)
 - `BoundedConcurrentDictionary<TKey, TValue>` — available (Common v1.15.0+ exposes `ContainsKey`, `Values`, indexer setter, and `IEnumerable<KeyValuePair>` alongside the original v1.10.0 TryAdd/TryGetValue/AddOrUpdate/GetOrAdd surface). No qobuz call sites yet — `QobuzHttpClient._hostGates` (`src/API/Http/QobuzHttpClient.cs:40`) is domain-bounded by host count (1-2 hosts in practice) so adoption isn't required; revisit if user-controlled keys grow unboundedly.
 
