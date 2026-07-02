@@ -1,4 +1,6 @@
+using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Net;
 using System.Threading;
@@ -58,6 +60,32 @@ namespace Qobuzarr.Tests.Unit.Indexers
             var releases = parser.ParseResponse(Response(album));
 
             releases.Should().NotBeEmpty("without an explicit suppression store, nothing is ever suppressed");
+        }
+
+        [Fact]
+        public async Task ParseResponse_RealCommonBackedSuppressionStore_PersistsAndSuppressesFreshParser()
+        {
+            var tempDir = Path.Combine(Path.GetTempPath(), "qobuz-parser-suppression-" + Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(tempDir);
+            try
+            {
+                var storePath = Path.Combine(tempDir, "terminal-release-suppressions.json");
+                var writer = new RestrictedReleaseSuppressionStore(storePath);
+                await writer.SuppressAsync("suppressed-album", "restricted-track", TrackUnavailableReason.Restricted);
+
+                var freshReader = new RestrictedReleaseSuppressionStore(storePath);
+                var parser = new QobuzParser(Settings(), LogManager.GetCurrentClassLogger(), freshReader);
+                var suppressed = Album("suppressed-album").AsHiResFlac().Build();
+
+                var releases = parser.ParseResponse(Response(suppressed));
+
+                releases.Should().BeEmpty(
+                    "the production adapter and Common store must round-trip before the parser can stop a re-grab loop");
+            }
+            finally
+            {
+                Directory.Delete(tempDir, recursive: true);
+            }
         }
 
         private static QobuzIndexerSettings Settings() => new()

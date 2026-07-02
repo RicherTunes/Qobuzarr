@@ -631,29 +631,75 @@ namespace Lidarr.Plugin.Qobuzarr.API
         /// </summary>
         private static TrackUnavailableReason ClassifyRestrictionReason(QobuzStreamRestriction? restriction)
         {
-            switch (restriction?.Code)
+            var code = NormalizeRestrictionValue(restriction?.Code);
+            var reasonCode = NormalizeRestrictionValue(restriction?.ReasonCode);
+            var reason = NormalizeRestrictionValue(restriction?.Reason);
+
+            if (EqualsRestriction(code, "GeoRestricted"))
             {
-                case "GeoRestricted":
-                    return TrackUnavailableReason.RegionalRestriction;
-                case "SubscriptionRestricted":
-                case "FormatRestrictedBySubscription":
-                    return TrackUnavailableReason.SubscriptionRestriction;
-                case "TrackRestrictedByPurchaseCredentials":
-                    return TrackUnavailableReason.Restricted;
+                return TrackUnavailableReason.RegionalRestriction;
             }
 
-            switch (restriction?.ReasonCode)
+            if (EqualsRestriction(code, "SubscriptionRestricted") ||
+                EqualsRestriction(code, "FormatRestrictedBySubscription"))
             {
-                case "GEO":
-                    return TrackUnavailableReason.RegionalRestriction;
-                case "SUB":
-                    return TrackUnavailableReason.SubscriptionRestriction;
-                case "TEMP":
-                    return TrackUnavailableReason.ApiError; // explicitly temporary — never permanent
+                return TrackUnavailableReason.SubscriptionRestriction;
+            }
+
+            if (EqualsRestriction(code, "TrackRestrictedByPurchaseCredentials"))
+            {
+                return TrackUnavailableReason.Restricted;
+            }
+
+            if (EqualsRestriction(reasonCode, "GEO"))
+            {
+                return TrackUnavailableReason.RegionalRestriction;
+            }
+
+            if (EqualsRestriction(reasonCode, "SUB"))
+            {
+                return TrackUnavailableReason.SubscriptionRestriction;
+            }
+
+            if (EqualsRestriction(reasonCode, "TEMP") ||
+                ContainsRestriction(reason, "temporarily unavailable"))
+            {
+                return TrackUnavailableReason.ApiError; // explicitly temporary — never permanent
+            }
+
+            if (ContainsRestriction(reason, "TrackRestrictedByPurchaseCredentials") ||
+                ContainsRestriction(reason, "purchase credentials") ||
+                ContainsRestriction(reason, "purchase-only"))
+            {
+                return TrackUnavailableReason.Restricted;
+            }
+
+            if (ContainsRestriction(reason, "SubscriptionRestricted") ||
+                ContainsRestriction(reason, "FormatRestrictedBySubscription") ||
+                ContainsRestriction(reason, "subscription tier") ||
+                ContainsRestriction(reason, "requires premium subscription") ||
+                ContainsRestriction(reason, "higher subscription"))
+            {
+                return TrackUnavailableReason.SubscriptionRestriction;
+            }
+
+            if (ContainsRestriction(reason, "not available in your region") ||
+                ContainsRestriction(reason, "not available in your country"))
+            {
+                return TrackUnavailableReason.RegionalRestriction;
             }
 
             return TrackUnavailableReason.Unknown;
         }
+
+        private static string NormalizeRestrictionValue(string? value)
+            => string.IsNullOrWhiteSpace(value) ? string.Empty : value.Trim();
+
+        private static bool EqualsRestriction(string actual, string expected)
+            => string.Equals(actual, expected, StringComparison.OrdinalIgnoreCase);
+
+        private static bool ContainsRestriction(string actual, string expected)
+            => actual.IndexOf(expected, StringComparison.OrdinalIgnoreCase) >= 0;
 
         /// <summary>
         /// Gets detailed metadata for a track

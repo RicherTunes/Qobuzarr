@@ -426,6 +426,42 @@ namespace Qobuzarr.Tests
         }
 
         [Fact]
+        public async Task GetStreamingInfoAsync_WithPaddedLowercasePurchaseRestrictionCode_ClassifiesAsRestricted()
+        {
+            var exception = await ActWithRestriction(new QobuzStreamRestriction
+            {
+                Code = "  trackrestrictedbypurchasecredentials  ",
+            });
+
+            exception.Reason.Should().Be(TrackUnavailableReason.Restricted);
+            exception.Reason.IsPermanentlyUnavailable().Should().BeTrue();
+        }
+
+        [Fact]
+        public async Task GetStreamingInfoAsync_WithPaddedLowercaseSubscriptionReasonCode_ClassifiesAsSubscriptionRestriction()
+        {
+            var exception = await ActWithRestriction(new QobuzStreamRestriction
+            {
+                ReasonCode = "  sub  ",
+            });
+
+            exception.Reason.Should().Be(TrackUnavailableReason.SubscriptionRestriction);
+            exception.Reason.IsPermanentlyUnavailable().Should().BeTrue();
+        }
+
+        [Fact]
+        public async Task GetStreamingInfoAsync_WithReasonOnlyPurchaseRestriction_ClassifiesAsRestricted()
+        {
+            var exception = await ActWithRestriction(new QobuzStreamRestriction
+            {
+                Reason = "Content restricted (TrackRestrictedByPurchaseCredentials)",
+            });
+
+            exception.Reason.Should().Be(TrackUnavailableReason.Restricted);
+            exception.Reason.IsPermanentlyUnavailable().Should().BeTrue();
+        }
+
+        [Fact]
         public async Task GetStreamingInfoAsync_WithTemporaryReasonCode_ThrowsTrackUnavailableException_ButIsNotPermanent()
         {
             // ReasonCode "TEMP" is explicitly documented (QobuzStreamRestriction.GetRestrictionMessage) as
@@ -1361,6 +1397,41 @@ namespace Qobuzarr.Tests
                 _mockRequestSigner.Object,
                 _mockResponseCache.Object,
                 _mockLogger.Object);
+        }
+
+        private async Task<TrackUnavailableException> ActWithRestriction(QobuzStreamRestriction restriction)
+        {
+            var client = CreateClient();
+
+            _mockSessionManager.Setup(x => x.GetCurrentSessionAsync(default))
+                .ReturnsAsync(_validSession);
+
+            _mockResponseCache.Setup(x => x.Get<QobuzStreamResponse>(
+                    It.IsAny<string>(), It.IsAny<Dictionary<string, string>>()))
+                .Returns((QobuzStreamResponse?)null);
+
+            var requestBuilder = new HttpRequestBuilder("https://api.qobuz.com/track/getFileUrl");
+            _mockHttpClient.Setup(x => x.BuildRequest(It.IsAny<string>(), It.IsAny<string>()))
+                .Returns(requestBuilder);
+
+            var restrictedResponse = new QobuzStreamResponse
+            {
+                Url = string.Empty,
+                FormatId = 27,
+                MimeType = "audio/flac",
+                Sample = false,
+                Restrictions = new List<QobuzStreamRestriction> { restriction },
+            };
+
+            var response = HttpTestHelpers.CreateResponse(
+                JsonConvert.SerializeObject(restrictedResponse),
+                HttpStatusCode.OK);
+
+            _mockHttpClient.Setup(x => x.ExecuteAsync(It.IsAny<HttpRequest>(), default))
+                .ReturnsAsync(response);
+
+            return await Assert.ThrowsAsync<TrackUnavailableException>(
+                () => client.GetStreamingInfoAsync("track123", 27));
         }
 
         #endregion
