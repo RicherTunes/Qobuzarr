@@ -2,8 +2,8 @@ using System;
 using System.Threading;
 using FluentAssertions;
 using Lidarr.Plugin.Qobuzarr.Indexers;
+using Lidarr.Plugin.Common.TestKit.Helpers;
 using NLog;
-using NLog.Targets;
 using Xunit;
 
 namespace Qobuzarr.Tests.Indexers
@@ -14,24 +14,17 @@ namespace Qobuzarr.Tests.Indexers
     /// </summary>
     public class MLPerformanceMetricsLogGateTests : IDisposable
     {
-        private readonly MemoryTarget _memoryTarget;
         private readonly Logger _logger;
         private readonly MLPerformanceMetrics _metrics;
 
         public MLPerformanceMetricsLogGateTests()
         {
-            // ISOLATED LogFactory — assigning the process-global
-            // LogManager.Configuration (and nulling it in Dispose) clobbered the
-            // shared "testMemory" target installed by NLogTestLogger.Create(),
-            // flaking parallel log-assertion tests (e.g. QobuzAppSecretLogScrubTests).
-            var factory = new LogFactory();
-            _memoryTarget = new MemoryTarget("test-gate-log") { Layout = "${message}" };
-            var config = new NLog.Config.LoggingConfiguration(factory);
-            config.AddTarget(_memoryTarget);
-            config.AddRule(LogLevel.Debug, LogLevel.Fatal, _memoryTarget);
-            factory.Configuration = config;
-
-            _logger = factory.GetLogger(nameof(MLPerformanceMetricsLogGateTests));
+            // Isolated logger — never mutate the process-global LogManager.Configuration.
+            // Assigning/nulling it here raced parallel log-capture tests (e.g.
+            // QobuzAppSecretLogScrubTests) that read the shared "testMemory" target,
+            // deterministically wiping their capture. This test asserts only on
+            // GetPerformanceSummary() values, never on captured log output.
+            _logger = NLogTestLogger.CreateNullLogger();
             _metrics = new MLPerformanceMetrics(_logger);
         }
 

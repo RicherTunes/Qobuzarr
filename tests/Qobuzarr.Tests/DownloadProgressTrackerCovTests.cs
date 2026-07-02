@@ -3,8 +3,7 @@ using System.Threading;
 using FluentAssertions;
 using Moq;
 using NLog;
-using NLog.Config;
-using NLog.Targets;
+using Lidarr.Plugin.Common.TestKit.Helpers;
 using Lidarr.Plugin.Qobuzarr.Models;
 using Lidarr.Plugin.Qobuzarr.Services;
 using Xunit;
@@ -19,27 +18,19 @@ namespace Qobuzarr.Tests
     public class DownloadProgressTrackerCovTests : IDisposable
     {
         private readonly Logger _logger;
-        private readonly LogFactory _logFactory;
 
         public DownloadProgressTrackerCovTests()
         {
-            // Configure a minimal NLog logger on an ISOLATED LogFactory.
-            // Mutating the process-global LogManager.Configuration (and calling
-            // LogManager.Shutdown() in Dispose) clobbered the shared "testMemory"
-            // target installed by NLogTestLogger.Create(), flaking parallel
-            // log-assertion tests (e.g. QobuzAppSecretLogScrubTests).
-            _logFactory = new LogFactory();
-            var config = new LoggingConfiguration(_logFactory);
-            var target = new MemoryTarget("mem") { Layout = "${message}" };
-            config.AddTarget("mem", target);
-            config.LoggingRules.Add(new LoggingRule("*", LogLevel.Debug, target));
-            _logFactory.Configuration = config;
-            _logger = _logFactory.GetLogger("TestLogger");
+            // Isolated logger — never mutate the process-global LogManager.Configuration
+            // (and never call LogManager.Shutdown() in teardown). Both raced parallel
+            // log-capture tests (e.g. QobuzAppSecretLogScrubTests) that read the shared
+            // "testMemory" target, deterministically wiping their capture. This test never
+            // asserts on captured logs, so a no-op isolated logger suffices.
+            _logger = NLogTestLogger.CreateNullLogger();
         }
 
         public void Dispose()
         {
-            _logFactory.Shutdown();
         }
 
         // Helper to create a ProgressTracker via reflection-free means:
