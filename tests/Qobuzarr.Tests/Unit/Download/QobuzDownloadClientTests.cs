@@ -19,11 +19,11 @@ using Lidarr.Plugin.Qobuzarr.Constants;
 using Lidarr.Plugin.Qobuzarr.Download;
 using Lidarr.Plugin.Qobuzarr.Download.Clients;
 using Lidarr.Plugin.Qobuzarr.Download.Services;
-// Download orchestration services - IDownloadOrchestrator still exists
-using Lidarr.Plugin.Qobuzarr.Download.Orchestration;
 using Lidarr.Plugin.Qobuzarr.Abstractions;
+using Lidarr.Plugin.Qobuzarr.Exceptions;
 using Lidarr.Plugin.Qobuzarr.Models;
 using Lidarr.Plugin.Qobuzarr.Models.Authentication;
+using Lidarr.Plugin.Qobuzarr.Services;
 using Qobuzarr.Tests.Fixtures;
 using Qobuzarr.Tests.TestData;
 
@@ -45,10 +45,8 @@ namespace Qobuzarr.Tests.Unit.Download
                 IQobuzAuthenticationService authService,
                 IQobuzApiClient apiClient,
                 NzbDrone.Common.Http.IHttpClient httpClient,
-                IDownloadQueueService queueService,
                 IDownloadFileService fileService,
                 IConcurrencyManager concurrencyManager,
-                IDownloadOrchestrator orchestrator,
                 ITrackDownloadService trackDownloadService,
                 IDownloadSummary downloadSummary,
                 IBatchProcessor batchProcessor,
@@ -57,8 +55,8 @@ namespace Qobuzarr.Tests.Unit.Download
                 NzbDrone.Core.RemotePathMappings.IRemotePathMappingService remotePathMappingService,
                 NzbDrone.Core.Localization.ILocalizationService localizationService,
                 NLog.Logger logger)
-                : base(authService, apiClient, httpClient, queueService, fileService, concurrencyManager,
-                      orchestrator, downloadSummary, batchProcessor, trackDownloadService,
+                : base(authService, apiClient, httpClient, fileService, concurrencyManager,
+                      downloadSummary, batchProcessor, trackDownloadService,
                       configService, diskProvider, remotePathMappingService, localizationService, logger)
             {
                 _testSettings = new QobuzDownloadSettings
@@ -85,6 +83,24 @@ namespace Qobuzarr.Tests.Unit.Download
             protected override Lidarr.Plugin.Common.HostBridge.HostBridgeDownloadTrackerStore<QobuzDownloadItem> Tracker
                 => _testTracker;
 
+            public IRestrictedReleaseSuppressionStore? ReleaseSuppressionStoreOverride { get; set; }
+
+            protected override IRestrictedReleaseSuppressionStore ReleaseSuppressionStore
+                => ReleaseSuppressionStoreOverride ?? base.ReleaseSuppressionStore;
+
+            internal Func<QobuzDownloadItem, CancellationToken, Task>? BeforeDownloadWorkerSideEffectsOverride { get; set; }
+
+            protected override Task BeforeDownloadWorkerSideEffectsAsync(QobuzDownloadItem downloadItem, CancellationToken cancellationToken)
+                => BeforeDownloadWorkerSideEffectsOverride?.Invoke(downloadItem, cancellationToken) ?? Task.CompletedTask;
+
+            public QobuzDownloadItem? GetTrackedItem(string downloadId)
+                => _testTracker.TryGet(downloadId, out var item) ? item : null;
+
+            public Task? PendingCleanupTask => LastCleanupTask;
+
+            public void SeedTracker(QobuzDownloadItem item)
+                => _testTracker.AddOrReplace(item);
+
             public void SetTestSettings(QobuzDownloadSettings settings)
             {
                 _testSettings = settings;
@@ -92,38 +108,50 @@ namespace Qobuzarr.Tests.Unit.Download
         }
         private readonly IQobuzAuthenticationService _mockAuthService;
         private readonly IQobuzApiClient _mockApiClient;
-        private readonly IDownloadQueueService _mockQueueService;
         private readonly IDownloadFileService _mockFileService;
         private readonly IConcurrencyManager _mockConcurrencyManager;
-        private readonly IDownloadOrchestrator _mockOrchestrator;
         private readonly IDownloadSummary _mockDownloadSummary;
         private readonly ITrackDownloadService _mockTrackDownloadService;
         private readonly IBatchProcessor _mockBatchProcessor;
-        // REMOVED: IQobuzTrackDownloaderFactory has been deleted
         private readonly TestableQobuzDownloadClient _downloadClient;
         private readonly QobuzSession _testSession;
+
+        private sealed class RecordingSuppressionStore : IRestrictedReleaseSuppressionStore
+        {
+            public List<(string AlbumId, string TrackId, TrackUnavailableReason Reason)> Records { get; } = new();
+
+            public bool IsSuppressed(string albumId) => false;
+
+            public Task SuppressAsync(
+                string albumId,
+                string trackId,
+                TrackUnavailableReason reason,
+                CancellationToken cancellationToken = default)
+            {
+                Records.Add((albumId, trackId, reason));
+                return Task.CompletedTask;
+            }
+
+            public Task<bool> ClearAsync(string albumId, CancellationToken cancellationToken = default)
+                => Task.FromResult(false);
+        }
 
         public QobuzDownloadClientTests()
         {
             _mockAuthService = Substitute.For<IQobuzAuthenticationService>();
             _mockApiClient = Substitute.For<IQobuzApiClient>();
-            _mockQueueService = Substitute.For<IDownloadQueueService>();
             _mockFileService = Substitute.For<IDownloadFileService>();
             _mockConcurrencyManager = Substitute.For<IConcurrencyManager>();
-            _mockOrchestrator = Substitute.For<IDownloadOrchestrator>();
             _mockDownloadSummary = Substitute.For<IDownloadSummary>();
             _mockTrackDownloadService = Substitute.For<ITrackDownloadService>();
             _mockBatchProcessor = Substitute.For<IBatchProcessor>();
-            // REMOVED: IQobuzTrackDownloaderFactory mock creation
 
             _downloadClient = new TestableQobuzDownloadClient(
                 _mockAuthService,
                 _mockApiClient,
                 MockHttpClient.Object,
-                _mockQueueService,
                 _mockFileService,
                 _mockConcurrencyManager,
-                _mockOrchestrator,
                 _mockTrackDownloadService,
                 _mockDownloadSummary,
                 _mockBatchProcessor,
@@ -145,8 +173,6 @@ namespace Qobuzarr.Tests.Unit.Download
         }
 
         // Captured download item for RemoveItem tests
-        private QobuzDownloadItem _lastQueuedDownload;
-
         private void SetupMockDefaults()
         {
             _mockAuthService.GetCachedSession().Returns(_testSession);
@@ -168,24 +194,28 @@ namespace Qobuzarr.Tests.Unit.Download
 
             // Fix: Make Test() pass path validation
             _mockFileService.ValidateDownloadPath(Arg.Any<string>()).Returns(true);
+        }
 
-            // Fix: Capture queued downloads for RemoveItem tests
-            _mockQueueService.When(x => x.AddDownload(Arg.Any<QobuzDownloadItem>()))
-                .Do(ci => _lastQueuedDownload = ci.Arg<QobuzDownloadItem>());
+        private async Task<QobuzDownloadItem> AwaitTrackedDownloadAsync(string downloadId)
+        {
+            var tracked = _downloadClient.GetTrackedItem(downloadId);
+            tracked.Should().NotBeNull("Download() must insert the item into the tracker before returning");
+            if (tracked!.DownloadTask != null)
+            {
+                await tracked.DownloadTask;
+            }
+            return tracked;
+        }
 
-            // Fix: TryGetDownload returns captured download when ID matches
-            _mockQueueService.TryGetDownload(Arg.Any<string>(), out Arg.Any<QobuzDownloadItem>())
-                .Returns(ci =>
-                {
-                    var id = ci.Arg<string>();
-                    if (_lastQueuedDownload != null && _lastQueuedDownload.DownloadId == id)
-                    {
-                        ci[1] = _lastQueuedDownload;
-                        return true;
-                    }
-                    ci[1] = null;
-                    return false;
-                });
+        private async Task<QobuzDownloadItem> AwaitTrackedDownloadIgnoringErrorsAsync(string downloadId)
+        {
+            var tracked = _downloadClient.GetTrackedItem(downloadId);
+            tracked.Should().NotBeNull("Download() must insert the item into the tracker before returning");
+            if (tracked!.DownloadTask != null)
+            {
+                try { await tracked.DownloadTask; } catch { /* expected by failure-path tests */ }
+            }
+            return tracked;
         }
 
         [Fact]
@@ -228,10 +258,7 @@ namespace Qobuzarr.Tests.Unit.Download
             var downloadId = await _downloadClient.Download(remoteAlbum, Substitute.For<IIndexer>());
 
             // Wait for download task to complete so TotalSize gets populated
-            if (_lastQueuedDownload?.DownloadTask != null)
-            {
-                await _lastQueuedDownload.DownloadTask;
-            }
+            await AwaitTrackedDownloadAsync(downloadId);
 
             // Assert
             var items = _downloadClient.GetItems();
@@ -267,16 +294,140 @@ namespace Qobuzarr.Tests.Unit.Download
 
             // Act
             var downloadId = await _downloadClient.Download(remoteAlbum, Substitute.For<IIndexer>());
-            if (_lastQueuedDownload?.DownloadTask != null)
-            {
-                await _lastQueuedDownload.DownloadTask;
-            }
+            await AwaitTrackedDownloadAsync(downloadId);
 
             // Assert
             var downloadItem = _downloadClient.GetItems().FirstOrDefault(x => x.DownloadId == downloadId);
             downloadItem.Should().NotBeNull();
             downloadItem.Status.Should().Be(DownloadItemStatus.Completed);
             downloadItem.Message.Should().Contain("quality fallback used for 2 track(s)");
+        }
+
+        [Fact]
+        public async Task Download_WithPermanentTrackRestriction_RecordsReleaseSuppressionAndStillFails()
+        {
+            var suppression = new RecordingSuppressionStore();
+            _downloadClient.ReleaseSuppressionStoreOverride = suppression;
+
+            var albumException = new AlbumDownloadException(
+                "0060254788359",
+                "Random Access Memories",
+                totalTracks: 20,
+                successfulTracks: 19,
+                skippedTracks: 0,
+                failedTracks: 1,
+                trackResults: new[]
+                {
+                    new TrackDownloadResult
+                    {
+                        Success = false,
+                        TrackId = "restricted-track",
+                        Reason = TrackUnavailableReason.Restricted,
+                        Message = "Content restricted (TrackRestrictedByPurchaseCredentials)",
+                    },
+                });
+
+            _mockTrackDownloadService.DownloadAlbumAsync(
+                Arg.Any<QobuzDownloadItem>(),
+                Arg.Any<QobuzAlbum>(),
+                Arg.Any<QobuzDownloadSettings>(),
+                Arg.Any<CancellationToken>())
+                .Returns(Task.FromException(albumException));
+
+            var downloadId = await _downloadClient.Download(CreateTestRemoteAlbum(), Substitute.For<IIndexer>());
+
+            var tracked = await AwaitTrackedDownloadIgnoringErrorsAsync(downloadId);
+
+            tracked.GetHostStatus().Should().Be(DownloadItemStatus.Failed);
+            suppression.Records.Should().ContainSingle(record =>
+                record.AlbumId == "0060254788359" &&
+                record.TrackId == "restricted-track" &&
+                record.Reason == TrackUnavailableReason.Restricted);
+        }
+
+        [Fact]
+        public async Task Download_WithOnlyUnclassifiedDeficit_DoesNotRecordReleaseSuppression()
+        {
+            // An unclassified deficit (Reason == null) is symptomatic of a genuine edition mismatch or an
+            // unexpected error, not a proven-permanent restriction. Lidarr still needs the chance to
+            // blocklist + fall back to another edition/source, so suppression must NOT fire.
+            var suppression = new RecordingSuppressionStore();
+            _downloadClient.ReleaseSuppressionStoreOverride = suppression;
+
+            var albumException = new AlbumDownloadException(
+                "0060254788359",
+                "Random Access Memories",
+                totalTracks: 20,
+                successfulTracks: 18,
+                skippedTracks: 0,
+                failedTracks: 2,
+                trackResults: new[]
+                {
+                    new TrackDownloadResult { Success = false, TrackId = "unknown-track", Reason = null },
+                });
+
+            _mockTrackDownloadService.DownloadAlbumAsync(
+                Arg.Any<QobuzDownloadItem>(),
+                Arg.Any<QobuzAlbum>(),
+                Arg.Any<QobuzDownloadSettings>(),
+                Arg.Any<CancellationToken>())
+                .Returns(Task.FromException(albumException));
+
+            var downloadId = await _downloadClient.Download(CreateTestRemoteAlbum(), Substitute.For<IIndexer>());
+            var tracked = await AwaitTrackedDownloadIgnoringErrorsAsync(downloadId);
+
+            tracked.GetHostStatus().Should().Be(DownloadItemStatus.Failed);
+            suppression.Records.Should().BeEmpty();
+        }
+
+        [Fact]
+        public async Task Download_WithOnlyRegionalRestrictionDeficit_DoesNotRecordReleaseSuppression()
+        {
+            // Geo-restriction is deliberately excluded from suppression eligibility
+            // (TrackUnavailableReasonExtensions.IsPermanentlyUnavailable) — availability can change (VPN,
+            // catalog rollout by region), so permanently hiding the release is a worse failure mode than
+            // the bounded re-grab it would otherwise cause.
+            var suppression = new RecordingSuppressionStore();
+            _downloadClient.ReleaseSuppressionStoreOverride = suppression;
+
+            var albumException = new AlbumDownloadException(
+                "geo-album-id",
+                "Geo Restricted Album",
+                totalTracks: 10,
+                successfulTracks: 9,
+                skippedTracks: 0,
+                failedTracks: 1,
+                trackResults: new[]
+                {
+                    new TrackDownloadResult { Success = false, TrackId = "geo-track", Reason = TrackUnavailableReason.RegionalRestriction },
+                });
+
+            _mockTrackDownloadService.DownloadAlbumAsync(
+                Arg.Any<QobuzDownloadItem>(),
+                Arg.Any<QobuzAlbum>(),
+                Arg.Any<QobuzDownloadSettings>(),
+                Arg.Any<CancellationToken>())
+                .Returns(Task.FromException(albumException));
+
+            var downloadId = await _downloadClient.Download(CreateTestRemoteAlbum(), Substitute.For<IIndexer>());
+            var tracked = await AwaitTrackedDownloadIgnoringErrorsAsync(downloadId);
+
+            tracked.GetHostStatus().Should().Be(DownloadItemStatus.Failed);
+            suppression.Records.Should().BeEmpty();
+        }
+
+        [Fact]
+        public async Task Download_SuccessfulAlbum_NeverTouchesReleaseSuppressionStore()
+        {
+            var suppression = new RecordingSuppressionStore();
+            _downloadClient.ReleaseSuppressionStoreOverride = suppression;
+
+            var remoteAlbum = CreateTestRemoteAlbum();
+            var downloadId = await _downloadClient.Download(remoteAlbum, Substitute.For<IIndexer>());
+            var tracked = await AwaitTrackedDownloadAsync(downloadId);
+
+            tracked.GetHostStatus().Should().Be(DownloadItemStatus.Completed);
+            suppression.Records.Should().BeEmpty();
         }
 
         [Fact]
@@ -320,13 +471,11 @@ namespace Qobuzarr.Tests.Unit.Download
             _downloadClient.RemoveItem(downloadItem, false);
 
             // Assert
-            // Fix: Verify RemoveDownload was called with correct parameters
-            _mockQueueService.Received(1).RemoveDownload(downloadId, false);
             _downloadClient.GetItems().Should().BeEmpty();
         }
 
         [Fact]
-        public async Task RemoveItem_WithDeleteData_ShouldDeleteFiles()
+        public async Task RemoveItem_WithDeleteData_DefersTrackerRemovalUntilCleanupTaskRuns()
         {
             // Arrange
             var remoteAlbum = CreateTestRemoteAlbum();
@@ -339,9 +488,13 @@ namespace Qobuzarr.Tests.Unit.Download
             _downloadClient.RemoveItem(downloadItem, true);
 
             // Assert
-            // Fix: RemoveItem delegates deletion to queue service, not disk provider directly
-            // The deleteData flag is passed to RemoveDownload which handles file cleanup
-            _mockQueueService.Received(1).RemoveDownload(downloadId, true);
+            _downloadClient.GetTrackedItem(downloadId).Should().NotBeNull(
+                "deleteData cleanup is deferred until the download task settles");
+            if (_downloadClient.PendingCleanupTask != null)
+            {
+                await _downloadClient.PendingCleanupTask;
+            }
+            _downloadClient.GetItems().Should().BeEmpty();
         }
 
         [Fact]
@@ -424,10 +577,7 @@ namespace Qobuzarr.Tests.Unit.Download
             var downloadId = await _downloadClient.Download(remoteAlbum, Substitute.For<IIndexer>());
 
             // Fix: Wait for the actual download task to complete instead of arbitrary delay
-            if (_lastQueuedDownload?.DownloadTask != null)
-            {
-                await _lastQueuedDownload.DownloadTask;
-            }
+            await AwaitTrackedDownloadAsync(downloadId);
 
             // Act
             var items = _downloadClient.GetItems();
@@ -449,10 +599,7 @@ namespace Qobuzarr.Tests.Unit.Download
             var downloadId = await _downloadClient.Download(remoteAlbum, Substitute.For<IIndexer>());
 
             // Fix: Wait for the actual download task to complete instead of arbitrary delay
-            if (_lastQueuedDownload?.DownloadTask != null)
-            {
-                try { await _lastQueuedDownload.DownloadTask; } catch { /* Expected to fail */ }
-            }
+            await AwaitTrackedDownloadIgnoringErrorsAsync(downloadId);
 
             // Act
             var items = _downloadClient.GetItems();
@@ -494,10 +641,10 @@ namespace Qobuzarr.Tests.Unit.Download
 
         /// <summary>
         /// Tests that cleanup doesn't remove recent downloads.
-        /// This is a wiring test - it verifies the method delegates correctly to queue service.
+        /// This is a wiring test - it verifies recent terminal items still flow through the tracker.
         /// </summary>
         [Fact]
-        public async Task CleanupOldDownloads_ShouldRemoveOldCompletedDownloads()
+        public async Task GetItems_RetainsRecentCompletedDownloads()
         {
             // Arrange
             var remoteAlbum = CreateTestRemoteAlbum();
@@ -507,15 +654,9 @@ namespace Qobuzarr.Tests.Unit.Download
             var items = _downloadClient.GetItems();
             items.Should().HaveCount(1);
 
-            // Use reflection to access cleanup method
-            var method = typeof(QobuzDownloadClient).GetMethod("CleanupOldDownloads",
-                System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+            await AwaitTrackedDownloadAsync(downloadId);
 
-            // Act
-            method.Invoke(_downloadClient, null);
-
-            // Assert
-            // Cleanup shouldn't remove recent downloads
+            // Assert: Common's tracker retention sweep must not evict recent terminal items.
             _downloadClient.GetItems().Should().HaveCount(1);
         }
 
@@ -540,10 +681,7 @@ namespace Qobuzarr.Tests.Unit.Download
             var downloadId = await _downloadClient.Download(remoteAlbum, Substitute.For<IIndexer>());
 
             // Fix: Wait for download task to complete instead of arbitrary delay
-            if (_lastQueuedDownload?.DownloadTask != null)
-            {
-                try { await _lastQueuedDownload.DownloadTask; } catch { /* Expected to fail */ }
-            }
+            await AwaitTrackedDownloadIgnoringErrorsAsync(downloadId);
 
             // Act
             var items = _downloadClient.GetItems();
@@ -571,6 +709,166 @@ namespace Qobuzarr.Tests.Unit.Download
             items.Should().HaveCount(2);
             items.Select(x => x.DownloadId).Should().Contain(downloadId1);
             items.Select(x => x.DownloadId).Should().Contain(downloadId2);
+        }
+
+        // ───────────────────────────────────────────────────────────────────────────
+        // Wave A: HostBridgeDownloadOrchestrator adoption — behavior-contract guards.
+        // These pin the live-proven behavior the orchestrator refactor must preserve:
+        //   1. the item is visible in GetItems() the instant Download() returns (the
+        //      orchestrator inserts into the tracker BEFORE scheduling the work — no race);
+        //   2. Download() registers the item with the tracker and sets _lastQueuedItem;
+        //   3. RemoveItem() still cancels the in-flight item's own CancellationTokenSource
+        //      (the cancel source-of-truth that PerformDownloadAsync observes).
+        // ───────────────────────────────────────────────────────────────────────────
+
+        [Fact]
+        public async Task Download_ItemIsVisibleInGetItems_BeforeWorkCompletes_NoPreInsertRace()
+        {
+            // Arrange: block the track download so the item is genuinely still in-flight when
+            // we poll GetItems() right after Download() returns. If the orchestrator inserted
+            // into the tracker only AFTER scheduling Task.Run, this poll could miss the item.
+            var entered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            _mockTrackDownloadService.DownloadAlbumAsync(
+                Arg.Any<QobuzDownloadItem>(),
+                Arg.Any<QobuzAlbum>(),
+                Arg.Any<QobuzDownloadSettings>(),
+                Arg.Any<CancellationToken>())
+                .Returns(async ci =>
+                {
+                    entered.TrySetResult();
+                    var ct = ci.ArgAt<CancellationToken>(3);
+                    await Task.Delay(Timeout.Infinite, ct);
+                });
+
+            var remoteAlbum = CreateTestRemoteAlbum();
+
+            // Act
+            var downloadId = await _downloadClient.Download(remoteAlbum, Substitute.For<IIndexer>());
+            var itemsImmediately = _downloadClient.GetItems().ToList();
+
+            // Assert: visible immediately, keyed by the generated downloadId.
+            downloadId.Should().NotBeNullOrEmpty();
+            itemsImmediately.Select(i => i.DownloadId).Should().Contain(downloadId);
+
+            // Cleanup: release the blocked background work.
+            var tracked = _downloadClient.GetTrackedItem(downloadId);
+            tracked?.CancellationTokenSource?.Cancel();
+            if (tracked?.DownloadTask != null)
+            {
+                try { await tracked.DownloadTask; } catch { /* cancelled */ }
+            }
+        }
+
+        [Fact]
+        public async Task Download_RegistersItemWithTracker_AndSetsLastQueuedItem()
+        {
+            // Arrange
+            var remoteAlbum = CreateTestRemoteAlbum();
+
+            // Act
+            var downloadId = await _downloadClient.Download(remoteAlbum, Substitute.For<IIndexer>());
+            var tracked = _downloadClient.GetTrackedItem(downloadId);
+            if (tracked?.DownloadTask != null)
+            {
+                try { await tracked.DownloadTask; } catch { /* not relevant here */ }
+            }
+
+            // Assert: the item carrying the generated downloadId was registered with the tracker.
+            tracked.Should().NotBeNull();
+            tracked!.DownloadId.Should().Be(downloadId);
+
+            // Assert: the private _lastQueuedItem sentinel points at the same item.
+            var field = typeof(QobuzDownloadClient).GetField(
+                "_lastQueuedItem",
+                System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+            field.Should().NotBeNull();
+            var lastQueuedItem = field!.GetValue(_downloadClient) as QobuzDownloadItem;
+            lastQueuedItem.Should().NotBeNull();
+            lastQueuedItem!.DownloadId.Should().Be(downloadId);
+        }
+
+        [Fact]
+        public async Task RemoveItem_CancelsInFlightDownloadCancellationTokenSource()
+        {
+            // Arrange: block the track download so the item is genuinely in-flight (Downloading)
+            // when RemoveItem fires — that is the only state in which cancellation is signalled.
+            var entered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            _mockTrackDownloadService.DownloadAlbumAsync(
+                Arg.Any<QobuzDownloadItem>(),
+                Arg.Any<QobuzAlbum>(),
+                Arg.Any<QobuzDownloadSettings>(),
+                Arg.Any<CancellationToken>())
+                .Returns(async ci =>
+                {
+                    entered.TrySetResult();
+                    var ct = ci.ArgAt<CancellationToken>(3);
+                    await Task.Delay(Timeout.Infinite, ct);
+                });
+
+            var remoteAlbum = CreateTestRemoteAlbum();
+            var downloadId = await _downloadClient.Download(remoteAlbum, Substitute.For<IIndexer>());
+
+            // Ensure the background work reached the in-flight state.
+            await entered.Task.WaitAsync(TimeSpan.FromSeconds(10));
+            var inFlight = _downloadClient.GetTrackedItem(downloadId);
+            inFlight.Should().NotBeNull();
+            inFlight!.CancellationTokenSource.Should().NotBeNull(
+                "Download() must build the item with its own CancellationTokenSource (the cancel source of truth)");
+            inFlight.CancellationTokenSource!.IsCancellationRequested.Should().BeFalse();
+
+            // Act
+            _downloadClient.RemoveItem(new DownloadClientItem { DownloadId = downloadId }, false);
+
+            // Assert: the item's own CancellationTokenSource was cancelled, so PerformDownloadAsync
+            // (which observes item.CancellationTokenSource.Token) unwinds the in-flight download.
+            inFlight.CancellationTokenSource!.IsCancellationRequested.Should().BeTrue();
+
+            // Cleanup: let the cancelled work unwind.
+            if (inFlight.DownloadTask != null)
+            {
+                try { await inFlight.DownloadTask; } catch { /* cancelled */ }
+            }
+        }
+
+        [Fact]
+        public async Task RemoveItem_WhenStillQueued_CancelsBeforeWorkerDoesAuthApiDirectoryOrTrackWork()
+        {
+            // Arrange: hold the real Download() worker in the queued window after Common has
+            // inserted the item but before Qobuz performs auth/API/filesystem side effects.
+            var workerEntered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            var releaseWorker = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            _downloadClient.BeforeDownloadWorkerSideEffectsOverride = (_, _) =>
+            {
+                workerEntered.TrySetResult();
+                return releaseWorker.Task;
+            };
+
+            var remoteAlbum = CreateTestRemoteAlbum();
+            var downloadId = await _downloadClient.Download(remoteAlbum, Substitute.For<IIndexer>());
+            await workerEntered.Task.WaitAsync(TimeSpan.FromSeconds(10));
+
+            var queued = _downloadClient.GetTrackedItem(downloadId);
+            queued.Should().NotBeNull();
+            queued!.GetStatus().Should().Be(Lidarr.Plugin.Common.HostBridge.HostBridgeDownloadItemStatus.Queued);
+
+            // Act: remove while the item is still queued, then let the worker continue.
+            _downloadClient.RemoveItem(new DownloadClientItem { DownloadId = downloadId }, deleteData: false);
+            releaseWorker.TrySetResult();
+            await queued.DownloadTask!.WaitAsync(TimeSpan.FromSeconds(5));
+
+            // Assert: the queued cancel is not just a token flip; the production worker observes
+            // it before auth, album lookup, output directory creation, or track download.
+            queued.CancellationTokenSource!.IsCancellationRequested.Should().BeTrue();
+            _mockAuthService.DidNotReceive().GetCachedSession();
+            _ = _mockApiClient.DidNotReceive().GetAsync<QobuzAlbum>(
+                Arg.Any<string>(),
+                Arg.Any<Dictionary<string, string>>());
+            _mockFileService.DidNotReceive().EnsureOutputDirectory(Arg.Any<string>());
+            _ = _mockTrackDownloadService.DidNotReceive().DownloadAlbumAsync(
+                Arg.Any<QobuzDownloadItem>(),
+                Arg.Any<QobuzAlbum>(),
+                Arg.Any<QobuzDownloadSettings>(),
+                Arg.Any<CancellationToken>());
         }
 
         private RemoteAlbum CreateTestRemoteAlbum(string albumTitle = "Random Access Memories")

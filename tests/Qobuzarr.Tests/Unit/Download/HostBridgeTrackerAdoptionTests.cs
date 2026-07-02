@@ -1,5 +1,6 @@
 using System;
 using System.Linq;
+using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
 using FluentAssertions;
@@ -16,7 +17,6 @@ using Xunit;
 using Lidarr.Plugin.Common.HostBridge;
 using Lidarr.Plugin.Qobuzarr.Download.Clients;
 using Lidarr.Plugin.Qobuzarr.Download.Services;
-using Lidarr.Plugin.Qobuzarr.Download.Orchestration;
 using Lidarr.Plugin.Qobuzarr.Download;
 using Lidarr.Plugin.Qobuzarr.API;
 using Lidarr.Plugin.Qobuzarr.Authentication;
@@ -33,6 +33,24 @@ namespace Qobuzarr.Tests.Unit.Download
     /// </summary>
     public class HostBridgeTrackerAdoptionTests
     {
+        [Fact]
+        public void StaticTracker_IsPersistentForPluginConfigRoot()
+        {
+            var field = typeof(QobuzDownloadClient)
+                .GetField("_staticTracker", BindingFlags.NonPublic | BindingFlags.Static);
+
+            field.Should().NotBeNull();
+            field!.FieldType.Should().Be(typeof(HostBridgeDownloadTrackerStore<QobuzDownloadItem>));
+
+            var tracker = field.GetValue(null);
+            var persistencePathField = field.FieldType.GetField("_persistencePath", BindingFlags.NonPublic | BindingFlags.Instance);
+            persistencePathField.Should().NotBeNull();
+            var persistencePath = persistencePathField!.GetValue(tracker).Should().BeOfType<string>().Subject;
+            persistencePath.Replace('\\', '/').Should().EndWith(
+                "/Qobuzarr/download-tracker.json",
+                "the real plugin tracker must survive Lidarr restarts, not just tests that construct a temporary store");
+        }
+
         // ────────────────────────────────────────────────────────────────────────────
         // 1. Download_AddsItemToBridgeTracker
         // ────────────────────────────────────────────────────────────────────────────
@@ -236,6 +254,43 @@ namespace Qobuzarr.Tests.Unit.Download
             item.DownloadTask.Should().BeNull();
             item.Album.Should().BeNull();
             item.DownloadedSize.Should().Be(0);
+        }
+
+        [Fact]
+        public void FromHostBridgeDto_RestoresSubclassWithPersistedBaseFields()
+        {
+            var startedAt = new DateTime(2026, 6, 29, 18, 0, 0, DateTimeKind.Utc);
+            var completedAt = startedAt.AddMinutes(4);
+            var dto = new HostBridgeDownloadItemDto
+            {
+                DownloadId = "qobuz-persisted-id",
+                AlbumId = "qobuz-album-42",
+                Title = "Persisted Album",
+                Artist = "Persisted Artist",
+                OutputPath = "/downloads/qobuz/Persisted Artist/Persisted Album",
+                StartedAt = startedAt,
+                CompletedAt = completedAt,
+                TotalSize = 123456789L,
+                Status = HostBridgeDownloadItemStatus.Completed,
+                Progress = 100,
+            };
+
+            var item = QobuzDownloadItem.FromHostBridgeDto(dto);
+
+            item.Should().BeOfType<QobuzDownloadItem>();
+            item.DownloadId.Should().Be(dto.DownloadId);
+            item.AlbumId.Should().Be(dto.AlbumId);
+            item.Title.Should().Be(dto.Title);
+            item.Artist.Should().Be(dto.Artist);
+            item.OutputPath.Should().Be(dto.OutputPath);
+            item.StartedAt.Should().Be(startedAt);
+            item.CompletedAt.Should().Be(completedAt);
+            item.TotalSize.Should().Be(dto.TotalSize);
+            item.GetStatus().Should().Be(HostBridgeDownloadItemStatus.Completed);
+            item.GetProgress().Should().Be(100);
+            item.DownloadTask.Should().BeNull("task handles cannot be reconstructed after a process restart");
+            item.CancellationTokenSource.Should().BeNull("cancellation handles cannot be reconstructed after a process restart");
+            item.Album.Should().BeNull("provider DTOs are not part of Common's persisted tracker snapshot");
         }
 
         // ────────────────────────────────────────────────────────────────────────────

@@ -359,11 +359,20 @@ namespace Lidarr.Plugin.Qobuzarr.Authentication
                 .SetHeader("Accept", "application/json");
 
             var request = requestBuilder.Build();
+
+            // SECURITY: this login URL carries email + md5(password) as query params. Without
+            // SuppressHttpError the host client throws an HttpException whose message embeds
+            // the full request URL, which flows into Lidarr's error log and the UI Test result
+            // (same leak class as brainarr's Gemini key-in-URL fix). Suppress the host throw
+            // and map the failure to a scrubbed exception instead.
+            request.SuppressHttpError = true;
             var response = await _httpClient.ExecuteAsync(request).ConfigureAwait(false);
 
             if (response.HasHttpError)
             {
-                throw new HttpException(request, response);
+                _logger.Debug("Qobuz login HTTP failure: status {0}", (int)response.StatusCode);
+                throw new InvalidOperationException(
+                    $"Qobuz login failed with HTTP {(int)response.StatusCode}. Verify your Email + Password (and App ID/Secret if set), then retry. See Debug logs for details.");
             }
 
             var loginResponse = JsonConvert.DeserializeObject<QobuzLoginResponse>(response.Content);

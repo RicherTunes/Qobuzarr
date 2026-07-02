@@ -25,10 +25,5 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers.RequestGeneration
         /// Clones a request with a different offset for pagination.
         /// </summary>
         IndexerRequest CloneRequestWithOffset(IndexerRequest originalRequest, int offset);
-
-        /// <summary>
-        /// Creates a mock search request for cached results.
-        /// </summary>
-        IndexerRequest CreateMockSearchRequest(AlbumSearchCriteria searchCriteria);
     }
 }

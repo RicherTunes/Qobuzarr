@@ -66,7 +66,7 @@ Other constraints the install enforces:
 - Tag parses as a version (`v1.2.3`, `1.2.3`, or `1.2.3-prerelease`)
 - Optional `Minimum Lidarr Version: X.Y.Z.W` in release body must be <= host version
 
-Our release zip is named `Lidarr.Plugin.Qobuzarr-v<VERSION>.net8.0.zip` (`.github/workflows/release.yml`). Do not rename without keeping the `net8.0.zip` suffix.
+Our release zip MUST be named with the `net8.0.zip` suffix (e.g., `Lidarr.Plugin.Qobuzarr-v<VERSION>.net8.0.zip`). Do not rename without keeping the `net8.0.zip` suffix.
 
 **Verify a release is installable:**
 
@@ -103,16 +103,28 @@ The gate lives in `DownloadPolicy.IsAlbumDownloadSuccessful` (`successfulTracks 
 
 **Regression history (DO NOT REPEAT):** `IsAlbumDownloadSuccessful` returned `true` for a partial album (`29/30 = 96.7% ≥ 80% MinimumSuccessRate`). Found 2026-05-31 on the live instance: *Aphex Twin – Drukqs* (qobuz edition 30 tracks, track 21 unavailable) downloaded 29 FLACs, was reported `Completed`, and Lidarr rejected the import with "Has missing tracks" → `importFailed`, 0 imported, no fallback. (The same album also exposes a release-edition mismatch — Lidarr's matched release was 34 tracks vs qobuz's 30 — which makes "fail + fall back" doubly correct: qobuz can't satisfy that release at all.) The prior `IsAlbumDownloadSuccessful_ShouldReturnCorrectResult` cases *asserted the bug as correct* (80% ⇒ `true`); no test encoded the integration truth that Lidarr permanently rejects an incomplete album. Pinned now by `DownloadPolicyTests` (`...PartialAlbum_29Of30_ReportsFailure`, `...IncompleteAlbumIsNeverSuccessful_RegardlessOfThreshold`).
 
+**Terminal release suppression (2026-07-01) — permanently-restricted tracks never blocklist:** the contract above (incomplete ⇒ Failed, never Completed) is UNCHANGED and still enforced for every case, including a permanently-restricted track — `TrackDownloadService.DownloadAlbumAsync` still always throws `AlbumDownloadException` on any deficit. What's new is a Common-backed suppression mechanism that stops the re-grab loop WITHOUT touching the completion decision, because Lidarr's blocklist cannot be relied on here: a track that Qobuz permanently refuses to serve for rights reasons (`TrackRestrictedByPurchaseCredentials`, `FormatRestrictedBySubscription`/subscription-tier) is a property of the exact track id, present identically in *every* quality-tier release Qobuz can offer for that catalog entry (`QobuzDownloadClient.Download`/`PerformDownloadAsync` always resolves streams via the download client's own `settings.PreferredQuality`, ignoring which quality-tier `ReleaseInfo.Guid` Lidarr actually grabbed — see `QobuzParser.ConvertAlbumToReleases`, which emits one `ReleaseInfo` per quality tier for the same album id). Live-confirmed 2026-06-29ish: 3 albums, 55+ re-grab cycles over 3 hours, ~145GB wasted EACH, and **no blocklist entry was ever created** despite 55+ reported failures — Lidarr's blocklist mechanism provably does not fire for this failure mode on the live instance (`blocklist_total=0` after 55+ failures), so a fix that depends on it (report `Completed` instead, or trust blocklist-driven fallback) does not actually terminate the loop.
+
+Fix: Common owns the durable primitive: `TerminalReleaseSuppressionStore` (`ext/Lidarr.Plugin.Common/src/HostBridge/TerminalReleaseSuppressionStore.cs`) is a small, bounded, TTL'd, disk-persisted (`JsonFileStore<string, TerminalReleaseSuppressionRecord>`) map of `releaseId -> suppression record`. Qobuz keeps only a thin policy adapter (`src/Services/RestrictedReleaseSuppressionStore.cs`) that maps qobuz album ids onto the Common store and refuses to suppress non-terminal reasons. `QobuzDownloadClient.PerformDownloadAsync` catches `AlbumDownloadException` (before the generic `catch (Exception ex)`) and, when **any** deficit track's classifier-recorded reason satisfies `TrackUnavailableReason.IsPermanentlyUnavailable()` (`Restricted` / `SubscriptionRestriction` ONLY — deliberately NOT `RegionalRestriction`/geo, `PreviewOnly`, `NoQualityAvailable`, `NotStreamable`, `ApiError`, or `Unknown`, any of which may be transient, soft, or symptomatic of a recoverable edition mismatch), records the album id in the store. `QobuzParser.ConvertAlbumToReleases` checks the store (optional constructor dependency, defaults to a no-op so every pre-existing `new QobuzParser(settings, logger)` call site keeps compiling; `QobuzIndexer` wires the real `RestrictedReleaseSuppressionStore.Shared` instance) and skips emitting **any** `ReleaseInfo` for a suppressed album id, so the next search returns nothing for it — Lidarr has nothing to grab, and the loop stops without ever depending on blocklist. The download-client-facing report to Lidarr (`Failed`, with the same message as before) is completely unchanged; suppression is a pure search-side side effect.
+
+Suppression keys on **album id only** (not the quality-tier GUID) — deliberate, given the `settings.PreferredQuality`-ignores-grabbed-release fact above: keying by GUID would only suppress one of the ~4 quality tiers per failure, so Lidarr could still cycle through the others (bounded to ~4 grabs instead of infinite, but not immediate). Keying by album id stops the loop after exactly one failed grab. TTL (30 days) and a 500-entry oldest-write cap bound the store and give a self-healing path if a track's restriction is later lifted server-side — see the store's own doc comments for the staleness caveat (the in-memory suppression snapshot is only refreshed on a new suppression write or a periodic in-process check, not continuously against the TTL).
+
+The classification seam feeding this: `QobuzApiClient.GetStreamingInfoAsync`'s restriction branch used to throw a raw, unclassified `InvalidOperationException` (e.g. literally `"Content restricted (TrackRestrictedByPurchaseCredentials)"`) that reached `TrackDownloadService.ResolveStreamAsync`'s generic catch as an opaque hard failure — indistinguishable from a network blip or a genuine edition mismatch, and never fed into `AlbumDownloadException.TrackResults[].Reason`. It now throws a classified `TrackUnavailableException` via `QobuzApiClient.ClassifyRestrictionReason` (keyed off `QobuzStreamRestriction.Code`, `ReasonCode`, and tightly-known reason text such as `TrackRestrictedByPurchaseCredentials`; the API's own `"TEMP"` reason code is explicitly mapped away from permanent, since it means transient). `ResolveStreamAsync` now records the reason for **every** classified `TrackUnavailableException` (previously only `PreviewOnly`/`NoQualityAvailable` were recorded), so `AlbumDownloadException.TrackResults` — and therefore the suppression check — has an accurate reason for every deficit track.
+
+Pinned by Common `TerminalReleaseSuppressionStoreTests` (persistence/bounds/TTL/normalization), qobuz `RestrictedReleaseSuppressionStoreTests` (qobuz permanent-only adapter policy), `QobuzApiClientCovTests` (`GetStreamingInfoAsync_With*Restriction*`), `QobuzDownloadClientTests` (terminal `AlbumDownloadException` writes suppression while still reporting Failed), `TrackDownloadServiceOrchestratorTests.ResolveStreamAsync_RestrictedTrackUnavailableException_IsRecordedWithReason`, and `QobuzParserSuppressionTests` (the suppressed album id is absent from `ParseResponse`'s emitted releases; a non-suppressed album is unaffected).
+
+**Edge case — an album that is BOTH restricted AND edition-mismatched:** suppression wins for future searches (no releases are offered for that album id at all, regardless of edition), because the restricted track can never be satisfied by *any* Qobuz edition of that catalog entry — falling back to a different Qobuz edition is exactly as hopeless as retrying the same one. This is a deliberate, narrower scope than a full per-release-GUID or per-edition suppression; documented as a known simplification.
+
 ## Submodule pin coordination (ext-common-sha.txt)
 
 `ext/Lidarr.Plugin.Common` is a git submodule pinned to a specific Common SHA. Two things must always agree on that SHA:
 
 1. **The submodule gitlink** — what `git ls-tree HEAD ext/Lidarr.Plugin.Common` reports (updated by `git add ext/Lidarr.Plugin.Common` after checking out a new Common commit).
-2. **`ext-common-sha.txt`** — a plaintext sentinel (40 hex chars + LF) at the repo root. CI's "Submodule Pinning" job (`.github/workflows/submodule-pin.yml`) fails the build if the gitlink and this file disagree.
+2. **`ext-common-sha.txt`** — a plaintext sentinel (40 hex chars + LF) at the repo root. The Gitea CI job (`.gitea/workflows/ci.yml`) validates that the gitlink and this file agree; a mismatch fails the build.
 
 **Why the sentinel exists**: the gitlink is invisible in a plain `git diff` (it shows only `-Subproject commit <sha>`), so the sentinel makes the pinned version greppable, reviewable in PRs, and assertable in tests (`VersionContractTests` cross-checks it against `plugin.json`'s `commonVersion`). Seeing `ext-common-sha.txt` dirtied in `git status` after a submodule bump is expected — commit it together with the gitlink.
 
-**To bump the pin**: `pwsh ext/Lidarr.Plugin.Common/scripts/repin-common-submodule.sh --sha-from-submodule --stage` (or the `.ps1` variant) reads the submodule HEAD, rewrites `ext-common-sha.txt`, and stages both so they can't drift. The nightly `bump-common.yml` workflow does this automatically when Common's main advances.
+**To bump the pin**: `pwsh ext/Lidarr.Plugin.Common/scripts/repin-common-submodule.sh --sha-from-submodule --stage` (or the `.ps1` variant) reads the submodule HEAD, rewrites `ext-common-sha.txt`, and stages both so they can't drift. Re-pin **manually** when Common's main advances — there is no scheduled auto-bump workflow on the Gitea-primary copy (GitHub Actions is out of credits).
 
 ## Common helpers in use
 
@@ -120,12 +132,12 @@ The gate lives in `DownloadPolicy.IsAlbumDownloadSuccessful` (`successfulTracks 
 - `FileTokenStore<QobuzSession>` + `StreamingTokenManager<QobuzSession, QobuzCredentials>` — `src/Authentication/SessionManager.cs:86-90`. Common's canonical token-store stack with at-rest encryption (DPAPI on Windows, Keychain on macOS, Secret Service / DataProtection fallback on Linux). Session envelope persisted to `PluginConfigRoots.Resolve("Qobuzarr")/session.json`. The audit-mismatch axis "Qobuz uses custom JSON I/O for sessions" was a stale finding — the wave-8B `SecureSessionManager` rip-out already migrated to Common; this CLAUDE entry pins the evidence.
 - `BackendHealthCache` — `src/API/Http/QobuzHttpClient.cs:31` (fail-fast gate in `ExecuteAsync`), `src/API/Http/QobuzHttpClient.cs:104`
 - `AuthFailureGate` — `src/Integration/QobuzarrStreamingPlugin.cs:36` (singleton registration), `src/Integration/Bridge/BridgeQobuzApiClient.cs:35`
-- `HttpExceptionClassifier` — `src/API/AdaptiveQobuzApiClient.cs:54`, `src/Services/AuthTokenManager.cs:376`, `src/Indexers/QobuzIndexer.cs:324` (Test() catch), `src/Download/Clients/QobuzDownloadClient.cs:376` (Test() catch). Wave-31 adoption: replaces generic "Test failed (ExceptionType)" with categorized actionable hints — Auth failures route to the "Authentication" field.
-- `DownloadPathValidator` — `src/Download/Clients/QobuzDownloadClient.cs:344` (Test() pre-check). Wave-31 adoption: syntactic path validation (traversal, relative, invalid chars) before filesystem probe.
-- `PluginLogContext` — `src/Indexers/QobuzIndexer.cs:189` (Search scope), `src/Indexers/QobuzIndexer.cs:265` (Test scope), `src/Services/AuthTokenManager.cs:266` (AuthRefresh scope)
+- `HttpExceptionClassifier` — `src/API/AdaptiveQobuzApiClient.cs:39`, `src/Indexers/QobuzIndexer.cs:331` (Test() catch), `src/Download/Clients/QobuzDownloadClient.cs:800` (Test() catch), and `src/Download/Clients/QobuzDownloadClient.cs:1034` (download failure classification). Wave-31 adoption: replaces generic "Test failed (ExceptionType)" with categorized actionable hints — Auth failures route to the "Authentication" field.
+- `DownloadPathValidator` — `src/Download/Clients/QobuzDownloadClient.cs:760` (Test() pre-check). Wave-31 adoption: syntactic path validation (traversal, relative, invalid chars) before filesystem probe.
+- `PluginLogContext` — `src/Indexers/QobuzIndexer.cs:180` (Search scope), `src/Indexers/QobuzIndexer.cs:291` (Test scope)
 - `WarnOnce` — `src/Indexers/QobuzIndexer.cs:58` (wire-warn gate)
 - `Scrub` — `src/Download/Services/AudioFileDownloader.cs:73` (`Scrub.Url`), `src/API/Signing/QobuzRequestSigner.cs:64` (`Scrub.Secret`)
-- `PrefixedReleaseGuidParser` — `src/Indexers/QobuzParser.cs:233`
+- `PrefixedReleaseGuidParser` — `src/Download/Clients/QobuzDownloadClient.cs:1173`, `src/Download/Services/AlbumIdExtractor.cs:55` (`ExtractAlbumIdFromGuid`; the new `qobuz:album:{id}` GUID grammar is also documented in a comment at `src/Indexers/QobuzParser.cs:256`)
 - `BoundedConcurrentDictionary<TKey, TValue>` — available (Common v1.15.0+ exposes `ContainsKey`, `Values`, indexer setter, and `IEnumerable<KeyValuePair>` alongside the original v1.10.0 TryAdd/TryGetValue/AddOrUpdate/GetOrAdd surface). No qobuz call sites yet — `QobuzHttpClient._hostGates` (`src/API/Http/QobuzHttpClient.cs:40`) is domain-bounded by host count (1-2 hosts in practice) so adoption isn't required; revisit if user-controlled keys grow unboundedly.
 
 See `ext/Lidarr.Plugin.Common/CHANGELOG.md` for the full catalog and [`docs/ECOSYSTEM_PARITY_MATRIX.md`](ext/Lidarr.Plugin.Common/docs/ECOSYSTEM_PARITY_MATRIX.md) for the cross-plugin parity scorecard (30+ axes × 4 plugins).
@@ -286,6 +298,9 @@ ext/Lidarr/_output/            # Pre-built Lidarr assemblies (ONLY supported met
 
 ### Key Components
 - **QobuzIndexer** (`src/Indexers/QobuzIndexer.cs`): Implements `HttpIndexerBase<QobuzIndexerSettings>` for Lidarr search integration
+
+  **Intentional bespoke search loop (F6):** `QobuzIndexer` keeps its own capped search loop (around line 207) rather than delegating to Common's `SearchPlanExecutor` accumulate-all executor. This is deliberate: Qobuz must cap over-specific queries so results don't degrade when the catalog returns noise; the per-query cap + artist-only-fallback preservation behaviour is the defining contract. The contract is enforced by `QobuzCappedSearchChainComplianceTests` (subclasses Common's `CappedSearchChainComplianceTestBase`). Do not replace the bespoke loop with `SearchPlanExecutor` without also adopting Common's capped-chain executor variant and keeping the compliance tests green.
+
 - **QobuzDownloadClient** (`src/Download/Clients/QobuzDownloadClient.cs`): Implements `DownloadClientBase<QobuzDownloadSettings>` for Lidarr download integration
 - **Plugin Metadata** (`src/Constants/QobuzarrConstants.cs`): Centralized plugin information and constants
 - **Authentication Services** (`src/Authentication/`): Handle Qobuz session management
@@ -345,16 +360,15 @@ git clone --depth 1 --branch plugins https://github.com/Lidarr/Lidarr.git ext/Li
 - The `Directory.Build.props` and `ext/.editorconfig` files are configured to suppress these issues
 - If issues persist, delete and re-clone the Lidarr source using the setup scripts
 
-## GitHub Actions CI/CD
+## CI/CD (Gitea-primary)
 
-**Workflow**: `.github/workflows/build-docker.yml`
+**Workflow**: `.gitea/workflows/ci.yml`. GitHub Actions is out of credits, so CI runs on the Gitea instance; any `.github/workflows/*` are a non-running mirror retained for reference only.
 
-**Approach**: Extract plugins branch assemblies from `ghcr.io/hotio/lidarr:pr-plugins-3.1.2.4913` Docker image. This avoids NuGet feed issues and Central Package Management conflicts.
+**Jobs**:
+- **lint** — fast ecosystem gates (date-parsing, sync-over-async, ecosystem-parity), pwsh-only.
+- **verify** — full build + ILRepack package + packaging-closure + deterministic tests (incl. `Qobuzarr.Parity.Tests`) via `pwsh scripts/verify-local.ps1`.
 
-**CI/CD Scripts**:
-- **`download-lidarr-assemblies.sh`** / **`download-lidarr-assemblies.ps1`**: Download pre-built Lidarr assemblies
-- **`.github/workflows/ci.yml`**: Complete CI/CD pipeline with multi-platform builds
-- Security scanning, automated testing, and plugin packaging included
+**Approach**: `verify-local.ps1` extracts plugins-branch host assemblies from `ghcr.io/hotio/lidarr:pr-plugins-3.1.2.4913` (avoids NuGet feed / Central Package Management issues), then builds, packages, runs the packaging-closure check, and the deterministic test projects. The Common submodule is re-pinned **manually** when Common's main advances — there is no scheduled auto-bump on the Gitea-primary copy (see the submodule-pin section above).
 
 ## Development Practices
 
@@ -494,9 +508,9 @@ The project uses [Central Package Management](https://learn.microsoft.com/en-us/
 
 **Restart**: Always restart Lidarr after plugin deployment
 
-## Local Verification (Billing-Blocked CI)
+## Local Verification
 
-When GitHub Actions billing is blocked, run the merge-critical verification pipeline locally:
+Run the merge-critical verification pipeline locally before pushing CI-sensitive changes:
 
 ```bash
 pwsh scripts/verify-local.ps1                    # Full pipeline (extract + build + package + closure + E2E)
@@ -588,6 +602,7 @@ across 3+ consecutive `dotnet test --no-build` iterations on 2026-05-25._
 | `PluginPackagingTests.PluginFluentValidationReference_ShouldMatch_HostVersion` | FluentValidation version 9 vs 11 mismatch | Resolved during refactor — currently passes |
 | `MLOptimizationRegressionTests.ConcurrentPredictions_MaintainPerformance` | Latency threshold 20ms too tight for CI | Threshold is now `TARGET_PREDICTION_TIME_MS * 10` = 100ms; currently passes |
 | `QobuzAuthenticationServiceCovTests.ClearAuthenticationCache_ClearsStoredSession` <br> `QobuzAuthenticationServiceTests.GetCachedSession_WithExpiredSession_ShouldReturnNull` | Two test classes shared `_persistentStore`'s default file path | Fixed May 2026 in `ef73d9f` by adding `internal` constructor overload with `sessionFilePath` parameter; each test instance generates a `Path.GetTempPath()/qobuzarr-test-{Guid}.session.json` and deletes it in `Dispose()`. `[Collection("QobuzAuthentication")]` retained. 5 stress iterations green post-fix. |
+| `QobuzAppSecretLogScrubTests.ExtractAppSecret_OnSuccess_NeverLogsRaw{Seed,InfoOrExtras}` (2 tests) | **Global NLog state clobbered by parallel sibling tests.** `MLPerformanceMetricsTests`, `MLPerformanceMetricsLogGateTests`, and `DownloadProgressTrackerCovTests` set `LogManager.Configuration` in their ctors (and nulled it / called `LogManager.Shutdown()` in teardown), wiping the shared `testMemory` capture target the scrub tests read via `NLogTestLogger.GetLoggedMessages()`. Deterministic in the full suite; passed in isolation. Common's `NLogTestLogger` was already correct (the #544 `CreateNullLogger` isolation fix is in the pin) — the bug was purely local. | Fixed May 2026 (`integrate/common-consolidation`): all three siblings now use `NLogTestLogger.CreateNullLogger()` (Common's isolated-`LogFactory` null logger) and never touch global NLog state. None of them assert on captured logs, so a no-op logger suffices. Verified green across 2 consecutive full-suite runs (0 failed / 2448 passed). **Lesson: a test must never assign `LogManager.Configuration` or call `LogManager.Shutdown()` — use `NLogTestLogger.CreateNullLogger()` for a throwaway logger, or an isolated `LogFactory` when it needs to assert on its own captured output.** |
 
 ### Resolved Bugs (Wave 1 + Wave 2, Mar 26 2026)
 

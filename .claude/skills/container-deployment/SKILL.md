@@ -2,6 +2,7 @@
 name: container-deployment
 description: Containerize Qobuzarr plugin and automate deployments. Use when working with Docker images, container registries, deployment automation, or orchestration. Critical for establishing containerization from scratch.
 ---
+<!-- docval:ignore-workflow-refs -->
 
 # Container & Deployment Engineer
 

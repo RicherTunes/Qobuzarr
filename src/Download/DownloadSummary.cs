@@ -14,6 +14,7 @@ namespace Lidarr.Plugin.Qobuzarr.Download
         private readonly List<AlbumDownloadResult> _albumResults;
         private long _totalBytesDownloaded;
         private readonly List<double> _downloadSpeeds;
+        private readonly object _syncRoot = new object();
 
         public DownloadSummary()
         {
@@ -28,19 +29,22 @@ namespace Lidarr.Plugin.Qobuzarr.Download
         public void RecordAlbumResult(string artist, string album, int successfulTracks,
             int skippedTracks, int failedTracks, int totalTracks, long bytesDownloaded)
         {
-            _albumResults.Add(new AlbumDownloadResult
+            lock (_syncRoot)
             {
-                Artist = artist,
-                Album = album,
-                SuccessfulTracks = successfulTracks,
-                SkippedTracks = skippedTracks,
-                FailedTracks = failedTracks,
-                TotalTracks = totalTracks,
-                BytesDownloaded = bytesDownloaded,
-                CompletedAt = DateTime.UtcNow
-            });
+                _albumResults.Add(new AlbumDownloadResult
+                {
+                    Artist = artist,
+                    Album = album,
+                    SuccessfulTracks = successfulTracks,
+                    SkippedTracks = skippedTracks,
+                    FailedTracks = failedTracks,
+                    TotalTracks = totalTracks,
+                    BytesDownloaded = bytesDownloaded,
+                    CompletedAt = DateTime.UtcNow
+                });
 
-            _totalBytesDownloaded += bytesDownloaded;
+                _totalBytesDownloaded += bytesDownloaded;
+            }
         }
 
         /// <summary>
@@ -48,7 +52,10 @@ namespace Lidarr.Plugin.Qobuzarr.Download
         /// </summary>
         public void RecordSpeed(double bytesPerSecond)
         {
-            _downloadSpeeds.Add(bytesPerSecond);
+            lock (_syncRoot)
+            {
+                _downloadSpeeds.Add(bytesPerSecond);
+            }
         }
 
         /// <summary>
@@ -57,6 +64,16 @@ namespace Lidarr.Plugin.Qobuzarr.Download
         public string GenerateReport()
         {
             var elapsed = DateTime.UtcNow - _startTime;
+            List<AlbumDownloadResult> albumResults;
+            List<double> downloadSpeeds;
+            long totalBytesDownloaded;
+            lock (_syncRoot)
+            {
+                albumResults = _albumResults.ToList();
+                downloadSpeeds = _downloadSpeeds.ToList();
+                totalBytesDownloaded = _totalBytesDownloaded;
+            }
+
             var sb = new StringBuilder();
 
             // Header
@@ -66,16 +83,16 @@ namespace Lidarr.Plugin.Qobuzarr.Download
             sb.AppendLine("═══════════════════════════════════════");
 
             // Album Statistics
-            var completedAlbums = _albumResults.Count(a => a.FailedTracks == 0);
-            var partialAlbums = _albumResults.Count(a => a.FailedTracks > 0 && a.SuccessfulTracks > 0);
-            var failedAlbums = _albumResults.Count(a => a.SuccessfulTracks == 0 && a.FailedTracks > 0);
+            var completedAlbums = albumResults.Count(a => a.FailedTracks == 0);
+            var partialAlbums = albumResults.Count(a => a.FailedTracks > 0 && a.SuccessfulTracks > 0);
+            var failedAlbums = albumResults.Count(a => a.SuccessfulTracks == 0 && a.FailedTracks > 0);
 
             sb.AppendLine();
-            sb.AppendLine($"✅ Completed: {completedAlbums} album{(completedAlbums != 1 ? "s" : "")} ({FormatBytes(_albumResults.Where(a => a.FailedTracks == 0).Sum(a => a.BytesDownloaded))})");
+            sb.AppendLine($"✅ Completed: {completedAlbums} album{(completedAlbums != 1 ? "s" : "")} ({FormatBytes(albumResults.Where(a => a.FailedTracks == 0).Sum(a => a.BytesDownloaded))})");
 
             if (partialAlbums > 0)
             {
-                var partialResults = _albumResults.Where(a => a.FailedTracks > 0 && a.SuccessfulTracks > 0).ToList();
+                var partialResults = albumResults.Where(a => a.FailedTracks > 0 && a.SuccessfulTracks > 0).ToList();
                 var totalPartialTracks = partialResults.Sum(a => a.SuccessfulTracks);
                 var totalPartialTotal = partialResults.Sum(a => a.TotalTracks);
                 sb.AppendLine($"⚠️  Partial: {partialAlbums} album{(partialAlbums != 1 ? "s" : "")} ({totalPartialTracks}/{totalPartialTotal} tracks)");
@@ -87,10 +104,10 @@ namespace Lidarr.Plugin.Qobuzarr.Download
             }
 
             // Track Statistics
-            var totalSuccessfulTracks = _albumResults.Sum(a => a.SuccessfulTracks);
-            var totalSkippedTracks = _albumResults.Sum(a => a.SkippedTracks);
-            var totalFailedTracks = _albumResults.Sum(a => a.FailedTracks);
-            var totalTracks = _albumResults.Sum(a => a.TotalTracks);
+            var totalSuccessfulTracks = albumResults.Sum(a => a.SuccessfulTracks);
+            var totalSkippedTracks = albumResults.Sum(a => a.SkippedTracks);
+            var totalFailedTracks = albumResults.Sum(a => a.FailedTracks);
+            var totalTracks = albumResults.Sum(a => a.TotalTracks);
 
             sb.AppendLine();
             sb.AppendLine("Track Statistics:");
@@ -104,18 +121,18 @@ namespace Lidarr.Plugin.Qobuzarr.Download
             sb.AppendLine();
             sb.AppendLine("Performance:");
             sb.AppendLine($"⏱️  Total time: {FormatDuration(elapsed)}");
-            sb.AppendLine($"💾 Total size: {FormatBytes(_totalBytesDownloaded)}");
+            sb.AppendLine($"💾 Total size: {FormatBytes(totalBytesDownloaded)}");
 
-            if (_downloadSpeeds.Any())
+            if (downloadSpeeds.Any())
             {
-                var avgSpeed = _downloadSpeeds.Average();
-                var maxSpeed = _downloadSpeeds.Max();
+                var avgSpeed = downloadSpeeds.Average();
+                var maxSpeed = downloadSpeeds.Max();
                 sb.AppendLine($"📊 Avg speed: {FormatBytes((long)avgSpeed)}/s");
                 sb.AppendLine($"🚀 Peak speed: {FormatBytes((long)maxSpeed)}/s");
             }
-            else if (_totalBytesDownloaded > 0 && elapsed.TotalSeconds > 0)
+            else if (totalBytesDownloaded > 0 && elapsed.TotalSeconds > 0)
             {
-                var avgSpeed = _totalBytesDownloaded / elapsed.TotalSeconds;
+                var avgSpeed = totalBytesDownloaded / elapsed.TotalSeconds;
                 sb.AppendLine($"📊 Avg speed: {FormatBytes((long)avgSpeed)}/s");
             }
 
@@ -132,13 +149,13 @@ namespace Lidarr.Plugin.Qobuzarr.Download
                 sb.AppendLine();
                 sb.AppendLine("Issues encountered:");
 
-                foreach (var album in _albumResults.Where(a => a.FailedTracks > 0).Take(5))
+                foreach (var album in albumResults.Where(a => a.FailedTracks > 0).Take(5))
                 {
                     sb.AppendLine($"  • {album.Artist} - {album.Album}");
                     sb.AppendLine($"    Failed: {album.FailedTracks}/{album.TotalTracks} tracks");
                 }
 
-                var moreIssues = _albumResults.Count(a => a.FailedTracks > 0) - 5;
+                var moreIssues = albumResults.Count(a => a.FailedTracks > 0) - 5;
                 if (moreIssues > 0)
                 {
                     sb.AppendLine($"  ... and {moreIssues} more album{(moreIssues != 1 ? "s" : "")} with issues");
@@ -156,10 +173,17 @@ namespace Lidarr.Plugin.Qobuzarr.Download
         public string GetBriefSummary()
         {
             var elapsed = DateTime.UtcNow - _startTime;
-            var completedAlbums = _albumResults.Count(a => a.FailedTracks == 0);
-            var totalAlbums = _albumResults.Count;
+            int completedAlbums;
+            int totalAlbums;
+            long totalBytesDownloaded;
+            lock (_syncRoot)
+            {
+                completedAlbums = _albumResults.Count(a => a.FailedTracks == 0);
+                totalAlbums = _albumResults.Count;
+                totalBytesDownloaded = _totalBytesDownloaded;
+            }
 
-            return $"Downloaded {completedAlbums}/{totalAlbums} albums in {FormatDuration(elapsed)} ({FormatBytes(_totalBytesDownloaded)})";
+            return $"Downloaded {completedAlbums}/{totalAlbums} albums in {FormatDuration(elapsed)} ({FormatBytes(totalBytesDownloaded)})";
         }
 
         /// <summary>
@@ -167,7 +191,10 @@ namespace Lidarr.Plugin.Qobuzarr.Download
         /// </summary>
         public int GetTotalAlbums()
         {
-            return _albumResults.Count;
+            lock (_syncRoot)
+            {
+                return _albumResults.Count;
+            }
         }
 
         /// <summary>
@@ -175,7 +202,10 @@ namespace Lidarr.Plugin.Qobuzarr.Download
         /// </summary>
         public long GetTotalBytesDownloaded()
         {
-            return _totalBytesDownloaded;
+            lock (_syncRoot)
+            {
+                return _totalBytesDownloaded;
+            }
         }
 
         /// <summary>
@@ -183,15 +213,23 @@ namespace Lidarr.Plugin.Qobuzarr.Download
         /// </summary>
         public double GetAverageSpeed()
         {
-            if (_downloadSpeeds.Any())
+            List<double> downloadSpeeds;
+            long totalBytesDownloaded;
+            lock (_syncRoot)
             {
-                return _downloadSpeeds.Average();
+                downloadSpeeds = _downloadSpeeds.ToList();
+                totalBytesDownloaded = _totalBytesDownloaded;
+            }
+
+            if (downloadSpeeds.Any())
+            {
+                return downloadSpeeds.Average();
             }
 
             var elapsed = DateTime.UtcNow - _startTime;
-            if (_totalBytesDownloaded > 0 && elapsed.TotalSeconds > 0)
+            if (totalBytesDownloaded > 0 && elapsed.TotalSeconds > 0)
             {
-                return _totalBytesDownloaded / elapsed.TotalSeconds;
+                return totalBytesDownloaded / elapsed.TotalSeconds;
             }
 
             return 0;
@@ -202,9 +240,12 @@ namespace Lidarr.Plugin.Qobuzarr.Download
         /// </summary>
         public void Reset()
         {
-            _albumResults.Clear();
-            _downloadSpeeds.Clear();
-            _totalBytesDownloaded = 0;
+            lock (_syncRoot)
+            {
+                _albumResults.Clear();
+                _downloadSpeeds.Clear();
+                _totalBytesDownloaded = 0;
+            }
         }
 
         private static string FormatBytes(long bytes)

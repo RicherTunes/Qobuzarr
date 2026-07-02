@@ -4,6 +4,7 @@ using System.Linq;
 using NzbDrone.Core.IndexerSearch.Definitions;
 using NzbDrone.Core.Indexers;
 using NLog;
+using Lidarr.Plugin.Common.Services.Intelligence;
 using Lidarr.Plugin.Qobuzarr.Models.Authentication;
 using Lidarr.Plugin.Qobuzarr.Indexers.RequestGeneration;
 using Lidarr.Plugin.Qobuzarr.Services;
@@ -34,7 +35,6 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
         // ML optimization services (preserved from original)
         private readonly SmartQueryStrategy _smartQueryStrategy;
         private readonly SemanticQueryStrategy _semanticQueryStrategy;
-        private readonly QobuzSubstringCache _substringCache;
 
         // Context for parser integration
         private SearchCriteriaBase _currentSearchCriteria;
@@ -58,7 +58,6 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
             var useMLPredictions = patternLearningEngine != null && (settings?.IsMLPredictionEnabled() ?? false);
             _smartQueryStrategy = new SmartQueryStrategy(logger, patternLearningEngine, useMLPredictions);
             _semanticQueryStrategy = new SemanticQueryStrategy(logger);
-            _substringCache = new QobuzSubstringCache(logger);
         }
 
         public SearchCriteriaBase GetCurrentSearchCriteria()
@@ -73,14 +72,6 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
                 _currentSearchCriteria = searchCriteria;
                 _logger.Debug("Generating album search requests for: {0} - {1}",
                     searchCriteria.ArtistQuery, searchCriteria.AlbumQuery);
-
-                // Check substring cache first for optimization
-                var cachedResult = _substringCache?.FindCachedResults(searchCriteria.ArtistQuery, searchCriteria.AlbumQuery);
-                if (cachedResult != null && cachedResult.CachedData != null)
-                {
-                    _logger.Info("🎯 Using cached results for query optimization");
-                    return CreateCachedRequestChain(cachedResult, searchCriteria);
-                }
 
                 // Build search queries using decomposed service
                 var queries = _queryBuilder.BuildAlbumSearchQueries(searchCriteria);
@@ -218,12 +209,38 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
             }
         }
 
+        // Cap on the over-specific (combined / album-only) queries issued per search, to keep API
+        // calls bounded. The artist-only catalogue fallback is issued IN ADDITION to this cap (never
+        // truncated away) so a special-char/over-specific query can always degrade to the band's
+        // catalogue.
+        private const int MaxOverSpecificRequests = 3;
+
         private List<IndexerRequest> CreateIndexerRequests(List<string> queries, SearchCriteriaBase searchCriteria)
         {
             var requests = new List<IndexerRequest>();
             var session = _getSession?.Invoke();
 
-            foreach (var query in queries.Take(3)) // Limit to 3 queries for performance
+            // Guarantee the artist-only fallback is always sent for album searches — the shipped
+            // "Bleu Jeans Bleu - Record n°V" bug was a special-char album query returning 0 results
+            // while the artist-only fallback had been truncated away by the request cap.
+            IReadOnlyList<string> artistOnlyFallbacks = Array.Empty<string>();
+            if (searchCriteria is AlbumSearchCriteria albumCriteria)
+            {
+                var artistName = albumCriteria.ArtistQuery;
+                if (string.IsNullOrWhiteSpace(artistName))
+                {
+                    artistName = albumCriteria.Artist?.Name;
+                }
+
+                artistOnlyFallbacks = _queryBuilder.BuildArtistFallbackQueries(artistName);
+            }
+
+            // Cap the over-specific queries (deduped, blank-dropped, best-first) but always preserve the
+            // artist-only fallback tier. Shared cross-plugin policy: Common's CappedSearchChain — see its
+            // fallback-survival tests for the Bleu Jeans Bleu regression coverage.
+            var selected = CappedSearchChain.Build(queries, artistOnlyFallbacks, MaxOverSpecificRequests);
+
+            foreach (var query in selected)
             {
                 try
                 {
@@ -237,23 +254,6 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
             }
 
             return requests;
-        }
-
-        private IndexerPageableRequestChain CreateCachedRequestChain(SubstringCacheResult cachedResult, AlbumSearchCriteria searchCriteria)
-        {
-            try
-            {
-                // Create mock request for cached results
-                var mockRequest = _requestFactory.CreateMockSearchRequest(searchCriteria);
-                var chain = new IndexerPageableRequestChain();
-                chain.Add(new[] { mockRequest });
-                return chain;
-            }
-            catch (Exception ex)
-            {
-                _logger.Error(ex, "Error creating cached request chain");
-                return new IndexerPageableRequestChain();
-            }
         }
 
         public int CalculateRelevanceScore(string query, string albumTitle, string artistName)

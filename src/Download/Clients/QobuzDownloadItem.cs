@@ -4,6 +4,7 @@ using System.Threading.Tasks;
 using NzbDrone.Core.Download;
 using NzbDrone.Core.Indexers;
 using Lidarr.Plugin.Qobuzarr.Models;
+using Lidarr.Plugin.Qobuzarr.Models.Authentication;
 using Lidarr.Plugin.Qobuzarr.Constants;
 using Lidarr.Plugin.Qobuzarr.Download;
 using Lidarr.Plugin.Qobuzarr.Utilities;
@@ -38,6 +39,7 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Clients
         public string? DownloadRoot { get; set; }
         public CancellationTokenSource? CancellationTokenSource { get; set; }
         public QobuzAlbum? Album { get; set; }
+        internal QobuzCredentials? ReauthCredentials { get; set; }
 
         /// <summary>Bytes written to disk so far. Used for speed + ETA calculations.</summary>
         public long DownloadedSize { get; set; }
@@ -50,6 +52,31 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Clients
         public string? QualityFallbackExample => _qualityFallbackExample;
 
         // HostBridgeDownloadItem status bridging ─────────────────────────────────────────
+
+        /// <summary>
+        /// Reconstruct a Qobuz tracker item from Common's persisted base-item DTO.
+        /// Runtime-only handles such as cancellation sources, tasks, and provider album DTOs
+        /// cannot be restored after a Lidarr restart and intentionally remain null.
+        /// </summary>
+        public static QobuzDownloadItem FromHostBridgeDto(HostBridgeDownloadItemDto dto)
+        {
+            if (dto is null) throw new ArgumentNullException(nameof(dto));
+
+            var item = new QobuzDownloadItem
+            {
+                DownloadId = dto.DownloadId,
+                AlbumId = dto.AlbumId,
+                Title = dto.Title,
+                Artist = dto.Artist,
+                OutputPath = dto.OutputPath,
+                StartedAt = dto.StartedAt,
+                CompletedAt = dto.CompletedAt,
+                TotalSize = dto.TotalSize,
+            };
+            item.SetStatus(dto.Status);
+            item.SetProgress(dto.Progress);
+            return item;
+        }
 
         /// <summary>
         /// Gets the Lidarr-host <see cref="DownloadItemStatus"/> by mapping from the

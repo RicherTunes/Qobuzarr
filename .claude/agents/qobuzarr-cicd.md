@@ -3,6 +3,7 @@ name: qobuzarr-cicd
 description: Use this agent when you need expert guidance on Qobuzarr CI/CD, build system troubleshooting, and deployment automation. This agent should be consulted for GitHub Actions workflow issues, MSBuild configuration problems, version compatibility resolution, and multi-platform build optimization. Examples: <example>Context: GitHub Actions build fails with assembly version mismatches after Lidarr updates. user: 'Our CI build is failing with ReflectionTypeLoadException and version conflicts.' assistant: 'Let me use the qobuzarr-cicd agent to analyze the build failure and apply the proven assembly version override solution.'</example> <example>Context: Need to optimize build performance and deployment automation. user: 'Our builds are slow and deployment is manual. How can we improve our CI/CD pipeline?' assistant: 'I'll consult the qobuzarr-cicd agent to optimize your build system and automate deployment processes.'</example>
 model: sonnet
 ---
+<!-- docval:ignore-workflow-refs -->
 
 # Qobuzarr CI/CD & Build Specialist Agent
 

@@ -611,34 +611,25 @@ public class LidarrQueueManager : ILidarrQueueManager
 
 ### AdaptiveRateLimiter
 
-**Enhanced in v0.0.12**: Intelligent rate limiting with adaptive algorithms.
+Plugin-assembly adapter for Lidarr auto-registration over Common's `NamedServiceRateLimiter`.
 
 ```csharp
-public class AdaptiveRateLimiter : IAdaptiveRateLimiter<!-- TODO(docval): IAdaptiveRateLimiter interface not found as of 2026-05-31 -->
+public class AdaptiveRateLimiter : NamedServiceRateLimiter
 {
-    Task<bool> WaitIfNeededAsync(string endpoint, CancellationToken cancellationToken);
-    void RecordResponse(string endpoint, HttpResponseMessage response);
-    int GetCurrentLimit(string endpoint);
-    RateLimitStats GetStats();
-    AdaptiveRateLimitConfig GetConfiguration();<!-- TODO(docval): AdaptiveRateLimitConfig type not found as of 2026-05-31 -->
+    public AdaptiveRateLimiter() : base("Qobuz") { }
 }
 ```
 
 **Adaptive Features:**
 
-- **Endpoint-Specific Limits**: Different limits for search, download, metadata endpoints
-- **Success-Based Adjustment**: Increases limits after consistent success
-- **Failure-Based Backoff**: Reduces limits on rate limit or error responses
-- **Global vs Local Limiting**: Balances per-endpoint and global API limits
+- **Common-Owned Algorithm**: Adaptive limits, stats, and response recording are implemented by `NamedServiceRateLimiter`
+- **Service Binding**: The Qobuzarr class supplies the `Qobuz` service name for Common's named limiter
+- **Lidarr Registration**: The local concrete type keeps plugin auto-registration working without reimplementing rate limiting
+- **Global vs Local Limiting**: Uses Common's shared global and named service limiter state
 
 **Rate Limiting Algorithm:**
 
-```
-Default: 60 req/min
-Success threshold: 20 consecutive successes → increase by 20%
-Failure response: Immediate reduction by 25%
-Min limit: 10 req/min, Max limit: 500 req/min
-```
+Qobuzarr does not define a local rate-limiting algorithm. Common `NamedServiceRateLimiter` owns the adaptive limits, backoff, and statistics behavior.
 
 ### AdaptiveConcurrencyManager
 
@@ -869,20 +860,16 @@ public class CacheStatistics
 }
 ```
 
-#### RateLimitStats (Enhanced)
+#### GlobalRateLimitStats
 
 ```csharp
-public class RateLimitStats
+public class GlobalRateLimitStats
 {
-    public Dictionary<string, int> EndpointLimits { get; set; }
-    public Dictionary<string, int> CurrentUsage { get; set; }
-    public Dictionary<string, TimeSpan> NextAvailable { get; set; }
-    
-    // New adaptive metrics
-    public Dictionary<string, double> AdaptationHistory { get; set; }
-    public Dictionary<string, int> SuccessStreak { get; set; }
-    public DateTime LastRateLimitHit { get; set; }
-    public int TotalAdaptations { get; set; }
+    public Dictionary<string, ServiceRateLimitStats> ServiceStats { get; set; }
+    public long TotalRequests { get; set; }
+    public long TotalErrors { get; set; }
+    public long TotalRateLimitHits { get; set; }
+    public double GlobalSuccessRate { get; set; }
 }
 ```
 
@@ -1047,9 +1034,9 @@ if (cachedResult != null) return cachedResult.CachedData;
 1. **Enable Adaptive Rate Limiting**
 
 ```csharp
-// ✅ ADAPTIVE: Let the system optimize API usage
-var rateLimiter = new AdaptiveRateLimiter(logger);
-await rateLimiter.WaitIfNeededAsync("search");
+// ADAPTIVE: let Common optimize Qobuz API usage
+var rateLimiter = new AdaptiveRateLimiter();
+await rateLimiter.WaitIfNeededAsync("search", cancellationToken);
 ```
 
 This comprehensive API reference covers all the latest features and enhancements in Qobuzarr v0.0.12, including ML optimization, security features, performance improvements, and advanced integration capabilities.

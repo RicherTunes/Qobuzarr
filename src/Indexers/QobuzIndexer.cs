@@ -23,9 +23,12 @@ using Lidarr.Plugin.Common.Diagnostics;
 using Lidarr.Plugin.Common.Services.Diagnostics;
 using Lidarr.Plugin.Common.Observability;
 using Lidarr.Plugin.Common.Services.Bridge;
+using Lidarr.Plugin.Common.Services.Intelligence;
 using Lidarr.Plugin.Qobuzarr.Download;
 using NzbDrone.Core.Download;
 using Lidarr.Plugin.Common.Services;
+using QobuzSuppressionServices = Lidarr.Plugin.Qobuzarr.Services;
+using QobuzSuppressionStore = Lidarr.Plugin.Qobuzarr.Services.RestrictedReleaseSuppressionStore;
 
 namespace Lidarr.Plugin.Qobuzarr.Indexers
 {
@@ -60,6 +63,9 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
 
         // Warn-once gate for constructor wire-up failures (process-global, single fixed key)
         private static readonly WarnOnce _wireWarn = new();
+
+        protected virtual QobuzSuppressionServices.IRestrictedReleaseSuppressionStore ReleaseSuppressionStore
+            => QobuzSuppressionStore.Shared;
 
         public QobuzIndexer(
             IHttpClient httpClient,
@@ -143,34 +149,15 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
 
         private Models.Authentication.QobuzCredentials BuildFallbackCredentialsFromSettings()
         {
-            var settings = GetSettingsSafe();
-            var creds = new Models.Authentication.QobuzCredentials();
-
-            // Prefer email + password if provided (hash to MD5 as required by Qobuz)
-            if (!string.IsNullOrWhiteSpace(settings.Email) && !string.IsNullOrWhiteSpace(settings.Password))
-            {
-                creds.Email = settings.Email;
-                creds.MD5Password = Utilities.HashingUtility.ComputePasswordMD5Hash(settings.Password);
-            }
-            else if (!string.IsNullOrWhiteSpace(settings.UserId) && !string.IsNullOrWhiteSpace(settings.AuthToken))
-            {
-                // Fallback to UserId + AuthToken
-                creds.UserId = settings.UserId;
-                creds.AuthToken = settings.AuthToken;
-            }
-
-            // Optional app credentials (used if configured)
-            if (!string.IsNullOrWhiteSpace(settings.AppId)) creds.AppId = settings.AppId;
-            if (!string.IsNullOrWhiteSpace(settings.AppSecret)) creds.AppSecret = settings.AppSecret;
-
-            return creds;
+            return QobuzCredentialFactory.TryFromIndexerSettings(GetSettingsSafe())
+                ?? new Models.Authentication.QobuzCredentials();
         }
 
         public override IParseIndexerResponse GetParser()
         {
             if (_parser == null)
             {
-                _parser = new QobuzParser(GetSettingsSafe(), _logger);
+                _parser = new QobuzParser(GetSettingsSafe(), _logger, ReleaseSuppressionStore);
             }
 
             // Update context from request generator if available
@@ -222,7 +209,14 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
                 var succeeded = 0;
                 Exception? lastError = null;
 
-                // Process each request in the chain
+                // Why this loop is bespoke rather than Common's SearchPlanExecutor.ExecuteAsync delegate:
+                // qobuz's per-request path interleaves concerns the generic delegate doesn't model —
+                // adaptive HTTP rate-limit accounting, ML-optimization metric logging per successful tier,
+                // the IndexerResponse/IParseIndexerResponse parser handshake, and per-release IndexerId
+                // stamping. Semantically it is AccumulateAll (every tier/variant attempted, results merged;
+                // no early stop), and it reuses the SAME all-failed contract as the executor via
+                // SearchPlanExecutor.ThrowAllFailed below — so the "all requests failed ⇒ surface, don't
+                // return a misleading empty" behavior stays identical to the consolidated plugins.
                 foreach (var tier in requestChain.GetAllTiers())
                 {
                     foreach (var request in tier)
@@ -264,6 +258,10 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
 
                             succeeded++;
                         }
+                        catch (OperationCanceledException)
+                        {
+                            throw;
+                        }
                         catch (Exception ex)
                         {
                             lastError = ex;
@@ -276,12 +274,7 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
                 // empty result so Lidarr can distinguish "no matches" from "all requests failed".
                 // (A request that parses to zero releases does not throw, so genuine empty results
                 // are unaffected.) The outer catch rethrows it to Lidarr.
-                if (attempted > 0 && succeeded == 0 && lastError != null)
-                {
-                    throw new InvalidOperationException(
-                        $"All {attempted} Qobuz search request(s) failed; surfacing the error instead of an empty result.",
-                        lastError);
-                }
+                SearchPlanExecutor.ThrowAllFailed(attempted, succeeded, lastError, "Qobuz search");
 
                 _logger.Info($"{PluginLogContext.Current?.LinePrefix()}Retrieved {{0}} releases from Qobuz", releases.Count);
                 return releases;

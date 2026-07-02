@@ -1,152 +1,83 @@
 # CI/CD Pipeline Status Summary
 
-## Current Build Status ✅
+## Current CI: Gitea (`.gitea/workflows/ci.yml`)
 
-**Primary Builds**: ✅ **ALL GREEN**
-- **CI (Simple)**: ✅ Success - Main development pipeline
-- **Validate**: ✅ Success - Quick validation
-- **Build Plugin (TypNull's Method)**: ✅ Success - Alternative assembly method
+GitHub Actions is out of credits ecosystem-wide; GitHub is a mirror only.
+Primary CI runs on the self-hosted Gitea instance — no billing limits.
 
-**Secondary Builds**: 🔧 **ENHANCED WITH ROBUST ERROR HANDLING**
-- **Build Plugin (Docker Method)**: 🔧 Fixed with comprehensive error handling
-- **Deploy Documentation**: 🔧 Robust fallback when GitHub Pages not enabled
+### Jobs
 
-## Build Method Analysis
+**`CI / lint`** (every push + PR):
+Runs Common's shared plugin lint runner: date-parsing, sync-over-async, test-trait policy, ecosystem version contract, doc-reference checks, and repo-local plugin contract tests.
 
-### **✅ Primary Pipeline (Rock Solid)**
+**`CI / secret-scan`** (every push + PR):
+Downloads the pinned Gitleaks release, verifies the archive checksum, and runs `gitleaks detect --redact --exit-code 1`.
 
-**CI (Simple) Workflow**:
-- **Purpose**: Main development and release pipeline
-- **Method**: Uses source-built Lidarr assemblies
-- **Reliability**: ✅ **100%** - Never fails
-- **Performance**: Fast, comprehensive validation
-- **Features**: CLI compilation, security scanning, dependency audit
+**`CI / verify`** (runs after lint and secret-scan):
+Host-assembly extraction from Docker, full build, ILRepack package, packaging-closure check,
+deterministic test suite — via `pwsh scripts/verify-local.ps1`.
 
-**Key Components**:
-```yaml
-✅ Security scanning with git-leaks (continue-on-error)
-✅ CLI compilation validation (Sprint 1 achievement)
-✅ Dependency vulnerability scanning
-✅ Main plugin build with auto-deployment
-✅ Comprehensive error reporting
+All three jobs must be green before a PR can merge. Branch protection should require `CI / secret-scan`, `CI / lint`, and `CI / verify` directly.
+
+## Local Verification
+
+The `CI / verify` job runs `pwsh scripts/verify-local.ps1`, which delegates to
+`ext/Lidarr.Plugin.Common/scripts/local-ci.ps1`. Run the same pipeline locally
+before pushing:
+
+```powershell
+# Full pipeline (same as CI)
+pwsh scripts/verify-local.ps1
+
+# Fast rerun (reuse cached host assemblies)
+pwsh scripts/verify-local.ps1 -SkipExtract
+
+# Build + packaging closure only (skip tests)
+pwsh scripts/verify-local.ps1 -SkipTests
+
+# + Docker smoke test (mounts plugin in Lidarr container)
+pwsh scripts/verify-local.ps1 -IncludeSmoke
 ```
 
-### **🔧 Enhanced Secondary Pipelines**
+**Prerequisites**: PowerShell 7+ (`pwsh`), .NET 8 SDK, Docker.
 
-**Docker Build Method** (Fixed):
-- **Purpose**: Plugins branch compatibility validation
-- **Enhancement**: Added comprehensive error handling
-- **Robustness**: Verifies assembly extraction, dependencies, build success
-- **Fallback**: Informative error messages for troubleshooting
+## Troubleshooting
 
-**Documentation Deployment** (Robust):
-- **Purpose**: GitHub Pages documentation publishing
-- **Enhancement**: Graceful handling when Pages not enabled
-- **Fallback**: Informative notice with setup instructions
-- **Future-Proof**: Will work seamlessly once Pages enabled
+### If `CI / lint` fails
 
-## Robust Error Handling Implemented
+Lint gates run the scripts in `ext/Lidarr.Plugin.Common/scripts/`:
 
-### **Docker Build Resilience**
-```yaml
-# Verify prerequisites
-- Check temporary project file created ✅
-- Verify Docker assemblies extracted ✅
-- Validate restore success ✅
-- Confirm build completion ✅
+- `lint-date-parsing.ps1` — catches `DateTime.Now` / `DateTime.Today` usage
+- `lint-sync-over-async.ps1` — catches `.Result` / `.GetAwaiter().GetResult()` patterns
+- `lint-test-traits.ps1` — keeps deterministic CI tests in the default lane and opt-in lanes explicitly tagged
+- `ecosystem-parity-lint.ps1` — checks parity matrix against Common
+- `lint-doc-script-refs.ps1` — catches stale script/workflow references in docs
+- `lint-gitea-secret-scan.ps1` — verifies the Gitea workflow keeps Gitleaks and checksum verification inside the `secret-scan` job
+- `scripts/tests/*.ps1` — repo-local contract tests invoked by the shared runner
 
-# Error handling
-- Detailed error messages ✅
-- Exit codes for debugging ✅
-- Build summary reports ✅
+Run the shared runner locally to see the exact violation:
+
+```powershell
+pwsh ext/Lidarr.Plugin.Common/scripts/ci/run-plugin-lint-gates.ps1 `
+  -RepoPath . -CommonRoot ext/Lidarr.Plugin.Common -Mode ci
 ```
 
-### **Documentation Deployment Resilience**
-```yaml
-# Conditional deployment
-- Setup Pages: continue-on-error ✅
-- Upload: only if Pages enabled ✅
-- Deploy: only if Pages enabled ✅
-- Fallback notice: when not enabled ✅
-```
+### If `CI / verify` fails
 
-### **Security Scanning Resilience**
-```yaml
-# Git-leaks scanning
-- Continue on error: true ✅
-- GITHUB_TOKEN: provided ✅
-- Custom .gitleaks.toml config ✅
-- Fallback: build continues if scan unavailable ✅
-```
+1. **Assembly extraction step**: Docker daemon must be reachable on the runner. If it isn't, this is a runner infrastructure issue.
+2. **Build step**: Run `pwsh scripts/verify-local.ps1 -SkipExtract` locally to reproduce.
+3. **Packaging-closure step**: The ILRepack output is missing expected DLLs — check `generate-expected-contents.ps1 -Check` output.
+4. **Test step**: A deterministic test regressed — run `dotnet test` locally to identify.
 
-## Build Failure Resolution Guide
+### Emergency: both lint and verify fail
 
-### **If Docker Build Fails**
-1. **Check Dependencies**: Verify temporary project includes new packages
-2. **Check Assemblies**: Ensure Docker extraction successful
-3. **Check Logs**: Use troubleshooting guide in docs/infrastructure/
-4. **Fallback**: Primary builds (CI Simple) still work
+1. Check `Qobuzarr.csproj` for syntax errors.
+2. Check `Directory.Packages.props` package versions.
+3. Test local build: `dotnet build Qobuzarr.csproj`.
+4. Rollback recent changes if necessary.
 
-### **If Documentation Fails**
-1. **Enable GitHub Pages**: Repository Settings → Pages → GitHub Actions
-2. **Re-run Workflow**: Manual trigger after enabling
-3. **Verify Access**: Check repository permissions
-4. **Fallback**: Documentation still available in repository
+## Maintenance
 
-### **If Security Scan Fails**
-1. **Check git-leaks**: Action continues regardless
-2. **Manual Scan**: Use local .gitleaks.toml configuration
-3. **Verify Config**: Check .gitleaks.toml syntax
-4. **Fallback**: Build proceeds with security notice
-
-## Quality Assurance Impact
-
-### **Build Reliability**
-- **Primary Pipeline**: ✅ **100% reliable** (never fails core functionality)
-- **Alternative Methods**: 🔧 **Enhanced robustness** with error handling
-- **Total Coverage**: Multiple validation methods for comprehensive testing
-
-### **Error Handling Philosophy**
-- **Critical Builds**: Must succeed (CI Simple, Validate)
-- **Enhancement Builds**: Can fail gracefully (Docker, Documentation)
-- **Security Builds**: Non-blocking but informative (git-leaks)
-
-### **Developer Experience**
-- **Clear Error Messages**: Specific guidance for each failure type
-- **Comprehensive Logging**: Detailed build summaries and troubleshooting
-- **Graceful Degradation**: Core functionality never blocked by auxiliary features
-
-## Current Status Summary
-
-### **✅ All Critical Functionality Working**
-- **Main Plugin**: ✅ Builds, deploys, auto-deploys to test environment
-- **CLI Application**: ✅ Builds successfully (Sprint 1 achievement)
-- **Test Infrastructure**: ✅ All tests compile (Sprint 2 achievement)
-- **Performance Monitoring**: ✅ Serilog telemetry operational (Sprint 3 achievement)
-
-### **🔧 Enhanced Auxiliary Features**
-- **Docker Compatibility**: Robust error handling implemented
-- **Documentation Publishing**: Ready for GitHub Pages enablement
-- **Security Scanning**: Comprehensive but non-blocking
-
-### **📊 Overall CI/CD Grade**
-**Before Fixes**: B+ (some failures in auxiliary builds)  
-**After Fixes**: **A** (robust primary pipeline, enhanced auxiliary builds)
-
-## Next Steps
-
-### **When GitHub Pages is Enabled**
-1. Documentation will automatically deploy ✅
-2. Professional documentation site will be available ✅
-3. Workflow will succeed without manual intervention ✅
-
-### **Ongoing Maintenance**
-1. Monitor Docker image updates for latest Lidarr compatibility
-2. Keep temporary project files synchronized with main dependencies
-3. Regular security scanning and dependency updates
-
----
-
-**Build Status**: ✅ **ROBUST AND RELIABLE**  
-**Primary Pipeline**: ✅ **100% SUCCESS RATE**  
-**Auxiliary Builds**: 🔧 **ENHANCED WITH ERROR HANDLING**
+- **Docker image pin**: `ghcr.io/hotio/lidarr:pr-plugins-3.1.2.4913` — update when a new Lidarr plugins-branch release is available (search the entire repo for the old tag and update all hits).
+- **Common submodule pin**: re-pin manually when Common's `main` advances — see `ext-common-sha.txt` and the submodule-pin section in CLAUDE.md.
+- **GitHub mirror**: `.github/workflows/ci.yml` is a guarded GitHub mirror of the Gitea CI contract. It must keep the shared lint runner, submodule pin guard, Gitleaks scan, and `scripts/verify-local.ps1`; Gitea remains authoritative for merges.

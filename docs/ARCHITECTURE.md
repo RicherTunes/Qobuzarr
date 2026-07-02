@@ -427,7 +427,7 @@ graph TB
 4. **Adapter Pattern**: CLI adapts plugin interfaces for command-line use
 5. **Orchestrator Pattern**: Download orchestrator coordinates complex operations
 6. **Strategy Pattern**: Multiple ML optimization and matching strategies
-7. **Factory Pattern**: Downloader factory creates appropriate download instances
+7. **Host-Bridge Pattern**: Common host-bridge download primitives provide the Lidarr-facing queue contract
 8. **Observer Pattern**: Progress reporting and statistics collection
 9. **Circuit Breaker**: Network resilience and error handling
 10. **Cache-Aside**: Multi-layer caching with intelligent eviction
@@ -464,22 +464,27 @@ classDiagram
     ITrackMatchingStrategy <|-- MergedTrackMatchingStrategy
     MatchingStrategyCoordinator --> ITrackMatchingStrategy
     
-    %% Factory Pattern Example - IQobuzTrackDownloaderFactory, QobuzTrackDownloaderFactory, QobuzTrackDownloader not found in codebase as of 2026-05-31
-    class IQobuzTrackDownloaderFactory {
-        <<interface>>
-        +CreateDownloader(settings) ITrackDownloader
+    %% Download Pipeline Example
+    class QobuzDownloadClient {
+        +Download(remoteAlbum, indexer) string
+        +GetItems() IEnumerable~DownloadClientItem~
     }
-    
-    class QobuzTrackDownloaderFactory {
-        +CreateDownloader(settings) ITrackDownloader
+
+    class TrackDownloadService {
+        +DownloadTrackAsync(track, destination, quality) Task~TrackDownloadResult~
     }
-    
-    class QobuzTrackDownloader {
-        +DownloadTrack(track) Task~DownloadResult~
+
+    class QobuzDownloadOrchestrator {
+        +DownloadAlbumAsync(album, destination) Task~AlbumDownloadResult~
     }
-    
-    IQobuzTrackDownloaderFactory <|-- QobuzTrackDownloaderFactory
-    QobuzTrackDownloaderFactory --> QobuzTrackDownloader
+
+    class HostBridgeDownloadTrackerStore {
+        +Snapshot() IReadOnlyCollection~DownloadItem~
+    }
+
+    QobuzDownloadClient --> QobuzDownloadOrchestrator
+    QobuzDownloadOrchestrator --> TrackDownloadService
+    QobuzDownloadClient --> HostBridgeDownloadTrackerStore
 ```
 
 ## Core Components
@@ -1198,14 +1203,10 @@ graph TB
 ```mermaid
 classDiagram
     class AdaptiveRateLimiter {
-        -double currentLimit
-        -TimeSpan backoffPeriod
-        -RateLimitHistory history
-        
-        +CheckRateLimit() bool
-        +UpdateLimit(response) void
-        +CalculateOptimalRate() double
-        +GetBackoffTime() TimeSpan
+        +AdaptiveRateLimiter()
+        +WaitIfNeededAsync(endpoint, cancellationToken) Task~bool~
+        +RecordResponse(endpoint, response) void
+        +GetGlobalStats() GlobalRateLimitStats
     }
     
     class AdaptiveConcurrencyManager {
@@ -1240,6 +1241,7 @@ classDiagram
         +ExportTelemetry() TelemetryData
     }
     
+    AdaptiveRateLimiter --|> NamedServiceRateLimiter
     AdaptiveRateLimiter --> PerformanceMonitoringService
     AdaptiveConcurrencyManager --> PerformanceMonitoringService
     AdaptiveBatchDownloadService --> PerformanceMonitoringService

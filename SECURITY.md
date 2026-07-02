@@ -107,9 +107,9 @@ Current vulnerable packages (example - update regularly):
 ### Qobuz API Security
 
 #### Authentication
-- OAuth 2.0 flow implementation
+- Qobuz email/password and user ID/auth-token session flow
 - Token refresh before expiration
-- Secure token storage (encrypted at rest)
+- Secure token storage through Common's encrypted `FileTokenStore<T>` stack
 - Never log tokens or credentials
 
 #### Rate Limiting
@@ -191,7 +191,7 @@ Current vulnerable packages (example - update regularly):
 **External**:
 - Qobuz API endpoints
 - NuGet package sources
-- GitHub Actions workflows
+- Gitea Actions workflows (`.gitea/workflows/ci.yml`)
 - Docker base images (future)
 
 **Internal**:

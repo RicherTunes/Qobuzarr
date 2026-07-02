@@ -103,11 +103,17 @@
     <PropertyGroup>
       <PluginJsonContent>$([System.IO.File]::ReadAllText('$(MSBuildProjectDirectory)\plugin.json.template'))</PluginJsonContent>
       <PluginJsonContent>$(PluginJsonContent.Replace('{VERSION}', '$(AssemblyInformationalVersion)'))</PluginJsonContent>
+      <!-- commonVersion is sourced from the pinned submodule itself so the shipped manifest
+           can never drift from the actual Common the plugin was built against. -->
+      <CommonBuildPropsContent>$([System.IO.File]::ReadAllText('$(MSBuildProjectDirectory)\ext\Lidarr.Plugin.Common\Directory.Build.props'))</CommonBuildPropsContent>
+      <CommonLibVersion>$([System.Text.RegularExpressions.Regex]::Match('$(CommonBuildPropsContent)', '&lt;Version&gt;([^&lt;]+)&lt;/Version&gt;').Groups[1].Value)</CommonLibVersion>
+      <PluginJsonContent>$(PluginJsonContent.Replace('{COMMON_VERSION}', '$(CommonLibVersion)'))</PluginJsonContent>
       <PluginJsonOutputPath>$(IntermediateOutputPath)plugin.json</PluginJsonOutputPath>
     </PropertyGroup>
+    <Error Condition="'$(CommonLibVersion)' == ''" Text="GeneratePluginJson: could not resolve Common version from ext\Lidarr.Plugin.Common\Directory.Build.props — generated plugin.json would ship without commonVersion." />
     <MakeDir Directories="$(IntermediateOutputPath)" Condition="!Exists('$(IntermediateOutputPath)')" />
     <WriteLinesToFile File="$(PluginJsonOutputPath)" Lines="$(PluginJsonContent)" Overwrite="true" />
-    <Message Text="Generated plugin.json with version $(AssemblyInformationalVersion) to $(PluginJsonOutputPath)" Importance="high" />
+    <Message Text="Generated plugin.json with version $(AssemblyInformationalVersion) (commonVersion $(CommonLibVersion)) to $(PluginJsonOutputPath)" Importance="high" />
   </Target>
   
   <!-- Copy generated plugin.json to output after build -->
@@ -205,7 +211,16 @@
     <ProjectReference Include="ext\Lidarr.Plugin.Common\src\Abstractions\Lidarr.Plugin.Abstractions.csproj" Condition="'$(UseCommonStubs)' != 'true' and Exists('ext\Lidarr.Plugin.Common\src\Abstractions\Lidarr.Plugin.Abstractions.csproj')">
       <Private>true</Private>
     </ProjectReference>
-    
+    <!-- LPC0003: bans HtmlEncode / Sanitize.DisplayText on search paths (shipped Beyoncé 0-result bug class).
+         OutputItemType=Analyzer: consumed as a Roslyn analyzer, not a runtime reference.
+         ReferenceOutputAssembly=false: the analyzer DLL is not added to the compile-time reference set. -->
+    <ProjectReference Include="ext\Lidarr.Plugin.Common\tools\Analyzers\Lidarr.Plugin.Analyzers\Lidarr.Plugin.Analyzers.csproj"
+                      Condition="'$(UseCommonStubs)' != 'true' and Exists('ext\Lidarr.Plugin.Common\tools\Analyzers\Lidarr.Plugin.Analyzers\Lidarr.Plugin.Analyzers.csproj')"
+                      OutputItemType="Analyzer"
+                      ReferenceOutputAssembly="false">
+      <PrivateAssets>all</PrivateAssets>
+    </ProjectReference>
+
     <!-- Fallback to NuGet package when submodule is unavailable and version is supplied -->
     <PackageReference Include="Lidarr.Plugin.Common" Version="$(CommonPackageVersion)" Condition="'$(UseCommonStubs)' != 'true' and '$(CommonPackageVersion)' != ''" />
     

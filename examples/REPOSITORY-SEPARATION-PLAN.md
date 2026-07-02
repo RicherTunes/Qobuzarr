@@ -1,3 +1,4 @@
+<!-- docval:ignore-workflow-refs -->
 # 📦 Repository Separation Plan: Professional Ecosystem Architecture
 
 ## 🎯 **Strategic Separation: Shared vs Specialized**

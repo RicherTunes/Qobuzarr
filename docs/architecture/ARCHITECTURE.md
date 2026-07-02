@@ -182,7 +182,7 @@ This design ensures:
 **Migration Status:**
 
 - ✅ **QobuzValidationService**: Migrated to IQobuzQualityManager
-- ✅ **QobuzApiService**: Migrated to IQobuzQualityManager  
+- ✅ **Legacy API wrapper removal**: Stream URL resolution now flows through `IQobuzApiClient`
 - ✅ **LidarrAlbumRetriever**: Migrated to IQobuzQualityManager
 - 🔄 **Legacy Services**: Maintained for backward compatibility during transition
 - 📚 **Migration Guide**: Complete documentation in SERVICE-MIGRATION-GUIDE.md
@@ -276,22 +276,21 @@ This design ensures:
 - Genre filtering
 - Thread-safe concurrent processing
 
-### 5. Download Client (In Development)
+### 5. Download Client
 
 **Purpose:** Manages music downloads from Qobuz
 
 **Components:**
 
 - `QobuzDownloadClient`: Main download client
-- `QobuzTrackDownloader`: Handles individual track downloads
-- Queue management system
-- Progress tracking
+- `QobuzDownloadOrchestrator`: Coordinates album-level download work
+- `TrackDownloadService`: Handles individual track stream lookup, download, and classification
+- Common host-bridge tracker/orchestrator primitives for Lidarr queue visibility
+- Progress tracking and cleanup guards
 
-**Planned Features:**
+**Implemented Features:**
 
-- SQLite-based queue persistence
 - Parallel downloading
-- Bandwidth throttling
 - Metadata embedding
 
 ### 6. Data Models

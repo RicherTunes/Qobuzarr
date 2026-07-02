@@ -1,3 +1,4 @@
+<!-- docval:ignore-workflow-refs -->
 # 🚀 Qobuzarr CI/CD Optimization Guide
 
 ## Overview

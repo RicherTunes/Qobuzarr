@@ -83,15 +83,15 @@ docker-compose up -d
 If using a standard Lidarr image, install the plugin manually:
 
 ```bash
-# Download the latest release
-wget https://github.com/RicherTunes/qobuzarr/releases/latest/download/Qobuzarr.zip
+# Download the latest *-net8.0.zip release asset from:
+# https://github.com/RicherTunes/qobuzarr/releases/latest
 
 # Copy to container
-docker cp Qobuzarr.zip lidarr-container:/tmp/
+docker cp qobuzarr-VERSION-net8.0.zip lidarr-container:/tmp/
 # Plugin DLLs MUST live under /config/plugins/<Owner>/<Name>/ — Lidarr's loader scans
 # /config/plugins/RicherTunes/Qobuzarr/ for Lidarr.Plugin.*.dll; a flat /config/plugins/ is NOT scanned.
 docker exec lidarr-container mkdir -p /config/plugins/RicherTunes/Qobuzarr
-docker exec lidarr-container unzip /tmp/Qobuzarr.zip -d /config/plugins/RicherTunes/Qobuzarr/
+docker exec lidarr-container unzip /tmp/qobuzarr-VERSION-net8.0.zip -d /config/plugins/RicherTunes/Qobuzarr/
 docker restart lidarr-container
 ```
 
@@ -109,10 +109,9 @@ sudo apt install -y dotnet-runtime-8.0
 # Create plugins directory
 sudo mkdir -p /var/lib/lidarr/plugins
 
-# Download and install plugin
+# Download the latest *-net8.0.zip release asset, then install it
 cd /tmp
-wget https://github.com/RicherTunes/qobuzarr/releases/latest/download/Qobuzarr.zip
-sudo unzip Qobuzarr.zip -d /var/lib/lidarr/plugins/
+sudo unzip qobuzarr-VERSION-net8.0.zip -d /var/lib/lidarr/plugins/RicherTunes/Qobuzarr/
 
 # Set permissions
 sudo chown -R lidarr:lidarr /var/lib/lidarr/plugins
@@ -131,10 +130,9 @@ sudo dnf install -y dotnet-runtime-8.0
 # Create plugins directory
 sudo mkdir -p /var/lib/lidarr/plugins
 
-# Download and install plugin
+# Download the latest *-net8.0.zip release asset, then install it
 cd /tmp
-curl -L -o Qobuzarr.zip https://github.com/RicherTunes/qobuzarr/releases/latest/download/Qobuzarr.zip
-sudo unzip Qobuzarr.zip -d /var/lib/lidarr/plugins/
+sudo unzip qobuzarr-VERSION-net8.0.zip -d /var/lib/lidarr/plugins/RicherTunes/Qobuzarr/
 
 # Set permissions
 sudo chown -R lidarr:lidarr /var/lib/lidarr/plugins
@@ -150,8 +148,8 @@ sudo systemctl restart lidarr
 sudo pacman -S dotnet-runtime
 
 # Install plugin
-wget https://github.com/RicherTunes/qobuzarr/releases/latest/download/Qobuzarr.zip
-sudo unzip Qobuzarr.zip -d /usr/share/lidarr/plugins/
+# Download the latest *-net8.0.zip release asset first.
+sudo unzip qobuzarr-VERSION-net8.0.zip -d /usr/share/lidarr/plugins/RicherTunes/Qobuzarr/
 sudo systemctl restart lidarr
 ```
 
@@ -160,13 +158,13 @@ sudo systemctl restart lidarr
 #### Using PowerShell (Administrator)
 
 ```powershell
-# Download the plugin
-Invoke-WebRequest -Uri "https://github.com/RicherTunes/qobuzarr/releases/latest/download/Qobuzarr.zip" -OutFile "$env:TEMP\Qobuzarr.zip"
+# Download the latest *-net8.0.zip release asset from:
+# https://github.com/RicherTunes/qobuzarr/releases/latest
 
 # Extract to plugins directory
-$pluginPath = "$env:ProgramData\Lidarr\plugins"
+$pluginPath = "$env:ProgramData\Lidarr\plugins\RicherTunes\Qobuzarr"
 New-Item -ItemType Directory -Force -Path $pluginPath
-Expand-Archive -Path "$env:TEMP\Qobuzarr.zip" -DestinationPath $pluginPath -Force
+Expand-Archive -Path "$env:TEMP\qobuzarr-VERSION-net8.0.zip" -DestinationPath $pluginPath -Force
 
 # Restart Lidarr service
 Restart-Service -Name "Lidarr"
@@ -174,7 +172,7 @@ Restart-Service -Name "Lidarr"
 
 #### Manual Installation
 
-1. Download `Qobuzarr.zip` from [GitHub Releases](https://github.com/RicherTunes/qobuzarr/releases/latest)
+1. Download the `*-net8.0.zip` asset from [GitHub Releases](https://github.com/RicherTunes/qobuzarr/releases/latest)
 2. Extract the zip file
 3. Copy contents to `%ProgramData%\Lidarr\plugins\`
 4. Restart Lidarr from Services
@@ -188,10 +186,9 @@ brew install dotnet
 # Create plugins directory
 mkdir -p ~/.config/Lidarr/plugins
 
-# Download and install plugin
+# Download the latest *-net8.0.zip release asset, then install it
 cd /tmp
-curl -L -o Qobuzarr.zip https://github.com/RicherTunes/qobuzarr/releases/latest/download/Qobuzarr.zip
-unzip Qobuzarr.zip -d ~/.config/Lidarr/plugins/
+unzip qobuzarr-VERSION-net8.0.zip -d ~/.config/Lidarr/plugins/RicherTunes/Qobuzarr/
 
 # Restart Lidarr
 brew services restart lidarr

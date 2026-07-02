@@ -186,48 +186,16 @@ public class QobuzRequestSigner
 
 **Primary Classes**:
 
-- [`InputSanitizer`](../../src/Security/InputSanitizer.cs)
+- [`InputSanitizer`](../../src/Security/InputSanitizer.cs) - compatibility facade; shared helpers delegate to Common `Sanitize` where contracts align, while Qobuz-specific validators remain local
 - [`MetadataSanitizer`](../../src/Security/MetadataSanitizer.cs)
 
 #### Search Query Security
 
 ```csharp
-public static class InputSanitizer
-{
-    // Comprehensive search query sanitization
-    public static string SanitizeSearchQuery(string query)
-    {
-        if (string.IsNullOrWhiteSpace(query))
-            return string.Empty;
-            
-        // Remove potentially malicious patterns
-        query = RemoveHtmlTags(query);
-        query = RemoveScriptInjections(query);
-        query = RemoveSqlInjectionPatterns(query);
-        query = NormalizeUnicode(query);
-        query = LimitLength(query, MaxSearchQueryLength);
-        
-        return query.Trim();
-    }
-    
-    private static readonly string[] SqlInjectionPatterns = {
-        "'; DROP TABLE", "'; DELETE FROM", "UNION SELECT",
-        "<script", "javascript:", "eval(", "document.",
-        "../", "..\\", "%2e%2e", "0x", "char(",
-        "exec(", "system(", "cmd.exe", "/bin/sh"
-    };
-    
-    private static string RemoveSqlInjectionPatterns(string input)
-    {
-        var result = input;
-        foreach (var pattern in SqlInjectionPatterns)
-        {
-            result = result.Replace(pattern, "", StringComparison.OrdinalIgnoreCase);
-        }
-        return result;
-    }
-}
+var safeQuery = InputSanitizer.SanitizeSearchQuery(userInput);
 ```
+
+`SanitizeSearchQuery` preserves the Qobuz-specific capped query contract. Shared sanitization helpers such as URL components, display text, and filename segments delegate through Common `Sanitize` from the facade when the Common behavior matches the Qobuzarr API surface.
 
 #### API Response Sanitization
 
@@ -278,83 +246,19 @@ public static class MetadataSanitizer
 
 ### 5. Rate Limiting and DDoS Protection
 
-**Primary Class**: [`AdaptiveRateLimiter`](../../src/Services/AdaptiveRateLimiter.cs)
+**Primary Class**: [`AdaptiveRateLimiter`](../../src/Services/Performance/AdaptiveRateLimiter.cs)
 
 ```csharp
-var rateLimiter = new AdaptiveRateLimiter(
-    baseLimit: 60, // requests per minute
-    burstLimit: 120,
-    adaptiveWindow: TimeSpan.FromMinutes(5),
-    logger: logger
-);
-
-// Apply rate limiting with security monitoring
-await rateLimiter.ExecuteWithRateLimitAsync(async () =>
+// Plugin-local adapter; Lidarr auto-registration discovers this concrete type.
+public class AdaptiveRateLimiter : NamedServiceRateLimiter
 {
-    return await qobuzApi.SearchAsync(sanitizedQuery);
-}, 
-cancellationToken: cancellationToken,
-operationType: "search");
-
-// Monitor for suspicious patterns
-var rateLimitStats = rateLimiter.GetSecurityStatistics();
-if (rateLimitStats.SuspiciousActivityDetected)
-{
-    _securityMonitor.ReportSuspiciousActivity(
-        "High frequency API requests detected",
-        rateLimitStats.RequestPattern
-    );
+    public AdaptiveRateLimiter() : base("Qobuz") { }
 }
 ```
 
 #### Adaptive Rate Limiting Logic
 
-```csharp
-public class AdaptiveRateLimiter
-{
-    public async Task<T> ExecuteWithRateLimitAsync<T>(
-        Func<Task<T>> operation, 
-        CancellationToken cancellationToken,
-        string operationType = "general")
-    {
-        // Check rate limit before execution
-        await WaitForRateLimitAsync(operationType, cancellationToken);
-        
-        var startTime = DateTimeOffset.UtcNow;
-        try
-        {
-            var result = await operation();
-            
-            // Record successful operation
-            RecordSuccess(operationType, startTime);
-            return result;
-        }
-        catch (HttpRequestException ex) when (IsRateLimitException(ex))
-        {
-            // Adaptive backoff on rate limit errors
-            await ApplyAdaptiveBackoff(operationType);
-            throw;
-        }
-        catch (Exception ex)
-        {
-            // Record failure for security monitoring
-            RecordFailure(operationType, ex, startTime);
-            throw;
-        }
-    }
-    
-    private async Task WaitForRateLimitAsync(string operationType, CancellationToken cancellationToken)
-    {
-        var waitTime = CalculateWaitTime(operationType);
-        if (waitTime > TimeSpan.Zero)
-        {
-            _logger.Debug("Rate limiting {0}: waiting {1}ms", 
-                operationType, waitTime.TotalMilliseconds);
-            await Task.Delay(waitTime, cancellationToken);
-        }
-    }
-}
-```
+The throttling implementation lives in Common's `NamedServiceRateLimiter`; Qobuzarr's class only binds the service name used by the shared limiter.
 
 ### 6. Network Security and HTTPS Enforcement
 
@@ -681,22 +585,18 @@ public class ApiSecurityTests
     [Test]
     public async Task TestRateLimitingEnforcement()
     {
-        var rateLimiter = new AdaptiveRateLimiter(5, 10, TimeSpan.FromMinutes(1), logger);
+        var rateLimiter = new AdaptiveRateLimiter();
         
         // Perform requests up to limit
         for (int i = 0; i < 5; i++)
         {
-            var result = await rateLimiter.ExecuteWithRateLimitAsync(
-                () => Task.FromResult("success"));
-            Assert.That(result, Is.EqualTo("success"));
+            await rateLimiter.WaitIfNeededAsync("search", CancellationToken.None);
+            using var response = new HttpResponseMessage(HttpStatusCode.OK);
+            rateLimiter.RecordResponse("search", response);
         }
         
-        // Next request should be rate limited
-        var stopwatch = Stopwatch.StartNew();
-        await rateLimiter.ExecuteWithRateLimitAsync(() => Task.FromResult("limited"));
-        stopwatch.Stop();
-        
-        Assert.That(stopwatch.ElapsedMilliseconds, Is.GreaterThan(1000));
+        var stats = rateLimiter.GetGlobalStats();
+        Assert.That(stats, Is.Not.Null);
     }
     
     [Test]

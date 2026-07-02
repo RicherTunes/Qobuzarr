@@ -10,7 +10,7 @@ Qobuzarr builds on [Lidarr.Plugin.Common](https://github.com/RicherTunes/Lidarr.
 - [Architecture Overview](https://github.com/RicherTunes/Lidarr.Plugin.Common/blob/main/wiki/Architecture-Overview.md) — shared service layer, DI patterns, and how Common fits inside a Lidarr plugin host.
 - [SDK and Extension Points](https://github.com/RicherTunes/Lidarr.Plugin.Common/blob/main/wiki/SDK-and-Extension-Points.md) — reusable base classes (`StreamingPlugin`, token stores, rate limiters) that Qobuzarr consumes.
 - [Shared Helpers Catalog](https://github.com/RicherTunes/Lidarr.Plugin.Common/blob/main/wiki/Shared-Helpers-Catalog.md) — quick-reference for every Common helper (`PluginLogContext`, `Scrub`, `WarnOnce`, `BackendHealthCache`, etc.).
-- [Versioning and Submodule Pinning](https://github.com/RicherTunes/Lidarr.Plugin.Common/blob/main/wiki/Versioning-and-Submodule-Pinning.md) — how the Common submodule pin works (`ext-common-sha.txt`), the nightly bump workflow, and coordination across plugins.
+- [Versioning and Submodule Pinning](https://github.com/RicherTunes/Lidarr.Plugin.Common/blob/main/wiki/Versioning-and-Submodule-Pinning.md) — how the Common submodule pin works (`ext-common-sha.txt`), the manual re-pin workflow, and coordination across plugins.
 
 ## What is Qobuzarr?
 

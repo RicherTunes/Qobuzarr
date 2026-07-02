@@ -205,41 +205,14 @@ ValidateMLInterface(assembly);
 
 ### InputSanitizer
 
-**Comprehensive input validation** for all user-provided data.
+Compatibility facade for Qobuzarr input validation.
 
 ```csharp
-public class InputSanitizer
-{
-    // Sanitize search queries
-    public string SanitizeSearchQuery(string query)
-    {
-        // Remove SQL injection patterns
-        query = RemoveSqlInjectionPatterns(query);
-        
-        // Remove script injection patterns  
-        query = RemoveScriptPatterns(query);
-        
-        // Normalize unicode and encoding
-        query = NormalizeUnicode(query);
-        
-        // Apply length limits
-        return TruncateToLimit(query, maxLength: 200);
-    }
-    
-    // Sanitize file paths
-    public string SanitizeFilePath(string path)
-    {
-        // Prevent path traversal
-        if (path.Contains(\"..\") || path.Contains(\"%2e%2e\"))
-        {
-            throw new SecurityException(\"Path traversal attempt detected\");
-        }
-        
-        // Remove dangerous characters
-        return RemoveDangerousPathChars(path);
-    }
-}
+var safeQuery = InputSanitizer.SanitizeSearchQuery(query);
+var safeFileName = InputSanitizer.SanitizeFileName(fileName);
 ```
+
+Shared helpers delegate through Common `Sanitize` where the Common contract matches the Qobuzarr API surface. Qobuz-specific authentication, file path, and metadata validators remain local in the facade.
 
 ### MetadataSanitizer
 
@@ -317,44 +290,16 @@ public static class SecureApiExtensions
 
 ### Rate Limiting Security
 
-**Adaptive rate limiting** with abuse protection.
+**Adaptive rate limiting** uses a plugin adapter over Common's named limiter.
 
 ```csharp
-public class AdaptiveRateLimiter : IRateLimiter
+public class AdaptiveRateLimiter : NamedServiceRateLimiter
 {
-    // Detects and prevents API abuse patterns
-    public async Task<bool> TryExecuteAsync(Func<Task> action, string category)
-    {
-        var clientId = GetClientIdentifier();
-
-        // Check for abuse patterns
-        if (await DetectAbusePatternAsync(clientId, category))
-        {
-            _logger.LogWarning(\"Potential API abuse detected for client: {ClientId}\",
-                MaskClientId(clientId));
-            return false;
-        }
-
-        // Apply rate limits
-        if (!await _rateLimiter.TryConsumeAsync(category))
-        {
-            return false;
-        }
-
-        try
-        {
-            await action();
-            RecordSuccessfulRequest(clientId, category);
-            return true;
-        }
-        catch (Exception ex)
-        {
-            RecordFailedRequest(clientId, category, ex);
-            throw;
-        }
-    }
+    public AdaptiveRateLimiter() : base("Qobuz") { }
 }
 ```
+
+The adaptive algorithm, stats, and response recording are implemented by Common `NamedServiceRateLimiter`; Qobuzarr only supplies the local concrete type required for Lidarr auto-registration.
 
 ## 🔍 Security Monitoring
 

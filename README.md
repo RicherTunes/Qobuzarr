@@ -50,14 +50,12 @@
 
 1. **Download the latest release**:
 
-   ```bash
-   wget https://github.com/RicherTunes/qobuzarr/releases/latest/download/Qobuzarr.zip
-   ```
+   Download the latest `*-net8.0.zip` asset from [GitHub Releases](https://github.com/RicherTunes/qobuzarr/releases/latest). The asset name is versioned, for example `qobuzarr-VERSION-net8.0.zip`.
 
 2. **Install to Lidarr**:
 
    ```bash
-   unzip Qobuzarr.zip -d /path/to/lidarr/plugins/
+   unzip qobuzarr-VERSION-net8.0.zip -d /path/to/lidarr/plugins/RicherTunes/Qobuzarr/
    ```
 
 3. **Restart Lidarr**:
@@ -259,13 +257,21 @@ The [docs/](docs/) tree is organised by audience — see [docs/README.md](docs/R
 
 Qobuzarr builds on [Lidarr.Plugin.Common](https://github.com/RicherTunes/Lidarr.Plugin.Common), a shared library providing foundation plumbing (OAuth token stores, streaming API builders, download orchestration, adaptive rate-limiting, structured-logging helpers) for all RicherTunes Lidarr streaming plugins.
 
+**Ecosystem contract:**
+
+- Common is vendored at `ext/Lidarr.Plugin.Common`; the exact pin is tracked by `ext-common-sha.txt` and must be committed with the submodule gitlink.
+- Gitea is the primary CI surface (`.gitea/workflows/ci.yml`): `CI / secret-scan` runs Gitleaks with checksum verification, `CI / lint` runs Common's shared plugin lint runner, and `CI / verify` runs `scripts/verify-local.ps1`, which delegates to `ext/Lidarr.Plugin.Common/scripts/local-ci.ps1`.
+- Search uses Common's `SearchQuerySanitizer` for special-character variants and a Qobuz-specific capped chain guarded by Common TestKit compliance tests.
+- `AdaptiveRateLimiter` is a plugin-assembly adapter for Lidarr auto-registration over Common's `NamedServiceRateLimiter`.
+- `InputSanitizer` is a compatibility facade: shared helpers delegate to Common `Sanitize` where contracts align, while Qobuz-specific auth/path/metadata validators remain local.
+
 **Common wiki pages** (cross-repo links):
 
 - [Common — Home](https://github.com/RicherTunes/Lidarr.Plugin.Common/blob/main/wiki/Home.md) — project overview and ecosystem context
 - [Architecture Overview](https://github.com/RicherTunes/Lidarr.Plugin.Common/blob/main/wiki/Architecture-Overview.md) — shared service layer and DI patterns
 - [SDK and Extension Points](https://github.com/RicherTunes/Lidarr.Plugin.Common/blob/main/wiki/SDK-and-Extension-Points.md) — reusable base classes (`StreamingPlugin`, token stores, rate limiters)
 - [Shared Helpers Catalog](https://github.com/RicherTunes/Lidarr.Plugin.Common/blob/main/wiki/Shared-Helpers-Catalog.md) — quick-reference for every Common helper (`PluginLogContext`, `Scrub`, `WarnOnce`, `BackendHealthCache`, etc.)
-- [Versioning and Submodule Pinning](https://github.com/RicherTunes/Lidarr.Plugin.Common/blob/main/wiki/Versioning-and-Submodule-Pinning.md) — how the `ext-common-sha.txt` pin and nightly bump workflow work
+- [Versioning and Submodule Pinning](https://github.com/RicherTunes/Lidarr.Plugin.Common/blob/main/wiki/Versioning-and-Submodule-Pinning.md) — how the `ext-common-sha.txt` sentinel and manual re-pin process work (Gitea-primary; no scheduled auto-bump)
 - [Build Your First Plugin](https://github.com/RicherTunes/Lidarr.Plugin.Common/blob/main/docs/tutorials/BUILD_YOUR_FIRST_PLUGIN.md) — tutorial for creating a new streaming plugin
 - [Key Services Reference](https://github.com/RicherTunes/Lidarr.Plugin.Common/blob/main/docs/reference/KEY_SERVICES.md) — HTTP, auth, caching APIs
 
@@ -274,6 +280,8 @@ Qobuzarr builds on [Lidarr.Plugin.Common](https://github.com/RicherTunes/Lidarr.
 Qobuzarr shares its Common library and architectural patterns with:
 
 - **[Tidalarr](https://github.com/RicherTunes/tidalarr)** — Tidal streaming plugin
+- **[Amazonmusicarr](https://github.com/RicherTunes/amazonmusicarr)** — Amazon Music streaming plugin
+- **[AppleMusicarr](https://github.com/RicherTunes/applemusicarr)** — Apple Music import-list/indexer/download-client plugin
 - **[Brainarr](https://github.com/RicherTunes/brainarr)** — AI-powered music recommendations
 
 ## Contributing

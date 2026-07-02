@@ -19,9 +19,9 @@ namespace Qobuzarr.Tests.Unit.Resilience
     /// Verifies that AdaptiveQobuzApiClient uses HttpExceptionClassifier (not string matching)
     /// to decide which HttpResponseMessage status to pass to RecordResponse.
     ///
-    /// The pre-existing class-level comment in AdaptiveQobuzApiClientTests.cs explains the
-    /// old AdaptiveRateLimiter was removed. The current AdaptiveQobuzApiClient wraps
-    /// IUniversalAdaptiveRateLimiter. We test by substituting both inner client and limiter.
+    /// AdaptiveQobuzApiClient now wraps the Common IUniversalAdaptiveRateLimiter seam.
+    /// These tests substitute both the inner client and limiter so exception classification
+    /// is verified through the production decorator instead of a removed local limiter API.
     /// </summary>
     public class AdaptiveQobuzApiClientClassifierTests
     {

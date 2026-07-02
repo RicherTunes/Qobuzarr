@@ -97,5 +97,33 @@ namespace Qobuzarr.Tests.Unit.Download
             exception.TrackId.Should().Be(trackId);
             exception.Reason.Should().Be(reason);
         }
+
+        // ── IsPermanentlyUnavailable ────────────────────────────────────────────────────────────
+        //
+        // Used ONLY to decide whether QobuzDownloadClient should suppress an album's release from
+        // future indexer searches (RestrictedReleaseSuppressionStore) after an AlbumDownloadException —
+        // it does NOT change the album-completion decision (DownloadAlbumAsync always throws on any
+        // deficit; see CLAUDE.md "Album-completion contract"). Deliberately narrow: only a rights gate
+        // Qobuz will never lift for a re-grab of the SAME catalog entry — purchase-only content or an
+        // insufficient subscription tier. RegionalRestriction (geo) is intentionally EXCLUDED even
+        // though it is also a rights gate — geo-availability can change (VPN, catalog rollout by
+        // region) and mistakenly suppressing it forever is a worse failure mode than the bounded
+        // re-grab loop it would otherwise cause. PreviewOnly/NoQualityAvailable/NotStreamable/ApiError/
+        // Unknown are also excluded: they may be soft, transient, or symptomatic of a recoverable
+        // edition mismatch (the Aphex-Twin case), and suppressing on them risks permanently hiding an
+        // album that could actually succeed.
+        [Theory]
+        [InlineData(TrackUnavailableReason.Restricted, true)]
+        [InlineData(TrackUnavailableReason.SubscriptionRestriction, true)]
+        [InlineData(TrackUnavailableReason.RegionalRestriction, false)]
+        [InlineData(TrackUnavailableReason.PreviewOnly, false)]
+        [InlineData(TrackUnavailableReason.NoQualityAvailable, false)]
+        [InlineData(TrackUnavailableReason.NotStreamable, false)]
+        [InlineData(TrackUnavailableReason.ApiError, false)]
+        [InlineData(TrackUnavailableReason.Unknown, false)]
+        public void IsPermanentlyUnavailable_ShouldReturnCorrectValue(TrackUnavailableReason reason, bool expected)
+        {
+            reason.IsPermanentlyUnavailable().Should().Be(expected);
+        }
     }
 }

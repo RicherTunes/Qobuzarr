@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Threading;
 using System.Threading.Tasks;
 using Lidarr.Plugin.Common.Services.Http;
 using Lidarr.Plugin.Qobuzarr.Models.Authentication;
@@ -19,6 +20,11 @@ namespace Lidarr.Plugin.Qobuzarr.API.PreRequest
         private readonly Func<Task<QobuzCredentials>> _credentialsProvider;
         private readonly Logger _logger;
 
+        // LOOP-011 (#23): single-flight gate. Qobuz has no refresh token, so renewal is a full re-login
+        // (which also scrapes the web player and is login-rate-limited). Serialize renewals so N concurrent
+        // requests that all find the session invalid trigger ONE re-auth, not N parallel re-logins.
+        private readonly SemaphoreSlim _renewGate = new SemaphoreSlim(1, 1);
+
         public QobuzPreRequestHandler(
             IQobuzAuthenticationService authService,
             IRequestSigner signer,
@@ -33,21 +39,25 @@ namespace Lidarr.Plugin.Qobuzarr.API.PreRequest
 
         public async Task EnsureValidSessionAsync()
         {
-            // Fast path: cached + valid
-            var cached = _authService.GetCachedSession();
-            if (cached != null)
+            // Fast path (lock-free): cached + valid -> nothing to do.
+            if (await IsCachedSessionValidAsync().ConfigureAwait(false))
             {
-                var valid = await _authService.ValidateSessionAsync(cached).ConfigureAwait(false);
-                if (valid)
+                return;
+            }
+
+            _logger.Debug("Cached Qobuz session is invalid; will re-authenticate.");
+
+            // Single-flight: serialize renewals. The first caller re-authenticates; the rest wait, then the
+            // recheck-under-gate below short-circuits because the session is now valid.
+            await _renewGate.WaitAsync().ConfigureAwait(false);
+            try
+            {
+                // Recheck under the gate: a previous holder may have already renewed the session.
+                if (await IsCachedSessionValidAsync().ConfigureAwait(false))
                 {
                     return;
                 }
-                _logger.Debug("Cached Qobuz session is invalid; will re-authenticate.");
-            }
 
-            // Attempt re-authentication via provided credentials
-            try
-            {
                 var creds = await _credentialsProvider().ConfigureAwait(false);
                 if (creds == null)
                 {
@@ -65,6 +75,20 @@ namespace Lidarr.Plugin.Qobuzarr.API.PreRequest
             {
                 _logger.Warn(ex, "Qobuz pre-request session renewal failed.");
             }
+            finally
+            {
+                _renewGate.Release();
+            }
+        }
+
+        private async Task<bool> IsCachedSessionValidAsync()
+        {
+            var cached = _authService.GetCachedSession();
+            if (cached == null)
+            {
+                return false;
+            }
+            return await _authService.ValidateSessionAsync(cached).ConfigureAwait(false);
         }
 
         public void InjectAuthParameters(IDictionary<string, string> parameters)

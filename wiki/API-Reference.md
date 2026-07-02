@@ -370,24 +370,20 @@ public class MLPerformanceMetrics
 
 ### AdaptiveRateLimiter
 
-Adaptive rate management that backs off on throttling and ramps back up when the API is healthy.
+Plugin-assembly adapter for Lidarr auto-registration over Common's `NamedServiceRateLimiter`.
 
 ```csharp
-public class AdaptiveRateLimiter : IRateLimiter
+public class AdaptiveRateLimiter : NamedServiceRateLimiter
 {
-    Task<bool> TryExecuteAsync(Func<Task> action, string category);
-    Task<RateLimitStats> GetStatisticsAsync();
-    void ConfigureRateLimit(string category, TimeSpan period, int maxRequests);
-    event EventHandler<RateLimitEventArgs> RateLimitAdjusted;
+    public AdaptiveRateLimiter() : base("Qobuz") { }
 }
 ```
 
 **Features:**
 
-- **Dynamic Scaling**: Automatically adjusts rate limits based on API responses
-- **Category-Based Limiting**: Different limits for different operation types  
-- **Predictive Backoff**: ML-powered prediction of optimal request rates
-- **Statistics Collection**: Detailed performance metrics
+- Common-owned adaptive backoff and statistics through `NamedServiceRateLimiter`
+- Qobuz service-name binding for shared named limiter state
+- Local concrete type retained so Lidarr can discover and inject the limiter
 
 ## 🧪 Testing API
 

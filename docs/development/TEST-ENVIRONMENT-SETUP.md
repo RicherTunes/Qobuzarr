@@ -57,13 +57,16 @@ curl -sSL https://dot.net/v1/dotnet-install.sh | bash /dev/stdin --runtime aspne
 }
 ```
 
-### **Option C: GitHub Actions Validation (Current)**
+### **Option C: Run via Gitea CI**
 
-Tests run successfully in CI environment:
+The self-hosted Gitea CI runner has the correct .NET 8 environment. Push a branch
+and the `CI / secret-scan`, `CI / lint`, and `CI / verify` jobs will run. The
+`CI / verify` job (`pwsh scripts/verify-local.ps1`) runs the full test suite
+including host-assembly extraction after the policy gates pass.
 
-- ✅ All projects compile
-- ✅ CI has proper .NET 6.0 environment
-- ✅ Production validation through automated builds
+- ✅ All projects compile in CI
+- ✅ Deterministic test suite runs on every push/PR
+- ✅ Production validation through automated build + packaging closure
 
 ## Test Categories Status
 
@@ -73,11 +76,11 @@ Tests run successfully in CI environment:
 
 - `QobuzDownloadClientTests` - Core download functionality
 - `QobuzApiClientTests` - API client functionality
-<!-- TODO(docval): QobuzQualityManagerTests disabled as of 2026-05-31 - service consolidated/removed -->
+- `QobuzApiClientCovTests` and `AdaptiveQobuzApiClientClassifierTests` - API behavior, retry classification, and Common rate-limit decorator coverage
 
 **Integration Tests:**
 
-- `ServiceIntegrationTests` - Cross-service functionality
+- `QobuzDownloadClientIntegrationTests` - Download-client wiring against extracted Lidarr host assemblies
 - `SecurityIntegrationTests` - Security framework validation
 
 **Performance Tests:**
@@ -102,8 +105,7 @@ Tests run successfully in CI environment:
 
 ```
 ✅ CLI service adapter integration
-✅ Consolidated service test coverage
-<!-- TODO(docval): QobuzQualityManagerTests disabled as of 2026-05-31 - service consolidated/removed -->
+✅ Common-backed API, download, suppression, and architecture guard coverage
 ```
 
 ## Development Workflow
@@ -135,7 +137,7 @@ dotnet build tests/QobuzCLI.Tests/QobuzCLI.Tests.csproj
 
 **CI/CD Pipeline**: ✅ **Fully Functional**
 
-- All builds pass on GitHub Actions
+- `CI / secret-scan`, `CI / lint`, and `CI / verify` all green on Gitea
 - Production deployment validated
 - Code quality continuously verified
 
