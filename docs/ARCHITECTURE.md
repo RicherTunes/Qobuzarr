@@ -141,7 +141,7 @@ graph LR
     subgraph "Download Layer"
         DO[DownloadOrchestrator]
         TDO[TrackDownloadOrchestrator]
-        AFP[AudioFileDownloader]
+        TDS[TrackDownloadService]
         MP[MetadataProcessor]
         FPG[FilePathGenerator]
     end
@@ -274,7 +274,7 @@ sequenceDiagram
     participant QDC as QobuzDownloadClient
     participant DO as DownloadOrchestrator
     participant TDO as TrackDownloadOrchestrator
-    participant AFP as AudioFileDownloader
+    participant TDS as TrackDownloadService
     participant MP as MetadataProcessor
     participant QobuzAPI as Qobuz API
     
@@ -285,8 +285,8 @@ sequenceDiagram
     loop For each track
         TDO->>QobuzAPI: Get stream URL
         QobuzAPI->>TDO: Stream URL + metadata
-        TDO->>AFP: Download audio file
-        AFP->>TDO: Audio file downloaded
+        TDO->>TDS: Download audio file
+        TDS->>TDO: Audio file downloaded
         TDO->>MP: Process metadata
         MP->>TDO: Metadata applied
     end
@@ -652,7 +652,7 @@ graph TD
     
     %% Download Dependencies
     DO --> TDO[TrackDownloadOrchestrator]
-    DO --> AFP[AudioFileDownloader]
+    DO --> TDS[TrackDownloadService]
     DO --> MP[MetadataProcessor]
     DO --> FPG[FilePathGenerator]
     
@@ -662,7 +662,7 @@ graph TD
     HMLQO --> PLE[IPatternLearningEngine]
     
     %% Infrastructure Dependencies
-    AFP --> FS[IFileSystem]
+    TDS --> FS[IFileSystem]
     MP --> TagLib[TagLib-Sharp]
     Logger --> NLog[NLog]
     Cache --> SQLite[SQLite]
@@ -1209,7 +1209,7 @@ classDiagram
         +GetGlobalStats() GlobalRateLimitStats
     }
     
-    class AdaptiveConcurrencyManager {
+    class ConcurrencyManager {
         -int maxConcurrency
         -int currentActive
         -PerformanceMetrics metrics
@@ -1243,7 +1243,7 @@ classDiagram
     
     AdaptiveRateLimiter --|> NamedServiceRateLimiter
     AdaptiveRateLimiter --> PerformanceMonitoringService
-    AdaptiveConcurrencyManager --> PerformanceMonitoringService
+    ConcurrencyManager --> PerformanceMonitoringService
     AdaptiveBatchDownloadService --> PerformanceMonitoringService
 ```
 
