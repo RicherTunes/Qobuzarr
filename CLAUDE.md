@@ -134,10 +134,10 @@ Pinned by Common `TerminalReleaseSuppressionStoreTests` (persistence/bounds/TTL/
 - `AuthFailureGate` — `src/Integration/QobuzarrStreamingPlugin.cs:36` (singleton registration), `src/Integration/Bridge/BridgeQobuzApiClient.cs:35`
 - `HttpExceptionClassifier` — `src/API/AdaptiveQobuzApiClient.cs:39`, `src/Indexers/QobuzIndexer.cs:331` (Test() catch), `src/Download/Clients/QobuzDownloadClient.cs:800` (Test() catch), and `src/Download/Clients/QobuzDownloadClient.cs:1034` (download failure classification). Wave-31 adoption: replaces generic "Test failed (ExceptionType)" with categorized actionable hints — Auth failures route to the "Authentication" field.
 - `DownloadPathValidator` — `src/Download/Clients/QobuzDownloadClient.cs:760` (Test() pre-check). Wave-31 adoption: syntactic path validation (traversal, relative, invalid chars) before filesystem probe.
-- `PluginLogContext` — `src/Indexers/QobuzIndexer.cs:176` (Search scope), `src/Indexers/QobuzIndexer.cs:287` (Test scope)
+- `PluginLogContext` — `src/Indexers/QobuzIndexer.cs:180` (Search scope), `src/Indexers/QobuzIndexer.cs:291` (Test scope)
 - `WarnOnce` — `src/Indexers/QobuzIndexer.cs:58` (wire-warn gate)
 - `Scrub` — `src/Download/Services/AudioFileDownloader.cs:73` (`Scrub.Url`), `src/API/Signing/QobuzRequestSigner.cs:64` (`Scrub.Secret`)
-- `PrefixedReleaseGuidParser` — `src/Download/Clients/QobuzDownloadClient.cs:1173`, `src/Download/Services/AlbumIdExtractor.cs:55` (`ExtractAlbumIdFromGuid`; the new `qobuz:album:{id}` GUID grammar is also documented in a comment at `src/Indexers/QobuzParser.cs:255`)
+- `PrefixedReleaseGuidParser` — `src/Download/Clients/QobuzDownloadClient.cs:1173`, `src/Download/Services/AlbumIdExtractor.cs:55` (`ExtractAlbumIdFromGuid`; the new `qobuz:album:{id}` GUID grammar is also documented in a comment at `src/Indexers/QobuzParser.cs:256`)
 - `BoundedConcurrentDictionary<TKey, TValue>` — available (Common v1.15.0+ exposes `ContainsKey`, `Values`, indexer setter, and `IEnumerable<KeyValuePair>` alongside the original v1.10.0 TryAdd/TryGetValue/AddOrUpdate/GetOrAdd surface). No qobuz call sites yet — `QobuzHttpClient._hostGates` (`src/API/Http/QobuzHttpClient.cs:40`) is domain-bounded by host count (1-2 hosts in practice) so adoption isn't required; revisit if user-controlled keys grow unboundedly.
 
 See `ext/Lidarr.Plugin.Common/CHANGELOG.md` for the full catalog and [`docs/ECOSYSTEM_PARITY_MATRIX.md`](ext/Lidarr.Plugin.Common/docs/ECOSYSTEM_PARITY_MATRIX.md) for the cross-plugin parity scorecard (30+ axes × 4 plugins).
