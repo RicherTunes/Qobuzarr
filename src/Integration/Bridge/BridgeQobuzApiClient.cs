@@ -5,6 +5,7 @@ using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
 using Lidarr.Plugin.Abstractions.Contracts;
+using Lidarr.Plugin.Common.Observability;
 using Lidarr.Plugin.Common.Services.Bridge;
 using Lidarr.Plugin.Qobuzarr.API;
 using Lidarr.Plugin.Qobuzarr.Models;
@@ -191,11 +192,13 @@ public sealed class BridgeQobuzApiClient : IQobuzApiClient, IDisposable
         if (!response.IsSuccessStatusCode)
         {
             var statusCode = (int)response.StatusCode;
+            var safeBody = LogRedactor.Redact(body.Length > 500 ? body[..500] + "..." : body);
             _logger.LogError("Bridge API error: HTTP {StatusCode} for {Endpoint}: {Body}",
-                statusCode, endpoint, body.Length > 500 ? body[..500] + "..." : body);
+                statusCode, endpoint, safeBody);
 
-            // Signal the auth gate on 401/403 to prevent IP-ban cascades when credentials are bad.
-            if (statusCode is 401 or 403)
+            // Signal the auth gate only for precise auth failures. Generic 403s can be
+            // subscription/resource denials and must not poison future searches.
+            if (QobuzApiClient.ShouldRecordAuthFailure(response.StatusCode, endpoint))
             {
                 await _authFailureGate.HandleFailureAsync(new AuthFailure
                 {
@@ -206,7 +209,7 @@ public sealed class BridgeQobuzApiClient : IQobuzApiClient, IDisposable
             }
 
             throw new Exceptions.QobuzApiException(
-                $"HTTP {statusCode}: {(body.Length > 200 ? body[..200] : body)}",
+                $"HTTP {statusCode}: {LogRedactor.Redact(body.Length > 200 ? body[..200] : body)}",
                 endpoint,
                 response.StatusCode);
         }
