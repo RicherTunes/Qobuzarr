@@ -53,8 +53,10 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          git config url.https://github.com/RicherTunes/Lidarr.Plugin.Common.git.insteadOf http://192.168.2.59:3001/RicherTunes/Lidarr.Plugin.Common.git
-          git submodule update --init -- ext/Lidarr.Plugin.Common
+          common_path="ext/Lidarr.Plugin.Common"
+          github_url="https://github.com/RicherTunes/Lidarr.Plugin.Common.git"
+          git submodule set-url -- "$common_path" "$github_url"
+          git submodule update --init -- "$common_path"
       - name: Shared plugin lint gates
         shell: pwsh
         run: ./ext/Lidarr.Plugin.Common/scripts/ci/run-plugin-lint-gates.ps1 -RepoPath . -CommonRoot ext/Lidarr.Plugin.Common -Mode ci
@@ -75,8 +77,10 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          git config url.https://github.com/RicherTunes/Lidarr.Plugin.Common.git.insteadOf http://192.168.2.59:3001/RicherTunes/Lidarr.Plugin.Common.git
-          git submodule update --init -- ext/Lidarr.Plugin.Common
+          common_path="ext/Lidarr.Plugin.Common"
+          github_url="https://github.com/RicherTunes/Lidarr.Plugin.Common.git"
+          git submodule set-url -- "$common_path" "$github_url"
+          git submodule update --init -- "$common_path"
       - name: Common submodule pin guard
         shell: bash
         run: bash ext/Lidarr.Plugin.Common/scripts/repin-common-submodule.sh --verify-only --path ext/Lidarr.Plugin.Common
