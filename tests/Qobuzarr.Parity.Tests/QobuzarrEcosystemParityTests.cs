@@ -78,6 +78,9 @@ public class QobuzarrEcosystemParityTests : EcosystemParityTestBase
     [Fact] public void Check_DownloadClientStampsRegisteredClientId_Test() => Assert.True(Check_DownloadClientStampsRegisteredClientId().Passed, string.Join("; ", Check_DownloadClientStampsRegisteredClientId().Errors));
     // Audio-payload validation consolidated on Common's DownloadPayloadValidator (Common #602; qobuz #302 migrated off the weak validator).
     [Fact] public void Check_DownloadClientUsesCommonPayloadValidator_Test() => Assert.True(Check_DownloadClientUsesCommonPayloadValidator().Passed, string.Join("; ", Check_DownloadClientUsesCommonPayloadValidator().Errors));
+    // SimpleDownloadOrchestrator cover-art embedding guard: if the download path uses Common's
+    // orchestrator, the plugin must adopt CoverArtEmbeddingComplianceTestBase in its test suite.
+    [Fact] public void Check_SimpleDownloadOrchestratorCoverArtComplianceAdopted_Test() => Assert.True(Check_SimpleDownloadOrchestratorCoverArtComplianceAdopted().Passed, string.Join("; ", Check_SimpleDownloadOrchestratorCoverArtComplianceAdopted().Errors));
     [Fact] public void Check_FileClassNameParity_Test() => Assert.True(Check_FileClassNameParity().Passed, string.Join("; ", Check_FileClassNameParity().Errors));
     [Fact] public void Check_ClaudeMdDocumentsCommonHelpers_Test() => Assert.True(Check_ClaudeMdDocumentsCommonHelpers().Passed, string.Join("; ", Check_ClaudeMdDocumentsCommonHelpers().Errors));
 

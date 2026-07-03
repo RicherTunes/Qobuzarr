@@ -8,6 +8,8 @@ using Newtonsoft.Json;
 using NzbDrone.Common.Http;
 using NzbDrone.Common.Cache;
 using NLog;
+using Lidarr.Plugin.Abstractions.Contracts;
+using Lidarr.Plugin.Qobuzarr.Download;
 using Lidarr.Plugin.Qobuzarr.Models;
 using Lidarr.Plugin.Qobuzarr.Models.Authentication;
 using Lidarr.Plugin.Qobuzarr.Configuration;
@@ -18,9 +20,11 @@ using Lidarr.Plugin.Qobuzarr.Services.Interfaces;
 using Lidarr.Plugin.Qobuzarr.API.Signing;
 using Lidarr.Plugin.Qobuzarr.API.Caching;
 using Lidarr.Plugin.Common.Observability;
+using Lidarr.Plugin.Common.Services.Bridge;
 using Lidarr.Plugin.Common.Services.Caching;
 using Lidarr.Plugin.Common.Services.Http;
 using Lidarr.Plugin.Common.Utilities;
+using Microsoft.Extensions.Logging.Abstractions;
 using IRequestSigner = Lidarr.Plugin.Common.Services.Http.IRequestSigner;
 
 namespace Lidarr.Plugin.Qobuzarr.API
@@ -32,7 +36,7 @@ namespace Lidarr.Plugin.Qobuzarr.API
     /// <remarks>
     /// This refactored implementation delegates specific responsibilities to focused components:
     /// - HTTP communication: IQobuzHttpClient
-    /// - Authentication: IQobuzAuthenticationManager
+    /// - Authentication: ISessionManager
     /// - Request signing: Lidarr.Plugin.Common.Services.Http.IRequestSigner
     /// - Response caching: IQobuzResponseCache
     /// </remarks>
@@ -47,6 +51,7 @@ namespace Lidarr.Plugin.Qobuzarr.API
         private Lidarr.Plugin.Common.Services.Authentication.StreamingTokenManager<QobuzSession, QobuzCredentials>? _tokenManager;
         private Func<Task<QobuzCredentials>>? _credentialsProvider;
         private IPreRequestHandler? _preRequestHandler;
+        private readonly AuthFailureGate _authFailureGate;
         // Fallback session storage for managers that don't expose concrete Store/Clear
         private QobuzSession? _fallbackSession;
 
@@ -60,6 +65,8 @@ namespace Lidarr.Plugin.Qobuzarr.API
         // retry counts and explosive backoff. Source: Phase 3b adoption feedback.
         private CachingHttpExecutor? _cachingExecutor;
         private static readonly ResiliencePolicy ExecutorResiliencePolicy = ResiliencePolicy.Passthrough;
+        private static readonly Lazy<AuthFailureGate> NativeGate =
+            new(CreateNativeAuthFailureGate, LazyThreadSafetyMode.ExecutionAndPublication);
 
         /// <summary>
         /// Initializes a new instance of the QobuzApiClient with the required dependencies.
@@ -75,12 +82,24 @@ namespace Lidarr.Plugin.Qobuzarr.API
             IRequestSigner requestSigner,
             IQobuzResponseCache responseCache,
             Logger logger)
+            : this(httpClient, sessionManager, requestSigner, responseCache, logger, authFailureGate: null)
+        {
+        }
+
+        internal QobuzApiClient(
+            IQobuzHttpClient httpClient,
+            ISessionManager sessionManager,
+            IRequestSigner requestSigner,
+            IQobuzResponseCache responseCache,
+            Logger logger,
+            AuthFailureGate? authFailureGate)
         {
             _httpClient = httpClient ?? throw new ArgumentNullException(nameof(httpClient));
             _sessionManager = sessionManager ?? throw new ArgumentNullException(nameof(sessionManager));
             _requestSigner = requestSigner ?? throw new ArgumentNullException(nameof(requestSigner));
             _responseCache = responseCache ?? throw new ArgumentNullException(nameof(responseCache));
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+            _authFailureGate = authFailureGate ?? NativeGate.Value;
         }
 
         /// <summary>
@@ -115,12 +134,31 @@ namespace Lidarr.Plugin.Qobuzarr.API
 
         /// <inheritdoc />
         /// <remarks>
-        /// The Lidarr-native <see cref="QobuzApiClient"/> does not hold an
-        /// <see cref="Lidarr.Plugin.Common.Services.Bridge.AuthFailureGate"/>; the gate lives on
-        /// <c>BridgeQobuzApiClient</c> (bridge context only). Returns null so callers can safely
-        /// null-check without needing to know which implementation they hold.
+        /// The Lidarr-native <see cref="QobuzApiClient"/> exposes a plugin-local shared
+        /// <see cref="AuthFailureGate"/> so the native <c>QobuzIndexer</c>,
+        /// <c>QobuzDownloadClient</c>, and <c>QobuzAuthHealthCheck</c> observe the same
+        /// auth state. This mirrors <c>BridgeQobuzApiClient</c> without sharing any gate
+        /// across plugin AssemblyLoadContexts.
         /// </remarks>
-        public Lidarr.Plugin.Common.Services.Bridge.AuthFailureGate? Gate => null;
+        public AuthFailureGate? Gate => _authFailureGate;
+
+        internal static void ResetNativeAuthFailureGate()
+        {
+            if (NativeGate.IsValueCreated)
+            {
+                NativeGate.Value.ForceReset();
+            }
+        }
+
+        private static AuthFailureGate CreateNativeAuthFailureGate()
+        {
+            var handler = new DefaultAuthFailureHandler(NullLogger<DefaultAuthFailureHandler>.Instance);
+            return new AuthFailureGate(
+                handler,
+                TimeProvider.System,
+                TimeSpan.FromSeconds(60),
+                NullLogger<AuthFailureGate>.Instance);
+        }
 
         /// <summary>
         /// Set the authentication service for session renewal
@@ -336,7 +374,7 @@ namespace Lidarr.Plugin.Qobuzarr.API
                 }
 
                 // POST path — uncached, goes through Lidarr's IHttpClient directly.
-                return await ExecuteUncachedAsync<T>(method, url, allParameters, data).ConfigureAwait(false);
+                return await ExecuteUncachedAsync<T>(method, endpoint, url, allParameters, data).ConfigureAwait(false);
             }
             catch (Exception ex)
             {
@@ -397,8 +435,13 @@ namespace Lidarr.Plugin.Qobuzarr.API
                 : string.Empty;
             if (statusInt >= 400)
             {
-                _logger.Error("❌ API Error Response: {0}", bodyText);
-                HandleErrorResponse(result.StatusCode, bodyText);
+                _logger.Error("❌ API Error Response: {0}", LogRedactor.Redact(bodyText));
+                await ThrowAndRecordErrorResponseAsync(result.StatusCode, bodyText, endpoint).ConfigureAwait(false);
+            }
+
+            if (result.HitKind is CacheHitKind.Miss or CacheHitKind.NotModifiedFold)
+            {
+                await RecordAuthSuccessAsync().ConfigureAwait(false);
             }
 
             // Log first 500 chars of response for debugging (sanitized)
@@ -418,7 +461,7 @@ namespace Lidarr.Plugin.Qobuzarr.API
         /// Legacy uncached path for POST (and any other non-GET methods). Caching/conditional
         /// revalidation does not apply here.
         /// </summary>
-        private async Task<T> ExecuteUncachedAsync<T>(string method, string url, Dictionary<string, string> allParameters, object? data) where T : class
+        private async Task<T> ExecuteUncachedAsync<T>(string method, string endpoint, string url, Dictionary<string, string> allParameters, object? data) where T : class
         {
             var requestBuilder = _httpClient.BuildRequest(url, method);
             var request = requestBuilder.Build();
@@ -436,9 +479,11 @@ namespace Lidarr.Plugin.Qobuzarr.API
 
             if (response.HasHttpError)
             {
-                _logger.Error("❌ API Error Response: {0}", response.Content);
-                HandleErrorResponse(response);
+                _logger.Error("❌ API Error Response: {0}", LogRedactor.Redact(response.Content));
+                await ThrowAndRecordErrorResponseAsync(response.StatusCode, response.Content, endpoint).ConfigureAwait(false);
             }
+
+            await RecordAuthSuccessAsync().ConfigureAwait(false);
 
             var result = JsonConvert.DeserializeObject<T>(response.Content);
 
@@ -497,6 +542,64 @@ namespace Lidarr.Plugin.Qobuzarr.API
             HandleErrorResponse(response.StatusCode, response.Content);
         }
 
+        private async ValueTask ThrowAndRecordErrorResponseAsync(HttpStatusCode statusCode, string? content, string endpoint)
+        {
+            try
+            {
+                HandleErrorResponse(statusCode, content);
+            }
+            catch (QobuzApiException ex)
+            {
+                await RecordAuthFailureIfNeededAsync(ex, endpoint).ConfigureAwait(false);
+                throw;
+            }
+        }
+
+        private ValueTask RecordAuthFailureIfNeededAsync(QobuzApiException ex, string endpoint)
+        {
+            if (!ShouldRecordAuthFailure((HttpStatusCode)ex.StatusCode, endpoint))
+            {
+                return ValueTask.CompletedTask;
+            }
+
+            var safeEndpoint = string.IsNullOrWhiteSpace(endpoint) ? "Qobuz API" : endpoint;
+            return _authFailureGate.HandleFailureAsync(new AuthFailure
+            {
+                ErrorCode = ex.StatusCode.ToString(),
+                Message = $"Qobuz returned HTTP {ex.StatusCode} for {safeEndpoint}. Re-authenticate Qobuz credentials in plugin settings.",
+                CanReauthenticate = true
+            });
+        }
+
+        private ValueTask RecordAuthSuccessAsync()
+            => _authFailureGate.HandleSuccessAsync();
+
+        internal static bool ShouldRecordAuthFailure(HttpStatusCode statusCode, string? endpoint)
+        {
+            if (statusCode == HttpStatusCode.Unauthorized)
+            {
+                return true;
+            }
+
+            if (statusCode != HttpStatusCode.Forbidden)
+            {
+                return false;
+            }
+
+            return IsAuthenticationEndpoint(endpoint);
+        }
+
+        private static bool IsAuthenticationEndpoint(string? endpoint)
+        {
+            if (string.IsNullOrWhiteSpace(endpoint))
+            {
+                return false;
+            }
+
+            var normalized = endpoint.Trim().TrimStart('/');
+            return normalized.StartsWith("user/login", StringComparison.OrdinalIgnoreCase);
+        }
+
         // Internal for testability — lets us assert that each HTTP status maps to a
         // user-actionable error message. Not part of the public API.
         internal static void HandleErrorResponse(HttpStatusCode statusCode, string? content)
@@ -509,6 +612,7 @@ namespace Lidarr.Plugin.Qobuzarr.API
                     ? null
                     : JsonConvert.DeserializeObject<QobuzErrorResponse>(content);
                 var message = errorResponse?.Message ?? $"HTTP {status}";
+                var safeMessage = LogRedactor.Redact(message);
 
                 // Wave 62 UX: messages now name a remediation, not just the failure mode.
                 throw status switch
@@ -526,12 +630,12 @@ namespace Lidarr.Plugin.Qobuzarr.API
                     >= 500 => new QobuzApiException(
                         $"Qobuz server error (HTTP {status}). This is a temporary problem on Qobuz's side, not your configuration. The plugin will retry; check Qobuz status if it persists.",
                         status, "ServerError"),
-                    _ => new QobuzApiException(message, status, "ApiError")
+                    _ => new QobuzApiException(safeMessage, status, "ApiError")
                 };
             }
             catch (JsonException)
             {
-                throw new QobuzApiException($"HTTP {status}: {content}", status, "UnknownError");
+                throw new QobuzApiException($"HTTP {status}: {LogRedactor.Redact(content)}", status, "UnknownError");
             }
         }
 
@@ -580,8 +684,20 @@ namespace Lidarr.Plugin.Qobuzarr.API
                 }
                 else
                 {
-                    var message = streamingInfo.GetRestrictionMessage() ?? "Qobuz stream is restricted.";
-                    throw new InvalidOperationException(message);
+                    // Route through the classified TrackUnavailableException seam instead of an opaque
+                    // InvalidOperationException. Live-confirmed bug: an unclassified restriction (e.g.
+                    // "Content restricted (TrackRestrictedByPurchaseCredentials)") reached
+                    // TrackDownloadService.ResolveStreamAsync's generic catch as an indistinguishable hard
+                    // failure — identical to a transient network error or a genuine edition mismatch. That
+                    // made every incomplete album (even one incomplete only because of a purchase-only or
+                    // subscription-tier restriction that no retry or re-grab will ever fetch)
+                    // report Failed the same way, so Lidarr blocklisted + re-grabbed the identical release
+                    // forever (every quality tier carries the same restricted track id). Classifying the
+                    // reason here lets the album-completion decision tell "hopeless" apart from
+                    // "recoverable" without changing what gets thrown for anything else.
+                    var restriction = SelectRestrictionForFailure(streamingInfo.Restrictions);
+                    var message = restriction?.GetRestrictionMessage() ?? "Qobuz stream is restricted.";
+                    throw new TrackUnavailableException(trackId, message, ClassifyRestrictionReason(restriction));
                 }
             }
 
@@ -604,6 +720,89 @@ namespace Lidarr.Plugin.Qobuzarr.API
 
             return streamingInfo;
         }
+
+        /// <summary>
+        /// Maps a Qobuz stream restriction to a <see cref="TrackUnavailableReason"/>. Only restriction
+        /// codes and messages Qobuz is known to use for rights gates are classified specifically. Only purchase-only
+        /// content and insufficient subscription tier are later treated as terminal suppression candidates
+        /// (see <see cref="TrackUnavailableReasonExtensions.IsPermanentlyUnavailable"/>); geo-blocks are
+        /// classified as regional but deliberately not permanent.
+        /// Anything unrecognized — including the API's own explicit "TEMP" reason code — falls back to
+        /// <see cref="TrackUnavailableReason.Unknown"/> / <see cref="TrackUnavailableReason.ApiError"/> so
+        /// the album-completion decision never wrongly treats a possibly-transient restriction as
+        /// unfixable.
+        /// </summary>
+        private static TrackUnavailableReason ClassifyRestrictionReason(QobuzStreamRestriction? restriction)
+        {
+            var code = NormalizeRestrictionValue(restriction?.Code);
+            var reasonCode = NormalizeRestrictionValue(restriction?.ReasonCode);
+            var reason = NormalizeRestrictionValue(restriction?.Reason);
+
+            if (EqualsRestriction(code, "TrackRestrictedByPurchaseCredentials") ||
+                ContainsRestriction(reason, "TrackRestrictedByPurchaseCredentials") ||
+                ContainsRestriction(reason, "purchase credentials") ||
+                ContainsRestriction(reason, "purchase-only"))
+            {
+                return TrackUnavailableReason.Restricted;
+            }
+
+            if (EqualsRestriction(code, "SubscriptionRestricted") ||
+                EqualsRestriction(code, "FormatRestrictedBySubscription") ||
+                EqualsRestriction(reasonCode, "SUB") ||
+                ContainsRestriction(reason, "SubscriptionRestricted") ||
+                ContainsRestriction(reason, "FormatRestrictedBySubscription") ||
+                ContainsRestriction(reason, "subscription tier") ||
+                ContainsRestriction(reason, "requires premium subscription") ||
+                ContainsRestriction(reason, "higher subscription"))
+            {
+                return TrackUnavailableReason.SubscriptionRestriction;
+            }
+
+            if (EqualsRestriction(code, "GeoRestricted"))
+            {
+                return TrackUnavailableReason.RegionalRestriction;
+            }
+
+            if (EqualsRestriction(reasonCode, "GEO"))
+            {
+                return TrackUnavailableReason.RegionalRestriction;
+            }
+
+            if (EqualsRestriction(reasonCode, "TEMP") ||
+                ContainsRestriction(reason, "temporarily unavailable"))
+            {
+                return TrackUnavailableReason.ApiError; // explicitly temporary — never permanent
+            }
+
+            if (ContainsRestriction(reason, "not available in your region") ||
+                ContainsRestriction(reason, "not available in your country"))
+            {
+                return TrackUnavailableReason.RegionalRestriction;
+            }
+
+            return TrackUnavailableReason.Unknown;
+        }
+
+        private static QobuzStreamRestriction? SelectRestrictionForFailure(IEnumerable<QobuzStreamRestriction>? restrictions)
+        {
+            var restricted = restrictions?.Where(r => r.HasRestrictions()).ToList();
+            if (restricted is not { Count: > 0 })
+            {
+                return null;
+            }
+
+            return restricted.FirstOrDefault(r => ClassifyRestrictionReason(r).IsPermanentlyUnavailable())
+                ?? restricted[0];
+        }
+
+        private static string NormalizeRestrictionValue(string? value)
+            => string.IsNullOrWhiteSpace(value) ? string.Empty : value.Trim();
+
+        private static bool EqualsRestriction(string actual, string expected)
+            => string.Equals(actual, expected, StringComparison.OrdinalIgnoreCase);
+
+        private static bool ContainsRestriction(string actual, string expected)
+            => actual.IndexOf(expected, StringComparison.OrdinalIgnoreCase) >= 0;
 
         /// <summary>
         /// Gets detailed metadata for a track

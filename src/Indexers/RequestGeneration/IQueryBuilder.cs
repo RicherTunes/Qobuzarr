@@ -10,7 +10,8 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers.RequestGeneration
     public interface IQueryBuilder
     {
         /// <summary>
-        /// Builds search queries for album search criteria.
+        /// Builds the ordered fallback query ladder for an album search
+        /// (combined -> artist-only -> album-only), best-first.
         /// </summary>
         List<string> BuildAlbumSearchQueries(AlbumSearchCriteria searchCriteria);
 
@@ -20,23 +21,13 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers.RequestGeneration
         List<string> BuildArtistSearchQueries(ArtistSearchCriteria searchCriteria);
 
         /// <summary>
-        /// Cleans and normalizes a search query.
+        /// Builds the artist-only catalogue fallback tier for capped album searches.
+        /// </summary>
+        IReadOnlyList<string> BuildArtistFallbackQueries(string artistName);
+
+        /// <summary>
+        /// Canonicalizes a single search term to its raw (NFC, control/symbol-aware) form.
         /// </summary>
         string CleanQuery(string query);
-
-        /// <summary>
-        /// Applies title case formatting to text.
-        /// </summary>
-        string ApplyTitleCase(string text);
-
-        /// <summary>
-        /// Extracts the core album title by removing common suffixes.
-        /// </summary>
-        string ExtractCoreAlbumTitle(string albumTitle);
-
-        /// <summary>
-        /// Tries to extract year from a query string.
-        /// </summary>
-        bool TryExtractYear(string query, out int year);
     }
 }

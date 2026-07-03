@@ -2,7 +2,6 @@ using System;
 using Xunit;
 using FluentAssertions;
 using Lidarr.Plugin.Qobuzarr.Services;
-using Lidarr.Plugin.Qobuzarr.Download.Services;
 
 namespace Qobuzarr.Tests.Unit.Services
 {
@@ -221,118 +220,6 @@ namespace Qobuzarr.Tests.Unit.Services
 
         #endregion
 
-        #region DownloadQueueStatistics Tests
-
-        [Fact]
-        public void DownloadQueueStatistics_DefaultConstructor_InitializesCorrectly()
-        {
-            // Act
-            var stats = new DownloadQueueStatistics();
-
-            // Assert
-            stats.TotalDownloads.Should().Be(0);
-            stats.QueuedDownloads.Should().Be(0);
-            stats.DownloadingDownloads.Should().Be(0);
-            stats.CompletedDownloads.Should().Be(0);
-            stats.FailedDownloads.Should().Be(0);
-            stats.TotalBytesDownloaded.Should().Be(0);
-            stats.LastUpdated.Should().BeCloseTo(DateTime.UtcNow, TimeSpan.FromSeconds(5));
-        }
-
-        [Fact]
-        public void DownloadQueueStatistics_WithProperties_SetCorrectly()
-        {
-            // Arrange
-            var lastUpdated = DateTime.UtcNow.AddMinutes(-5);
-
-            // Act
-            var stats = new DownloadQueueStatistics
-            {
-                TotalDownloads = 100,
-                QueuedDownloads = 20,
-                DownloadingDownloads = 10,
-                CompletedDownloads = 60,
-                FailedDownloads = 10,
-                TotalBytesDownloaded = 1073741824, // 1 GB
-                LastUpdated = lastUpdated
-            };
-
-            // Assert
-            stats.TotalDownloads.Should().Be(100);
-            stats.QueuedDownloads.Should().Be(20);
-            stats.DownloadingDownloads.Should().Be(10);
-            stats.CompletedDownloads.Should().Be(60);
-            stats.FailedDownloads.Should().Be(10);
-            stats.TotalBytesDownloaded.Should().Be(1073741824);
-            stats.LastUpdated.Should().Be(lastUpdated);
-        }
-
-        [Theory]
-        [InlineData(20, 10, 60, 10, 100)]
-        [InlineData(0, 0, 0, 0, 0)]
-        [InlineData(1, 2, 3, 4, 10)]
-        public void DownloadQueueStatistics_TotalsSumCorrectly(int queued, int downloading, int completed, int failed, int expectedTotal)
-        {
-            // Act
-            var stats = new DownloadQueueStatistics
-            {
-                QueuedDownloads = queued,
-                DownloadingDownloads = downloading,
-                CompletedDownloads = completed,
-                FailedDownloads = failed,
-                TotalDownloads = expectedTotal
-            };
-
-            // Assert - In real implementation, TotalDownloads would be calculated
-            var calculatedTotal = stats.QueuedDownloads + stats.DownloadingDownloads +
-                                 stats.CompletedDownloads + stats.FailedDownloads;
-            calculatedTotal.Should().Be(expectedTotal);
-        }
-
-        [Fact]
-        public void DownloadQueueStatistics_LargeByteCounts_HandleCorrectly()
-        {
-            // Arrange - Test with very large byte counts (petabyte scale)
-            const long petabyte = 1125899906842624; // 1 PB in bytes
-
-            // Act
-            var stats = new DownloadQueueStatistics
-            {
-                TotalBytesDownloaded = petabyte
-            };
-
-            // Assert
-            stats.TotalBytesDownloaded.Should().Be(petabyte);
-        }
-
-        [Fact]
-        public void DownloadQueueStatistics_LastUpdated_DefaultsToRecentTime()
-        {
-            // Act
-            var stats = new DownloadQueueStatistics();
-
-            // Assert
-            stats.LastUpdated.Should().BeCloseTo(DateTime.UtcNow, TimeSpan.FromSeconds(1));
-        }
-
-        [Fact]
-        public void DownloadQueueStatistics_LastUpdated_CanBeSetExplicitly()
-        {
-            // Arrange
-            var specificTime = new DateTime(2024, 1, 1, 12, 0, 0, DateTimeKind.Utc);
-
-            // Act
-            var stats = new DownloadQueueStatistics
-            {
-                LastUpdated = specificTime
-            };
-
-            // Assert
-            stats.LastUpdated.Should().Be(specificTime);
-        }
-
-        #endregion
-
         #region Model Comparison and Equality Tests
 
         [Fact]
@@ -431,19 +318,6 @@ namespace Qobuzarr.Tests.Unit.Services
 
             stats.TotalDownloadSlotAcquisitions.Should().Be(value);
             stats.TotalSearchSlotAcquisitions.Should().Be(value);
-        }
-
-        [Fact]
-        public void DownloadQueueStatistics_HandlesMinMaxDateTime()
-        {
-            // Act & Assert - Should handle extreme DateTime values
-            var stats = new DownloadQueueStatistics();
-
-            stats.LastUpdated = DateTime.MinValue;
-            stats.LastUpdated.Should().Be(DateTime.MinValue);
-
-            stats.LastUpdated = DateTime.MaxValue;
-            stats.LastUpdated.Should().Be(DateTime.MaxValue);
         }
 
         #endregion

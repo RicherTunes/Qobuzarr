@@ -67,8 +67,13 @@ namespace Lidarr.Plugin.Qobuzarr.API.Http
         /// <inheritdoc/>
         public async Task<HttpResponse> ExecuteAsync(HttpRequest request, CancellationToken cancellationToken = default)
         {
-            // Apply adaptive rate limiting when available
-            var endpoint = request?.Url?.ToString() ?? "unknown";
+            // Apply adaptive rate limiting when available.
+            // Key on a COARSE host+first-path-segment bucket (e.g. "www.qobuz.com:api.json"), NOT the
+            // full URL. Every album/track URL carries distinct ids + signed query params, so keying on
+            // the full URL gave each item its own bucket — each hit ~once, the adaptive limiter never
+            // accumulated pressure, and global rate limiting was effectively disabled (429 storm / ban
+            // risk). The coarse key must be IDENTICAL for WaitIfNeededAsync and every RecordResponse.
+            var endpoint = BuildRateLimitKey(request);
             if (_adaptiveRateLimiter != null)
             {
                 await _adaptiveRateLimiter.WaitIfNeededAsync(QobuzarrConstants.ServiceName, endpoint, cancellationToken)
@@ -250,6 +255,24 @@ namespace Lidarr.Plugin.Qobuzarr.API.Http
         {
             var ms = Random.Shared.Next(50, 250);
             return TimeSpan.FromMilliseconds(ms);
+        }
+
+        /// <summary>
+        /// Builds the coarse, per-endpoint rate-limit bucket key (host + first path segment, e.g.
+        /// "www.qobuz.com:api.json") via Common's <see cref="RateLimitHeaderUtilities"/>. Collapses
+        /// the per-item album/track URLs (distinct ids + signed query params) into ONE stable bucket
+        /// so the adaptive limiter accumulates pressure across all calls instead of seeing each URL
+        /// exactly once.
+        /// </summary>
+        private static string BuildRateLimitKey(HttpRequest? request)
+        {
+            var url = request?.Url?.ToString();
+            if (string.IsNullOrWhiteSpace(url) || !Uri.TryCreate(url, UriKind.Absolute, out var uri))
+            {
+                return "unknown";
+            }
+
+            return RateLimitHeaderUtilities.BuildHostFirstSegmentKey(uri);
         }
 
         private static string GetSafeUrlForLogging(HttpRequest? request)

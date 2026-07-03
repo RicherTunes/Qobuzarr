@@ -54,7 +54,6 @@ namespace Lidarr.Plugin.Qobuzarr.Authentication
         private readonly TimeSpan _refreshBuffer = TimeSpan.FromMinutes(Constants.QobuzarrConstants.Defaults.TokenRefreshBufferMinutes); // Refresh this many minutes before expiry
         private readonly int _maxRetryAttempts = Constants.QobuzarrConstants.Defaults.TokenMaxRetryAttempts;
         private readonly TimeSpan _initialRetryDelay = TimeSpan.FromSeconds(Constants.QobuzarrConstants.Defaults.TokenInitialRetryDelaySeconds);
-        private readonly double _backoffMultiplier = Constants.QobuzarrConstants.Defaults.TokenBackoffMultiplier;
         private readonly int _circuitBreakerThreshold = Constants.QobuzarrConstants.Defaults.TokenCircuitBreakerThreshold; // Fail-open after this many consecutive failures
 
         // Metrics

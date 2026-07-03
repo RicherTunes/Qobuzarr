@@ -4,18 +4,15 @@
 
 This guide helps diagnose and resolve build failures in the Qobuzarr CI/CD pipeline. The project uses multiple build methods for maximum compatibility validation.
 
-## Build Method Status ✅
+## CI Status
 
-### **✅ Primary Build Methods (Always Working)**
+**Primary CI**: Gitea (`.gitea/workflows/ci.yml`) — three jobs:
 
-- **CI (Simple)**: ✅ Main build pipeline - uses source assemblies
-- **Validate**: ✅ Quick validation build
-- **Build Plugin (TypNull's Method)**: ✅ Alternative assembly method
+- **`CI / secret-scan`**: Gitleaks scan with pinned archive checksum verification.
+- **`CI / lint`**: Fast ecosystem gates (date-parsing, sync-over-async, ecosystem-parity scripts from Common).
+- **`CI / verify`**: Full pipeline — host-assembly extraction from Docker, build, ILRepack package, packaging-closure check, deterministic test suite — via `pwsh scripts/verify-local.ps1`.
 
-### **🔧 Secondary Build Methods (May Need Fixes)**
-
-- **Build Plugin (Docker Method)**: Uses Docker-extracted assemblies
-- **Deploy Documentation**: Requires GitHub Pages enabled
+Check CI status for a commit or PR in the Gitea Actions UI on the self-hosted instance.
 
 ## Common Build Issues & Solutions
 
@@ -137,22 +134,23 @@ Lidarr source code includes Sentry integration that tries to contact Sentry serv
 
 ## Build Method Comparison
 
-### **Primary Method: CI (Simple)**
+### **Primary CI: Gitea (`CI / secret-scan` + `CI / lint` + `CI / verify`)**
 
 ```yaml
-# Uses: ext/Lidarr-source assemblies (source build)
-# Status: ✅ Always works
-# Purpose: Main development and release pipeline
+# Workflow: .gitea/workflows/ci.yml
+# lint job: ecosystem gates (date-parsing, sync-over-async, ecosystem-parity)
+# verify job: Docker-extract → build → ILRepack → closure check → tests
+# Local equivalent: pwsh scripts/verify-local.ps1
 ```
 
 **Advantages**:
 
-- ✅ Fastest build time
-- ✅ Most reliable
-- ✅ Includes all source code
-- ✅ Full analyzer support
+- ✅ Self-hosted runner — no billing limits
+- ✅ Same local-ci.ps1 pipeline developers use locally
+- ✅ Docker-extracted host assemblies match production runtime
+- ✅ Packaging-closure check prevents missing-DLL deploy bugs
 
-**When to Use**: Default for all development
+**When to Use**: Default — runs automatically on every push and PR
 
 ### **Alternative Method: Docker**
 
@@ -193,15 +191,18 @@ Lidarr source code includes Sentry integration that tries to contact Sentry serv
 
 ## Troubleshooting Steps
 
-### **Step 1: Check Primary Build Status**
+### **Step 1: Check Primary CI Status**
 
-```bash
-# Main build should always work
-gh run list --workflow="CI (Simple)" --limit 1
+Check the Gitea Actions UI for the commit or PR — `CI / secret-scan`, `CI / lint`, and `CI / verify` must all be green.
+
+To reproduce locally (same pipeline CI runs):
+
+```powershell
+pwsh scripts/verify-local.ps1
 ```
 
-If primary build fails → **Critical issue** (fix immediately)
-If only alternative builds fail → **Enhancement issue** (fix when convenient)
+If `CI / verify` fails → **Critical issue** (fix immediately); `CI / lint` failure is also critical.
+If `CI / verify` times out during assembly extraction → Docker daemon unreachable on runner (infrastructure issue, not a code bug).
 
 ### **Step 2: Identify Failure Type**
 
@@ -233,14 +234,19 @@ If only alternative builds fail → **Enhancement issue** (fix when convenient)
 
 ### **Step 4: Verify Fix**
 
-```bash
-# Test specific workflow
-gh workflow run "Build Plugin (Docker Method)"
-gh run watch
+Run the full local pipeline (same as Gitea's `CI / verify` job):
 
-# Check all workflows status
-gh run list --limit 5
+```powershell
+pwsh scripts/verify-local.ps1
 ```
+
+For a faster rerun when host assemblies are already extracted:
+
+```powershell
+pwsh scripts/verify-local.ps1 -SkipExtract
+```
+
+Then push; confirm `CI / secret-scan`, `CI / lint`, and `CI / verify` are all green in the Gitea Actions UI.
 
 ## Maintenance Schedule
 
@@ -273,6 +279,5 @@ gh run list --limit 5
 
 ---
 
-**Status**: Robust build pipeline with multiple fallback methods  
-**Primary Build**: ✅ Always reliable (CI Simple)  
-**Alternative Builds**: 🔧 Enhanced with error handling and troubleshooting
+**Primary CI**: Gitea (`.gitea/workflows/ci.yml`) — `CI / secret-scan` + `CI / lint` + `CI / verify`
+**Local equivalent**: `pwsh scripts/verify-local.ps1`

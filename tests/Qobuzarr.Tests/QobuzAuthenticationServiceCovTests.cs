@@ -480,13 +480,17 @@ namespace Qobuzarr.Tests
         #region AuthenticateWithEmailAsync HTTP Error (Source line 316)
 
         [Fact]
-        public async Task AuthenticateWithEmailAsync_HttpError_ThrowsHttpException()
+        public async Task AuthenticateWithEmailAsync_HttpError_SuppressesHostError_AndScrubsMessage()
         {
-            // Source line 316: throw new HttpException(request, response);
+            // SECURITY contract: the login URL carries email + md5(password) as query params.
+            // The host HttpException message embeds the full request URL, so the request must
+            // set SuppressHttpError (or the host throws before our mapping runs) and the mapped
+            // exception must never contain the credentials or the login URL — its text flows
+            // into Lidarr's error log and the UI Test result.
             var credentials = new QobuzCredentials
             {
-                Email = "test@example.com",
-                MD5Password = "hashed_password",
+                Email = "leak-probe@example.com",
+                MD5Password = "d41d8cd98f00b204e9800998ecf8427e",
                 AppId = "test_app_id",
                 AppSecret = "test_app_secret"
             };
@@ -497,13 +501,26 @@ namespace Qobuzarr.Tests
                 "{\"error\": \"Unauthorized\"}",
                 HttpStatusCode.Unauthorized);
 
+            HttpRequest capturedRequest = null;
             MockHttpClient.Setup(x => x.ExecuteAsync(It.IsAny<HttpRequest>()))
+                .Callback<HttpRequest>(r => capturedRequest = r)
                 .ReturnsAsync(errorResponse);
 
-            var exception = await Assert.ThrowsAsync<HttpException>(
+            var exception = await Assert.ThrowsAsync<InvalidOperationException>(
                 async () => await _authService.AuthenticateAsync(credentials));
 
-            exception.Response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
+            capturedRequest.Should().NotBeNull();
+            capturedRequest.SuppressHttpError.Should().BeTrue(
+                "the host HttpException embeds the credential-bearing login URL");
+            exception.Message.Should().NotContain("leak-probe@example.com");
+            exception.Message.Should().NotContain("d41d8cd98f00b204e9800998ecf8427e");
+            exception.Message.Should().NotContain("test_app_id");
+            exception.Message.Should().NotContain("test_app_secret");
+            exception.Message.Should().NotContain("email=");
+            exception.Message.Should().NotContain("password=");
+            exception.Message.Should().NotContain("app_id=");
+            exception.Message.Should().NotContain("user/login");
+            exception.Message.Should().Contain("401");
         }
 
         #endregion

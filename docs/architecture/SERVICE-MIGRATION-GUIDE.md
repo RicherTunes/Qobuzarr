@@ -30,7 +30,7 @@ Qobuzarr is in the process of migrating from multiple specialized services to co
 - `QualityMappingService` <!-- TODO(docval): QualityMappingService class not found in code as of 2026-05-31 -->
 - `QualityFallbackService` <!-- TODO(docval): QualityFallbackService class not found in code as of 2026-05-31 -->
 - `IntelligentQualityDetector` <!-- TODO(docval): IntelligentQualityDetector class not found in code as of 2026-05-31 -->
-- `BatchStreamingUrlProvider` (quality aspects) <!-- TODO(docval): BatchStreamingUrlProvider class not found in code as of 2026-05-31 -->
+- Stream URL quality fallback now lives in `TrackDownloadService` plus the API client stream-info path.
 
 **Key Capabilities:**
 
@@ -152,7 +152,9 @@ var batchResult = await _qualityManager.GetBatchStreamInfoAsync(trackIds, prefer
 |---------------|-------------------|-----------------|
 | `LidarrAlbumRetriever` | `IQualityMappingService` <!-- TODO(docval): LidarrAlbumRetriever class not found in code as of 2026-05-31 --> | Update constructor + method calls |
 | `QobuzValidationService` | `QobuzQualityService` | Update to `IQobuzQualityManager` |
-| `QobuzApiService` | `QualityMappingService` <!-- TODO(docval): QobuzApiService class found but QualityMappingService dependency not verified as of 2026-05-31 --> | Update to consolidated interface |
+
+`QobuzApiService` is no longer a migration target; the legacy wrapper was removed and stream URL
+resolution now flows through `IQobuzApiClient` plus the active download services.
 
 ### 🔧 Migration Adapters (Remove After Migration)
 
@@ -174,7 +176,7 @@ Located in `src/Services/Consolidated/ConsolidatedServiceRegistration.cs`: <!-- 
 - [ ] Update method calls to use consolidated API
 - [ ] Test functionality after migration
 - [ ] Migrate `QobuzValidationService`
-- [ ] Migrate `QobuzApiService`
+- [x] Remove the legacy `QobuzApiService` wrapper
 
 ### Phase 2B: Remove Legacy Services
 
@@ -228,10 +230,10 @@ Located in `src/Services/Consolidated/ConsolidatedServiceRegistration.cs`: <!-- 
 
 ### Stream Management
 
-| Legacy Method | Consolidated Method |
-|---------------|-------------------|
-| `BatchStreamingUrlProvider.GetStreamUrl()` | `IQobuzQualityManager.GetStreamInfoAsync()` |
-| `BatchStreamingUrlProvider.GetBatchStreamUrls()` | `IQobuzQualityManager.GetBatchStreamInfoAsync()` |
+Stream URL lookup is no longer a standalone service surface. The active download path is
+`QobuzDownloadClient` -> `QobuzDownloadOrchestrator` -> `TrackDownloadService`, with stream
+information obtained through the Qobuz API client and permanent-unavailability classification
+kept in that path.
 
 ## Testing Strategy
 

@@ -1,3 +1,4 @@
+<!-- docval:ignore-workflow-refs -->
 # Qobuzarr Integration Examples
 
 This comprehensive guide provides working examples for integrating Qobuzarr with various services, automation platforms, and modern infrastructure. All examples are tested and production-ready.

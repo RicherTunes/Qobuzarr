@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using Lidarr.Plugin.Abstractions.Contracts;
 using Lidarr.Plugin.Common.Services.Bridge;
 using Lidarr.Plugin.Qobuzarr.Download.Clients;
+using Lidarr.Plugin.Qobuzarr.Exceptions;
 
 using Microsoft.Extensions.Logging.Abstractions;
 
@@ -117,13 +118,32 @@ public sealed class QobuzDownloadClientAuthGateTests
     // Test 4: LooksLikeAuthFailure helper — qobuz-specific patterns
     // ------------------------------------------------------------------ //
 
-    [Theory]
-    [InlineData(HttpStatusCode.Unauthorized)]
-    [InlineData(HttpStatusCode.Forbidden)]
-    public void LooksLikeAuthFailure_HttpRequestException_401Or403_ReturnsTrue(HttpStatusCode status)
+    [Fact]
+    public void LooksLikeAuthFailure_HttpRequestException_401_ReturnsTrue()
     {
-        var ex = new HttpRequestException("auth failed", null, status);
+        var ex = new HttpRequestException("auth failed", null, HttpStatusCode.Unauthorized);
         Assert.True(QobuzDownloadClient.LooksLikeAuthFailure(ex));
+    }
+
+    [Fact]
+    public void LooksLikeAuthFailure_EndpointlessHttp403_ReturnsFalse()
+    {
+        var ex = new HttpRequestException("forbidden resource", null, HttpStatusCode.Forbidden);
+        Assert.False(QobuzDownloadClient.LooksLikeAuthFailure(ex));
+    }
+
+    [Fact]
+    public void LooksLikeAuthFailure_QobuzApiException403OnLogin_ReturnsTrue()
+    {
+        var ex = new QobuzApiException("invalid app credentials", "/user/login", HttpStatusCode.Forbidden);
+        Assert.True(QobuzDownloadClient.LooksLikeAuthFailure(ex));
+    }
+
+    [Fact]
+    public void LooksLikeAuthFailure_QobuzApiException403OnResource_ReturnsFalse()
+    {
+        var ex = new QobuzApiException("subscription tier denied", "/track/getFileUrl", HttpStatusCode.Forbidden);
+        Assert.False(QobuzDownloadClient.LooksLikeAuthFailure(ex));
     }
 
     [Fact]

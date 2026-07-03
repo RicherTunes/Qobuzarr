@@ -48,14 +48,17 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers.Core
         {
             var modelType = (MLModelType)(_settings?.MLModelType ?? (int)MLModelType.Baseline);
 
-            logger.Info($"Initializing ML optimizer: {modelType}");
+            // Debug, not Info: QobuzIndexer is transient (new per search), so this ran on EVERY
+            // search — 2 noisy Info lines per query under load. These are instantiation diagnostics,
+            // not operational events. (Live-load observation 2026-07-01: 23/23 searches logged this.)
+            logger.Debug($"Initializing ML optimizer: {modelType}");
 
             try
             {
                 switch (modelType)
                 {
                     case MLModelType.Baseline:
-                        logger.Info("Using baseline ML model (trained on 500K+ albums)");
+                        logger.Debug("Using baseline ML model (trained on 500K+ albums)");
                         return new CompiledMLQueryOptimizer(logger);
 
                     case MLModelType.Personal:

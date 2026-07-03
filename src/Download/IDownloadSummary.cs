@@ -24,6 +24,11 @@ namespace Lidarr.Plugin.Qobuzarr.Download
         string GenerateReport();
 
         /// <summary>
+        /// Gets a compact summary suitable for per-album progress logging.
+        /// </summary>
+        string GetBriefSummary();
+
+        /// <summary>
         /// Gets the total number of albums processed
         /// </summary>
         int GetTotalAlbums();

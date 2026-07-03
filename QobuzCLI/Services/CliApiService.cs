@@ -15,7 +15,6 @@ namespace QobuzCLI.Services
     /// </summary>
     public class CliApiService
     {
-        private readonly QobuzStreamUrlService? _streamUrlService; // deprecated
         private readonly QobuzSearchService? _searchService; // deprecated
         private readonly CliQualityServiceAdapter _qualityService;
         private readonly CliQobuzValidationService _validationService;
@@ -23,14 +22,12 @@ namespace QobuzCLI.Services
         private readonly Lidarr.Plugin.Qobuzarr.API.IQobuzApiClient _apiClient;
 
         public CliApiService(
-            QobuzStreamUrlService? streamUrlService,
             QobuzSearchService? searchService,
             CliQualityServiceAdapter qualityService,
             CliQobuzValidationService validationService,
             IQobuzLogger logger,
             Lidarr.Plugin.Qobuzarr.API.IQobuzApiClient apiClient)
         {
-            _streamUrlService = streamUrlService;
             _searchService = searchService;
             _qualityService = qualityService ?? throw new ArgumentNullException(nameof(qualityService));
             _validationService = validationService ?? throw new ArgumentNullException(nameof(validationService));

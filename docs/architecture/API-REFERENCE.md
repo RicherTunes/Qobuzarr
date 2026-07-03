@@ -586,80 +586,70 @@ public class LidarrContextOptimizer
 - **Smart Artist Matching**: Uses Lidarr's artist aliases and variations
 - **Album Metadata Enhancement**: Enriches searches with existing Lidarr album data
 
-### LidarrQueueManager
+### Queue DTO Compatibility
 
-**New in v0.0.12**: Advanced queue management for Lidarr integration.
+The old concrete queue manager has been removed. Qobuzarr keeps only the queue DTO and
+interface compatibility types needed by QobuzCLI compile-time adapters; runtime downloads
+flow through `QobuzDownloadClient`, `QobuzDownloadOrchestrator`, and Common's host bridge.
 
 ```csharp
-public class LidarrQueueManager : ILidarrQueueManager
+public interface ILidarrQueueManager
 {
-    Task<QueueStatus> GetQueueStatusAsync();
-    Task<List<QueueItem>> GetPendingItemsAsync(QueueFilter filter = null);<!-- TODO(docval): QueueFilter type not found as of 2026-05-31 -->
-    Task<bool> AddToQueueAsync(QobuzAlbum album, QueuePriority priority = QueuePriority.Normal);<!-- TODO(docval): QueuePriority enum not found; AddToQueueAsync signature different as of 2026-05-31 -->
-    Task<QueueProcessingResult> ProcessQueueAsync(QueueProcessingOptions options);<!-- TODO(docval): QueueProcessingResult and QueueProcessingOptions types not found as of 2026-05-31 -->
+    QueueStatus GetQueueStatus();
+    QueueStatistics GetQueueStatistics();
 }
 ```
 
-**Advanced Queue Features:**
+**Current queue behavior:**
 
-- **Priority-Based Processing**: High, Normal, Low priority queues
-- **Intelligent Scheduling**: Optimal processing order based on dependencies
-- **Progress Tracking**: Real-time progress updates for queue processing
-- **Error Recovery**: Automatic retry and error handling strategies
+- **Lidarr-owned queue**: Lidarr owns queued download-client items.
+- **Common host bridge**: Common persists host-bridge download item state.
+- **Plugin concurrency**: `ConcurrencyManager` gates plugin-side track work.
+- **Compatibility DTOs**: `QueueStatus` and `QueueStatistics` remain for QobuzCLI references.
 
 ## Performance Services API
 
 ### AdaptiveRateLimiter
 
-**Enhanced in v0.0.12**: Intelligent rate limiting with adaptive algorithms.
+Plugin-assembly adapter for Lidarr auto-registration over Common's `NamedServiceRateLimiter`.
 
 ```csharp
-public class AdaptiveRateLimiter : IAdaptiveRateLimiter<!-- TODO(docval): IAdaptiveRateLimiter interface not found as of 2026-05-31 -->
+public class AdaptiveRateLimiter : NamedServiceRateLimiter
 {
-    Task<bool> WaitIfNeededAsync(string endpoint, CancellationToken cancellationToken);
-    void RecordResponse(string endpoint, HttpResponseMessage response);
-    int GetCurrentLimit(string endpoint);
-    RateLimitStats GetStats();
-    AdaptiveRateLimitConfig GetConfiguration();<!-- TODO(docval): AdaptiveRateLimitConfig type not found as of 2026-05-31 -->
+    public AdaptiveRateLimiter() : base("Qobuz") { }
 }
 ```
 
 **Adaptive Features:**
 
-- **Endpoint-Specific Limits**: Different limits for search, download, metadata endpoints
-- **Success-Based Adjustment**: Increases limits after consistent success
-- **Failure-Based Backoff**: Reduces limits on rate limit or error responses
-- **Global vs Local Limiting**: Balances per-endpoint and global API limits
+- **Common-Owned Algorithm**: Adaptive limits, stats, and response recording are implemented by `NamedServiceRateLimiter`
+- **Service Binding**: The Qobuzarr class supplies the `Qobuz` service name for Common's named limiter
+- **Lidarr Registration**: The local concrete type keeps plugin auto-registration working without reimplementing rate limiting
+- **Global vs Local Limiting**: Uses Common's shared global and named service limiter state
 
 **Rate Limiting Algorithm:**
 
-```
-Default: 60 req/min
-Success threshold: 20 consecutive successes → increase by 20%
-Failure response: Immediate reduction by 25%
-Min limit: 10 req/min, Max limit: 500 req/min
-```
+Qobuzarr does not define a local rate-limiting algorithm. Common `NamedServiceRateLimiter` owns the adaptive limits, backoff, and statistics behavior.
 
-### AdaptiveConcurrencyManager
+### ConcurrencyManager
 
-**New in v0.0.12**: Dynamic concurrency management for optimal performance.
+Thread-safe plugin-side concurrency gate used by the active download pipeline.
 
 ```csharp
-public class AdaptiveConcurrencyManager
+public class ConcurrencyManager : IConcurrencyManager
 {
-    Task<T> ExecuteAsync<T>(Func<Task<T>> operation, ConcurrencyContext context);<!-- TODO(docval): ConcurrencyContext type not found; ExecuteAsync signature different as of 2026-05-31 -->
-    void UpdatePerformanceMetrics(OperationResult result);<!-- TODO(docval): OperationResult type not found as of 2026-05-31 -->
+    Task<IDisposable> AcquireSlotAsync(CancellationToken cancellationToken = default);
+    void UpdateConcurrencyLimit(int newLimit);
     ConcurrencyStatistics GetStatistics();
-    void SetConcurrencyLimits(ConcurrencyLimits limits);<!-- TODO(docval): ConcurrencyLimits type not found as of 2026-05-31 -->
 }
 ```
 
-**Adaptive Algorithms:**
+**Concurrency behavior:**
 
-- **Performance-Based Adjustment**: Increases/decreases based on response times
-- **Error-Rate Monitoring**: Reduces concurrency on high error rates
-- **Memory Pressure Response**: Adapts to available system memory
-- **Network Condition Awareness**: Adjusts based on network performance
+- **Single semaphore model**: Avoids replacing semaphores while work is in flight.
+- **Runtime limit updates**: Increases release permits; decreases drain or defer permits safely.
+- **Cancellation-aware acquire**: Waiting callers can cancel without leaking slots.
+- **Statistics**: Exposes current/active slot counts and recent acquisition data.
 
 ### MemoryHealthMonitor
 
@@ -869,20 +859,16 @@ public class CacheStatistics
 }
 ```
 
-#### RateLimitStats (Enhanced)
+#### GlobalRateLimitStats
 
 ```csharp
-public class RateLimitStats
+public class GlobalRateLimitStats
 {
-    public Dictionary<string, int> EndpointLimits { get; set; }
-    public Dictionary<string, int> CurrentUsage { get; set; }
-    public Dictionary<string, TimeSpan> NextAvailable { get; set; }
-    
-    // New adaptive metrics
-    public Dictionary<string, double> AdaptationHistory { get; set; }
-    public Dictionary<string, int> SuccessStreak { get; set; }
-    public DateTime LastRateLimitHit { get; set; }
-    public int TotalAdaptations { get; set; }
+    public Dictionary<string, ServiceRateLimitStats> ServiceStats { get; set; }
+    public long TotalRequests { get; set; }
+    public long TotalErrors { get; set; }
+    public long TotalRateLimitHits { get; set; }
+    public double GlobalSuccessRate { get; set; }
 }
 ```
 
@@ -1047,9 +1033,9 @@ if (cachedResult != null) return cachedResult.CachedData;
 1. **Enable Adaptive Rate Limiting**
 
 ```csharp
-// ✅ ADAPTIVE: Let the system optimize API usage
-var rateLimiter = new AdaptiveRateLimiter(logger);
-await rateLimiter.WaitIfNeededAsync("search");
+// ADAPTIVE: let Common optimize Qobuz API usage
+var rateLimiter = new AdaptiveRateLimiter();
+await rateLimiter.WaitIfNeededAsync("search", cancellationToken);
 ```
 
 This comprehensive API reference covers all the latest features and enhancements in Qobuzarr v0.0.12, including ML optimization, security features, performance improvements, and advanced integration capabilities.

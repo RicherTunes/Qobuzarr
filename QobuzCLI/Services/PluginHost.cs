@@ -1049,7 +1049,7 @@ public class PluginHost : IPluginHost, IDisposable
         var cliValidationService = new CliQobuzValidationService(pluginApiClient, qualityServiceAdapter, safeLogger, _cache);
 
         // Create CLI-specific API service with the adapter
-        _apiClient = new CliApiService(null, null, qualityServiceAdapter, cliValidationService, safeLogger, pluginApiClient);
+        _apiClient = new CliApiService(null, qualityServiceAdapter, cliValidationService, safeLogger, pluginApiClient);
 
         // Use enhanced CliDownloadService with REAL download functionality
         _downloadService = new CliDownloadService(_abstractionsHttpClient!, safeLogger, _apiClient);

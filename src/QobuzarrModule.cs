@@ -48,11 +48,14 @@ namespace Lidarr.Plugin.Qobuzarr
         ///   <item>SharedSystemHttpClient.Dispose — disposes the Lazy HttpClient + SocketsHttpHandler,
         ///   releasing the underlying socket pool.  After 3-5 reload cycles without this call,
         ///   sockets exhaust (audit finding).</item>
+        ///   <item>QobuzApiClient.ResetNativeAuthFailureGate — clears any latched auth failure
+        ///   recorded by the Lidarr-native API path before the plugin is reloaded.</item>
         /// </list>
         /// Wave 8A additions should append further static Dispose() calls after the one below.
         /// </summary>
         public static void Dispose()
         {
+            QobuzApiClient.ResetNativeAuthFailureGate();
             SharedSystemHttpClient.Dispose();
         }
     }

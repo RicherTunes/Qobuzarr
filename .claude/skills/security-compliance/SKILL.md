@@ -2,6 +2,7 @@
 name: security-compliance
 description: Establish comprehensive security scanning and compliance infrastructure from scratch. Use when working with security audits, vulnerability scanning, secret detection, CodeQL, Dependabot, or security hardening. Critical priority for Qobuzarr.
 ---
+<!-- docval:ignore-workflow-refs -->
 
 # Security & Compliance Guardian
 

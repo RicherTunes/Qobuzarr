@@ -53,8 +53,8 @@ dotnet build tests/QobuzCLI.Tests/QobuzCLI.Tests.csproj
 **Specific Test Categories**:
 
 ```bash
-# Service consolidation tests
-dotnet test --filter "QobuzQualityManagerTests"
+# API decorator and rate-limit classification tests
+dotnet test --filter "AdaptiveQobuzApiClientClassifierTests"
 
 # Download functionality tests  
 dotnet test --filter "QobuzDownloadClientTests"
@@ -138,11 +138,11 @@ curl -sSL https://dot.net/v1/dotnet-install.sh | bash /dev/stdin --version 8.0.x
 - Caching behavior
 - Error handling and retries
 
-**Service Consolidation Tests** (New - Sprint 2):
+**Common-backed API and Download Tests**:
 
-- `QobuzQualityManagerTests`: Comprehensive consolidated service validation
-- Quality mapping and fallback testing
-- Batch operation validation
+- `AdaptiveQobuzApiClientClassifierTests`: API decorator exception classification through the Common rate limiter seam
+- `QobuzDownloadClientTests`: Download-client behavior through current orchestration seams
+- `RestrictedReleaseSuppressionStoreTests`: Persistent terminal-release suppression behavior
 - Performance optimization verification
 
 **Download Client Tests** (20+ tests):
@@ -315,7 +315,7 @@ public void Algorithm_WithLargeDataset_PerformsWithinLimits()
 **Fixed Issues**:
 
 - ✅ Lidarr API compatibility (IndexerFlags, ParsedAlbumInfo, etc.)
-- ✅ Service migration integration (QobuzQualityManagerTests)
+- ✅ Service migration integration through current API/download architecture tests
 - ✅ Extension method availability (IsNotNullOrWhiteSpace)
 - ✅ Type conversion issues (LazyLoaded<Artist>, QobuzAlbumList)
 

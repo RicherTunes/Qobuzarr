@@ -21,7 +21,6 @@ using Lidarr.Plugin.Qobuzarr.API.Http;
 using Lidarr.Plugin.Qobuzarr.Authentication;
 using Lidarr.Plugin.Qobuzarr.Download.Clients;
 using Lidarr.Plugin.Qobuzarr.Download.Services;
-using Lidarr.Plugin.Qobuzarr.Download.Orchestration;
 using Lidarr.Plugin.Qobuzarr.Integration;
 using Lidarr.Plugin.Qobuzarr.Models;
 using Lidarr.Plugin.Qobuzarr.Models.Authentication;
@@ -75,13 +74,9 @@ namespace Qobuzarr.Tests.Integration
             services.AddScoped<IQobuzAuthenticationService, QobuzAuthenticationService>();
             services.AddScoped<IQobuzApiClient, QobuzApiClient>();
             services.AddScoped<Lidarr.Plugin.Qobuzarr.Abstractions.IQobuzHttpClient, LidarrHttpClientAdapter>();
-            services.AddScoped<IDownloadQueueService, DownloadQueueService>();
             services.AddScoped<IDownloadFileService, DownloadFileService>();
             services.AddScoped<IConcurrencyManager, ConcurrencyManager>();
             services.AddScoped<ITrackDownloadService, TrackDownloadService>();
-            services.AddScoped<IDownloadOrchestrator, DownloadOrchestrator>();
-            services.AddScoped<IStreamUrlProvider, StreamUrlProvider>();
-            services.AddScoped<IMetadataProcessor, MetadataProcessor>();
             services.AddScoped<IQualityFallbackProvider, QualityFallbackProvider>();
 
             // Add download client

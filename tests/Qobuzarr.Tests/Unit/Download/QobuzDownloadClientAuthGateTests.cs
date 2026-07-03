@@ -22,10 +22,10 @@ public class QobuzDownloadClientAuthGateTests
     }
 
     [Fact]
-    public void LooksLikeAuthFailure_Http403_ReturnsTrue()
+    public void LooksLikeAuthFailure_EndpointlessHttp403_ReturnsFalse()
     {
         var ex = new HttpRequestException("Forbidden", null, HttpStatusCode.Forbidden);
-        Assert.True(QobuzDownloadClient.LooksLikeAuthFailure(ex));
+        Assert.False(QobuzDownloadClient.LooksLikeAuthFailure(ex));
     }
 
     [Fact]
@@ -43,10 +43,17 @@ public class QobuzDownloadClientAuthGateTests
     }
 
     [Fact]
-    public void LooksLikeAuthFailure_QobuzApiException403_ReturnsTrue()
+    public void LooksLikeAuthFailure_QobuzApiException403OnLogin_ReturnsTrue()
     {
-        var ex = new QobuzApiException("Forbidden", "/test", HttpStatusCode.Forbidden);
+        var ex = new QobuzApiException("Forbidden", "/user/login", HttpStatusCode.Forbidden);
         Assert.True(QobuzDownloadClient.LooksLikeAuthFailure(ex));
+    }
+
+    [Fact]
+    public void LooksLikeAuthFailure_QobuzApiException403OnResource_ReturnsFalse()
+    {
+        var ex = new QobuzApiException("Forbidden", "/track/getFileUrl", HttpStatusCode.Forbidden);
+        Assert.False(QobuzDownloadClient.LooksLikeAuthFailure(ex));
     }
 
     [Fact]

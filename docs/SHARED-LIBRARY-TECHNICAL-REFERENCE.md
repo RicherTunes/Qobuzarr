@@ -638,48 +638,10 @@ public static class SecurityUtilities
 ### **Rate Limiting**
 
 ```csharp
-public class AdaptiveRateLimiter
+// Plugin adapters bind service names; Common owns the limiter implementation.
+public class AdaptiveRateLimiter : NamedServiceRateLimiter
 {
-    private readonly SemaphoreSlim _semaphore;
-    private readonly Queue<DateTime> _recentRequests;
-    private int _currentDelay = 1000; // Start with 1 second
-    
-    public async Task<T> ExecuteAsync<T>(Func<Task<T>> operation)
-    {
-        await _semaphore.WaitAsync();
-        
-        try
-        {
-            // Check if we're exceeding rate limits
-            CleanupOldRequests();
-            
-            if (_recentRequests.Count >= MaxRequestsPerMinute)
-            {
-                // Back off exponentially
-                _currentDelay = Math.Min(_currentDelay * 2, MaxDelay);
-                await Task.Delay(_currentDelay);
-            }
-            else
-            {
-                // Reduce delay if we're under limit
-                _currentDelay = Math.Max(_currentDelay / 2, MinDelay);
-            }
-            
-            _recentRequests.Enqueue(DateTime.UtcNow);
-            
-            return await operation();
-        }
-        catch (HttpRequestException ex) when (ex.Message.Contains("429"))
-        {
-            // Server rate limited us, increase delay
-            _currentDelay *= 3;
-            throw;
-        }
-        finally
-        {
-            _semaphore.Release();
-        }
-    }
+    public AdaptiveRateLimiter() : base("Qobuz") { }
 }
 ```
 

@@ -179,28 +179,4 @@ public class QobuzTrackParityTests
 
     #endregion
 
-    #region Metadata Applier Coverage
-
-    /// <summary>
-    /// Documents that Qobuzarr uses its own MetadataProcessor that writes more fields
-    /// than the shared library TagLibAudioMetadataApplier.
-    /// </summary>
-    [Fact]
-    public void MetadataProcessor_WritesExtendedFields()
-    {
-        // Note: Qobuzarr's MetadataProcessor (src/Download/Services/MetadataProcessor.cs) writes:
-        // - Title, AlbumArtists, Performers, Album, Track, Disc, Composers
-        // - MusicBrainz IDs (TrackId, ReleaseId, ArtistId) when available
-        //
-        // This is more complete than the shared library TagLibAudioMetadataApplier which
-        // does NOT write ISRC or MusicBrainz IDs.
-        //
-        // Parity recommendation: Extend TagLibAudioMetadataApplier in Common to write
-        // ISRC and MusicBrainz IDs when StreamingTrack provides them.
-
-        // This is a documentation test asserting the extended capability exists
-        Assert.True(true, "MetadataProcessor provides extended tag writing beyond base applier");
-    }
-
-    #endregion
 }

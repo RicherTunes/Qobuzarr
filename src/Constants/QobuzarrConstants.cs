@@ -52,7 +52,6 @@ namespace Lidarr.Plugin.Qobuzarr.Constants
             public const int TokenRefreshCooldownSeconds = 60;
             public const int TokenMaxRetryAttempts = 3;
             public const int TokenInitialRetryDelaySeconds = 30;
-            public const double TokenBackoffMultiplier = 2.0;
             public const int TokenCircuitBreakerThreshold = 5;
         }
     }

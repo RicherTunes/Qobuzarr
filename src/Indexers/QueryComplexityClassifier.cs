@@ -1,4 +1,5 @@
 using System;
+using Lidarr.Plugin.Common.Collections;
 
 namespace Lidarr.Plugin.Qobuzarr.Indexers
 {
@@ -8,6 +9,8 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
     /// </summary>
     public class QueryComplexityClassifier
     {
+        private readonly BoundedConcurrentDictionary<(string Artist, string Album), QueryComplexity> _classificationCache = new(4096);
+
         // Complexity weight constants
         private const int SPECIAL_CHAR_WEIGHT = 2;
         private const int NON_ASCII_WEIGHT = 2;
@@ -32,6 +35,11 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
             if (string.IsNullOrWhiteSpace(artist) || string.IsNullOrWhiteSpace(album))
                 return QueryComplexity.Complex; // Conservative fallback
 
+            return _classificationCache.GetOrAdd((artist, album), static key => ClassifyComplexityUncached(key.Artist, key.Album));
+        }
+
+        private static QueryComplexity ClassifyComplexityUncached(string artist, string album)
+        {
             var combined = $"{artist} {album}";
             var complexityScore = 0;
 

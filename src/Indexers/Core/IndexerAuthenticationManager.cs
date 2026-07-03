@@ -4,7 +4,6 @@ using NLog;
 using Lidarr.Plugin.Qobuzarr.Authentication;
 using Lidarr.Plugin.Qobuzarr.Models.Authentication;
 using Lidarr.Plugin.Qobuzarr.Indexers;
-using Lidarr.Plugin.Qobuzarr.Utilities;
 
 namespace Lidarr.Plugin.Qobuzarr.Indexers.Core
 {
@@ -110,61 +109,22 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers.Core
 
         private QobuzCredentials CreateCredentialsFromSettings()
         {
-            var credentials = new QobuzCredentials();
-
-            // Primary: Email/Password authentication
-            if (!string.IsNullOrWhiteSpace(_settings.Email) && !string.IsNullOrWhiteSpace(_settings.Password))
+            var credentials = QobuzCredentialFactory.FromIndexerSettings(_settings);
+            if (credentials.IsEmailAuth())
             {
-                credentials.Email = _settings.Email.Trim();
-                // Auto-detect plain vs MD5-hashed password
-                var pwd = _settings.Password.Trim();
-                if (IsMd5Hash(pwd))
-                {
-                    credentials.MD5Password = pwd;
-                }
-                else
-                {
-                    credentials.MD5Password = HashingUtility.ComputePasswordMD5Hash(pwd);
-                }
                 _logger.Debug("📧 Using email/password authentication");
-            }
-            // Secondary: Token authentication  
-            else if (!string.IsNullOrWhiteSpace(_settings.UserId) && !string.IsNullOrWhiteSpace(_settings.AuthToken))
-            {
-                credentials.UserId = _settings.UserId.Trim();
-                credentials.AuthToken = _settings.AuthToken.Trim();
-                _logger.Debug("🎟️ Using token authentication");
             }
             else
             {
-                throw new InvalidOperationException(
-                    "No valid authentication method configured. " +
-                    "Either provide Email/Password or UserId/AuthToken.");
+                _logger.Debug("🎟️ Using token authentication");
             }
 
-            // Optional: Custom app credentials
-            if (!string.IsNullOrWhiteSpace(_settings.AppId) && !string.IsNullOrWhiteSpace(_settings.AppSecret))
+            if (!string.IsNullOrWhiteSpace(credentials.AppId) && !string.IsNullOrWhiteSpace(credentials.AppSecret))
             {
-                credentials.AppId = _settings.AppId.Trim();
-                credentials.AppSecret = _settings.AppSecret.Trim();
                 _logger.Debug("🔧 Using custom app credentials");
             }
 
             return credentials;
-        }
-
-        private static bool IsMd5Hash(string value)
-        {
-            if (string.IsNullOrWhiteSpace(value) || value.Length != 32) return false;
-            for (int i = 0; i < value.Length; i++)
-            {
-                char c = value[i];
-                bool isHex = (c >= '0' && c <= '9') ||
-                             (c >= 'a' && c <= 'f') ||
-                             (c >= 'A' && c <= 'F');
-                if (!isHex) return false;
-            }
-            return true;
         }
     }
 }

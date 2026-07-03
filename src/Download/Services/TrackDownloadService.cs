@@ -8,6 +8,9 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using Lidarr.Plugin.Qobuzarr.Download;
+using Lidarr.Plugin.Abstractions.Models;
+using Lidarr.Plugin.Common.Services.Diagnostics;
+using Lidarr.Plugin.Common.Services.Download;
 using Lidarr.Plugin.Common.Services.Lyrics;
 using NLog;
 using Lidarr.Plugin.Qobuzarr.API;
@@ -17,19 +20,33 @@ using Lidarr.Plugin.Qobuzarr.Models;
 using Lidarr.Plugin.Qobuzarr.Services.Http;
 using Lidarr.Plugin.Qobuzarr.Utilities;
 using Lidarr.Plugin.Common.Utilities;
+using CommonResults = Lidarr.Plugin.Common.Interfaces;
+using QobuzApiException = Lidarr.Plugin.Qobuzarr.API.QobuzApiException;
 
 namespace Lidarr.Plugin.Qobuzarr.Download.Services
 {
     /// <summary>
     /// Default implementation of ITrackDownloadService.
-    /// Performs concurrent track downloads, streaming to disk, and metadata tagging.
+    ///
+    /// <para>Wave B: the per-album/per-track download work is delegated to Common's
+    /// <see cref="SimpleDownloadOrchestrator"/> (via <see cref="QobuzDownloadOrchestrator"/>) so Qobuz shares
+    /// the same robust per-track engine (SSRF guard, retry-with-resume, atomic move, lyrics post-processing,
+    /// metadata tagging) as tidal/amazon/apple. This service now owns only the Qobuz-specific glue:
+    /// building the orchestrator delegates (stream-URL resolution with quality-fallback accounting), the
+    /// custom metadata applier + lyrics post-processor, mapping the orchestrator's result to the album
+    /// summary, and enforcing the album-completion policy (incomplete ⇒ <see cref="AlbumDownloadException"/>
+    /// ⇒ host reports Failed).</para>
+    ///
+    /// <para>The lower-level resume/retry HTTP helpers (<see cref="DownloadToFileAsync"/> and friends) are
+    /// retained for their regression tests; they are no longer on the production download path (the
+    /// orchestrator's URL engine owns resume now) and can be removed once the orchestrator path is
+    /// live-validated.</para>
     /// </summary>
     public class TrackDownloadService : ITrackDownloadService
     {
         private readonly IQobuzApiClient _apiClient;
         private readonly IConcurrencyManager _concurrencyManager;
         private readonly IDownloadSummary _downloadSummary;
-        private readonly IDownloadQueueService _queueService;
         private readonly ILyricsEnricher? _lyricsEnricher;
         private readonly Logger _logger;
 
@@ -37,14 +54,12 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Services
             IQobuzApiClient apiClient,
             IConcurrencyManager concurrencyManager,
             IDownloadSummary downloadSummary,
-            IDownloadQueueService queueService,
             Logger logger,
             ILyricsEnricher? lyricsEnricher = null)
         {
             _apiClient = apiClient ?? throw new ArgumentNullException(nameof(apiClient));
             _concurrencyManager = concurrencyManager ?? throw new ArgumentNullException(nameof(concurrencyManager));
             _downloadSummary = downloadSummary ?? throw new ArgumentNullException(nameof(downloadSummary));
-            _queueService = queueService ?? throw new ArgumentNullException(nameof(queueService));
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
             _lyricsEnricher = lyricsEnricher;
         }
@@ -57,7 +72,6 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Services
                 throw new InvalidOperationException("Album has no tracks to download");
             }
 
-            var completedTracks = 0;
             var totalTracks = tracks.Count;
 
             var albumInfo = album != null ? $"{album.GetArtistName()} - {album.GetFullTitle()}" : $"{downloadItem.Artist} - {downloadItem.Title}";
@@ -65,80 +79,65 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Services
             _logger.Info("Starting album download: {0}{1} • {2} tracks • {3} concurrent",
                 albumInfo, albumYear, totalTracks, _concurrencyManager.CurrentLimit);
 
-            var successfulTracks = 0;
-            var skippedTracks = 0;
-            var failedTracks = 0;
+            // Per-album skip/fail classifier. The orchestrator's TrackDownloadResult carries only
+            // success/failure; the stream-resolution delegate records preview-only / no-quality skips here
+            // so the summary + AlbumDownloadException reporting stay faithful to the prior bespoke loop.
+            var classifier = new QobuzTrackClassifier();
 
-            var downloadTasks = tracks.Select(async track =>
-            {
-                using var slot = await _concurrencyManager.AcquireSlotAsync(cancellationToken).ConfigureAwait(false);
-                try
-                {
-                    cancellationToken.ThrowIfCancellationRequested();
+            // Bridge orchestrator progress to the download item (mirrors the prior per-track UpdateProgress).
+            var progress = new InlineProgress<CommonResults.DownloadProgress>(p => downloadItem.UpdateProgress(p.PercentComplete));
 
-                    await DownloadSingleTrackAsync(downloadItem, album, track, settings, cancellationToken).ConfigureAwait(false);
+            var result = await RunOrchestratorAsync(album, settings, downloadItem, classifier, progress, cancellationToken).ConfigureAwait(false);
 
-                    var completed = Interlocked.Increment(ref completedTracks);
-                    Interlocked.Increment(ref successfulTracks);
-                    var progress = (double)completed / totalTracks * 100;
-                    downloadItem.UpdateProgress(progress);
-                    _logger.Debug("Downloaded track {0}/{1}: {2}", completed, totalTracks, track.GetFullTitle());
-                    return new TrackDownloadResult { Success = true, TrackId = track.Id };
-                }
-                catch (TrackUnavailableException ex)
-                {
-                    var completed = Interlocked.Increment(ref completedTracks);
-                    if (ex.Reason == TrackUnavailableReason.PreviewOnly || ex.Reason == TrackUnavailableReason.NoQualityAvailable)
-                    {
-                        Interlocked.Increment(ref skippedTracks);
-                        _logger.Warn("Skipping track {0} ({1}): {2}", track.GetFullTitle(), track.Id, ex.GetUserFriendlyMessage());
-                    }
-                    else
-                    {
-                        Interlocked.Increment(ref failedTracks);
-                        _logger.Error(ErrorMessageFormatter.FormatTrackError(track.GetFullTitle(), ex.Reason, ex.Message));
-                    }
-                    var progress = (double)completed / totalTracks * 100;
-                    downloadItem.UpdateProgress(progress);
-                    return new TrackDownloadResult { Success = false, TrackId = track.Id, Reason = ex.Reason, Message = ex.GetUserFriendlyMessage() };
-                }
-                catch (Exception ex)
-                {
-                    var completed = Interlocked.Increment(ref completedTracks);
-                    Interlocked.Increment(ref failedTracks);
-                    _logger.Error(ex, "Failed to download track: {0}", track.GetFullTitle());
-                    var progress = (double)completed / totalTracks * 100;
-                    downloadItem.UpdateProgress(progress);
-                    return new TrackDownloadResult { Success = false, TrackId = track.Id, Message = ex.Message };
-                }
-            });
-
-            var results = await Task.WhenAll(downloadTasks).ConfigureAwait(false);
+            // Map the orchestrator result back to the album completion accounting. A "skipped" track
+            // (preview/no-quality) still leaves the album incomplete, so the split below only affects
+            // reporting; the completion policy keys off successful vs total.
+            var successfulTracks = result.TrackResults.Count(r => r.Success);
+            var skippedTracks = Math.Min(classifier.SkippedCount, Math.Max(0, totalTracks - successfulTracks));
+            var failedTracks = Math.Max(0, totalTracks - successfulTracks - skippedTracks);
 
             // Summary / policy
             var bytesDownloaded = downloadItem.TotalSize;
             _downloadSummary.RecordAlbumResult(downloadItem.Artist, downloadItem.Title, successfulTracks, skippedTracks, failedTracks, totalTracks, bytesDownloaded);
             LogAlbumDownloadSummary(downloadItem.Artist, downloadItem.Title, album, successfulTracks, skippedTracks, failedTracks, totalTracks, bytesDownloaded);
 
-            // Per-album quality-fallback summary (replaces per-track Info spam from GetStreamingInfoAsync)
+            // Per-album quality-fallback summary (replaces per-track Info spam from GetStreamingInfoAsync).
+            // Warn when the WHOLE album fell back (the requested tier is entirely unavailable — an
+            // operational signal worth surfacing in Lidarr's activity UI); Info for a partial fallback.
             if (downloadItem.QualityFallbackCount > 0)
             {
-                _logger.Info("Quality fallback used for {0}/{1} tracks ({2})",
-                    downloadItem.QualityFallbackCount, totalTracks,
-                    downloadItem.QualityFallbackExample ?? "fallback quality");
+                const string msg = "Quality fallback used for {0}/{1} tracks ({2})";
+                var example = downloadItem.QualityFallbackExample ?? "fallback quality";
+                if (totalTracks > 0 && downloadItem.QualityFallbackCount >= totalTracks)
+                {
+                    _logger.Warn(msg, downloadItem.QualityFallbackCount, totalTracks, example);
+                }
+                else
+                {
+                    _logger.Info(msg, downloadItem.QualityFallbackCount, totalTracks, example);
+                }
             }
 
-            if (_queueService.ActiveDownloadCount == 0)
-            {
-                var summaryReport = _downloadSummary.GenerateReport();
-                _logger.Info(summaryReport);
-            }
+            // Wave C removed the bespoke queue service that previously knew when all active
+            // downloads were finished. Avoid regenerating and logging the full cumulative report
+            // after every album; the track service only emits a compact progress line.
+            _logger.Info(_downloadSummary.GetBriefSummary());
 
             var policy = settings.GetDownloadPolicy();
             var isSuccessful = policy.IsAlbumDownloadSuccessful(totalTracks, successfulTracks, skippedTracks);
 
             if (!isSuccessful)
             {
+                // Album-completion contract (CLAUDE.md "Album-completion contract"): ALWAYS report Failed
+                // on any deficit, even when the deficit is a permanently-restricted track that no retry
+                // will ever fix. Reporting Failed here is what lets Lidarr blocklist the grabbed release
+                // and fall back to another edition/source when one exists (the Aphex-Twin contract). The
+                // re-grab loop for a permanently-restricted track is broken further upstream instead: once
+                // this exception's TrackResults show a terminal restriction (see
+                // TrackUnavailableReasonExtensions.IsPermanentlyUnavailable), QobuzDownloadClient records
+                // the album id in RestrictedReleaseSuppressionStore so the indexer stops offering releases
+                // for it in future searches — without ever changing what gets reported to Lidarr for this
+                // grab. See QobuzDownloadClient.PerformDownloadAsync's AlbumDownloadException catch.
                 var exception = new AlbumDownloadException(
                     album.Id,
                     album.GetFullTitle(),
@@ -146,123 +145,314 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Services
                     successfulTracks,
                     skippedTracks,
                     failedTracks,
-                    results);
+                    MapTrackResults(result, classifier));
                 throw exception;
             }
         }
 
-        private async Task DownloadSingleTrackAsync(QobuzDownloadItem downloadItem, QobuzAlbum album, QobuzTrack track, QobuzDownloadSettings settings, CancellationToken cancellationToken)
+        /// <summary>
+        /// Runs the album download through <see cref="QobuzDownloadOrchestrator"/>. Extracted as a protected
+        /// virtual seam so the album-completion mapping (incomplete ⇒ <see cref="AlbumDownloadException"/>)
+        /// can be exercised in isolation without driving real HTTP.
+        /// </summary>
+        protected virtual Task<CommonResults.DownloadResult> RunOrchestratorAsync(
+            QobuzAlbum album,
+            QobuzDownloadSettings settings,
+            QobuzDownloadItem downloadItem,
+            QobuzTrackClassifier classifier,
+            IProgress<CommonResults.DownloadProgress> progress,
+            CancellationToken cancellationToken)
         {
-            string outputPath = null;
+            var orchestrator = BuildOrchestrator(album, settings, downloadItem, classifier, cancellationToken);
+            return orchestrator.DownloadAlbumAsync(
+                downloadItem.AlbumId ?? album.Id,
+                downloadItem.OutputPath,
+                quality: null,
+                progress,
+                cancellationToken);
+        }
+
+        /// <summary>
+        /// Builds the Qobuz orchestrator with delegates closured over the album/settings/download item.
+        /// </summary>
+        protected virtual QobuzDownloadOrchestrator BuildOrchestrator(
+            QobuzAlbum album,
+            QobuzDownloadSettings settings,
+            QobuzDownloadItem downloadItem,
+            QobuzTrackClassifier classifier,
+            CancellationToken cancellationToken)
+        {
+            Func<string, Task<StreamingAlbum>> getAlbum = _ => Task.FromResult(new StreamingAlbum
+            {
+                Id = album.Id ?? string.Empty,
+                Title = album.Title ?? string.Empty,
+                Artist = new StreamingArtist { Name = album.GetArtistName() },
+                TrackCount = album.GetTracks().Count,
+            });
+
+            Func<string, Task<IReadOnlyList<string>>> getTrackIds = _ =>
+                Task.FromResult<IReadOnlyList<string>>(album.GetTracks().Select(t => t.Id).ToList());
+
+            Func<string, Task<StreamingTrack>> getTrack = id =>
+                Task.FromResult<StreamingTrack>(QobuzStreamingTrack.From(ResolveQobuzTrack(album, id), album));
+
+            Func<string, StreamingQuality?, Task<(string Url, string Extension)>> getStream =
+                (id, _) => ResolveStreamAsync(id, settings, downloadItem, classifier, cancellationToken);
+
+            var applier = new QobuzAudioMetadataApplier(_logger);
+            var postProcessor = new QobuzLyricsPostProcessor(settings, _lyricsEnricher, _logger);
+            var maxConcurrent = Math.Max(1, _concurrencyManager.CurrentLimit);
+
+            return new QobuzDownloadOrchestrator(
+                SharedSystemHttpClient.Instance,
+                getAlbum,
+                getTrack,
+                getTrackIds,
+                getStream,
+                maxConcurrent,
+                album,
+                settings.PreferredQuality,
+                applier,
+                postProcessor,
+                // Allow http in addition to https so any non-TLS CDN URL Qobuz returns still downloads
+                // (the prior bespoke path did no SSRF check at all); private-network / metadata-host SSRF
+                // is still blocked, a net improvement.
+                mediaUriPolicy: new RemoteMediaUriPolicy { AllowHttp = true },
+                logger: null);
+        }
+
+        private static QobuzTrack ResolveQobuzTrack(QobuzAlbum album, string id)
+            => album.GetTracks().FirstOrDefault(t => t.Id == id) ?? new QobuzTrack { Id = id, Title = "Unknown Track" };
+
+        /// <summary>
+        /// Stream-URL + format resolution delegate for the orchestrator. Calls the SAME
+        /// <see cref="IQobuzApiClient.GetStreamingInfoAsync"/> path the prior loop used, so the download-path
+        /// re-authentication (the api client's pre-request session renewal) still applies. Records
+        /// quality-fallback accounting and classifies preview-only / no-quality tracks as skips. Returns an
+        /// empty URL (never throws, except on cancellation) so a single unresolved track fails just that
+        /// track rather than crashing the whole album inside the orchestrator.
+        /// </summary>
+        internal async Task<(string Url, string Extension)> ResolveStreamAsync(
+            string trackId,
+            QobuzDownloadSettings settings,
+            QobuzDownloadItem downloadItem,
+            QobuzTrackClassifier classifier,
+            CancellationToken cancellationToken)
+        {
             try
             {
-                // 1. Get streaming info from Qobuz API (need format before building path)
-                var streamingInfo = await _apiClient.GetStreamingInfoAsync(track.Id, settings.PreferredQuality, cancellationToken).ConfigureAwait(false);
+                var streamingInfo = await GetStreamingInfoWithRetryAsync(trackId, settings, cancellationToken).ConfigureAwait(false);
                 var streamUrl = streamingInfo?.Url;
                 if (string.IsNullOrEmpty(streamUrl))
                 {
-                    throw new InvalidOperationException($"Could not get streaming URL for track: {track.Title}");
+                    // Hard failure (mirrors the prior "Could not get streaming URL"); not a skip.
+                    return (string.Empty, string.Empty);
                 }
 
-                // Build output path with sanitized filename and correct extension based on actual format
-                var actualFormatId = streamingInfo?.FormatId ?? settings.PreferredQuality;
-                var filename = TrackFileNameBuilder.Build(track.TrackNumber, track.Title, actualFormatId, track.DiscNumber, album.MediaCount);
-                outputPath = Path.Combine(downloadItem.OutputPath, filename);
+                var actualFormatId = streamingInfo!.FormatId;
 
-                _logger.Info("Downloading track: {0} to {1}", track.Title, outputPath);
-
-                if (streamingInfo != null &&
-                    streamingInfo.IsQualityFallbackOnly() &&
-                    streamingInfo.FormatId != settings.PreferredQuality)
+                if (streamingInfo.IsQualityFallbackOnly() && streamingInfo.FormatId != settings.PreferredQuality)
                 {
                     downloadItem.RecordQualityFallback(settings.PreferredQuality, streamingInfo.FormatId);
-
-                    var example = downloadItem.QualityFallbackExample;
-                    if (downloadItem.QualityFallbackCount == 1)
-                    {
-                        _logger.Info("Quality fallback: {0} - {1} (track {2}) {3}",
-                            downloadItem.Artist,
-                            downloadItem.Title,
-                            track.Title,
-                            example ?? "fallback quality used");
-                    }
-                    else
-                    {
-                        _logger.Debug("Quality fallback: {0} - {1} (track {2}) {3}",
-                            downloadItem.Artist,
-                            downloadItem.Title,
-                            track.Title,
-                            example ?? "fallback quality used");
-                    }
                 }
 
-                _logger.Debug("Got streaming URL for track {0}", track.Id);
+                var extension = TrackFileNameBuilder.GetExtensionForFormat(actualFormatId);
+                return (streamUrl, extension);
+            }
+            catch (TrackUnavailableException ex)
+            {
+                // Record the reason for EVERY classified unavailability, not just preview/no-quality.
+                // DownloadAlbumAsync's album-completion decision needs to know WHY every deficit track
+                // failed to distinguish a permanently-hopeless album (a purchase-only/subscription-tier
+                // restriction — no retry or re-grab will ever fix it) from a recoverable
+                // one (a genuine edition mismatch or transient failure, which must stay Failed so Lidarr
+                // blocklists + falls back). Previously only Preview/NoQuality were recorded here, so a
+                // Restricted track (e.g. the raw "TrackRestrictedByPurchaseCredentials" restriction) fell
+                // into the same "no reason recorded" bucket as a genuinely unknown hard failure.
+                classifier.RecordSkipped(trackId, ex.Reason);
 
-                // 2. Ensure output directory
-                var dir = Path.GetDirectoryName(outputPath);
-                if (!string.IsNullOrEmpty(dir)) Directory.CreateDirectory(dir);
-
-                // 3. Download to disk
-                _logger.Debug("Starting HTTP download for track {0}", track.Title);
-                var bytesWritten = await DownloadToFileAsync(streamUrl, outputPath, cancellationToken).ConfigureAwait(false);
-                _logger.Debug("Audio file written: {0} bytes", bytesWritten);
-
-                // 4. Apply tags
-                await ApplyMetadataTagsAsync(outputPath, track, album).ConfigureAwait(false);
-
-                // 5. Best-effort synced lyrics (non-fatal). Canonical gating: SaveSyncedLyrics is the
-                //    master toggle; UseLRCLIB gates the LRCLIB fallback (a native source, when one
-                //    exists, is always tried). Uses Common's shared enricher; when one isn't injected
-                //    (production — Common's type is internalized so DryIoc doesn't auto-register it) a
-                //    short-lived instance is constructed per track, mirroring the prior design.
-                if (settings.SaveSyncedLyrics)
+                if (ex.Reason == TrackUnavailableReason.PreviewOnly || ex.Reason == TrackUnavailableReason.NoQualityAvailable)
                 {
-                    var enricher = _lyricsEnricher;
-                    var ownsEnricher = enricher is null;
-                    enricher ??= new LyricsEnricher();
-                    try
-                    {
-                        await enricher.TryEnrichAsync(
-                            outputPath,
-                            album.GetArtistName() ?? "Unknown",
-                            track.Title ?? "Unknown",
-                            album.GetFullTitle() ?? "",
-                            track.DurationSeconds,
-                            allowLrclibFallback: settings.UseLRCLIB,
-                            cancellationToken).ConfigureAwait(false);
-                    }
-                    finally
-                    {
-                        if (ownsEnricher)
-                        {
-                            enricher.Dispose();
-                        }
-                    }
+                    _logger.Warn("Skipping track {0}: {1}", trackId, ex.GetUserFriendlyMessage());
+                }
+                else if (ex.Reason.IsPermanentlyUnavailable())
+                {
+                    _logger.Warn("Track {0} permanently unavailable ({1}): {2}", trackId, ex.Reason, ex.GetUserFriendlyMessage());
+                }
+                else
+                {
+                    _logger.Error(ErrorMessageFormatter.FormatTrackError(trackId, ex.Reason, ex.Message));
                 }
 
-                _logger.Info("Downloaded: {0} ({1:F1} MB)", track.Title, bytesWritten / 1024.0 / 1024.0);
+                return (string.Empty, string.Empty);
+            }
+            catch (OperationCanceledException)
+            {
+                throw;
             }
             catch (Exception ex)
             {
-                _logger.Error(ex, "Download failed for track: {0}", track.Title);
-                if (File.Exists(outputPath))
-                {
-                    try { File.Delete(outputPath); } catch (Exception cleanupEx) { _logger.Debug(cleanupEx, "Best-effort file cleanup failed for {0}", outputPath); }
-                }
-                throw;
-            }
-
-            // Basic file presence validation
-            if (!File.Exists(outputPath) || new FileInfo(outputPath).Length < 1024)
-            {
-                throw new InvalidOperationException($"Downloaded file validation failed: {track.Title}");
+                // e.g. InvalidOperationException from GetStreamingInfoAsync (sample / restriction / empty);
+                // treated as a hard failure, matching the prior general catch in the bespoke loop.
+                _logger.Error(ex, "Failed to resolve stream for track {0}", trackId);
+                return (string.Empty, string.Empty);
             }
         }
 
-        private async Task<long> DownloadToFileAsync(string url, string filePath, CancellationToken cancellationToken)
+        // Number of attempts for resolving a track's stream URL (GetStreamingInfoAsync). The HTTP API
+        // client already owns Retry-After/backoff for classified response statuses like 408/429/5xx; this
+        // outer retry is only for raw transport failures that escape that layer before any stream URL is
+        // obtained (timeout, socket reset, DNS blip). Unlike the byte-download retry below (which resumes
+        // an already-in-progress file), a resolution failure has nothing to resume — the whole call is
+        // simply retried.
+        internal virtual int MaxStreamResolveAttempts => 3;
+
+        // Exponential backoff (1s, 2s, capped at 4s) between transient stream-resolution retries. Shorter
+        // cap than the byte-download retry (8s) since a stalled stream-URL resolution blocks the whole
+        // track before any bytes have moved.
+        internal virtual TimeSpan GetStreamResolveRetryDelay(int attempt) =>
+            TimeSpan.FromSeconds(Math.Min(4, Math.Pow(2, Math.Max(0, attempt - 1))));
+
+        /// <summary>
+        /// Wraps <see cref="IQobuzApiClient.GetStreamingInfoAsync"/> in bounded retry-with-backoff for
+        /// transient failures only. Non-transient failures (auth/4xx, a classified
+        /// <see cref="TrackUnavailableException"/>, an honored cancellation) are rethrown immediately by
+        /// the <c>when</c> filter below so <see cref="ResolveStreamAsync"/>'s existing catch blocks keep
+        /// handling them unchanged.
+        /// </summary>
+        private async Task<QobuzStreamResponse> GetStreamingInfoWithRetryAsync(
+            string trackId,
+            QobuzDownloadSettings settings,
+            CancellationToken cancellationToken)
+        {
+            var maxAttempts = Math.Max(1, MaxStreamResolveAttempts);
+
+            for (var attempt = 1; ; attempt++)
+            {
+                try
+                {
+                    return await _apiClient.GetStreamingInfoAsync(trackId, settings.PreferredQuality, cancellationToken).ConfigureAwait(false);
+                }
+                catch (Exception ex) when (attempt < maxAttempts && IsTransientStreamResolutionException(ex, cancellationToken))
+                {
+                    _logger.Warn(ex,
+                        "Transient failure resolving stream URL for track {0} (attempt {1}/{2}); retrying after backoff",
+                        trackId, attempt, maxAttempts);
+
+                    var delay = GetStreamResolveRetryDelay(attempt);
+                    if (delay > TimeSpan.Zero)
+                    {
+                        await Task.Delay(delay, cancellationToken).ConfigureAwait(false);
+                    }
+                }
+            }
+        }
+
+        /// <summary>
+        /// Classifies a stream-resolution failure as transient (worth a bounded retry) or not.
+        /// Deliberately excludes: an honored cancellation, a classified <see cref="TrackUnavailableException"/>
+        /// (a business-rule rejection — preview/restricted/etc. — retrying would just re-confirm the same
+        /// permanent answer), and <see cref="QobuzApiException"/>s whose inner API transport layer already
+        /// spent the HTTP-status retry budget.
+        /// </summary>
+        internal static bool IsTransientStreamResolutionException(Exception ex, CancellationToken cancellationToken)
+        {
+            if (cancellationToken.IsCancellationRequested)
+            {
+                return false;
+            }
+
+            if (ex is TrackUnavailableException)
+            {
+                return false;
+            }
+
+            if (ex is QobuzApiException)
+            {
+                return false;
+            }
+
+            var (category, _) = HttpExceptionClassifier.Classify(ex);
+            return category is HttpFailureCategory.Network or HttpFailureCategory.Timeout or HttpFailureCategory.RateLimit or HttpFailureCategory.Server;
+        }
+
+        private static IEnumerable<TrackDownloadResult> MapTrackResults(CommonResults.DownloadResult result, QobuzTrackClassifier classifier)
+        {
+            return result.TrackResults.Select(r => new TrackDownloadResult
+            {
+                Success = r.Success,
+                TrackId = r.TrackId,
+                FilePath = r.FilePath,
+                Message = r.ErrorMessage,
+                Reason = r.Success ? null : classifier.GetReason(r.TrackId),
+            });
+        }
+
+        // ───────────────────────────────────────────────────────────────────────────────────────────
+        // Retained resume/retry HTTP engine (regression coverage: TrackDownloadRetryTests). No longer on
+        // the production download path — the orchestrator's URL engine owns retry-with-resume now (see the
+        // class summary). Kept until the orchestrator path is live-validated, then removable.
+        // ───────────────────────────────────────────────────────────────────────────────────────────
+
+        // Number of attempts for a single track download. Qobuz's CDN occasionally truncates a
+        // response mid-body (HttpIOException "response ended prematurely / ResponseEnded"); without a
+        // retry one truncated track fails the whole album, and Lidarr re-grabs into an infinite loop.
+        // Each retry resumes from the preserved ".partial" (Range request via ResumeHttpDownloader),
+        // so consecutive attempts make forward progress until the file is complete.
+        internal virtual int MaxDownloadAttempts => 4;
+
+        // Exponential backoff (1s, 2s, 4s, capped at 8s) between transient-failure retries.
+        internal virtual TimeSpan GetRetryDelay(int attempt) =>
+            TimeSpan.FromSeconds(Math.Min(8, Math.Pow(2, Math.Max(0, attempt - 1))));
+
+        private static bool IsTransientDownloadException(Exception ex, CancellationToken cancellationToken)
+        {
+            // An honored cancellation (host/user requested) is never retried.
+            if (cancellationToken.IsCancellationRequested)
+            {
+                return false;
+            }
+
+            return ex switch
+            {
+                HttpIOException => true,                       // e.g. ResponseEnded (truncated body)
+                HttpRequestException => true,                  // connection reset / DNS blip / 5xx surfaced by EnsureSuccess
+                System.Net.Sockets.SocketException => true,    // transport-level reset
+                TaskCanceledException => true,                 // per-request HttpClient timeout (token not cancelled — checked above)
+                IOException => true,                           // stream copy interrupted
+                _ => false,
+            };
+        }
+
+        internal async Task<long> DownloadToFileAsync(string url, string filePath, CancellationToken cancellationToken)
+        {
+            var partialPath = filePath + ".partial";
+            var maxAttempts = Math.Max(1, MaxDownloadAttempts);
+
+            for (var attempt = 1; ; attempt++)
+            {
+                try
+                {
+                    return await DownloadAttemptAsync(url, filePath, partialPath, cancellationToken).ConfigureAwait(false);
+                }
+                catch (Exception ex) when (attempt < maxAttempts && IsTransientDownloadException(ex, cancellationToken))
+                {
+                    _logger.Warn(ex,
+                        "Transient download failure for '{0}' (attempt {1}/{2}); resuming from partial after backoff",
+                        Path.GetFileName(filePath), attempt, maxAttempts);
+
+                    var delay = GetRetryDelay(attempt);
+                    if (delay > TimeSpan.Zero)
+                    {
+                        await Task.Delay(delay, cancellationToken).ConfigureAwait(false);
+                    }
+                }
+            }
+        }
+
+        internal virtual async Task<long> DownloadAttemptAsync(string url, string filePath, string partialPath, CancellationToken cancellationToken)
         {
             var httpClient = SharedSystemHttpClient.Instance;
-            var partialPath = filePath + ".partial";
             long existing = 0;
             if (File.Exists(partialPath))
             {
@@ -305,7 +495,7 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Services
             // 200, ignoring the Range), use Create so the file is truncated even if the stale
             // ".partial" delete above failed (it is swallowed) — otherwise the full fresh body was
             // appended onto stale bytes, silently corrupting the audio file.
-            var partialFileMode = isPartial ? FileMode.Append : FileMode.Create;
+            var partialFileMode = PartialFileReset.ResolveWriteMode(serverHonoredRange: isPartial);
             await using (var fileStream = new FileStream(partialPath, partialFileMode, FileAccess.Write, FileShare.None, 131072, useAsync: true))
             {
                 read = await responseStream.ReadAsync(buffer.AsMemory(0, buffer.Length), cancellationToken).ConfigureAwait(false);
@@ -352,37 +542,6 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Services
             return totalWritten;
         }
 
-        private async Task ApplyMetadataTagsAsync(string filePath, QobuzTrack track, QobuzAlbum album)
-        {
-            await Task.Run(() =>
-            {
-                try
-                {
-                    using var file = TagLib.File.Create(filePath);
-                    file.Tag.Title = track.Title;
-                    file.Tag.Track = (uint)track.TrackNumber;
-                    file.Tag.Disc = (uint)track.DiscNumber;
-
-                    if (album != null)
-                    {
-                        file.Tag.Album = album.Title;
-                        file.Tag.AlbumArtists = new[] { album.Artist?.Name ?? "Unknown Artist" };
-                        if (album.ReleaseDate != default) file.Tag.Year = (uint)album.ReleaseDate.Year;
-                        if (album.Genre != null) file.Tag.Genres = new[] { album.Genre.Name };
-                        if (album.Label != null) file.Tag.Comment = $"Label: {album.Label.Name}";
-                    }
-                    if (track.Performer != null) file.Tag.Performers = new[] { track.Performer.Name };
-                    if (track.Composer != null) file.Tag.Composers = new[] { track.Composer.Name };
-                    file.Save();
-                    _logger.Debug("Metadata applied to: {0}", Path.GetFileName(filePath));
-                }
-                catch (Exception ex)
-                {
-                    _logger.Warn(ex, "Failed to apply metadata to: {0}", Path.GetFileName(filePath));
-                }
-            });
-        }
-
         private void LogAlbumDownloadSummary(string artistName, string albumTitle, QobuzAlbum album,
             int successful, int skipped, int failed, int total, long bytesDownloaded)
         {
@@ -412,6 +571,18 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Services
             if (bytes < 1048576) return $"{bytes / 1024.0:F1} KB";
             if (bytes < 1073741824) return $"{bytes / 1048576.0:F1} MB";
             return $"{bytes / 1073741824.0:F2} GB";
+        }
+
+        private sealed class InlineProgress<T> : IProgress<T>
+        {
+            private readonly Action<T> _handler;
+
+            public InlineProgress(Action<T> handler)
+            {
+                _handler = handler ?? throw new ArgumentNullException(nameof(handler));
+            }
+
+            public void Report(T value) => _handler(value);
         }
     }
 }

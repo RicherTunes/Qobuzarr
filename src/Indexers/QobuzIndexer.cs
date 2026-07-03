@@ -23,9 +23,12 @@ using Lidarr.Plugin.Common.Diagnostics;
 using Lidarr.Plugin.Common.Services.Diagnostics;
 using Lidarr.Plugin.Common.Observability;
 using Lidarr.Plugin.Common.Services.Bridge;
+using Lidarr.Plugin.Common.Services.Intelligence;
 using Lidarr.Plugin.Qobuzarr.Download;
 using NzbDrone.Core.Download;
 using Lidarr.Plugin.Common.Services;
+using QobuzSuppressionServices = Lidarr.Plugin.Qobuzarr.Services;
+using QobuzSuppressionStore = Lidarr.Plugin.Qobuzarr.Services.RestrictedReleaseSuppressionStore;
 
 namespace Lidarr.Plugin.Qobuzarr.Indexers
 {
@@ -60,6 +63,9 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
 
         // Warn-once gate for constructor wire-up failures (process-global, single fixed key)
         private static readonly WarnOnce _wireWarn = new();
+
+        protected virtual QobuzSuppressionServices.IRestrictedReleaseSuppressionStore ReleaseSuppressionStore
+            => QobuzSuppressionStore.Shared;
 
         public QobuzIndexer(
             IHttpClient httpClient,
@@ -143,34 +149,15 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
 
         private Models.Authentication.QobuzCredentials BuildFallbackCredentialsFromSettings()
         {
-            var settings = GetSettingsSafe();
-            var creds = new Models.Authentication.QobuzCredentials();
-
-            // Prefer email + password if provided (hash to MD5 as required by Qobuz)
-            if (!string.IsNullOrWhiteSpace(settings.Email) && !string.IsNullOrWhiteSpace(settings.Password))
-            {
-                creds.Email = settings.Email;
-                creds.MD5Password = Utilities.HashingUtility.ComputePasswordMD5Hash(settings.Password);
-            }
-            else if (!string.IsNullOrWhiteSpace(settings.UserId) && !string.IsNullOrWhiteSpace(settings.AuthToken))
-            {
-                // Fallback to UserId + AuthToken
-                creds.UserId = settings.UserId;
-                creds.AuthToken = settings.AuthToken;
-            }
-
-            // Optional app credentials (used if configured)
-            if (!string.IsNullOrWhiteSpace(settings.AppId)) creds.AppId = settings.AppId;
-            if (!string.IsNullOrWhiteSpace(settings.AppSecret)) creds.AppSecret = settings.AppSecret;
-
-            return creds;
+            return QobuzCredentialFactory.TryFromIndexerSettings(GetSettingsSafe())
+                ?? new Models.Authentication.QobuzCredentials();
         }
 
         public override IParseIndexerResponse GetParser()
         {
             if (_parser == null)
             {
-                _parser = new QobuzParser(GetSettingsSafe(), _logger);
+                _parser = new QobuzParser(GetSettingsSafe(), _logger, ReleaseSuppressionStore);
             }
 
             // Update context from request generator if available
@@ -222,7 +209,14 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
                 var succeeded = 0;
                 Exception? lastError = null;
 
-                // Process each request in the chain
+                // Why this loop is bespoke rather than Common's SearchPlanExecutor.ExecuteAsync delegate:
+                // qobuz's per-request path interleaves concerns the generic delegate doesn't model —
+                // adaptive HTTP rate-limit accounting, ML-optimization metric logging per successful tier,
+                // the IndexerResponse/IParseIndexerResponse parser handshake, and per-release IndexerId
+                // stamping. Semantically it is AccumulateAll (every tier/variant attempted, results merged;
+                // no early stop), and it reuses the SAME all-failed contract as the executor via
+                // SearchPlanExecutor.ThrowAllFailed below — so the "all requests failed ⇒ surface, don't
+                // return a misleading empty" behavior stays identical to the consolidated plugins.
                 foreach (var tier in requestChain.GetAllTiers())
                 {
                     foreach (var request in tier)
@@ -264,6 +258,10 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
 
                             succeeded++;
                         }
+                        catch (OperationCanceledException)
+                        {
+                            throw;
+                        }
                         catch (Exception ex)
                         {
                             lastError = ex;
@@ -276,12 +274,7 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
                 // empty result so Lidarr can distinguish "no matches" from "all requests failed".
                 // (A request that parses to zero releases does not throw, so genuine empty results
                 // are unaffected.) The outer catch rethrows it to Lidarr.
-                if (attempted > 0 && succeeded == 0 && lastError != null)
-                {
-                    throw new InvalidOperationException(
-                        $"All {attempted} Qobuz search request(s) failed; surfacing the error instead of an empty result.",
-                        lastError);
-                }
+                SearchPlanExecutor.ThrowAllFailed(attempted, succeeded, lastError, "Qobuz search");
 
                 _logger.Info($"{PluginLogContext.Current?.LinePrefix()}Retrieved {{0}} releases from Qobuz", releases.Count);
                 return releases;
@@ -300,17 +293,9 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
             {
                 _logger.Debug($"{PluginLogContext.Current?.LinePrefix()}Indexer test started");
 
-                // AuthFailureGate pre-flight: if the gate is latched bad and no probe slot is
-                // available, surface an actionable "re-credential" failure instead of attempting
-                // a network call that will fail immediately (and amplify Qobuz 401 traffic).
-                if (IsAuthShortCircuited(_apiClient.Gate))
-                {
-                    failures.Add(new ValidationFailure(
-                        "Authentication",
-                        "Qobuz authentication is latched bad (an auth failure was observed recently). " +
-                        "Re-enter credentials and click Test again — the gate will auto-recover once a request succeeds."));
-                    return;
-                }
+                // Explicit Test is the operator's remediation path. Do not enforce the
+                // background-loop probe budget here; a successful credential test must be
+                // able to clear a latched health warning immediately after settings change.
 
                 // Test authentication via delegated manager
                 var (authSuccess, authError) = await _authManager.Value.TestAuthenticationAsync().ConfigureAwait(false);
@@ -319,6 +304,8 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
                     failures.Add(new ValidationFailure("Authentication", authError));
                     return;
                 }
+
+                await RecordAuthSuccessAsync(_apiClient.Gate).ConfigureAwait(false);
 
                 // Test API connectivity with rate limiting
                 await _rateLimitManager.ApplyRateLimitAsync().ConfigureAwait(false);
@@ -392,6 +379,11 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
             try
             {
                 var (success, error) = await _authManager.Value.TestAuthenticationAsync().ConfigureAwait(false);
+                if (success)
+                {
+                    await RecordAuthSuccessAsync(_apiClient.Gate).ConfigureAwait(false);
+                }
+
                 return new
                 {
                     success = success,
@@ -414,8 +406,9 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
         // ------------------------------------------------------------------ //
         // Mirror the pattern in AppleMusicLidarrDownloadClient / AppleMusicIndexerAdapter.
         // Static for testability (callers can pin the contract without constructing a full indexer).
-        // The gate is obtained from _apiClient.Gate; BridgeQobuzApiClient returns the singleton
-        // gate; QobuzApiClient (Lidarr-native path) returns null (always-healthy fast-path).
+        // The gate is obtained from _apiClient.Gate; BridgeQobuzApiClient and the
+        // Lidarr-native QobuzApiClient both expose plugin-local gates. Null is kept as
+        // the defensive always-healthy convention for test fakes or unsupported adapters.
         // ------------------------------------------------------------------ //
 
         /// <summary>
@@ -426,8 +419,14 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
             => gate?.ShouldShortCircuit() ?? false;
 
         /// <summary>
-        /// If <paramref name="ex"/> looks like a Qobuz auth failure (HTTP 401/403 or
-        /// <see cref="Exceptions.QobuzApiException"/> with a 401/403 status), records
+        /// Record a successful explicit credential validation against the shared gate.
+        /// </summary>
+        public static ValueTask RecordAuthSuccessAsync(AuthFailureGate? gate)
+            => gate?.HandleSuccessAsync() ?? ValueTask.CompletedTask;
+
+        /// <summary>
+        /// If <paramref name="ex"/> looks like a Qobuz auth failure (HTTP 401, or
+        /// auth-endpoint HTTP 403), records
         /// a failure with <paramref name="gate"/>'s handler so the gate latches and subsequent
         /// calls short-circuit without touching the network.
         ///
@@ -449,21 +448,20 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
         /// Returns true when <paramref name="ex"/> is recognisable as a Qobuz
         /// authentication failure:
         /// <list type="bullet">
-        ///   <item>HTTP 401 Unauthorized or 403 Forbidden (HttpRequestException)</item>
-        ///   <item><see cref="Exceptions.QobuzApiException"/> with StatusCode 401 or 403</item>
+        ///   <item>HTTP 401 Unauthorized</item>
+        ///   <item>HTTP 403 Forbidden only when the exception identifies an authentication endpoint</item>
         /// </list>
         /// </summary>
         public static bool LooksLikeAuthFailure(Exception ex)
         {
             if (ex is HttpRequestException hre &&
-                hre.StatusCode is HttpStatusCode.Unauthorized or HttpStatusCode.Forbidden)
+                hre.StatusCode == HttpStatusCode.Unauthorized)
             {
                 return true;
             }
-            if (ex is Exceptions.QobuzApiException qae &&
-                qae.StatusCode is HttpStatusCode.Unauthorized or HttpStatusCode.Forbidden)
+            if (ex is Exceptions.QobuzApiException qae && qae.StatusCode is { } status)
             {
-                return true;
+                return API.QobuzApiClient.ShouldRecordAuthFailure(status, qae.Endpoint);
             }
             return false;
         }

@@ -12,8 +12,9 @@ using LPCSanitize = Lidarr.Plugin.Common.Security.Sanitize;
 namespace Lidarr.Plugin.Qobuzarr.Security
 {
     /// <summary>
-    /// Comprehensive input sanitization for all user inputs in the Qobuzarr plugin.
-    /// Provides methods to sanitize different types of inputs to prevent injection attacks.
+    /// Compatibility facade for Qobuzarr input sanitization.
+    /// Shared helpers delegate to Lidarr.Plugin.Common.Security.Sanitize where the Common API matches the
+    /// historical Qobuzarr contract; Qobuz-specific authentication, path, and metadata validators remain here.
     /// </summary>
     public static partial class InputSanitizer
     {

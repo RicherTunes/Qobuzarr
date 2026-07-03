@@ -18,6 +18,7 @@ using Lidarr.Plugin.Qobuzarr.Constants;
 using Lidarr.Plugin.Qobuzarr.Indexers.Parsing;
 using Lidarr.Plugin.Qobuzarr.Utilities;
 using NzbDrone.Core.IndexerSearch.Definitions;
+using SuppressionServices = Lidarr.Plugin.Qobuzarr.Services;
 
 namespace Lidarr.Plugin.Qobuzarr.Indexers
 {
@@ -26,13 +27,22 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
         private readonly QobuzIndexerSettings _settings;
         private readonly Logger _logger;
         private readonly ITitleGenerator _titleGenerator;
+        private readonly SuppressionServices.IRestrictedReleaseSuppressionStore _suppressionStore;
         private SearchCriteriaBase _currentSearchCriteria;
 
-        public QobuzParser(QobuzIndexerSettings settings, Logger logger)
+        /// <param name="settings">Indexer settings (singles/compilations filters, etc.).</param>
+        /// <param name="logger">Logger.</param>
+        /// <param name="suppressionStore">
+        /// Optional terminal-release suppression store (see <c>RestrictedReleaseSuppressionStore</c>).
+        /// Defaults to a no-op store (never suppresses anything) so direct test construction and any
+        /// future caller that does not opt into suppression keep compiling and behaving identically.
+        /// </param>
+        public QobuzParser(QobuzIndexerSettings settings, Logger logger, SuppressionServices.IRestrictedReleaseSuppressionStore? suppressionStore = null)
         {
             _settings = settings;
             _logger = logger;
             _titleGenerator = new TitleGenerator(logger);
+            _suppressionStore = suppressionStore ?? SuppressionServices.NullRestrictedReleaseSuppressionStore.Instance;
         }
 
         /// <summary>
@@ -169,6 +179,32 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
             if (album == null || string.IsNullOrWhiteSpace(album.Id))
             {
                 return releases;
+            }
+
+            // Terminal-release suppression: a prior grab of this album failed on a permanently-restricted
+            // track (purchase-only content, insufficient subscription tier — see
+            // TrackUnavailableReasonExtensions.IsPermanentlyUnavailable and CLAUDE.md "Terminal release
+            // suppression"). No quality tier of this album can ever satisfy that grab, so withhold every
+            // release for it — this is what stops the re-grab loop, since Lidarr's blocklist does not fire
+            // for this failure mode. Checked before ShouldIncludeAlbum purely so the log line is distinct.
+            if (_suppressionStore.IsSuppressed(album.Id))
+            {
+                // Recovery path: an INTERACTIVE (user-initiated) search is an explicit "I want this now" —
+                // e.g. the user upgraded their Qobuz subscription and wants a previously-restricted album
+                // without waiting out the 30-day suppression TTL. Offer it. If it still can't be satisfied
+                // the next download re-suppresses it after one bounded cycle. AUTOMATIC/RSS searches (the
+                // re-grab-loop driver) keep respecting suppression, so the loop stays stopped.
+                if (_currentSearchCriteria?.InteractiveSearch == true)
+                {
+                    _logger.Debug("Suppressed album offered on interactive search (user override): {0} - {1}",
+                        album.GetArtistName(), album.GetFullTitle());
+                }
+                else
+                {
+                    _logger.Debug("Suppressed album (previously failed on a permanently-restricted track): {0} - {1}",
+                        album.GetArtistName(), album.GetFullTitle());
+                    return releases;
+                }
             }
 
             // Apply filters
@@ -575,7 +611,6 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
         }
     }
 }
-
 
 
 
