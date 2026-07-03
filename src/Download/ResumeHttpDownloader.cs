@@ -39,7 +39,7 @@ namespace Lidarr.Plugin.Qobuzarr.Download
             var guard = RemoteMediaUriGuard.Validate(url, policy);
             if (!guard.IsAllowed)
             {
-                throw new InvalidOperationException($"Refusing to download from an unsafe URL: {guard.Reason}");
+                throw GuardFailure(guard, url);
             }
 
             var request = new HttpRequestMessage(HttpMethod.Get, url);
@@ -69,5 +69,21 @@ namespace Lidarr.Plugin.Qobuzarr.Download
             response.EnsureSuccessStatusCode();
             return (response, existing);
         }
+
+        private static Exception GuardFailure(UriGuardResult guard, string url)
+        {
+            if (guard.IsTransient)
+            {
+                return new HttpRequestException(
+                    $"Transient resolution failure for media URL {Redact(url)}: {guard.Reason}");
+            }
+
+            return new InvalidOperationException($"Refusing to download from an unsafe URL: {guard.Reason}");
+        }
+
+        private static string Redact(string url)
+            => Uri.TryCreate(url, UriKind.Absolute, out var uri)
+                ? $"{uri.Scheme}://{uri.Host}"
+                : "[invalid-url]";
     }
 }
