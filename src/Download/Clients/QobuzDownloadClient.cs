@@ -876,12 +876,25 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Clients
             catch (AlbumDownloadException ex)
             {
                 await TryRecordTerminalReleaseSuppressionAsync(downloadItem, ex).ConfigureAwait(false);
-                downloadItem.SetFailed($"Download failed: {ex.Message}");
+
+                // Surface WHY tracks failed, not just how many: group failed tracks by their classified
+                // TrackUnavailableReason (e.g. "2 restricted (subscription tier), 1 region-locked") so the
+                // message reaching Lidarr's queue is actionable instead of a bare "N failed" count. Falls
+                // back to the exception's own generic summary when no track carries a classified reason.
+                // Message-formatting only — the Failed status set by SetFailed and the suppression decision
+                // above are unchanged. Note: SetFailed's argument is NOT re-prefixed with "Download failed: "
+                // here — QobuzDownloadItem.GetStatusMessage() already adds that prefix for any Failed status,
+                // and the pre-existing double-prefixing ("Download failed: Download failed: ...") is fixed
+                // alongside this change (see the sibling generic catch below).
+                var groupedReasons = ErrorMessageFormatter.FormatGroupedFailureReasons(ex);
+                downloadItem.SetFailed(groupedReasons ?? ex.Message);
                 _logger.Error(ex, "Download failed: {0} - {1}", downloadItem.Artist, downloadItem.Title);
             }
             catch (Exception ex)
             {
-                downloadItem.SetFailed($"Download failed: {ex.Message}");
+                // See the AlbumDownloadException catch above: GetStatusMessage() already prefixes Failed
+                // messages with "Download failed: ", so SetFailed must not add its own copy.
+                downloadItem.SetFailed(ex.Message);
                 _logger.Error(ex, "Download failed: {0} - {1}", downloadItem.Artist, downloadItem.Title);
             }
         }
