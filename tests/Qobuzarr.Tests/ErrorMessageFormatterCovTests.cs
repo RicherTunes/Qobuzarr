@@ -1,6 +1,8 @@
 using System;
+using System.Collections.Generic;
 using FluentAssertions;
 using Lidarr.Plugin.Qobuzarr.Download;
+using Lidarr.Plugin.Qobuzarr.Exceptions;
 using Lidarr.Plugin.Qobuzarr.Utilities;
 using Xunit;
 
@@ -158,6 +160,122 @@ namespace Qobuzarr.Tests
 
             msg.Should().Contain("Attempt: 3/3");
             msg.Should().NotContain("Retrying in");
+        }
+
+        // ── FormatGroupedFailureReasons (A3: reason-grouped queue messages) ────────────
+
+        [Fact]
+        public void FormatGroupedFailureReasons_SingleReason_ReturnsCountAndLabel()
+        {
+            var trackResults = new List<TrackDownloadResult>
+            {
+                new TrackDownloadResult { Success = true, TrackId = "1" },
+                new TrackDownloadResult
+                {
+                    Success = false,
+                    TrackId = "2",
+                    Reason = TrackUnavailableReason.SubscriptionRestriction,
+                },
+            };
+
+            var exception = new AlbumDownloadException(
+                "album1", "Test Album", totalTracks: 2, successfulTracks: 1,
+                skippedTracks: 0, failedTracks: 1, trackResults);
+
+            var summary = ErrorMessageFormatter.FormatGroupedFailureReasons(exception);
+
+            summary.Should().Be("1 restricted (subscription tier)");
+        }
+
+        [Fact]
+        public void FormatGroupedFailureReasons_MultipleReasons_GroupsAndOrdersByCountDescending()
+        {
+            var trackResults = new List<TrackDownloadResult>
+            {
+                new TrackDownloadResult { Success = false, TrackId = "1", Reason = TrackUnavailableReason.SubscriptionRestriction },
+                new TrackDownloadResult { Success = false, TrackId = "2", Reason = TrackUnavailableReason.SubscriptionRestriction },
+                new TrackDownloadResult { Success = false, TrackId = "3", Reason = TrackUnavailableReason.RegionalRestriction },
+            };
+
+            var exception = new AlbumDownloadException(
+                "album2", "Test Album", totalTracks: 3, successfulTracks: 0,
+                skippedTracks: 0, failedTracks: 3, trackResults);
+
+            var summary = ErrorMessageFormatter.FormatGroupedFailureReasons(exception);
+
+            summary.Should().Be("2 restricted (subscription tier), 1 region-locked");
+        }
+
+        [Fact]
+        public void FormatGroupedFailureReasons_NoClassifiedReasons_ReturnsNullForGracefulFallback()
+        {
+            // A deficit track with no classified Reason (Reason == null) is symptomatic of an
+            // unexpected/unmapped failure. The formatter must degrade gracefully by signalling
+            // "nothing to group" (null) rather than fabricating a misleading count, so callers can
+            // fall back to the exception's own generic message.
+            var trackResults = new List<TrackDownloadResult>
+            {
+                new TrackDownloadResult { Success = false, TrackId = "1", Reason = null },
+            };
+
+            var exception = new AlbumDownloadException(
+                "album3", "Test Album", totalTracks: 1, successfulTracks: 0,
+                skippedTracks: 0, failedTracks: 1, trackResults);
+
+            var summary = ErrorMessageFormatter.FormatGroupedFailureReasons(exception);
+
+            summary.Should().BeNull();
+        }
+
+        [Fact]
+        public void FormatGroupedFailureReasons_MixedClassifiedAndUnclassified_AppendsUnspecifiedBucket()
+        {
+            var trackResults = new List<TrackDownloadResult>
+            {
+                new TrackDownloadResult { Success = false, TrackId = "1", Reason = TrackUnavailableReason.Restricted },
+                new TrackDownloadResult { Success = false, TrackId = "2", Reason = null },
+            };
+
+            var exception = new AlbumDownloadException(
+                "album4", "Test Album", totalTracks: 2, successfulTracks: 0,
+                skippedTracks: 0, failedTracks: 2, trackResults);
+
+            var summary = ErrorMessageFormatter.FormatGroupedFailureReasons(exception);
+
+            summary.Should().Be("1 restricted (rights holder), 1 unspecified");
+        }
+
+        [Theory]
+        [InlineData(TrackUnavailableReason.RegionalRestriction, "region-locked")]
+        [InlineData(TrackUnavailableReason.SubscriptionRestriction, "restricted (subscription tier)")]
+        [InlineData(TrackUnavailableReason.PreviewOnly, "preview-only")]
+        [InlineData(TrackUnavailableReason.NoQualityAvailable, "no suitable quality")]
+        [InlineData(TrackUnavailableReason.NotStreamable, "not available for streaming")]
+        [InlineData(TrackUnavailableReason.Restricted, "restricted (rights holder)")]
+        [InlineData(TrackUnavailableReason.ApiError, "technical error")]
+        [InlineData(TrackUnavailableReason.Unknown, "unknown restriction")]
+        public void FormatGroupedFailureReasons_AllReasonKinds_UseExpectedLabel(TrackUnavailableReason reason, string expectedLabel)
+        {
+            var trackResults = new List<TrackDownloadResult>
+            {
+                new TrackDownloadResult { Success = false, TrackId = "1", Reason = reason },
+            };
+
+            var exception = new AlbumDownloadException(
+                "album5", "Test Album", totalTracks: 1, successfulTracks: 0,
+                skippedTracks: 0, failedTracks: 1, trackResults);
+
+            var summary = ErrorMessageFormatter.FormatGroupedFailureReasons(exception);
+
+            summary.Should().Be($"1 {expectedLabel}");
+        }
+
+        [Fact]
+        public void FormatGroupedFailureReasons_NullException_Throws()
+        {
+            Action act = () => ErrorMessageFormatter.FormatGroupedFailureReasons(null);
+
+            act.Should().Throw<ArgumentNullException>();
         }
     }
 }

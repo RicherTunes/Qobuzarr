@@ -1,6 +1,9 @@
 using System;
+using System.Collections.Generic;
+using System.Linq;
 using System.Text;
 using Lidarr.Plugin.Qobuzarr.Download;
+using Lidarr.Plugin.Qobuzarr.Exceptions;
 
 namespace Lidarr.Plugin.Qobuzarr.Utilities
 {
@@ -9,6 +12,73 @@ namespace Lidarr.Plugin.Qobuzarr.Utilities
     /// </summary>
     public static class ErrorMessageFormatter
     {
+        /// <summary>
+        /// Short, queue-friendly labels for each <see cref="TrackUnavailableReason"/>, used by
+        /// <see cref="FormatGroupedFailureReasons"/> to turn a bare failure count (Lidarr's default
+        /// "1 failed") into an actionable "1 restricted (subscription tier)"-style summary. Deliberately
+        /// terser than <see cref="GetDetailedReason"/> (full sentences with emoji), which is aimed at a
+        /// single-track detail view rather than a comma-joined multi-reason queue line.
+        /// </summary>
+        private static readonly IReadOnlyDictionary<TrackUnavailableReason, string> GroupedFailureLabels =
+            new Dictionary<TrackUnavailableReason, string>
+            {
+                [TrackUnavailableReason.RegionalRestriction] = "region-locked",
+                [TrackUnavailableReason.SubscriptionRestriction] = "restricted (subscription tier)",
+                [TrackUnavailableReason.PreviewOnly] = "preview-only",
+                [TrackUnavailableReason.NoQualityAvailable] = "no suitable quality",
+                [TrackUnavailableReason.NotStreamable] = "not available for streaming",
+                [TrackUnavailableReason.Restricted] = "restricted (rights holder)",
+                [TrackUnavailableReason.ApiError] = "technical error",
+                [TrackUnavailableReason.Unknown] = "unknown restriction",
+            };
+
+        /// <summary>
+        /// Formats an <see cref="AlbumDownloadException"/>'s failed tracks as a reason-grouped,
+        /// human-readable summary suitable for Lidarr's download queue (e.g. "2 restricted (subscription
+        /// tier), 1 region-locked") instead of a bare count. Purely a presentation helper — it reads
+        /// <see cref="AlbumDownloadException.GetIssuesSummary"/> and never touches completion/suppression
+        /// decisions.
+        /// </summary>
+        /// <param name="exception">The album download failure to summarize.</param>
+        /// <returns>
+        /// A comma-separated "&lt;count&gt; &lt;reason label&gt;" summary, largest group first; or
+        /// <c>null</c> when no track carries a classified <see cref="TrackUnavailableReason"/> (e.g. an
+        /// unmapped/unexpected failure), so callers can gracefully fall back to a generic message instead
+        /// of fabricating a misleading reason.
+        /// </returns>
+        public static string FormatGroupedFailureReasons(AlbumDownloadException exception)
+        {
+            if (exception == null)
+            {
+                throw new ArgumentNullException(nameof(exception));
+            }
+
+            var issuesByReason = exception.GetIssuesSummary();
+            if (issuesByReason.Count == 0)
+            {
+                return null;
+            }
+
+            var parts = issuesByReason
+                .OrderByDescending(kvp => kvp.Value.Count)
+                .ThenBy(kvp => kvp.Key)
+                .Select(kvp => $"{kvp.Value.Count} {GetGroupedFailureLabel(kvp.Key)}")
+                .ToList();
+
+            // Deficit tracks with no classified reason are a distinct, smaller pool than the classified
+            // buckets above — surface their count too rather than silently dropping them from the total.
+            var unclassifiedCount = exception.TrackResults.Count(r => !r.Success && !r.Reason.HasValue);
+            if (unclassifiedCount > 0)
+            {
+                parts.Add($"{unclassifiedCount} unspecified");
+            }
+
+            return string.Join(", ", parts);
+        }
+
+        private static string GetGroupedFailureLabel(TrackUnavailableReason reason) =>
+            GroupedFailureLabels.TryGetValue(reason, out var label) ? label : "unavailable";
+
         /// <summary>
         /// Formats a detailed error message for track unavailability
         /// </summary>
