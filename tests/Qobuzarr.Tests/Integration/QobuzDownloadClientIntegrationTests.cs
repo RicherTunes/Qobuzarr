@@ -77,7 +77,6 @@ namespace Qobuzarr.Tests.Integration
             services.AddScoped<IDownloadFileService, DownloadFileService>();
             services.AddScoped<IConcurrencyManager, ConcurrencyManager>();
             services.AddScoped<ITrackDownloadService, TrackDownloadService>();
-            services.AddScoped<IMetadataProcessor, MetadataProcessor>();
             services.AddScoped<IQualityFallbackProvider, QualityFallbackProvider>();
 
             // Add download client

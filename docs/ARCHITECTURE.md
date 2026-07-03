@@ -141,8 +141,8 @@ graph LR
     subgraph "Download Layer"
         DO[DownloadOrchestrator]
         TDO[TrackDownloadOrchestrator]
-        AFP[AudioFileDownloader]
-        MP[MetadataProcessor]
+        TDS[TrackDownloadService]
+        MAP[QobuzAudioMetadataApplier]
         FPG[FilePathGenerator]
     end
     
@@ -274,8 +274,8 @@ sequenceDiagram
     participant QDC as QobuzDownloadClient
     participant DO as DownloadOrchestrator
     participant TDO as TrackDownloadOrchestrator
-    participant AFP as AudioFileDownloader
-    participant MP as MetadataProcessor
+    participant TDS as TrackDownloadService
+    participant MAP as QobuzAudioMetadataApplier
     participant QobuzAPI as Qobuz API
     
     Lidarr->>QDC: Download album request
@@ -285,10 +285,10 @@ sequenceDiagram
     loop For each track
         TDO->>QobuzAPI: Get stream URL
         QobuzAPI->>TDO: Stream URL + metadata
-        TDO->>AFP: Download audio file
-        AFP->>TDO: Audio file downloaded
-        TDO->>MP: Process metadata
-        MP->>TDO: Metadata applied
+        TDO->>TDS: Download audio file
+        TDS->>TDO: Audio file downloaded
+        TDO->>MAP: Apply audio metadata
+        MAP->>TDO: Metadata applied
     end
     
     DO->>QDC: Download complete
@@ -652,8 +652,8 @@ graph TD
     
     %% Download Dependencies
     DO --> TDO[TrackDownloadOrchestrator]
-    DO --> AFP[AudioFileDownloader]
-    DO --> MP[MetadataProcessor]
+    DO --> TDS[TrackDownloadService]
+    DO --> MAP[QobuzAudioMetadataApplier]
     DO --> FPG[FilePathGenerator]
     
     %% ML Dependencies
@@ -662,7 +662,7 @@ graph TD
     HMLQO --> PLE[IPatternLearningEngine]
     
     %% Infrastructure Dependencies
-    AFP --> FS[IFileSystem]
+    TDS --> FS[IFileSystem]
     MP --> TagLib[TagLib-Sharp]
     Logger --> NLog[NLog]
     Cache --> SQLite[SQLite]
@@ -1209,7 +1209,7 @@ classDiagram
         +GetGlobalStats() GlobalRateLimitStats
     }
     
-    class AdaptiveConcurrencyManager {
+    class ConcurrencyManager {
         -int maxConcurrency
         -int currentActive
         -PerformanceMetrics metrics
@@ -1243,7 +1243,7 @@ classDiagram
     
     AdaptiveRateLimiter --|> NamedServiceRateLimiter
     AdaptiveRateLimiter --> PerformanceMonitoringService
-    AdaptiveConcurrencyManager --> PerformanceMonitoringService
+    ConcurrencyManager --> PerformanceMonitoringService
     AdaptiveBatchDownloadService --> PerformanceMonitoringService
 ```
 

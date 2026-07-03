@@ -293,17 +293,9 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
             {
                 _logger.Debug($"{PluginLogContext.Current?.LinePrefix()}Indexer test started");
 
-                // AuthFailureGate pre-flight: if the gate is latched bad and no probe slot is
-                // available, surface an actionable "re-credential" failure instead of attempting
-                // a network call that will fail immediately (and amplify Qobuz 401 traffic).
-                if (IsAuthShortCircuited(_apiClient.Gate))
-                {
-                    failures.Add(new ValidationFailure(
-                        "Authentication",
-                        "Qobuz authentication is latched bad (an auth failure was observed recently). " +
-                        "Re-enter credentials and click Test again — the gate will auto-recover once a request succeeds."));
-                    return;
-                }
+                // Explicit Test is the operator's remediation path. Do not enforce the
+                // background-loop probe budget here; a successful credential test must be
+                // able to clear a latched health warning immediately after settings change.
 
                 // Test authentication via delegated manager
                 var (authSuccess, authError) = await _authManager.Value.TestAuthenticationAsync().ConfigureAwait(false);
@@ -312,6 +304,8 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
                     failures.Add(new ValidationFailure("Authentication", authError));
                     return;
                 }
+
+                await RecordAuthSuccessAsync(_apiClient.Gate).ConfigureAwait(false);
 
                 // Test API connectivity with rate limiting
                 await _rateLimitManager.ApplyRateLimitAsync().ConfigureAwait(false);
@@ -385,6 +379,11 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
             try
             {
                 var (success, error) = await _authManager.Value.TestAuthenticationAsync().ConfigureAwait(false);
+                if (success)
+                {
+                    await RecordAuthSuccessAsync(_apiClient.Gate).ConfigureAwait(false);
+                }
+
                 return new
                 {
                     success = success,
@@ -407,8 +406,9 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
         // ------------------------------------------------------------------ //
         // Mirror the pattern in AppleMusicLidarrDownloadClient / AppleMusicIndexerAdapter.
         // Static for testability (callers can pin the contract without constructing a full indexer).
-        // The gate is obtained from _apiClient.Gate; BridgeQobuzApiClient returns the singleton
-        // gate; QobuzApiClient (Lidarr-native path) returns null (always-healthy fast-path).
+        // The gate is obtained from _apiClient.Gate; BridgeQobuzApiClient and the
+        // Lidarr-native QobuzApiClient both expose plugin-local gates. Null is kept as
+        // the defensive always-healthy convention for test fakes or unsupported adapters.
         // ------------------------------------------------------------------ //
 
         /// <summary>
@@ -419,8 +419,14 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
             => gate?.ShouldShortCircuit() ?? false;
 
         /// <summary>
-        /// If <paramref name="ex"/> looks like a Qobuz auth failure (HTTP 401/403 or
-        /// <see cref="Exceptions.QobuzApiException"/> with a 401/403 status), records
+        /// Record a successful explicit credential validation against the shared gate.
+        /// </summary>
+        public static ValueTask RecordAuthSuccessAsync(AuthFailureGate? gate)
+            => gate?.HandleSuccessAsync() ?? ValueTask.CompletedTask;
+
+        /// <summary>
+        /// If <paramref name="ex"/> looks like a Qobuz auth failure (HTTP 401, or
+        /// auth-endpoint HTTP 403), records
         /// a failure with <paramref name="gate"/>'s handler so the gate latches and subsequent
         /// calls short-circuit without touching the network.
         ///
@@ -442,21 +448,20 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
         /// Returns true when <paramref name="ex"/> is recognisable as a Qobuz
         /// authentication failure:
         /// <list type="bullet">
-        ///   <item>HTTP 401 Unauthorized or 403 Forbidden (HttpRequestException)</item>
-        ///   <item><see cref="Exceptions.QobuzApiException"/> with StatusCode 401 or 403</item>
+        ///   <item>HTTP 401 Unauthorized</item>
+        ///   <item>HTTP 403 Forbidden only when the exception identifies an authentication endpoint</item>
         /// </list>
         /// </summary>
         public static bool LooksLikeAuthFailure(Exception ex)
         {
             if (ex is HttpRequestException hre &&
-                hre.StatusCode is HttpStatusCode.Unauthorized or HttpStatusCode.Forbidden)
+                hre.StatusCode == HttpStatusCode.Unauthorized)
             {
                 return true;
             }
-            if (ex is Exceptions.QobuzApiException qae &&
-                qae.StatusCode is HttpStatusCode.Unauthorized or HttpStatusCode.Forbidden)
+            if (ex is Exceptions.QobuzApiException qae && qae.StatusCode is { } status)
             {
-                return true;
+                return API.QobuzApiClient.ShouldRecordAuthFailure(status, qae.Endpoint);
             }
             return false;
         }

@@ -38,6 +38,7 @@ using Lidarr.Plugin.Qobuzarr.Services;
 using Lidarr.Plugin.Qobuzarr.Services.Http;
 using Lidarr.Plugin.Common.HostBridge;
 using Lidarr.Plugin.Common.Observability;
+using Lidarr.Plugin.Common.Security;
 using Lidarr.Plugin.Common.Services.Bridge;
 using Lidarr.Plugin.Common.Utilities;
 using System.Net.Http;
@@ -876,12 +877,25 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Clients
             catch (AlbumDownloadException ex)
             {
                 await TryRecordTerminalReleaseSuppressionAsync(downloadItem, ex).ConfigureAwait(false);
-                downloadItem.SetFailed($"Download failed: {ex.Message}");
+
+                // Surface WHY tracks failed, not just how many: group failed tracks by their classified
+                // TrackUnavailableReason (e.g. "2 restricted (subscription tier), 1 region-locked") so the
+                // message reaching Lidarr's queue is actionable instead of a bare "N failed" count. Falls
+                // back to the exception's own generic summary when no track carries a classified reason.
+                // Message-formatting only — the Failed status set by SetFailed and the suppression decision
+                // above are unchanged. Note: SetFailed's argument is NOT re-prefixed with "Download failed: "
+                // here — QobuzDownloadItem.GetStatusMessage() already adds that prefix for any Failed status,
+                // and the pre-existing double-prefixing ("Download failed: Download failed: ...") is fixed
+                // alongside this change (see the sibling generic catch below).
+                var groupedReasons = ErrorMessageFormatter.FormatGroupedFailureReasons(ex);
+                downloadItem.SetFailed(groupedReasons ?? Sanitize.SafeErrorMessage(ex.Message));
                 _logger.Error(ex, "Download failed: {0} - {1}", downloadItem.Artist, downloadItem.Title);
             }
             catch (Exception ex)
             {
-                downloadItem.SetFailed($"Download failed: {ex.Message}");
+                // See the AlbumDownloadException catch above: GetStatusMessage() already prefixes Failed
+                // messages with "Download failed: ", so SetFailed must not add its own copy.
+                downloadItem.SetFailed(Sanitize.SafeErrorMessage(ex.Message));
                 _logger.Error(ex, "Download failed: {0} - {1}", downloadItem.Artist, downloadItem.Title);
             }
         }
@@ -1196,8 +1210,9 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Clients
         // ------------------------------------------------------------------ //
         // Mirror the pattern in QobuzIndexer / AppleMusicLidarrDownloadClient.
         // Static for testability (callers can pin the contract without constructing a full DC).
-        // The gate is obtained from _apiClient.Gate; BridgeQobuzApiClient returns the singleton
-        // gate; QobuzApiClient (Lidarr-native path) returns null (always-healthy fast-path).
+        // The gate is obtained from _apiClient.Gate; BridgeQobuzApiClient and the
+        // Lidarr-native QobuzApiClient both expose plugin-local gates. Null is kept as
+        // the defensive always-healthy convention for test fakes or unsupported adapters.
         // ------------------------------------------------------------------ //
 
         /// <summary>
@@ -1208,8 +1223,8 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Clients
             => gate?.ShouldShortCircuit() ?? false;
 
         /// <summary>
-        /// If <paramref name="ex"/> looks like a Qobuz auth failure (HTTP 401/403 or
-        /// <see cref="Exceptions.QobuzApiException"/> with a 401/403 status), records
+        /// If <paramref name="ex"/> looks like a Qobuz auth failure (HTTP 401, or
+        /// auth-endpoint HTTP 403), records
         /// a failure with <paramref name="gate"/>'s handler so the gate latches and subsequent
         /// calls short-circuit without touching the network.
         ///
@@ -1231,21 +1246,20 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Clients
         /// Returns true when <paramref name="ex"/> is recognisable as a Qobuz
         /// authentication failure:
         /// <list type="bullet">
-        ///   <item>HTTP 401 Unauthorized or 403 Forbidden (HttpRequestException)</item>
-        ///   <item><see cref="Exceptions.QobuzApiException"/> with StatusCode 401 or 403</item>
+        ///   <item>HTTP 401 Unauthorized</item>
+        ///   <item>HTTP 403 Forbidden only when the exception identifies an authentication endpoint</item>
         /// </list>
         /// </summary>
         public static bool LooksLikeAuthFailure(Exception ex)
         {
             if (ex is HttpRequestException hre &&
-                hre.StatusCode is HttpStatusCode.Unauthorized or HttpStatusCode.Forbidden)
+                hre.StatusCode == HttpStatusCode.Unauthorized)
             {
                 return true;
             }
-            if (ex is Exceptions.QobuzApiException qae &&
-                qae.StatusCode is HttpStatusCode.Unauthorized or HttpStatusCode.Forbidden)
+            if (ex is Exceptions.QobuzApiException qae && qae.StatusCode is { } status)
             {
-                return true;
+                return QobuzApiClient.ShouldRecordAuthFailure(status, qae.Endpoint);
             }
             return false;
         }

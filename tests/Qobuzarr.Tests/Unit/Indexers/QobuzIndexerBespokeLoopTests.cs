@@ -212,6 +212,44 @@ public sealed class QobuzIndexerBespokeLoopTests
         result.Should().OnlyContain(r => r.Guid.Contains("allowed-album"));
     }
 
+    [Fact]
+    public async Task Test_WhenGateLatchedAndProbeExhausted_AttemptsAuthAndClearsGateOnSuccess()
+    {
+        var handler = new DefaultAuthFailureHandler(Microsoft.Extensions.Logging.Abstractions.NullLogger<DefaultAuthFailureHandler>.Instance);
+        await handler.HandleFailureAsync(new Lidarr.Plugin.Abstractions.Contracts.AuthFailure
+        {
+            ErrorCode = "401",
+            Message = "expired credentials"
+        });
+        var gate = new AuthFailureGate(handler, TimeProvider.System, TimeSpan.FromHours(24));
+        gate.TryAcquireProbeSlot(); // exhaust the background-loop probe budget
+
+        _apiClientMock.Setup(x => x.Gate).Returns(gate);
+        _authServiceMock
+            .Setup(x => x.AuthenticateAsync(It.IsAny<QobuzCredentials>()))
+            .ReturnsAsync(_validSession);
+
+        var indexer = CreateIndexer();
+        indexer.Definition = new IndexerDefinition
+        {
+            Name = "Qobuzarr",
+            Settings = new QobuzIndexerSettings
+            {
+                AuthMethod = (int)AuthenticationMethod.Token,
+                UserId = "loop-test-user",
+                AuthToken = "loop-test-token"
+            }
+        };
+        var failures = new List<FluentValidation.Results.ValidationFailure>();
+
+        await indexer.CallTest(failures);
+
+        failures.Should().BeEmpty();
+        _authServiceMock.Verify(x => x.AuthenticateAsync(It.IsAny<QobuzCredentials>()), Times.Once);
+        gate.IsHealthy.Should().BeTrue(
+            "a successful explicit Test is the operator's remediation path and must clear the health warning");
+    }
+
     // ── helpers ─────────────────────────────────────────────────────────────
 
     private ExposedQobuzIndexer CreateIndexer()
@@ -281,6 +319,9 @@ internal sealed class ExposedQobuzIndexer : QobuzIndexer
     public Task<IList<ReleaseInfo>> CallFetchReleases(
         Func<IIndexerRequestGenerator, IndexerPageableRequestChain> selector)
         => FetchReleases(selector);
+
+    public Task CallTest(List<FluentValidation.Results.ValidationFailure> failures)
+        => Test(failures);
 }
 
 internal sealed class FakeSuppressionStore : IRestrictedReleaseSuppressionStore

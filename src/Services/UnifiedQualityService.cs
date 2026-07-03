@@ -328,7 +328,7 @@ namespace Lidarr.Plugin.Qobuzarr.Services
         QualityStatistics GetStatistics();
         void ClearCache();
 
-        // Legacy compatibility methods for LidarrAlbumRetriever  
+        // Legacy compatibility methods (kept for interface-implementer parity; original caller removed)
         QobuzQuality MapLidarrQuality(object qualityProfile);
         List<QobuzQuality> GetQualityFallbackChain(QobuzQuality mappedQuality);
     }

@@ -346,6 +346,148 @@ namespace Qobuzarr.Tests.Unit.Download
         }
 
         [Fact]
+        public async Task Download_WithPermanentTrackRestriction_ReportsGroupedReasonInMessage_NotBareCount()
+        {
+            // A3: the Message reaching Lidarr's queue must say WHY tracks failed, not just how many.
+            var suppression = new RecordingSuppressionStore();
+            _downloadClient.ReleaseSuppressionStoreOverride = suppression;
+
+            var albumException = new AlbumDownloadException(
+                "0060254788359",
+                "Random Access Memories",
+                totalTracks: 20,
+                successfulTracks: 19,
+                skippedTracks: 0,
+                failedTracks: 1,
+                trackResults: new[]
+                {
+                    new TrackDownloadResult
+                    {
+                        Success = false,
+                        TrackId = "restricted-track",
+                        Reason = TrackUnavailableReason.SubscriptionRestriction,
+                        Message = "Content restricted (FormatRestrictedBySubscription)",
+                    },
+                });
+
+            _mockTrackDownloadService.DownloadAlbumAsync(
+                Arg.Any<QobuzDownloadItem>(),
+                Arg.Any<QobuzAlbum>(),
+                Arg.Any<QobuzDownloadSettings>(),
+                Arg.Any<CancellationToken>())
+                .Returns(Task.FromException(albumException));
+
+            var downloadId = await _downloadClient.Download(CreateTestRemoteAlbum(), Substitute.For<IIndexer>());
+            await AwaitTrackedDownloadIgnoringErrorsAsync(downloadId);
+
+            var item = _downloadClient.GetItems().FirstOrDefault(x => x.DownloadId == downloadId);
+
+            item.Should().NotBeNull();
+            item.Status.Should().Be(DownloadItemStatus.Failed);
+            item.Message.Should().Contain("1 restricted (subscription tier)");
+            item.Message.Should().Be("Download failed: 1 restricted (subscription tier)");
+
+            // Never regress into a bare "1 failed"-style count with no reason text.
+            item.Message.Should().NotMatch("*1 failed*");
+        }
+
+        [Fact]
+        public async Task Download_WithMultiplePermanentRestrictionReasons_ReportsGroupedReasonsInMessage()
+        {
+            var albumException = new AlbumDownloadException(
+                "album-mixed",
+                "Mixed Restrictions",
+                totalTracks: 5,
+                successfulTracks: 2,
+                skippedTracks: 0,
+                failedTracks: 3,
+                trackResults: new[]
+                {
+                    new TrackDownloadResult { Success = false, TrackId = "t1", Reason = TrackUnavailableReason.SubscriptionRestriction },
+                    new TrackDownloadResult { Success = false, TrackId = "t2", Reason = TrackUnavailableReason.SubscriptionRestriction },
+                    new TrackDownloadResult { Success = false, TrackId = "t3", Reason = TrackUnavailableReason.RegionalRestriction },
+                });
+
+            _mockTrackDownloadService.DownloadAlbumAsync(
+                Arg.Any<QobuzDownloadItem>(),
+                Arg.Any<QobuzAlbum>(),
+                Arg.Any<QobuzDownloadSettings>(),
+                Arg.Any<CancellationToken>())
+                .Returns(Task.FromException(albumException));
+
+            var downloadId = await _downloadClient.Download(CreateTestRemoteAlbum(), Substitute.For<IIndexer>());
+            await AwaitTrackedDownloadIgnoringErrorsAsync(downloadId);
+
+            var item = _downloadClient.GetItems().FirstOrDefault(x => x.DownloadId == downloadId);
+
+            item.Should().NotBeNull();
+            item.Message.Should().Contain("2 restricted (subscription tier), 1 region-locked");
+        }
+
+        [Fact]
+        public async Task Download_WithUnclassifiedDeficit_FallsBackToGenericMessage_NoException()
+        {
+            // No classified reasons at all -> the enrichment must degrade gracefully to the
+            // exception's own generic summary rather than throwing or fabricating a reason.
+            const string sensitiveUrl = "https://stream.qobuz.com/file.flac?token=SECRET&signature=PRIVATE";
+            var albumException = new AlbumDownloadException(
+                "album-unclassified",
+                sensitiveUrl,
+                totalTracks: 2,
+                successfulTracks: 1,
+                skippedTracks: 0,
+                failedTracks: 1,
+                trackResults: new[]
+                {
+                    new TrackDownloadResult { Success = false, TrackId = "t1", Reason = null },
+                });
+
+            _mockTrackDownloadService.DownloadAlbumAsync(
+                Arg.Any<QobuzDownloadItem>(),
+                Arg.Any<QobuzAlbum>(),
+                Arg.Any<QobuzDownloadSettings>(),
+                Arg.Any<CancellationToken>())
+                .Returns(Task.FromException(albumException));
+
+            var downloadId = await _downloadClient.Download(CreateTestRemoteAlbum(), Substitute.For<IIndexer>());
+            await AwaitTrackedDownloadIgnoringErrorsAsync(downloadId);
+
+            var item = _downloadClient.GetItems().FirstOrDefault(x => x.DownloadId == downloadId);
+
+            item.Should().NotBeNull();
+            item.Status.Should().Be(DownloadItemStatus.Failed);
+            item.Message.Should().Contain("Download failed");
+            item.Message.Should().NotContain("SECRET");
+            item.Message.Should().NotContain("PRIVATE");
+            item.Message.Should().Contain("https://stream.qobuz.com/file.flac?[REDACTED]");
+        }
+
+        [Fact]
+        public async Task Download_WithGenericException_RedactsSensitiveQueueMessage()
+        {
+            var exception = new InvalidOperationException(
+                "Failed https://stream.qobuz.com/file.flac?token=SECRET&signature=PRIVATE");
+
+            _mockTrackDownloadService.DownloadAlbumAsync(
+                Arg.Any<QobuzDownloadItem>(),
+                Arg.Any<QobuzAlbum>(),
+                Arg.Any<QobuzDownloadSettings>(),
+                Arg.Any<CancellationToken>())
+                .Returns(Task.FromException(exception));
+
+            var downloadId = await _downloadClient.Download(CreateTestRemoteAlbum(), Substitute.For<IIndexer>());
+            await AwaitTrackedDownloadIgnoringErrorsAsync(downloadId);
+
+            var item = _downloadClient.GetItems().FirstOrDefault(x => x.DownloadId == downloadId);
+
+            item.Should().NotBeNull();
+            item.Status.Should().Be(DownloadItemStatus.Failed);
+            item.Message.Should().NotContain("SECRET");
+            item.Message.Should().NotContain("PRIVATE");
+            item.Message.Should().Contain("https://stream.qobuz.com/file.flac?[REDACTED]");
+        }
+
+        [Fact]
         public async Task Download_WithOnlyUnclassifiedDeficit_DoesNotRecordReleaseSuppression()
         {
             // An unclassified deficit (Reason == null) is symptomatic of a genuine edition mismatch or an

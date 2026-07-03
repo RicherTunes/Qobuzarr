@@ -12,7 +12,7 @@ The Qobuz API client has been refactored from a monolithic 598-line God class in
 **Lines**: 835
 **Responsibility**: Orchestrates API operations by coordinating specialized components
 
-The main API client now acts as an orchestrator, delegating specific responsibilities to focused components while maintaining backward compatibility through dual constructors.
+The main API client now acts as an orchestrator, delegating specific responsibilities to focused components while maintaining backward compatibility through dual public constructors. It also owns the native-path `AuthFailureGate` signal used by the indexer, download client, and health check.
 
 ### 2. **QobuzHttpClient** (HTTP Communication)
 
@@ -28,7 +28,7 @@ The main API client now acts as an orchestrator, delegating specific responsibil
 ### 3. **Session Management** (Authentication)
 
 **Location**: `src/Authentication/SessionManager.cs`
-**Interface**: `ISessionManager` <!-- TODO(docval): IQobuzAuthenticationManager not found; uses ISessionManager from Authentication namespace as of 2026-05-31 -->
+**Interface**: `ISessionManager`
 **Responsibilities**:
 
 - Session validation and storage
@@ -39,7 +39,7 @@ The main API client now acts as an orchestrator, delegating specific responsibil
 ### 4. **QobuzRequestSigner** (Request Signing)
 
 **Location**: `src/API/Signing/QobuzRequestSigner.cs`
-**Interface**: `IRequestSigner` (from `Lidarr.Plugin.Common.Services.Http`) <!-- TODO(docval): IQobuzRequestSigner not found; uses IRequestSigner from Common as of 2026-05-31 -->
+**Interface**: `IRequestSigner` (from `Lidarr.Plugin.Common.Services.Http`)
 **Responsibilities**:
 
 - MD5 signature generation for protected endpoints
@@ -80,7 +80,7 @@ Assert.Equal(expectedSignature, signature);
 Changes are isolated to specific components:
 
 - Need to change caching strategy? Only modify `QobuzResponseCache`
-- New authentication method? Update `QobuzAuthenticationManager`
+- New authentication method? Update `SessionManager` / `QobuzAuthenticationService`
 - Rate limiting adjustment? Modify `QobuzHttpClient`
 
 ### 4. **Reusability**
@@ -100,8 +100,8 @@ var response = await httpClient.ExecuteAsync(customRequest);
 ```csharp
 // Register decomposed components
 services.AddSingleton<IQobuzHttpClient, QobuzHttpClient>();
-services.AddSingleton<ISessionManager, SessionManager>(); <!-- TODO(docval): IQobuzAuthenticationManager not found as of 2026-05-31 -->
-services.AddSingleton<IRequestSigner, QobuzRequestSigner>(); <!-- TODO(docval): from Common; IQobuzRequestSigner not found as of 2026-05-31 -->
+services.AddSingleton<ISessionManager, SessionManager>();
+services.AddSingleton<IRequestSigner, QobuzRequestSigner>();
 services.AddSingleton<IQobuzResponseCache, QobuzResponseCache>();
 services.AddSingleton<IQobuzApiClient, QobuzApiClient>();
 ```
@@ -115,8 +115,8 @@ The `QobuzApiClient` provides two constructors:
 ```csharp
 public QobuzApiClient(
     IQobuzHttpClient httpClient,
-    IQobuzAuthenticationManager authManager,
-    IQobuzRequestSigner requestSigner,
+    ISessionManager sessionManager,
+    IRequestSigner requestSigner,
     IQobuzResponseCache responseCache,
     Logger logger)
 ```
@@ -141,12 +141,8 @@ var request = httpClient.BuildRequest(url, "GET");
 var response = await httpClient.ExecuteAsync(request);
 
 // Session management
-var authManager = new QobuzAuthenticationManager(logger);
-authManager.SetSession(session);
-if (authManager.NeedsRenewal())
-{
-    await authManager.ValidateAndRenewIfNeededAsync();
-}
+var sessionManager = serviceProvider.GetRequiredService<ISessionManager>();
+var currentSession = await sessionManager.GetCurrentSessionAsync();
 
 // Request signing
 var signer = new QobuzRequestSigner(logger);

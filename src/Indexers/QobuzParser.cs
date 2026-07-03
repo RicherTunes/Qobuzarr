@@ -189,9 +189,22 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
             // for this failure mode. Checked before ShouldIncludeAlbum purely so the log line is distinct.
             if (_suppressionStore.IsSuppressed(album.Id))
             {
-                _logger.Debug("Suppressed album (previously failed on a permanently-restricted track): {0} - {1}",
-                    album.GetArtistName(), album.GetFullTitle());
-                return releases;
+                // Recovery path: an INTERACTIVE (user-initiated) search is an explicit "I want this now" —
+                // e.g. the user upgraded their Qobuz subscription and wants a previously-restricted album
+                // without waiting out the 30-day suppression TTL. Offer it. If it still can't be satisfied
+                // the next download re-suppresses it after one bounded cycle. AUTOMATIC/RSS searches (the
+                // re-grab-loop driver) keep respecting suppression, so the loop stays stopped.
+                if (_currentSearchCriteria?.InteractiveSearch == true)
+                {
+                    _logger.Debug("Suppressed album offered on interactive search (user override): {0} - {1}",
+                        album.GetArtistName(), album.GetFullTitle());
+                }
+                else
+                {
+                    _logger.Debug("Suppressed album (previously failed on a permanently-restricted track): {0} - {1}",
+                        album.GetArtistName(), album.GetFullTitle());
+                    return releases;
+                }
             }
 
             // Apply filters

@@ -14,10 +14,11 @@ namespace Lidarr.Plugin.Qobuzarr.API
     public interface IQobuzApiClient
     {
         /// <summary>
-        /// The <see cref="AuthFailureGate"/> that records 401/403 failures on this client.
-        /// Returns null for implementations that do not carry a gate (e.g. the Lidarr-native
-        /// <c>QobuzApiClient</c>). The gate is present on <c>BridgeQobuzApiClient</c> instances
-        /// which route all HTTP traffic through it.
+        /// The <see cref="AuthFailureGate"/> that records precise auth failures on this client
+        /// (HTTP 401, plus HTTP 403 only from authentication endpoints).
+        /// The Lidarr-native <c>QobuzApiClient</c> and <c>BridgeQobuzApiClient</c> both
+        /// expose a plugin-local gate for the auth short-circuit and health-check paths.
+        /// Test fakes or unsupported implementations may still return null.
         /// Callers must null-check; the static gate helpers treat a null gate as "always healthy".
         /// </summary>
         AuthFailureGate? Gate { get; }

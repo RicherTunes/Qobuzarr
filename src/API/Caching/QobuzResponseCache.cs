@@ -31,7 +31,7 @@ namespace Lidarr.Plugin.Qobuzarr.API.Caching
         /// Normalizes an API endpoint to a canonical form (no leading slash, lowercased) so the
         /// caching predicates match regardless of whether the caller wrote "track/get" or
         /// "/track/get". The plugin passes both shapes (internal helpers use "track/get";
-        /// QobuzIndexerAdapter / LidarrAlbumRetriever use "/album/search", "/catalog/search").
+        /// QobuzIndexerAdapter uses "/album/search", "/catalog/search").
         /// Parameters are not part of the endpoint string passed here.
         /// </summary>
         private static string Normalize(string endpoint)

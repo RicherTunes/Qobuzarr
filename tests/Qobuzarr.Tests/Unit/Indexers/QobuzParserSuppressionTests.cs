@@ -10,6 +10,7 @@ using Newtonsoft.Json;
 using NLog;
 using NzbDrone.Common.Http;
 using NzbDrone.Core.Indexers;
+using NzbDrone.Core.IndexerSearch.Definitions;
 using Lidarr.Plugin.Qobuzarr.Download;
 using Lidarr.Plugin.Qobuzarr.Indexers;
 using Lidarr.Plugin.Qobuzarr.Models;
@@ -86,6 +87,38 @@ namespace Qobuzarr.Tests.Unit.Indexers
             {
                 Directory.Delete(tempDir, recursive: true);
             }
+        }
+
+        [Fact]
+        public void ParseResponse_SuppressedAlbum_InteractiveSearch_IsOffered_UserOverride()
+        {
+            // Recovery path: an interactive (user-initiated) search is an explicit "I want this now"
+            // — e.g. the user upgraded their Qobuz subscription and wants the previously-restricted album
+            // without waiting for the 30-day suppression TTL. Bypass suppression for interactive searches.
+            var suppression = new FakeSuppressionStore("suppressed-album");
+            var parser = new QobuzParser(Settings(), LogManager.GetCurrentClassLogger(), suppression);
+            parser.SetSearchContext(new AlbumSearchCriteria { InteractiveSearch = true });
+            var suppressed = Album("suppressed-album").AsHiResFlac().Build();
+
+            var releases = parser.ParseResponse(Response(suppressed)).ToList();
+
+            releases.Should().NotBeEmpty(
+                "an interactive (user-initiated) search must bypass suppression so the user can retry a previously-restricted album");
+        }
+
+        [Fact]
+        public void ParseResponse_SuppressedAlbum_AutomaticSearch_StillWithheld()
+        {
+            // The re-grab loop is driven by AUTOMATIC/RSS searches — those must still respect suppression,
+            // otherwise the interactive-override would reopen the loop the whole feature exists to stop.
+            var suppression = new FakeSuppressionStore("suppressed-album");
+            var parser = new QobuzParser(Settings(), LogManager.GetCurrentClassLogger(), suppression);
+            parser.SetSearchContext(new AlbumSearchCriteria { InteractiveSearch = false });
+            var suppressed = Album("suppressed-album").AsHiResFlac().Build();
+
+            var releases = parser.ParseResponse(Response(suppressed));
+
+            releases.Should().BeEmpty("automatic/RSS searches must keep respecting suppression to prevent the re-grab loop");
         }
 
         private static QobuzIndexerSettings Settings() => new()
