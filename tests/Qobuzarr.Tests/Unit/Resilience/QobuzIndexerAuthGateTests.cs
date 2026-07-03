@@ -18,7 +18,7 @@ namespace Qobuzarr.Tests.Unit.Resilience
     /// bridge/indexer path) correctly:
     ///   - Consults AuthFailureGate before issuing a request (EnsureCanProceed)
     ///   - Signals HandleFailureAsync on HTTP 401
-    ///   - Signals HandleFailureAsync on HTTP 403
+    ///   - Does not signal HandleFailureAsync on generic HTTP 403 resource denial
     ///   - Signals HandleSuccessAsync on 2xx
     ///   - Does not signal HandleFailureAsync on non-auth HTTP errors (e.g. 429, 500)
     /// </summary>
@@ -138,21 +138,20 @@ namespace Qobuzarr.Tests.Unit.Resilience
         }
 
         // ------------------------------------------------------------------ //
-        // 3. HTTP 403 → HandleFailureAsync called, gate trips
+        // 3. HTTP 403 on resource endpoint → no auth latch
         // ------------------------------------------------------------------ //
 
         [Fact]
-        public async Task GetAsync_On403Response_SignalsHandleFailure()
+        public async Task GetAsync_On403ResourceResponse_DoesNotSignalHandleFailure()
         {
             var (client, spy, _) = CreateSut(HttpStatusCode.Forbidden);
 
             await client.Invoking(c => c.GetAsync<object>("/album/search"))
                         .Should().ThrowAsync<QobuzApiException>();
 
-            spy.FailureCallCount.Should().Be(1,
-                "HandleFailureAsync must be called once on a 403 response");
-            spy.LastFailure!.ErrorCode.Should().Be("403");
-            spy.Status.Should().Be(AuthStatus.Failed);
+            spy.FailureCallCount.Should().Be(0,
+                "a generic 403 can be subscription/resource denial and must not trip the auth gate");
+            spy.Status.Should().Be(AuthStatus.Unknown);
         }
 
         // ------------------------------------------------------------------ //

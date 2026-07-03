@@ -20,6 +20,12 @@ using Lidarr.Plugin.Qobuzarr.Services.Interfaces;
 using Lidarr.Plugin.Common.Services.Http;
 using Lidarr.Plugin.Qobuzarr.Authentication;
 using Lidarr.Plugin.Common.Interfaces;
+using Lidarr.Plugin.Common.Services.Bridge;
+using Lidarr.Plugin.Common.TestKit.Helpers;
+using Lidarr.Plugin.Qobuzarr.Integration;
+using Microsoft.Extensions.Logging.Abstractions;
+using NzbDrone.Core.HealthCheck;
+using NzbDrone.Core.Localization;
 using Qobuzarr.Tests.Helpers;
 
 namespace Qobuzarr.Tests
@@ -130,6 +136,111 @@ namespace Qobuzarr.Tests
                     null));
 
             exception.ParamName.Should().Be("logger");
+        }
+
+        #endregion
+
+        #region Native AuthFailureGate health-check wiring
+
+        [Fact]
+        public void NativeClient_Gate_IsPresent()
+        {
+            var client = CreateClient(useDefaultGate: true);
+
+            client.Gate.Should().NotBeNull(
+                "Lidarr resolves the native QobuzApiClient path, and QobuzAuthHealthCheck reads this gate");
+        }
+
+        [Fact]
+        public async Task ExecuteRequestAsync_With401Response_LatchesNativeGate_AndHealthCheckWarns()
+        {
+            var client = CreateClient();
+            SetupOriginResponse(
+                HttpStatusCode.Unauthorized,
+                "{\"message\":\"Bearer super-secret-token rejected\"}");
+
+            var act = () => client.GetAsync<TestResponse>("album/search");
+
+            await act.Should().ThrowAsync<QobuzApiException>();
+
+            var healthCheck = new QobuzAuthHealthCheck(client, CreateLocalizationService());
+            var result = healthCheck.Check();
+
+            result.Type.Should().Be(HealthCheckResult.Warning);
+            result.Message.Should().Contain("Settings");
+            result.Message.Should().NotContain("super-secret-token");
+            result.Message.Should().NotContain("Bearer");
+        }
+
+        [Fact]
+        public async Task ExecuteRequestAsync_WithForbiddenResourceResponse_DoesNotLatchNativeGate()
+        {
+            var client = CreateClient();
+            SetupOriginResponse(
+                HttpStatusCode.Forbidden,
+                "{\"message\":\"This track requires a higher subscription tier\"}");
+
+            var act = () => client.GetAsync<TestResponse>("track/getFileUrl");
+
+            await act.Should().ThrowAsync<QobuzApiException>();
+
+            var healthCheck = new QobuzAuthHealthCheck(client, CreateLocalizationService());
+            var result = healthCheck.Check();
+
+            result.Type.Should().Be(HealthCheckResult.Ok);
+            client.Gate.Should().NotBeNull();
+            client.Gate!.IsHealthy.Should().BeTrue(
+                "a 403 from a resource endpoint can be subscription/resource denial, not bad credentials");
+        }
+
+        [Fact]
+        public async Task ExecuteRequestAsync_WithSensitiveErrorBody_RedactsBodyBeforeLogging()
+        {
+            NLogTestLogger.ClearLoggedMessages();
+            var client = CreateClientWithLogger(NLogTestLogger.Create("QobuzApiClientCovTests"));
+            SetupOriginResponse(
+                HttpStatusCode.Unauthorized,
+                "{\"message\":\"Bearer super-secret-token rejected\",\"token\":\"super-secret-token\"}");
+
+            await client.Invoking(c => c.GetAsync<TestResponse>("album/search"))
+                .Should().ThrowAsync<QobuzApiException>();
+
+            var logLines = NLogTestLogger.GetLoggedMessages();
+            logLines.Should().NotContain(line => line.Contains("super-secret-token", StringComparison.Ordinal));
+        }
+
+        [Fact]
+        public async Task ExecuteRequestAsync_WithSensitiveApiErrorMessage_RedactsExceptionAndLogs()
+        {
+            NLogTestLogger.ClearLoggedMessages();
+            var client = CreateClientWithLogger(NLogTestLogger.Create("QobuzApiClientCovTests"));
+            SetupOriginResponse(
+                HttpStatusCode.BadRequest,
+                "{\"message\":\"Bearer super-secret-token rejected\"}");
+
+            var exception = await client.Invoking(c => c.GetAsync<TestResponse>("album/search"))
+                .Should().ThrowAsync<QobuzApiException>();
+
+            exception.Which.Message.Should().NotContain("super-secret-token");
+            var logLines = NLogTestLogger.GetLoggedMessages();
+            logLines.Should().NotContain(line => line.Contains("super-secret-token", StringComparison.Ordinal));
+        }
+
+        [Fact]
+        public async Task ExecuteRequestAsync_WithSuccessfulOriginResponse_ClearsNativeGate()
+        {
+            var client = CreateClient();
+            SetupOriginResponse(HttpStatusCode.Unauthorized, "{\"message\":\"expired\"}");
+            await Assert.ThrowsAsync<QobuzApiException>(() => client.GetAsync<TestResponse>("album/search"));
+
+            SetupOriginResponse(HttpStatusCode.OK, "{\"id\":\"123\"}");
+
+            await client.GetAsync<TestResponse>("album/search");
+
+            var healthCheck = new QobuzAuthHealthCheck(client, CreateLocalizationService());
+            var result = healthCheck.Check();
+
+            result.Type.Should().Be(HealthCheckResult.Ok);
         }
 
         #endregion
@@ -1459,14 +1570,69 @@ namespace Qobuzarr.Tests
 
         #region Helper Methods
 
-        private QobuzApiClient CreateClient()
+        private QobuzApiClient CreateClient(bool useDefaultGate = false)
+        {
+            if (useDefaultGate)
+            {
+                return new QobuzApiClient(
+                    _mockHttpClient.Object,
+                    _mockSessionManager.Object,
+                    _mockRequestSigner.Object,
+                    _mockResponseCache.Object,
+                    _mockLogger.Object);
+            }
+
+            return new QobuzApiClient(
+                _mockHttpClient.Object,
+                _mockSessionManager.Object,
+                _mockRequestSigner.Object,
+                _mockResponseCache.Object,
+                _mockLogger.Object,
+                CreateAuthFailureGate());
+        }
+
+        private QobuzApiClient CreateClientWithLogger(Logger logger)
         {
             return new QobuzApiClient(
                 _mockHttpClient.Object,
                 _mockSessionManager.Object,
                 _mockRequestSigner.Object,
                 _mockResponseCache.Object,
-                _mockLogger.Object);
+                logger,
+                CreateAuthFailureGate());
+        }
+
+        private static AuthFailureGate CreateAuthFailureGate()
+        {
+            var handler = new DefaultAuthFailureHandler(NullLogger<DefaultAuthFailureHandler>.Instance);
+            return new AuthFailureGate(
+                handler,
+                TimeProvider.System,
+                TimeSpan.FromSeconds(60),
+                NullLogger<AuthFailureGate>.Instance);
+        }
+
+        private void SetupOriginResponse(HttpStatusCode statusCode, string body)
+        {
+            _mockSessionManager.Setup(x => x.GetCurrentSessionAsync(default))
+                .ReturnsAsync(_validSession);
+
+            _mockResponseCache.Setup(x => x.ShouldCache(It.IsAny<string>()))
+                .Returns(false);
+
+            var requestBuilder = new HttpRequestBuilder("https://api.qobuz.com/album/search");
+            _mockHttpClient.Setup(x => x.BuildRequest(It.IsAny<string>(), It.IsAny<string>()))
+                .Returns(requestBuilder);
+
+            _mockHttpClient.Setup(x => x.ExecuteAsync(It.IsAny<HttpRequest>(), default))
+                .ReturnsAsync(HttpTestHelpers.CreateResponse(body, statusCode));
+        }
+
+        private static ILocalizationService CreateLocalizationService()
+        {
+            var localization = Substitute.For<ILocalizationService>();
+            localization.GetLocalizedString(Arg.Any<string>()).Returns(ci => ci.Arg<string>());
+            return localization;
         }
 
         private async Task<TrackUnavailableException> ActWithRestriction(QobuzStreamRestriction restriction)

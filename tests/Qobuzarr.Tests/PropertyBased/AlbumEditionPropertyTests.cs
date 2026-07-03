@@ -1,4 +1,5 @@
 using System;
+using System.Diagnostics;
 using System.Linq;
 using FluentAssertions;
 using FsCheck;
@@ -6,6 +7,7 @@ using FsCheck.Xunit;
 using Lidarr.Plugin.Qobuzarr.Security;
 using Lidarr.Plugin.Qobuzarr.Models;
 using Qobuzarr.Tests.Builders;
+using Xunit;
 
 namespace Qobuzarr.Tests.PropertyBased
 {
@@ -373,8 +375,8 @@ namespace Qobuzarr.Tests.PropertyBased
             return (title1 == title2).ToProperty();
         }
 
-        [Property]
-        public Property GetFullTitle_ShouldBeFast()
+        [Fact]
+        public void GetFullTitle_ShouldBeFast()
         {
             // Arrange
             var album = QobuzAlbumBuilder.New()
@@ -382,13 +384,18 @@ namespace Qobuzarr.Tests.PropertyBased
                 .Build();
             album.Version = "Very Long Version String That Could Potentially Cause Performance Issues";
 
-            // Act & Assert - Should complete quickly
-            var startTime = DateTime.UtcNow;
-            var title = album.GetFullTitle();
-            var endTime = DateTime.UtcNow;
+            // Act
+            var stopwatch = Stopwatch.StartNew();
+            string title = string.Empty;
+            for (int i = 0; i < 10_000; i++)
+            {
+                title = album.GetFullTitle();
+            }
+            stopwatch.Stop();
 
-            var duration = endTime - startTime;
-            return (duration.TotalMilliseconds < 10).ToProperty(); // Should be very fast
+            // Assert
+            title.Should().Be("Test Album (Very Long Version String That Could Potentially Cause Performance Issues)");
+            stopwatch.Elapsed.Should().BeLessThan(TimeSpan.FromSeconds(1));
         }
 
         #endregion

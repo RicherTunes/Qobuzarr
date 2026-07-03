@@ -83,6 +83,38 @@ namespace Qobuzarr.Tests.Architecture
         }
 
         [Fact]
+        public void ActiveArchitectureDocs_DoNotDescribeRemovedLidarrIntegrationServicesAsCurrent()
+        {
+            var repoRoot = FindRepositoryRoot();
+            var activeDocs = new[]
+            {
+                "CLAUDE.md",
+                "docs/ARCHITECTURE.md",
+                "docs/architecture/API-REFERENCE.md",
+            };
+            var misleadingSnippets = new[]
+            {
+                "AudioFileDownloader",
+                "### LidarrQueueManager",
+                "class LidarrQueueManager",
+                "AdaptiveConcurrencyManager",
+                "MetadataProcessor",
+            };
+
+            var offenders = activeDocs
+                .Select(relativePath => (relativePath, text: File.ReadAllText(Path.Combine(repoRoot, relativePath))))
+                .SelectMany(doc => misleadingSnippets
+                    .Where(snippet => doc.text.Contains(snippet, StringComparison.Ordinal))
+                    .Select(snippet => $"{doc.relativePath}: {snippet}"))
+                .ToArray();
+
+            offenders.Should().BeEmpty(
+                "active architecture documentation should describe the Common-backed QobuzDownloadClient, " +
+                "TrackDownloadService, ConcurrencyManager, and Common HostBridgeDownloadOrchestrator pipeline " +
+                "instead of deleted Qobuz-local service implementations");
+        }
+
+        [Fact]
         public void ProductionSource_DoesNotReintroduceLegacyStreamUrlTypes()
         {
             var repoRoot = FindRepositoryRoot();
@@ -117,6 +149,33 @@ namespace Qobuzarr.Tests.Architecture
             offenders.Should().BeEmpty(
                 "stream URL acquisition should flow through IQobuzApiClient/GetStreamingInfoAsync and the active " +
                 "TrackDownloadService pipeline, not through resurrected legacy provider/factory/service surfaces");
+        }
+
+        [Fact]
+        public void ProductionSource_DoesNotKeepRemovedLidarrIntegrationInterfaces()
+        {
+            var repoRoot = FindRepositoryRoot();
+            var forbiddenTypeNames = new[]
+            {
+                "ILidarrQueueManager",
+                "ILidarrProgressReporter",
+                "ILidarrStatisticsCollector",
+            };
+
+            var offenders = Directory
+                .EnumerateFiles(Path.Combine(repoRoot, "src"), "*.cs", SearchOption.AllDirectories)
+                .Select(path => (
+                    path: Path.GetRelativePath(repoRoot, path).Replace('\\', '/'),
+                    text: File.ReadAllText(path)))
+                .SelectMany(file => forbiddenTypeNames
+                    .Where(typeName => file.text.Contains(typeName, StringComparison.Ordinal))
+                    .Select(typeName => $"{file.path}: {typeName}"))
+                .ToArray();
+
+            offenders.Should().BeEmpty(
+                "the old Qobuz-local queue/progress/statistics service interfaces were removed with their " +
+                "implementations; keeping interface-only public surfaces invites new code to depend on a dead fork " +
+                "instead of the active QobuzDownloadClient/Common host-bridge pipeline");
         }
 
         [Fact]
