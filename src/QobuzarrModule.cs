@@ -45,8 +45,8 @@ namespace Lidarr.Plugin.Qobuzarr
         /// AssemblyLoadContext.  Call once during plugin unload to prevent socket-pool leaks
         /// across Lidarr reload cycles.
         /// <list type="bullet">
-        ///   <item>SharedSystemHttpClient.Dispose — disposes the Lazy HttpClient + SocketsHttpHandler,
-        ///   releasing the underlying socket pool.  After 3-5 reload cycles without this call,
+        ///   <item>SharedSystemHttpClient.Dispose — disposes the API and media Lazy HttpClients +
+        ///   SocketsHttpHandlers, releasing the underlying socket pools. After 3-5 reload cycles without this call,
         ///   sockets exhaust (audit finding).</item>
         ///   <item>QobuzApiClient.ResetNativeAuthFailureGate — clears any latched auth failure
         ///   recorded by the Lidarr-native API path before the plugin is reloaded.</item>

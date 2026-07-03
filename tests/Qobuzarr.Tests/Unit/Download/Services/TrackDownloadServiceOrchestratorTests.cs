@@ -2,9 +2,12 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Net.Http;
+using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
 using FluentAssertions;
+using Lidarr.Plugin.Common.Services.Download;
 using Lidarr.Plugin.Common.Interfaces;
 using Lidarr.Plugin.Qobuzarr.API;
 using Lidarr.Plugin.Qobuzarr.Download;
@@ -12,6 +15,7 @@ using Lidarr.Plugin.Qobuzarr.Download.Clients;
 using Lidarr.Plugin.Qobuzarr.Download.Services;
 using Lidarr.Plugin.Qobuzarr.Exceptions;
 using Lidarr.Plugin.Qobuzarr.Models;
+using Lidarr.Plugin.Qobuzarr.Services.Http;
 using Moq;
 using NLog;
 using NLog.Config;
@@ -29,6 +33,7 @@ namespace Qobuzarr.Tests.Unit.Download.Services
     /// Failed), skipped-vs-failed accounting, the stream-resolution / re-auth call path, and
     /// quality-fallback recording.
     /// </summary>
+    [Collection("SharedSystemHttpClient")]
     public sealed class TrackDownloadServiceOrchestratorTests
     {
         private static readonly Logger Log = LogManager.GetLogger("TrackDownloadServiceOrchestratorTests");
@@ -69,6 +74,19 @@ namespace Qobuzarr.Tests.Unit.Download.Services
                 _seedClassifier?.Invoke(classifier);
                 _reportProgress?.Invoke(progress);
                 return Task.FromResult(_result);
+            }
+        }
+
+        private sealed class ExposedTrackDownloadService : TrackDownloadService
+        {
+            public ExposedTrackDownloadService(IQobuzApiClient apiClient)
+                : base(apiClient, Mock.Of<IConcurrencyManager>(), Mock.Of<IDownloadSummary>(), Log)
+            {
+            }
+
+            public QobuzDownloadOrchestrator BuildForTest(QobuzAlbum album, QobuzDownloadSettings settings, QobuzDownloadItem item)
+            {
+                return BuildOrchestrator(album, settings, item, new QobuzTrackClassifier(), CancellationToken.None);
             }
         }
 
@@ -466,6 +484,21 @@ namespace Qobuzarr.Tests.Unit.Download.Services
                     Directory.Delete(outputPath, recursive: true);
                 }
             }
+        }
+
+        [Fact]
+        public void BuildOrchestrator_UsesNoAutoRedirectMediaClient()
+        {
+            var api = new Mock<IQobuzApiClient>();
+            var sut = new ExposedTrackDownloadService(api.Object);
+
+            var orchestrator = sut.BuildForTest(MakeAlbum(1), new QobuzDownloadSettings(), MakeItem());
+
+            var field = typeof(SimpleDownloadOrchestrator).GetField("_httpClient", BindingFlags.Instance | BindingFlags.NonPublic);
+            field.Should().NotBeNull("the production path should expose which HttpClient is injected into Common's orchestrator");
+            var client = (HttpClient)field!.GetValue(orchestrator)!;
+            client.Should().BeSameAs(SharedSystemHttpClient.MediaInstance,
+                "media downloads must use a no-auto-redirect client so Common validates each redirect target before the next request");
         }
 
         // ── helpers ──────────────────────────────────────────────────────────────────────────────

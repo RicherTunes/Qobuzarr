@@ -32,6 +32,16 @@ namespace Qobuzarr.Tests.Download.Clients
             DnsResolver = _ => new[] { System.Net.IPAddress.Parse("8.8.8.8") }
         };
 
+        private static readonly RemoteMediaUriPolicy TransientDnsPolicy = new()
+        {
+            DnsResolver = _ => throw new SocketException((int)SocketError.HostNotFound)
+        };
+
+        private static readonly RemoteMediaUriPolicy ResolvesPrivatePolicy = new()
+        {
+            DnsResolver = _ => new[] { System.Net.IPAddress.Parse("10.0.0.1") }
+        };
+
         private sealed class SequenceHandler : HttpMessageHandler
         {
             private readonly Queue<Func<HttpRequestMessage, HttpResponseMessage>> _responders;
@@ -134,17 +144,29 @@ namespace Qobuzarr.Tests.Download.Clients
             var handler = new SequenceHandler(
                 _ => new HttpResponseMessage(HttpStatusCode.OK) { Content = new ByteArrayContent(new byte[1]) });
             using var client = new HttpClient(handler);
-            var transientDnsPolicy = new RemoteMediaUriPolicy
-            {
-                DnsResolver = _ => throw new SocketException((int)SocketError.HostNotFound),
-            };
 
             Func<Task> act = () => ResumeHttpDownloader.SendDownloadRequestAsync(
-                client, "https://cdn.example.invalid/track", "x.partial", existing: 0,
-                onRangeReset: null, cancellationToken: CancellationToken.None, policy: transientDnsPolicy);
+                client, "https://sp-ad-cf.audio.qobuz.com/track", "x.partial", existing: 0,
+                onRangeReset: null, cancellationToken: CancellationToken.None, policy: TransientDnsPolicy);
 
             await act.Should().ThrowAsync<HttpRequestException>("a DNS blip is retryable, not a permanent SSRF refusal");
             handler.CallCount.Should().Be(0, "the unresolved host must not be contacted until it can be confirmed safe");
+        }
+
+        [Fact]
+        public async Task SendDownloadRequestAsync_HostResolvingToPrivateIp_IsPermanentBlock_WithoutSending()
+        {
+            var handler = new SequenceHandler(
+                _ => new HttpResponseMessage(HttpStatusCode.OK) { Content = new ByteArrayContent(new byte[1]) });
+            using var client = new HttpClient(handler);
+
+            Func<Task> act = () => ResumeHttpDownloader.SendDownloadRequestAsync(
+                client, "https://sp-ad-cf.audio.qobuz.com/track", "x.partial", existing: 0,
+                onRangeReset: null, cancellationToken: CancellationToken.None, policy: ResolvesPrivatePolicy);
+
+            await act.Should().ThrowAsync<InvalidOperationException>(
+                "a host that resolves to a private IP is confirmed unsafe, not a DNS blip");
+            handler.CallCount.Should().Be(0, "the private-resolving host must never be contacted");
         }
     }
 }
