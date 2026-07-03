@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Net;
 using System.Net.Http;
+using System.Net.Sockets;
 using System.Threading;
 using System.Threading.Tasks;
 using FluentAssertions;
@@ -125,6 +126,25 @@ namespace Qobuzarr.Tests.Download.Clients
 
             await act.Should().ThrowAsync<InvalidOperationException>("a private-host stream URL is an SSRF target");
             handler.CallCount.Should().Be(0, "the private host must never be contacted");
+        }
+
+        [Fact]
+        public async Task SendDownloadRequestAsync_TransientDnsFailure_IsRetryable_WithoutSending()
+        {
+            var handler = new SequenceHandler(
+                _ => new HttpResponseMessage(HttpStatusCode.OK) { Content = new ByteArrayContent(new byte[1]) });
+            using var client = new HttpClient(handler);
+            var transientDnsPolicy = new RemoteMediaUriPolicy
+            {
+                DnsResolver = _ => throw new SocketException((int)SocketError.HostNotFound),
+            };
+
+            Func<Task> act = () => ResumeHttpDownloader.SendDownloadRequestAsync(
+                client, "https://cdn.example.invalid/track", "x.partial", existing: 0,
+                onRangeReset: null, cancellationToken: CancellationToken.None, policy: transientDnsPolicy);
+
+            await act.Should().ThrowAsync<HttpRequestException>("a DNS blip is retryable, not a permanent SSRF refusal");
+            handler.CallCount.Should().Be(0, "the unresolved host must not be contacted until it can be confirmed safe");
         }
     }
 }
