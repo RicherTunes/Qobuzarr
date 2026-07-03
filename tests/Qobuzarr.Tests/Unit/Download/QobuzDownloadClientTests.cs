@@ -429,9 +429,10 @@ namespace Qobuzarr.Tests.Unit.Download
         {
             // No classified reasons at all -> the enrichment must degrade gracefully to the
             // exception's own generic summary rather than throwing or fabricating a reason.
+            const string sensitiveUrl = "https://stream.qobuz.com/file.flac?token=SECRET&signature=PRIVATE";
             var albumException = new AlbumDownloadException(
                 "album-unclassified",
-                "Unclassified Album",
+                sensitiveUrl,
                 totalTracks: 2,
                 successfulTracks: 1,
                 skippedTracks: 0,
@@ -456,7 +457,34 @@ namespace Qobuzarr.Tests.Unit.Download
             item.Should().NotBeNull();
             item.Status.Should().Be(DownloadItemStatus.Failed);
             item.Message.Should().Contain("Download failed");
-            item.Message.Should().Contain(albumException.Message);
+            item.Message.Should().NotContain("SECRET");
+            item.Message.Should().NotContain("PRIVATE");
+            item.Message.Should().Contain("https://stream.qobuz.com/file.flac?[REDACTED]");
+        }
+
+        [Fact]
+        public async Task Download_WithGenericException_RedactsSensitiveQueueMessage()
+        {
+            var exception = new InvalidOperationException(
+                "Failed https://stream.qobuz.com/file.flac?token=SECRET&signature=PRIVATE");
+
+            _mockTrackDownloadService.DownloadAlbumAsync(
+                Arg.Any<QobuzDownloadItem>(),
+                Arg.Any<QobuzAlbum>(),
+                Arg.Any<QobuzDownloadSettings>(),
+                Arg.Any<CancellationToken>())
+                .Returns(Task.FromException(exception));
+
+            var downloadId = await _downloadClient.Download(CreateTestRemoteAlbum(), Substitute.For<IIndexer>());
+            await AwaitTrackedDownloadIgnoringErrorsAsync(downloadId);
+
+            var item = _downloadClient.GetItems().FirstOrDefault(x => x.DownloadId == downloadId);
+
+            item.Should().NotBeNull();
+            item.Status.Should().Be(DownloadItemStatus.Failed);
+            item.Message.Should().NotContain("SECRET");
+            item.Message.Should().NotContain("PRIVATE");
+            item.Message.Should().Contain("https://stream.qobuz.com/file.flac?[REDACTED]");
         }
 
         [Fact]

@@ -38,6 +38,7 @@ using Lidarr.Plugin.Qobuzarr.Services;
 using Lidarr.Plugin.Qobuzarr.Services.Http;
 using Lidarr.Plugin.Common.HostBridge;
 using Lidarr.Plugin.Common.Observability;
+using Lidarr.Plugin.Common.Security;
 using Lidarr.Plugin.Common.Services.Bridge;
 using Lidarr.Plugin.Common.Utilities;
 using System.Net.Http;
@@ -887,14 +888,14 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Clients
                 // and the pre-existing double-prefixing ("Download failed: Download failed: ...") is fixed
                 // alongside this change (see the sibling generic catch below).
                 var groupedReasons = ErrorMessageFormatter.FormatGroupedFailureReasons(ex);
-                downloadItem.SetFailed(groupedReasons ?? ex.Message);
+                downloadItem.SetFailed(groupedReasons ?? Sanitize.SafeErrorMessage(ex.Message));
                 _logger.Error(ex, "Download failed: {0} - {1}", downloadItem.Artist, downloadItem.Title);
             }
             catch (Exception ex)
             {
                 // See the AlbumDownloadException catch above: GetStatusMessage() already prefixes Failed
                 // messages with "Download failed: ", so SetFailed must not add its own copy.
-                downloadItem.SetFailed(ex.Message);
+                downloadItem.SetFailed(Sanitize.SafeErrorMessage(ex.Message));
                 _logger.Error(ex, "Download failed: {0} - {1}", downloadItem.Artist, downloadItem.Title);
             }
         }
