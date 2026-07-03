@@ -8,6 +8,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Dependencies (2026-07-03)
+- `ext/Lidarr.Plugin.Common` submodule re-pinned to **`61f1bbec`** (`commonVersion` **`1.18.0-dev`**) — propagates the Common improvement wave into qobuz: SettingsBinder graceful-bind hardening (malformed settings field skips instead of aborting the whole save; nullable null preserved), untested-primitive test coverage (RetryPolicy/SettingsBinder/UnicodeNormalizer), payload/rate-limit enforcement guards, and the template-scaffold fixes. `ext-common-sha.txt` matches the checked-out submodule HEAD (`CommonPinDriftTests`); qobuz's full suite (2409 tests) passes against this Common. No qobuz API changes required — the jump is purely additive Common hardening/coverage.
+
 ### Dependencies (2026-07-02)
 - `ext/Lidarr.Plugin.Common` submodule re-pinned to **`9b8b744`** (`commonVersion` **`1.18.0-dev`**) — ecosystem lockstep after the terminal-release-suppression, restriction-classification, lyrics-enricher hardening, aggregate parity guard, and conflict-marker guard fixes below. `ext-common-sha.txt` matches the checked-out submodule HEAD (`CommonPinDriftTests`); the submodule's own `Directory.Build.props <Version>` agrees (`VersionContractTests.CommonSubmodule_Version_MatchesPluginJsonCommonVersion`). Numerous smaller re-pins landed between `0.5.11` (2026-05-29) and this one tracking Common mainline (docker host-resolution fix, terminal-suppression hardening, metadata-sanitizer hardening, aggregate parity-guard + parity-probe merges); see git history for the full per-commit list. `commonVersion` itself has read `1.18.0-dev` throughout that span — it is a `-dev` marker tracking Common's unreleased main, not a per-repin bump.
 
