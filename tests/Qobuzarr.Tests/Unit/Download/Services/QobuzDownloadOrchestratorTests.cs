@@ -153,6 +153,41 @@ namespace Qobuzarr.Tests.Unit.Download.Services
             result.TrackResults.Count(r => !r.Success).Should().Be(1);
         }
 
+        [Fact]
+        public async Task DownloadAlbumAsync_RedirectToLoopback_IsBlockedBeforeSecondRequest()
+        {
+            var album = MakeAlbum(("t1", "First", 1, 1));
+            var handler = new RedirectToLoopbackHandler();
+            var policy = new RemoteMediaUriPolicy
+            {
+                AllowHttp = true,
+                DnsResolver = host => host.Equals("stream.example", StringComparison.OrdinalIgnoreCase)
+                    ? new[] { IPAddress.Parse("93.184.216.34") }
+                    : new[] { IPAddress.Parse("127.0.0.1") },
+            };
+            var orchestrator = MakeOrchestrator(
+                album,
+                handler,
+                new RecordingApplier(),
+                new RecordingPostProcessor(),
+                getStream: (_, _) => Task.FromResult(("https://stream.example/track.flac", ".flac")),
+                mediaUriPolicy: policy);
+
+            var outDir = Path.Combine(_tempDir, "album-redirect");
+            var result = await orchestrator.DownloadAlbumAsync("alb", outDir, null, null, CancellationToken.None);
+
+            result.Success.Should().BeFalse("a media redirect to loopback is a hard SSRF block");
+            result.TrackResults.Should().ContainSingle(r =>
+                !r.Success &&
+                r.ErrorMessage != null &&
+                r.ErrorMessage.Contains("Refusing redirect to an unsafe URL", StringComparison.Ordinal));
+            handler.InitialRequests.Should().Be(1);
+            handler.UnsafeTargetRequests.Should().Be(0,
+                "Common must validate the redirect Location before a request is issued to the unsafe target");
+            Directory.EnumerateFiles(outDir, "*", SearchOption.AllDirectories)
+                .Should().BeEmpty("blocked redirects must not write partial media files");
+        }
+
         // ── helpers ──────────────────────────────────────────────────────────────────────────────
 
         private static QobuzAlbum MakeAlbum(params (string id, string title, int num, int disc)[] tracks)
@@ -175,7 +210,8 @@ namespace Qobuzarr.Tests.Unit.Download.Services
             HttpMessageHandler handler,
             IAudioMetadataApplier applier,
             IAudioPostProcessor postProcessor,
-            Func<string, StreamingQuality?, Task<(string, string)>> getStream)
+            Func<string, StreamingQuality?, Task<(string, string)>> getStream,
+            RemoteMediaUriPolicy? mediaUriPolicy = null)
         {
             var httpClient = new HttpClient(handler);
             Func<string, Task<StreamingAlbum>> getAlbum = _ => Task.FromResult(new StreamingAlbum { Id = album.Id });
@@ -196,7 +232,7 @@ namespace Qobuzarr.Tests.Unit.Download.Services
                 metadataApplier: applier,
                 postProcessor: postProcessor,
                 // permissive so the fake (non-resolvable) host isn't blocked by the SSRF guard
-                mediaUriPolicy: new RemoteMediaUriPolicy { AllowHttp = true, AllowPrivateNetworks = true, ResolveDns = false });
+                mediaUriPolicy: mediaUriPolicy ?? new RemoteMediaUriPolicy { AllowHttp = true, AllowPrivateNetworks = true, ResolveDns = false });
         }
 
         private static string WriteFlac(string dir, int size)
@@ -227,6 +263,35 @@ namespace Qobuzarr.Tests.Unit.Download.Services
             public StubHandler(Func<HttpRequestMessage, HttpResponseMessage> responder) => _responder = responder;
             protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
                 => Task.FromResult(_responder(request));
+        }
+
+        private sealed class RedirectToLoopbackHandler : HttpMessageHandler
+        {
+            public int InitialRequests;
+            public int UnsafeTargetRequests;
+
+            protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+            {
+                if (request.RequestUri?.Host.Equals("stream.example", StringComparison.OrdinalIgnoreCase) == true)
+                {
+                    Interlocked.Increment(ref InitialRequests);
+                    return Task.FromResult(new HttpResponseMessage(HttpStatusCode.Found)
+                    {
+                        Headers =
+                        {
+                            Location = new Uri("http://127.0.0.1/internal.flac"),
+                        },
+                    });
+                }
+
+                if (request.RequestUri?.Host == "127.0.0.1")
+                {
+                    Interlocked.Increment(ref UnsafeTargetRequests);
+                    return Task.FromResult(FlacResponse(2048));
+                }
+
+                throw new InvalidOperationException($"Unexpected request URI: {request.RequestUri}");
+            }
         }
 
         private sealed class RecordingApplier : IAudioMetadataApplier

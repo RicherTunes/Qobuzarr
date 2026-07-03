@@ -204,7 +204,7 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Services
             var maxConcurrent = Math.Max(1, _concurrencyManager.CurrentLimit);
 
             return new QobuzDownloadOrchestrator(
-                SharedSystemHttpClient.Instance,
+                SharedSystemHttpClient.MediaInstance,
                 getAlbum,
                 getTrack,
                 getTrackIds,
@@ -452,7 +452,7 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Services
 
         internal virtual async Task<long> DownloadAttemptAsync(string url, string filePath, string partialPath, CancellationToken cancellationToken)
         {
-            var httpClient = SharedSystemHttpClient.Instance;
+            var httpClient = SharedSystemHttpClient.MediaInstance;
             long existing = 0;
             if (File.Exists(partialPath))
             {
