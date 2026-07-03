@@ -53,22 +53,13 @@ namespace Lidarr.Plugin.Qobuzarr.Integration;
 /// </para>
 ///
 /// <para>
-/// <b>STILL UNPROVEN / KNOWN GAP — the Warning path is practically inert in production
-/// today.</b> The probe above only exercises the Ok branch: the container had no Qobuz
-/// credentials configured, and the ONE indexer type Lidarr's live schema actually resolves is
-/// the classic host-native <c>QobuzIndexer</c>, which is wired to <c>IQobuzApiClient</c> →
-/// <c>AdaptiveQobuzApiClient</c> → <c>QobuzApiClient</c> — and <c>QobuzApiClient.Gate</c> is
-/// HARDCODED to always return <c>null</c> (see its doc comment: "the gate lives on
-/// <c>BridgeQobuzApiClient</c>", which is a separate, not-currently-live code path — its
-/// <c>CreateDownloadClientAsync</c> returns <c>null</c> and only its indexer adapter is even
-/// registered). Consequence: on the currently-live wiring, <see cref="Check"/> will return
-/// <c>Ok</c> UNCONDITIONALLY, no matter how badly auth is failing — this health check cannot
-/// yet produce a Warning in production. Closing this gap (wiring a populated
-/// <c>AuthFailureGate</c> onto the native <c>QobuzApiClient</c>/<c>QobuzIndexer</c> path, or an
-/// equivalent always-live auth signal) is a REQUIRED follow-up before this pilot delivers its
-/// intended user-facing value; it was deliberately left out of this PILOT's scope (a
-/// behavior-changing edit to the live auth/HTTP pipeline, not a ~50 LOC adapter). See
-/// qobuzarr/CLAUDE.md for the full analysis.
+/// <b>Native warning path:</b> the live host-native path
+/// <c>IQobuzApiClient</c> → <c>AdaptiveQobuzApiClient</c> → <c>QobuzApiClient</c>
+/// now exposes a plugin-local <c>AuthFailureGate</c>. <c>QobuzApiClient</c> records
+/// HTTP 401 responses plus auth-endpoint HTTP 403 responses into that gate and clears it on real origin success,
+/// so this health check can report a Warning for the currently-live indexer wiring.
+/// This is covered by <c>QobuzApiClientCovTests</c>; the remaining end-to-end proof is
+/// a live Lidarr run with deliberately failing Qobuz credentials, then re-auth.
 /// </para>
 /// </summary>
 public sealed class QobuzAuthHealthCheck : HealthCheckBase
@@ -85,8 +76,7 @@ public sealed class QobuzAuthHealthCheck : HealthCheckBase
     public override HealthCheck Check()
     {
         // A null gate means no AuthFailureGate is wired on this IQobuzApiClient
-        // implementation (e.g. the Lidarr-native QobuzApiClient path, which currently
-        // always returns null — see IQobuzApiClient.Gate's doc comment). Treat that the
+        // implementation (normally only a test fake or unsupported adapter). Treat that the
         // same way every other gate consumer in this codebase does
         // (QobuzIndexer.IsAuthShortCircuited / QobuzDownloadClient.IsAuthShortCircuited):
         // "a null gate is always considered healthy" — never throw, never warn on absence.

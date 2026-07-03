@@ -1210,8 +1210,9 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Clients
         // ------------------------------------------------------------------ //
         // Mirror the pattern in QobuzIndexer / AppleMusicLidarrDownloadClient.
         // Static for testability (callers can pin the contract without constructing a full DC).
-        // The gate is obtained from _apiClient.Gate; BridgeQobuzApiClient returns the singleton
-        // gate; QobuzApiClient (Lidarr-native path) returns null (always-healthy fast-path).
+        // The gate is obtained from _apiClient.Gate; BridgeQobuzApiClient and the
+        // Lidarr-native QobuzApiClient both expose plugin-local gates. Null is kept as
+        // the defensive always-healthy convention for test fakes or unsupported adapters.
         // ------------------------------------------------------------------ //
 
         /// <summary>
@@ -1222,8 +1223,8 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Clients
             => gate?.ShouldShortCircuit() ?? false;
 
         /// <summary>
-        /// If <paramref name="ex"/> looks like a Qobuz auth failure (HTTP 401/403 or
-        /// <see cref="Exceptions.QobuzApiException"/> with a 401/403 status), records
+        /// If <paramref name="ex"/> looks like a Qobuz auth failure (HTTP 401, or
+        /// auth-endpoint HTTP 403), records
         /// a failure with <paramref name="gate"/>'s handler so the gate latches and subsequent
         /// calls short-circuit without touching the network.
         ///
@@ -1245,21 +1246,20 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Clients
         /// Returns true when <paramref name="ex"/> is recognisable as a Qobuz
         /// authentication failure:
         /// <list type="bullet">
-        ///   <item>HTTP 401 Unauthorized or 403 Forbidden (HttpRequestException)</item>
-        ///   <item><see cref="Exceptions.QobuzApiException"/> with StatusCode 401 or 403</item>
+        ///   <item>HTTP 401 Unauthorized</item>
+        ///   <item>HTTP 403 Forbidden only when the exception identifies an authentication endpoint</item>
         /// </list>
         /// </summary>
         public static bool LooksLikeAuthFailure(Exception ex)
         {
             if (ex is HttpRequestException hre &&
-                hre.StatusCode is HttpStatusCode.Unauthorized or HttpStatusCode.Forbidden)
+                hre.StatusCode == HttpStatusCode.Unauthorized)
             {
                 return true;
             }
-            if (ex is Exceptions.QobuzApiException qae &&
-                qae.StatusCode is HttpStatusCode.Unauthorized or HttpStatusCode.Forbidden)
+            if (ex is Exceptions.QobuzApiException qae && qae.StatusCode is { } status)
             {
-                return true;
+                return QobuzApiClient.ShouldRecordAuthFailure(status, qae.Endpoint);
             }
             return false;
         }
