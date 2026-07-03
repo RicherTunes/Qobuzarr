@@ -44,6 +44,9 @@ public class ChangelogTruthTests
     private static readonly Regex ShaToken =
         new(@"\b[0-9a-f]{7,40}\b", RegexOptions.Compiled | RegexOptions.IgnoreCase);
 
+    private static readonly Regex LargeSuiteCountClaim =
+        new(@"\b\d{3,}\s+(?:tests|passed)\b", RegexOptions.Compiled | RegexOptions.IgnoreCase);
+
     [Fact]
     public void Changelog_NewestCommonVersionMention_MatchesPluginJson()
     {
@@ -82,6 +85,21 @@ public class ChangelogTruthTests
 
         Assert.True(pinnedSha.StartsWith(newestMention!, StringComparison.OrdinalIgnoreCase),
             $"CHANGELOG.md says Common pin {newestMention}, but ext-common-sha.txt pins {pinnedSha}.");
+    }
+
+    [Fact]
+    public void Changelog_UnreleasedSection_DoesNotHardCodeLargeSuiteCounts()
+    {
+        var changelogPath = LocateRepoFile("CHANGELOG.md");
+        Skip.If(changelogPath is null, "CHANGELOG.md not found — only enforced for repo-rooted runs");
+
+        var unreleased = ReadUnreleasedSection(changelogPath!);
+        var match = LargeSuiteCountClaim.Match(unreleased);
+
+        Assert.False(match.Success,
+            "CHANGELOG.md [Unreleased] must not hard-code mutable full-suite counts. " +
+            "Describe the lane that passed instead, or link to a checked-in verification artifact. " +
+            $"Found '{match.Value}'.");
     }
 
     /// <summary>
@@ -131,6 +149,19 @@ public class ChangelogTruthTests
         }
 
         return null;
+    }
+
+    private static string ReadUnreleasedSection(string changelogPath)
+    {
+        var text = File.ReadAllText(changelogPath);
+        var start = text.IndexOf("## [Unreleased]", StringComparison.OrdinalIgnoreCase);
+        if (start < 0)
+        {
+            return string.Empty;
+        }
+
+        var next = text.IndexOf("\n## [", start + "## [Unreleased]".Length, StringComparison.OrdinalIgnoreCase);
+        return next < 0 ? text[start..] : text[start..next];
     }
 
     private static string? LocateRepoFile(string fileName)
