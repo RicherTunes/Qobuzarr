@@ -142,7 +142,7 @@ graph LR
         DO[DownloadOrchestrator]
         TDO[TrackDownloadOrchestrator]
         TDS[TrackDownloadService]
-        MP[MetadataProcessor]
+        MAP[QobuzAudioMetadataApplier]
         FPG[FilePathGenerator]
     end
     
@@ -275,7 +275,7 @@ sequenceDiagram
     participant DO as DownloadOrchestrator
     participant TDO as TrackDownloadOrchestrator
     participant TDS as TrackDownloadService
-    participant MP as MetadataProcessor
+    participant MAP as QobuzAudioMetadataApplier
     participant QobuzAPI as Qobuz API
     
     Lidarr->>QDC: Download album request
@@ -287,8 +287,8 @@ sequenceDiagram
         QobuzAPI->>TDO: Stream URL + metadata
         TDO->>TDS: Download audio file
         TDS->>TDO: Audio file downloaded
-        TDO->>MP: Process metadata
-        MP->>TDO: Metadata applied
+        TDO->>MAP: Apply audio metadata
+        MAP->>TDO: Metadata applied
     end
     
     DO->>QDC: Download complete
@@ -653,7 +653,7 @@ graph TD
     %% Download Dependencies
     DO --> TDO[TrackDownloadOrchestrator]
     DO --> TDS[TrackDownloadService]
-    DO --> MP[MetadataProcessor]
+    DO --> MAP[QobuzAudioMetadataApplier]
     DO --> FPG[FilePathGenerator]
     
     %% ML Dependencies
