@@ -19,6 +19,7 @@ using Lidarr.Plugin.Qobuzarr.Exceptions;
 using Lidarr.Plugin.Qobuzarr.Models;
 using Lidarr.Plugin.Qobuzarr.Services.Http;
 using Lidarr.Plugin.Qobuzarr.Utilities;
+using Lidarr.Plugin.Common.Security;
 using Lidarr.Plugin.Common.Utilities;
 using CommonResults = Lidarr.Plugin.Common.Interfaces;
 using QobuzApiException = Lidarr.Plugin.Qobuzarr.API.QobuzApiException;
@@ -100,6 +101,7 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Services
             var bytesDownloaded = downloadItem.TotalSize;
             _downloadSummary.RecordAlbumResult(downloadItem.Artist, downloadItem.Title, successfulTracks, skippedTracks, failedTracks, totalTracks, bytesDownloaded);
             LogAlbumDownloadSummary(downloadItem.Artist, downloadItem.Title, album, successfulTracks, skippedTracks, failedTracks, totalTracks, bytesDownloaded);
+            LogPerTrackFailures(album, result, classifier);
 
             // Per-album quality-fallback summary (replaces per-track Info spam from GetStreamingInfoAsync).
             // Warn when the WHOLE album fell back (the requested tier is entirely unavailable — an
@@ -562,6 +564,51 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Services
             catch (Exception ex)
             {
                 _logger.Debug(ex, "Error logging album download summary");
+            }
+        }
+
+        /// <summary>
+        /// Logs a per-track Warn line for every deficit track (skipped or hard-failed), naming the track
+        /// number/title, its classified <see cref="TrackUnavailableReason"/> (or the literal
+        /// <c>"unclassified"</c> when <see cref="QobuzTrackClassifier"/> never recorded one), and a short,
+        /// scrubbed error detail.
+        ///
+        /// <para>Diagnosability fix (2026-07-03): before this, <see cref="LogAlbumDownloadSummary"/> only
+        /// logged the aggregate "Album summary: ... • N failed" count at Info. The per-track WHY existed
+        /// only at Debug (the retry warnings inside <see cref="GetStreamingInfoWithRetryAsync"/>) or nowhere
+        /// at all — byte-download-stage failures happen inside Common's <c>SimpleDownloadOrchestrator</c>,
+        /// whose <c>ILogger</c> <see cref="BuildOrchestrator"/> never wires up (passes <c>logger: null</c>),
+        /// so that engine's own per-attempt/failure log lines are silently swallowed for Qobuz. A real live
+        /// album (Solar Fields "ORIGIN – Shaped By Time") re-grabbed 12x over 3 hours, always failing
+        /// "39/40 tracks • 1 failed", with no way to tell which track or why once the Debug logs had
+        /// rotated away. This makes every deficit track diagnosable from Info-level logs alone, regardless
+        /// of which stage (stream resolution vs. byte download) produced the failure.</para>
+        ///
+        /// <para>The failure message is scrubbed via <see cref="Sanitize.SafeErrorMessage"/> (redacts URLs
+        /// and auth-token-shaped substrings) before logging — defensive even though the orchestrator's own
+        /// messages are already scrubbed at the source, since this is a second, independent log surface.</para>
+        /// </summary>
+        private void LogPerTrackFailures(QobuzAlbum album, CommonResults.DownloadResult result, QobuzTrackClassifier classifier)
+        {
+            foreach (var trackResult in result.TrackResults)
+            {
+                if (trackResult.Success)
+                {
+                    continue;
+                }
+
+                var track = ResolveQobuzTrack(album, trackResult.TrackId);
+                var reason = classifier.GetReason(trackResult.TrackId);
+                var reasonText = reason.HasValue ? reason.Value.ToString() : "unclassified";
+                var safeMessage = Sanitize.SafeErrorMessage(trackResult.ErrorMessage);
+
+                _logger.Warn(
+                    "Track failed: #{0} '{1}' (id {2}) — reason={3}{4}",
+                    track.TrackNumber,
+                    track.Title,
+                    trackResult.TrackId,
+                    reasonText,
+                    string.IsNullOrEmpty(safeMessage) ? string.Empty : $": {safeMessage}");
             }
         }
 
