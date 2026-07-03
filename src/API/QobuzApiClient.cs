@@ -669,7 +669,25 @@ namespace Lidarr.Plugin.Qobuzarr.API
 
             if (streamingInfo.Sample == true)
             {
-                throw new InvalidOperationException("Qobuz returned a sample stream; subscription or quality may be restricted.");
+                // Route through the classified TrackUnavailableException seam (mirrors the restriction
+                // branch below) instead of an opaque InvalidOperationException. A sample-only stream is
+                // semantically a preview — QualityFallbackProvider.DetermineUnavailableReason already maps
+                // "sample"/"preview" message text to TrackUnavailableReason.PreviewOnly elsewhere in this
+                // codebase. Before this fix the raw InvalidOperationException reached
+                // TrackDownloadService.ResolveStreamAsync's generic catch, which never records a reason on
+                // QobuzTrackClassifier — leaving the deficit track permanently "unclassified" and
+                // undiagnosable. Live-observed loop symptom this explains: a track Qobuz always serves as a
+                // sample fails IDENTICALLY on every re-grab (deterministic, not a transient blip), matching
+                // the Solar Fields "ORIGIN – Shaped By Time" case (12 re-grabs over 3 hours, always
+                // "39/40 tracks • 1 failed"). PreviewOnly is deliberately excluded from
+                // TrackUnavailableReasonExtensions.IsPermanentlyUnavailable (only Restricted/
+                // SubscriptionRestriction are), so classifying this correctly cannot trigger terminal
+                // suppression — it only fixes reporting/diagnosability, matching the existing PreviewOnly
+                // skip-accounting TrackDownloadService.ResolveStreamAsync already has.
+                throw new TrackUnavailableException(
+                    trackId,
+                    "Qobuz returned a sample stream; subscription or quality may be restricted.",
+                    TrackUnavailableReason.PreviewOnly);
             }
 
             if (streamingInfo.HasRestrictions())

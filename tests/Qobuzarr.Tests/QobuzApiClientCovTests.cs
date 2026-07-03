@@ -281,11 +281,24 @@ namespace Qobuzarr.Tests
         #endregion
 
         #region GetStreamingInfoAsync - Line 435: Sample Stream
+        //
+        // Diagnosability/loop investigation (2026-07-03): a raw InvalidOperationException here bypassed the
+        // classified TrackUnavailableException seam entirely, so a track Qobuz always serves as a sample
+        // (e.g. an out-of-catalog / promo-only cut) fell into TrackDownloadService.ResolveStreamAsync's
+        // generic catch — never recorded on QobuzTrackClassifier — making the deficit permanently
+        // "unclassified". That failure mode is deterministic (the SAME track fails identically on every
+        // re-grab, unlike a transient network blip), which matches the live-observed Solar Fields loop
+        // symptom (12 re-grabs over 3 hours, always "39/40 tracks • 1 failed"). A sample stream is
+        // semantically a preview — QualityFallbackProvider.DetermineUnavailableReason already maps
+        // message text containing "sample"/"preview" to TrackUnavailableReason.PreviewOnly elsewhere in
+        // this codebase — so this now throws the same classified exception the restriction-branch above
+        // uses, instead of an opaque InvalidOperationException. PreviewOnly is deliberately NOT in
+        // TrackUnavailableReasonExtensions.IsPermanentlyUnavailable (only Restricted/SubscriptionRestriction
+        // are), so this change cannot introduce over-suppression — it only fixes classification/logging.
 
         [Fact]
-        public async Task GetStreamingInfoAsync_WithSampleStream_ShouldThrowInvalidOperationException()
+        public async Task GetStreamingInfoAsync_WithSampleStream_ThrowsTrackUnavailableException_WithPreviewOnlyReason()
         {
-            // Line 435: throw new InvalidOperationException("Qobuz returned a sample stream...");
             var client = CreateClient();
 
             _mockSessionManager.Setup(x => x.GetCurrentSessionAsync(default))
@@ -315,10 +328,14 @@ namespace Qobuzarr.Tests
                 .ReturnsAsync(response);
 
             // Act & Assert
-            var exception = await Assert.ThrowsAsync<InvalidOperationException>(
+            var exception = await Assert.ThrowsAsync<TrackUnavailableException>(
                 () => client.GetStreamingInfoAsync("track123", 6));
 
-            exception.Message.Should().Be("Qobuz returned a sample stream; subscription or quality may be restricted.");
+            exception.TrackId.Should().Be("track123");
+            exception.Reason.Should().Be(TrackUnavailableReason.PreviewOnly);
+            exception.Reason.IsPermanentlyUnavailable().Should().BeFalse(
+                "a sample-stream classification must never be treated as a terminal-suppression candidate");
+            exception.Message.Should().Contain("sample stream");
         }
 
         #endregion

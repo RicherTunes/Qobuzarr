@@ -347,6 +347,95 @@ namespace Qobuzarr.Tests.Unit.Download.Services
             }
         }
 
+        // ── per-track failure diagnosability (2026-07-03) ─────────────────────────────────────────
+        //
+        // Live-found gap: a real album (Solar Fields "ORIGIN – Shaped By Time") re-grabbed 12x over 3
+        // hours, always failing "39/40 tracks • 1 failed" — but WHICH track and WHY was never logged at
+        // Info/Warn, only the aggregate count (LogAlbumDownloadSummary). The per-track detail only existed
+        // at Debug (inside GetStreamingInfoWithRetryAsync's retry warnings) or nowhere at all (byte-download
+        // failures inside Common's SimpleDownloadOrchestrator, whose logger BuildOrchestrator never wires
+        // up — see `logger: null` there). By the time anyone looked, the Debug logs had rotated away and
+        // the loop was undiagnosable. These tests pin a Warn-level, per-track line naming the track and its
+        // classified reason (or "unclassified" when the classifier never recorded one) for every deficit
+        // track, independent of Debug logging.
+
+        [Fact]
+        public async Task DownloadAlbumAsync_FailedTrack_LogsPerTrackWarnWithClassifiedReason()
+        {
+            var (logger, memory, factory) = CreateMemoryLogger();
+            try
+            {
+                var album = MakeAlbum(2); // t1 succeeds, t2 fails
+                var result = SyntheticResult(successful: 1, total: 2);
+                var sut = new SyntheticTrackDownloadService(
+                    result,
+                    seedClassifier: c => c.RecordSkipped("t2", TrackUnavailableReason.Restricted),
+                    logger: logger);
+
+                var act = async () => await sut.DownloadAlbumAsync(MakeItem(), album, new QobuzDownloadSettings(), CancellationToken.None);
+                await act.Should().ThrowAsync<AlbumDownloadException>();
+
+                memory.Logs.Should().Contain(
+                    l => l.StartsWith("Warn|", StringComparison.Ordinal)
+                        && l.Contains("Track 2", StringComparison.Ordinal)
+                        && l.Contains("t2", StringComparison.Ordinal)
+                        && l.Contains("Restricted", StringComparison.Ordinal),
+                    "the failed track's number/title, id, and classified reason must be logged at Warn " +
+                    "so a loop like Solar Fields is diagnosable from Info-level logs without Debug");
+            }
+            finally
+            {
+                factory.Shutdown();
+            }
+        }
+
+        [Fact]
+        public async Task DownloadAlbumAsync_FailedTrackWithNoClassifiedReason_LogsUnclassified()
+        {
+            var (logger, memory, factory) = CreateMemoryLogger();
+            try
+            {
+                var album = MakeAlbum(2); // t2 fails, never recorded on the classifier
+                var result = SyntheticResult(successful: 1, total: 2);
+                var sut = new SyntheticTrackDownloadService(result, logger: logger);
+
+                var act = async () => await sut.DownloadAlbumAsync(MakeItem(), album, new QobuzDownloadSettings(), CancellationToken.None);
+                await act.Should().ThrowAsync<AlbumDownloadException>();
+
+                memory.Logs.Should().Contain(
+                    l => l.StartsWith("Warn|", StringComparison.Ordinal)
+                        && l.Contains("t2", StringComparison.Ordinal)
+                        && l.Contains("unclassified", StringComparison.Ordinal),
+                    "a deficit track the classifier never recorded a reason for (the exact Solar Fields " +
+                    "symptom) must still be surfaced at Warn, explicitly labeled unclassified rather than silent");
+            }
+            finally
+            {
+                factory.Shutdown();
+            }
+        }
+
+        [Fact]
+        public async Task DownloadAlbumAsync_SuccessfulTracks_DoNotEmitPerTrackFailureWarn()
+        {
+            var (logger, memory, factory) = CreateMemoryLogger();
+            try
+            {
+                var album = MakeAlbum(2);
+                var result = SyntheticResult(successful: 2, total: 2);
+                var sut = new SyntheticTrackDownloadService(result, logger: logger);
+
+                await sut.DownloadAlbumAsync(MakeItem(), album, new QobuzDownloadSettings(), CancellationToken.None);
+
+                memory.Logs.Should().NotContain(l => l.Contains("Track failed", StringComparison.Ordinal),
+                    "a fully successful album must not emit spurious per-track failure warnings");
+            }
+            finally
+            {
+                factory.Shutdown();
+            }
+        }
+
         [Fact]
         public async Task DownloadAlbumAsync_HttpLoopbackStreamUrl_IsBlockedByProductionUriPolicy()
         {
