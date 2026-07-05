@@ -171,13 +171,13 @@ namespace Lidarr.Plugin.Qobuzarr.Models
 
         /// <summary>
         /// Get full album title including version if available.
-        /// Version field is sanitized to prevent injection attacks.
+        /// Version field is normalized through the metadata sanitizer before display/matching.
         /// </summary>
         public string GetFullTitle()
         {
             var title = string.IsNullOrWhiteSpace(Title) ? "Unknown Album" : Title;
 
-            // Sanitize version to prevent injection attacks
+            // Normalize the version before it becomes title text.
             var sanitizedVersion = MetadataSanitizer.SanitizeVersion(Version);
 
             if (!string.IsNullOrWhiteSpace(sanitizedVersion) && !ContainsStandaloneVersion(title, sanitizedVersion))

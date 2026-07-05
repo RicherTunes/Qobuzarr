@@ -79,12 +79,21 @@ namespace Qobuzarr.Tests.Unit.Security
         }
 
         [Fact]
-        public void SanitizeVersion_WithCommandInjection_ShouldReturnSafeDefault()
+        public void SanitizeVersion_WithShellCommandMarkers_NeutralizesInPlace_NotNuked()
         {
-            var malicious = "Deluxe && rm -rf /";
-            var result = MetadataSanitizer.SanitizeVersion(malicious);
+            // Shell-command-injection markers (&&, ||, |, `, $(, ${) are NOT rejected: the
+            // version string never reaches a shell/Process.Start/SQL sink (verified: it is only
+            // an indexer ReleaseInfo.Title, metadata title text, and a filename segment). They are
+            // instead rendered filename-safe IN PLACE, preserving the meaningful words, rather than
+            // nuking the whole string to the literal "Version".
+            var result = MetadataSanitizer.SanitizeVersion("Deluxe && rm -rf /");
 
-            result.Should().Be("Version"); // Returns safe default when command injection detected
+            result.Should().NotBe("Version");
+            result.Should().Contain("Deluxe");
+            // '/' -> '_' (pipeline), '&' -> '_' (plugin-local); output carries no shell metacharacters
+            // and no filename-invalid characters.
+            result.Should().NotContainAny("&", "|", "`", "$(", "${");
+            AssertFilenameSafe(result);
         }
 
         [Fact]
@@ -148,6 +157,46 @@ namespace Qobuzarr.Tests.Unit.Security
             var result = MetadataSanitizer.SanitizeVersion(input);
 
             result.Should().Be("Deluxe (Edition) _ 'Special' 'Version'");
+        }
+
+        [Fact]
+        public void SanitizeVersion_WithMusicPipeSeparator_ShouldPreserveEditionText()
+        {
+            var result = MetadataSanitizer.SanitizeVersion("Puissance Sonore | Damn Beats Remix");
+
+            result.Should().NotBe("Version");
+            result.Should().Be("Puissance Sonore _ Damn Beats Remix");
+            result.Should().Contain("Puissance Sonore");
+            result.Should().Contain("Damn Beats Remix");
+            result.Should().NotContain("|");
+            AssertFilenameSafe(result);
+        }
+
+        [Fact]
+        public void SanitizeVersion_WithNumericPipeEdition_ShouldPreserveEditionText()
+        {
+            // Second live example: "53|01 Live Sessions" was nuked to "Version" by the pipe rule.
+            var result = MetadataSanitizer.SanitizeVersion("53|01 Live Sessions");
+
+            result.Should().NotBe("Version");
+            result.Should().Be("53_01 Live Sessions");
+            result.Should().Contain("Live Sessions");
+            result.Should().NotContain("|");
+            AssertFilenameSafe(result);
+        }
+
+        /// <summary>
+        /// Asserts a sanitized edition contains no character that is invalid in a Windows
+        /// file name (the strictest common denominator across supported OSes). This is the
+        /// real downstream sink: the version becomes part of a track title that
+        /// CreateTrackFileName -> Sanitize.FileNameSegment turns into a file name segment.
+        /// </summary>
+        private static void AssertFilenameSafe(string value)
+        {
+            var invalid = new[] { '<', '>', ':', '"', '/', '\\', '|', '?', '*' };
+            value.IndexOfAny(invalid).Should().Be(-1,
+                "sanitized version must be safe to embed in a file name, but '{0}' contained an invalid char", value);
+            value.Should().NotContain("\0");
         }
 
         [Fact]
@@ -234,9 +283,13 @@ namespace Qobuzarr.Tests.Unit.Security
         }
 
         [Fact]
-        public void IsPotentiallyDangerous_WithCommandInjection_ShouldReturnTrue()
+        public void IsPotentiallyDangerous_WithShellCommandMarkers_ReturnsFalse_NoShellSink()
         {
-            MetadataSanitizer.IsPotentiallyDangerous("test && rm -rf /").Should().BeTrue();
+            // Shell metacharacters are no longer classified dangerous for the version field:
+            // there is no shell/Process.Start sink downstream, so &&/||/| are false positives.
+            // They are neutralized in-place by the sanitization pipeline instead.
+            MetadataSanitizer.IsPotentiallyDangerous("test && rm -rf /").Should().BeFalse();
+            MetadataSanitizer.IsPotentiallyDangerous("Puissance Sonore | Damn Beats Remix").Should().BeFalse();
         }
 
         [Fact]
