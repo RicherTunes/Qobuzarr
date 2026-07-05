@@ -554,6 +554,86 @@ namespace Qobuzarr.Tests
         }
 
         [Fact]
+        public async Task GetStreamingInfoAsync_WithFormatRestrictedByStreamingCredentials_ThrowsTrackUnavailableException_WithSubscriptionRestrictionReason()
+        {
+            // Live-found HIGH bug (Ferry Corsten "Blueprint: Reprinted", 34 re-grabs / 95 min, one track
+            // failing 96x): Qobuz returns Code="FormatRestrictedByStreamingCredentials" which fell through
+            // ClassifyRestrictionReason to TrackUnavailableReason.Unknown — NOT permanent, so terminal
+            // suppression never fired and Lidarr re-searched forever. It is a subscription/credential-tier
+            // gate (the account can't stream this format), so it must classify as SubscriptionRestriction →
+            // IsPermanentlyUnavailable() true → suppression fires after one cycle.
+            var exception = await ActWithRestriction(new QobuzStreamRestriction
+            {
+                Code = "FormatRestrictedByStreamingCredentials",
+            });
+
+            exception.Message.Should().Contain("Content restricted (FormatRestrictedByStreamingCredentials)");
+            exception.Reason.Should().Be(TrackUnavailableReason.SubscriptionRestriction);
+            exception.Reason.IsPermanentlyUnavailable().Should().BeTrue(
+                "a track the account's streaming credentials cannot fetch is present in every quality-tier " +
+                "release for that catalog entry, so re-grabbing is hopeless — suppression must fire");
+        }
+
+        [Fact]
+        public async Task GetStreamingInfoAsync_WithStreamingCredentialsSiblingCode_ClassifiesAsSubscriptionRestriction()
+        {
+            // Broad-catch coverage: ContainsRestriction(code, "StreamingCredentials") covers sibling variants
+            // (e.g. a hypothetical TrackRestrictedByStreamingCredentials mirroring the purchase-credentials
+            // code shape). Safe because no known NON-permanent Qobuz code contains "StreamingCredentials".
+            var exception = await ActWithRestriction(new QobuzStreamRestriction
+            {
+                Code = "TrackRestrictedByStreamingCredentials",
+            });
+
+            exception.Reason.Should().Be(TrackUnavailableReason.SubscriptionRestriction);
+            exception.Reason.IsPermanentlyUnavailable().Should().BeTrue();
+        }
+
+        [Fact]
+        public async Task GetStreamingInfoAsync_WithReasonOnlyStreamingCredentials_ClassifiesAsSubscriptionRestriction()
+        {
+            // Mirror the existing reason-only classification pattern: Qobuz sometimes puts the code string in
+            // the human-readable reason field rather than the code field.
+            var exception = await ActWithRestriction(new QobuzStreamRestriction
+            {
+                Reason = "Content restricted (FormatRestrictedByStreamingCredentials)",
+            });
+
+            exception.Reason.Should().Be(TrackUnavailableReason.SubscriptionRestriction);
+            exception.Reason.IsPermanentlyUnavailable().Should().BeTrue();
+        }
+
+        [Fact]
+        public async Task GetStreamingInfoAsync_WithPurchaseCredentialsCode_StaysRestricted_BroadCatchDoesNotOverReach()
+        {
+            // Regression guard for the broad ContainsRestriction(code, "StreamingCredentials") catch: the
+            // purchase-credentials code contains "Credentials" but NOT "StreamingCredentials", and is matched
+            // by the purchase branch first — it must remain Restricted, never get swept into subscription.
+            var exception = await ActWithRestriction(new QobuzStreamRestriction
+            {
+                Code = "TrackRestrictedByPurchaseCredentials",
+            });
+
+            exception.Reason.Should().Be(TrackUnavailableReason.Restricted);
+        }
+
+        [Fact]
+        public async Task GetStreamingInfoAsync_WithFormatAvailabilityCodeButNoUrl_StaysUnknown_BroadCatchDoesNotOverReach()
+        {
+            // Regression guard: FormatRestrictedByFormatAvailability with an empty URL (so IsQualityFallbackOnly
+            // is false and it reaches the classifier) is a soft/transient format-catalog gate — it must NOT be
+            // swept into SubscriptionRestriction by the new StreamingCredentials catch (no "Credentials" or
+            // "Subscription" substring), so it stays Unknown (non-permanent, never suppressed).
+            var exception = await ActWithRestriction(new QobuzStreamRestriction
+            {
+                Code = "FormatRestrictedByFormatAvailability",
+            });
+
+            exception.Reason.Should().Be(TrackUnavailableReason.Unknown);
+            exception.Reason.IsPermanentlyUnavailable().Should().BeFalse();
+        }
+
+        [Fact]
         public async Task GetStreamingInfoAsync_WithPaddedLowercasePurchaseRestrictionCode_ClassifiesAsRestricted()
         {
             var exception = await ActWithRestriction(new QobuzStreamRestriction
