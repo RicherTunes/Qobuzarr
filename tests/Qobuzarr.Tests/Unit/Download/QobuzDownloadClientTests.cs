@@ -346,6 +346,53 @@ namespace Qobuzarr.Tests.Unit.Download
         }
 
         [Fact]
+        public async Task Download_WithFormatRestrictedByStreamingCredentials_RecordsReleaseSuppressionAndStillFails()
+        {
+            // End-state of the Ferry Corsten "Blueprint: Reprinted" re-grab loop: once
+            // ClassifyRestrictionReason maps Code="FormatRestrictedByStreamingCredentials" to
+            // SubscriptionRestriction (see QobuzApiClientCovTests), the deficit track carries a permanent
+            // reason, so the download client records terminal suppression (stopping the loop after one cycle)
+            // while STILL reporting the album Failed. Regression anchor for the classifier-coverage fix.
+            var suppression = new RecordingSuppressionStore();
+            _downloadClient.ReleaseSuppressionStoreOverride = suppression;
+
+            var albumException = new AlbumDownloadException(
+                "9d42e3f-blueprint",
+                "Blueprint: Reprinted",
+                totalTracks: 14,
+                successfulTracks: 13,
+                skippedTracks: 0,
+                failedTracks: 1,
+                trackResults: new[]
+                {
+                    new TrackDownloadResult
+                    {
+                        Success = false,
+                        TrackId = "streaming-credential-track",
+                        Reason = TrackUnavailableReason.SubscriptionRestriction,
+                        Message = "Content restricted (FormatRestrictedByStreamingCredentials)",
+                    },
+                });
+
+            _mockTrackDownloadService.DownloadAlbumAsync(
+                Arg.Any<QobuzDownloadItem>(),
+                Arg.Any<QobuzAlbum>(),
+                Arg.Any<QobuzDownloadSettings>(),
+                Arg.Any<CancellationToken>())
+                .Returns(Task.FromException(albumException));
+
+            var downloadId = await _downloadClient.Download(CreateTestRemoteAlbum(), Substitute.For<IIndexer>());
+
+            var tracked = await AwaitTrackedDownloadIgnoringErrorsAsync(downloadId);
+
+            tracked.GetHostStatus().Should().Be(DownloadItemStatus.Failed);
+            suppression.Records.Should().ContainSingle(record =>
+                record.AlbumId == "9d42e3f-blueprint" &&
+                record.TrackId == "streaming-credential-track" &&
+                record.Reason == TrackUnavailableReason.SubscriptionRestriction);
+        }
+
+        [Fact]
         public async Task Download_WithPermanentTrackRestriction_ReportsGroupedReasonInMessage_NotBareCount()
         {
             // A3: the Message reaching Lidarr's queue must say WHY tracks failed, not just how many.

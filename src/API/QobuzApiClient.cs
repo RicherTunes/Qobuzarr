@@ -742,7 +742,8 @@ namespace Lidarr.Plugin.Qobuzarr.API
         /// <summary>
         /// Maps a Qobuz stream restriction to a <see cref="TrackUnavailableReason"/>. Only restriction
         /// codes and messages Qobuz is known to use for rights gates are classified specifically. Only purchase-only
-        /// content and insufficient subscription tier are later treated as terminal suppression candidates
+        /// content and insufficient subscription/streaming-credential tier (including
+        /// <c>FormatRestrictedByStreamingCredentials</c>) are later treated as terminal suppression candidates
         /// (see <see cref="TrackUnavailableReasonExtensions.IsPermanentlyUnavailable"/>); geo-blocks are
         /// classified as regional but deliberately not permanent.
         /// Anything unrecognized — including the API's own explicit "TEMP" reason code — falls back to
@@ -766,13 +767,27 @@ namespace Lidarr.Plugin.Qobuzarr.API
 
             if (EqualsRestriction(code, "SubscriptionRestricted") ||
                 EqualsRestriction(code, "FormatRestrictedBySubscription") ||
+                EqualsRestriction(code, "FormatRestrictedByStreamingCredentials") ||
+                ContainsRestriction(code, "StreamingCredentials") ||
                 EqualsRestriction(reasonCode, "SUB") ||
                 ContainsRestriction(reason, "SubscriptionRestricted") ||
                 ContainsRestriction(reason, "FormatRestrictedBySubscription") ||
+                ContainsRestriction(reason, "FormatRestrictedByStreamingCredentials") ||
                 ContainsRestriction(reason, "subscription tier") ||
                 ContainsRestriction(reason, "requires premium subscription") ||
                 ContainsRestriction(reason, "higher subscription"))
             {
+                // FormatRestrictedByStreamingCredentials (live-found on Ferry Corsten "Blueprint: Reprinted":
+                // 34 re-grabs / 95 min, one track failing 96x) is a subscription/credential-tier gate — the
+                // account's streaming credentials cannot fetch this format. Like the other subscription
+                // restrictions it is a property of the exact track id, present identically in every
+                // quality-tier release Qobuz offers for that catalog entry, so it is permanent-with-
+                // interactive-recovery (IsPermanentlyUnavailable() true → terminal suppression fires after
+                // one cycle; interactive/user search still offers it for post-tier-upgrade recovery). The
+                // broad ContainsRestriction(code, "StreamingCredentials") catch covers sibling variants and
+                // cannot false-positive: no known non-permanent Qobuz code contains "StreamingCredentials"
+                // (the purchase-credentials code is "...PurchaseCredentials" and is matched by the branch
+                // above first).
                 return TrackUnavailableReason.SubscriptionRestriction;
             }
 
