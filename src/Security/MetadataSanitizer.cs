@@ -9,12 +9,12 @@ namespace Lidarr.Plugin.Qobuzarr.Security
     /// <summary>
     /// Qobuz-specific metadata sanitization layer over <see cref="MetadataFieldSanitizer"/>.
     /// Adds the plugin policy of returning the safe default "Version" when an input
-    /// matches a dangerous-pattern allow-list (XSS / SQLi / LDAPi / cmd / XML markers).
+    /// matches high-confidence active-content markers (XSS / SQLi / LDAPi / XML).
     /// </summary>
     /// <remarks>
     /// Phase 5d: music-domain text mechanics (control-char stripping, zero-width Unicode,
     /// FS-unsafe substitution, whitespace normalization, length caps) live in common's
-    /// <see cref="MetadataFieldSanitizer"/>. The dangerous-pattern allow-list below is
+    /// <see cref="MetadataFieldSanitizer"/>. The active-content deny-list below is
     /// Qobuzarr policy and stays plugin-local.
     /// </remarks>
     public static class MetadataSanitizer
@@ -28,9 +28,9 @@ namespace Lidarr.Plugin.Qobuzarr.Security
         private const string ScriptOpenMarker = "<script";
         private const string ScriptCloseMarker = "</script>";
 
-        // Dangerous patterns that indicate potential attacks and should result in a safe default.
+        // High-confidence active-content patterns that should result in a safe default.
         // Note: Path traversal is handled via normalization/replacement, not rejection, to avoid false positives.
-        private static readonly HashSet<string> DangerousPatternsReturnSafeDefault = new(StringComparer.OrdinalIgnoreCase)
+        private static readonly HashSet<string> ActiveContentPatternsReturnSafeDefault = new(StringComparer.OrdinalIgnoreCase)
         {
             // XSS patterns
             "<script", "</script", "javascript:", "vbscript:", "onload=", "onerror=", "onclick=",
@@ -39,8 +39,9 @@ namespace Lidarr.Plugin.Qobuzarr.Security
             "';", "--", "/*", "*/", "xp_", "sp_execute", "exec(", "execute(",
             "union select", "drop table", "insert into", "delete from",
 
-            // Command injection
-            "&&", "||", "|", "`", "$(", "${",
+            // Shell metacharacters are valid music metadata punctuation and this field has no
+            // shell/Process.Start/raw-SQL sink. Let Common normalize filename-unsafe characters
+            // in place so editions like "Puissance Sonore | Damn Beats Remix" keep their words.
 
             // LDAP injection
             ")(", "(&", "(|",
@@ -50,8 +51,8 @@ namespace Lidarr.Plugin.Qobuzarr.Security
         };
 
         /// <summary>
-        /// Sanitizes an album version string for safe usage in all contexts.
-        /// Returns the safe default "Version" if a dangerous pattern is detected;
+        /// Sanitizes an album version string for release-title, metadata-title, and filename contexts.
+        /// Returns the safe default "Version" if active-content markers are detected;
         /// otherwise delegates the music-domain pipeline to <see cref="MetadataFieldSanitizer.SanitizeVersion"/>.
         /// </summary>
         public static string SanitizeVersion(string? version)
@@ -78,8 +79,8 @@ namespace Lidarr.Plugin.Qobuzarr.Security
                 var sanitized = MetadataFieldSanitizer.SanitizeVersion(prePass);
 
                 // Plugin-local FS extra: replace '&' with '_' (common's pipeline preserves '&').
-                // Done after delegation because the dangerous-pattern check above already
-                // rejected '&&'; a single '&' in legitimate metadata is safe to substitute.
+                // Done after delegation because '&' in legitimate metadata is safe to substitute
+                // and Common's pipeline intentionally preserves it.
                 if (!string.IsNullOrEmpty(sanitized) && sanitized.Contains('&'))
                 {
                     sanitized = sanitized.Replace('&', '_');
@@ -119,8 +120,8 @@ namespace Lidarr.Plugin.Qobuzarr.Security
             => MetadataFieldSanitizer.HtmlEncode(input);
 
         /// <summary>
-        /// Validates if a metadata field contains potentially dangerous content.
-        /// Combines the Qobuz-local dangerous-pattern allow-list with common's
+        /// Validates if a metadata field contains high-confidence active content.
+        /// Combines the Qobuz-local active-content deny-list with common's
         /// path-traversal heuristic.
         /// </summary>
         public static bool IsPotentiallyDangerous(string? input)
@@ -139,7 +140,7 @@ namespace Lidarr.Plugin.Qobuzarr.Security
                 return false;
             }
 
-            foreach (var pattern in DangerousPatternsReturnSafeDefault)
+            foreach (var pattern in ActiveContentPatternsReturnSafeDefault)
             {
                 if (input.Contains(pattern, StringComparison.OrdinalIgnoreCase))
                 {
