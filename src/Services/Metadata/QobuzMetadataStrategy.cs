@@ -45,8 +45,18 @@ namespace Lidarr.Plugin.Qobuzarr.Services.Metadata
 
             foreach (var qobuzTrack in qobuzAlbum.GetTracks())
             {
-                var streamingUrl = await GetStreamingUrlAsync(int.Parse(qobuzTrack.Id));
-                var qobuzMetadata = await GetQobuzTrackAsync(int.Parse(qobuzTrack.Id));
+                // Mirror LidarrMetadataStrategy's guard: pre-fix `int.Parse` would throw
+                // FormatException on API data drift (e.g. Qobuz adds a non-numeric ID
+                // variant), crashing the entire album download. Skip the bad track and continue.
+                if (!int.TryParse(qobuzTrack.Id, out var qobuzTrackIdInt))
+                {
+                    _logger.Warn("Skipping track {0} '{1}': Qobuz track ID '{2}' is not a valid integer (API drift?). Continuing with the remaining album tracks.",
+                                 qobuzTrack.TrackNumber, qobuzTrack.Title, qobuzTrack.Id);
+                    continue;
+                }
+
+                var streamingUrl = await GetStreamingUrlAsync(qobuzTrackIdInt);
+                var qobuzMetadata = await GetQobuzTrackAsync(qobuzTrackIdInt);
 
                 var trackDownload = CreateTrackDownloadFromQobuz(streamingUrl, qobuzTrack, qobuzMetadata);
                 downloads.Add(trackDownload);
@@ -68,10 +78,13 @@ namespace Lidarr.Plugin.Qobuzarr.Services.Metadata
             QobuzTrack qobuzTrack,
             QobuzTrack metadata)
         {
+            // Defensive TryParse with 0 sentinel (the caller pre-validates and skips tracks
+            // whose ID won't parse) — mirrors LidarrMetadataStrategy's converter guard.
+            _ = int.TryParse(qobuzTrack.Id, out var qobuzTrackId);
             return new TrackDownload
             {
                 StreamingUrl = streamingUrl,
-                QobuzTrackId = int.Parse(qobuzTrack.Id),
+                QobuzTrackId = qobuzTrackId,
 
                 // Qobuz metadata
                 Title = metadata.Title ?? qobuzTrack.Title,

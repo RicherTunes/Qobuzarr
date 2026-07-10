@@ -149,7 +149,11 @@ namespace Lidarr.Plugin.Qobuzarr.API.Http
                         if (response.StatusCode != System.Net.HttpStatusCode.TooManyRequests && !response.HasHttpError)
                         {
                             stopwatch.Stop();
-                            _performanceMonitor?.RecordApiCall(request.Url.ToString(), stopwatch.Elapsed, false);
+                            // Metric key MUST be the coarse per-endpoint bucket, not the raw URL:
+                            // the raw signed URL mints a unique unbounded key per call
+                            // (request_ts/request_sig vary) and stores request_sig/user_auth_token/
+                            // app_id verbatim inside metric names.
+                            _performanceMonitor?.RecordApiCall(endpoint, stopwatch.Elapsed, false);
                             if (_adaptiveRateLimiter != null)
                             {
                                 using var msgOk = new HttpResponseMessage(response.StatusCode);

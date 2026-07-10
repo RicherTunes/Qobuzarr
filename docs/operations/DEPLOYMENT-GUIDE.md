@@ -111,7 +111,6 @@ mkdir -p /lidarr/plugins/RicherTunes/Qobuzarr
 # 3. Deploy plugin files
 cp bin/Release/net8.0/Lidarr.Plugin.Qobuzarr.dll /lidarr/plugins/RicherTunes/Qobuzarr/
 cp plugin.json /lidarr/plugins/RicherTunes/Qobuzarr/
-cp src/Indexers/ml-baseline-patterns.json /lidarr/plugins/RicherTunes/Qobuzarr/
 
 # 4. Restart Lidarr
 sudo systemctl restart lidarr
@@ -1138,7 +1137,6 @@ ls -la /config/plugins/RicherTunes/Qobuzarr/
 # Expected files:
 # - Lidarr.Plugin.Qobuzarr.dll
 # - plugin.json
-# - ml-baseline-patterns.json (optional)
 
 # Check Lidarr logs
 tail -f /config/logs/lidarr.txt | grep -i qobuz

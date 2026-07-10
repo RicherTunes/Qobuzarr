@@ -46,11 +46,12 @@ You are a specialized ML optimization agent for the Qobuzarr Lidarr plugin proje
 8. **Historical success probability**
 
 ### ML Training Data Management
-**Training Dataset**: `src/Indexers/ml-baseline-patterns.json`
+**Training Dataset**: trained offline; the compiled coefficients live in
+`CompiledMLQueryOptimizer.cs` (the former `src/Indexers/ml-baseline-patterns.json`
+artifact was removed 2026-07 — it had zero runtime consumers and a stale schema)
 - **100,000+ album queries** from real Lidarr usage
 - **Success/failure patterns** with performance metrics
 - **Query complexity classifications** with optimization strategies
-- **Baseline performance benchmarks** for regression detection
 
 ## KEY FILES EXPERTISE
 

@@ -88,11 +88,7 @@
     <Compile Include="src\**\*.cs" Exclude="src\**\*.disabled\**\*.cs" />
   </ItemGroup>
 
-  <!-- ML baseline patterns file - copy to output -->
   <ItemGroup>
-    <Content Include="src\Indexers\ml-baseline-patterns.json">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
     <!-- Plugin manifest will be generated from template during build -->
     <None Include="plugin.json.template" />
   </ItemGroup>
@@ -296,7 +292,6 @@
       <PluginFiles Include="$(OutputPath)$(AssemblyName).pdb" />
       <PluginFiles Include="$(OutputPath)$(AssemblyName).dll.config" Condition="Exists('$(OutputPath)$(AssemblyName).dll.config')" />
       <PluginFiles Include="$(OutputPath)plugin.json" />
-      <PluginFiles Include="$(OutputPath)src\Indexers\ml-baseline-patterns.json" />
       <!-- Exclude Lidarr assemblies and shared dependencies from deployment -->
       <PluginFiles Remove="$(OutputPath)Lidarr.*.dll" />
       <PluginFiles Remove="$(OutputPath)Lidarr.*.xml" />
@@ -315,7 +310,6 @@
     <Message Text="   - $(AssemblyName).dll" Importance="normal" />
     <Message Text="   - $(AssemblyName).pdb" Importance="normal" />
     <Message Text="   - plugin.json" Importance="normal" />
-    <Message Text="   - ml-baseline-patterns.json" Importance="normal" />
   </Target>
 
   <!-- Clean target for removing deployed plugin -->
@@ -328,7 +322,6 @@
       <DeployedFiles Include="$(PluginTargetDir)\$(AssemblyName).dll" />
       <DeployedFiles Include="$(PluginTargetDir)\$(AssemblyName).pdb" />
       <DeployedFiles Include="$(PluginTargetDir)\plugin.json" />
-      <DeployedFiles Include="$(PluginTargetDir)\ml-baseline-patterns.json" />
     </ItemGroup>
     
     <Delete Files="@(DeployedFiles)" ContinueOnError="true" />

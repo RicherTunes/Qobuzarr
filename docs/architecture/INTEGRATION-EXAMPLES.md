@@ -1385,10 +1385,6 @@ jobs:
       run: |
         pip install -r scripts/requirements.txt
 
-    - name: Validate ML models
-      run: |
-        python scripts/validate_model.py --model-path src/Indexers/ml-baseline-patterns.json
-
     - name: Test ML performance
       run: |
         python scripts/test_scripts.py --performance-test

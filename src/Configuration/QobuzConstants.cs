@@ -171,7 +171,6 @@ namespace Lidarr.Plugin.Qobuzarr.Configuration
         public static class MachineLearning
         {
             public const string ModelFileName = "qobuz_query_optimizer.onnx";
-            public const string PatternsFileName = "ml-baseline-patterns.json";
             public const double MinConfidenceThreshold = 0.7;
             public const int MaxQueryOptimizationMs = 100;
             public const int TrainingDataMinSamples = 1000;

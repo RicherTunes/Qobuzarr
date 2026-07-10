@@ -111,6 +111,25 @@ namespace Qobuzarr.Tests.Unit.Indexers
         }
 
         [Fact]
+        public void RecordResult_DoesNotInflatePredictionTelemetry()
+        {
+            // Arrange - exactly ONE real prediction
+            _optimizer.PredictComplexity("Sia", "Chandelier");
+
+            // Act - RecordResult is a retrospective accuracy recording, NOT a new prediction.
+            // Pre-fix it re-invoked PredictComplexity, whose _statistics[result]++ /
+            // _totalPredictions++ side effects double-counted telemetry and skewed Accuracy.
+            _optimizer.RecordResult("Sia", "Chandelier", QueryComplexity.Simple, true);
+
+            // Assert
+            var stats = _optimizer.GetStatistics();
+            stats.TotalPredictions.Should().Be(1,
+                "RecordResult must not count as a prediction; only real PredictComplexity calls do");
+            stats.PatternDistribution.Values.Sum().Should().Be(1,
+                "the per-complexity distribution must match the single real prediction");
+        }
+
+        [Fact]
         public void GetStatistics_ReturnsValidStatistics()
         {
             // Arrange - record some results
