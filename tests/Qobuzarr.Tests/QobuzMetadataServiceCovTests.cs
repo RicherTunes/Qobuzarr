@@ -258,6 +258,23 @@ namespace Qobuzarr.Tests
         }
 
         [Fact]
+        public async Task DownloadAlbumAsync_NonNumericTrackId_SkipsTrackAndContinues()
+        {
+            // Mirror of LidarrMetadataStrategy's Wave-81 TryParse guard: a non-numeric Qobuz
+            // track ID (API data drift) must skip the track with a warning and continue the
+            // album loop — NOT throw FormatException and crash the whole album download.
+            var strategy = new QobuzMetadataStrategy(_mockLogger.Object, _apiClient);
+            var album = CreateTestAlbum(1);
+            album.TracksContainer.Items[0].Id = "not-a-number";
+
+            var act = async () => await strategy.DownloadAlbumAsync(album);
+
+            var result = (await act.Should().NotThrowAsync(
+                "a single bad track ID must not be fatal to the album loop")).Which;
+            result.TrackDownloads.Should().BeEmpty("the non-numeric track is skipped, not downloaded");
+        }
+
+        [Fact]
         public async Task DownloadAlbumAsync_ValidAlbum_ReturnsCorrectResult()
         {
             var strategy = new QobuzMetadataStrategy(_mockLogger.Object, _apiClient);

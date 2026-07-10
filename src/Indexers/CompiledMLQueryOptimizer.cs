@@ -92,29 +92,7 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
                 // Record memory usage before prediction
                 _performanceMetrics.RecordMemorySnapshot("Prediction-Start");
 
-                // Extract features
-                var features = ExtractFeatures(artistName, albumTitle);
-
-                // Apply learned decision tree
-                var simpleScore = ComputeScore(features, SimpleWeights);
-                var complexScore = ComputeScore(features, ComplexWeights);
-
-                // Adaptive decision logic with self-tuning thresholds
-                if (simpleScore > _simpleThreshold && simpleScore > complexScore)
-                {
-                    result = QueryComplexity.Simple;
-                }
-                else if (complexScore > _complexThreshold)
-                {
-                    result = QueryComplexity.Complex;
-                }
-                else
-                {
-                    result = QueryComplexity.Medium;
-                }
-
-                // Removed adaptive threshold adjustment to prevent model drift
-                // Static thresholds from training ensure consistent behavior
+                result = ComputePrediction(artistName, albumTitle);
 
                 // Calculate confidence for this prediction
                 confidence = GetConfidenceScore(artistName, albumTitle, result);
@@ -145,6 +123,40 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
             return result;
         }
 
+        /// <summary>
+        /// Side-effect-free core of the compiled decision tree: feature extraction + weighted
+        /// scoring + threshold decision only. Does NOT touch <see cref="_statistics"/> /
+        /// <see cref="_totalPredictions"/> or emit telemetry, so retrospective consumers
+        /// (<see cref="RecordResult"/>) can re-derive the prediction without inflating counters.
+        /// </summary>
+        private QueryComplexity ComputePrediction(string artistName, string albumTitle)
+        {
+            if (string.IsNullOrWhiteSpace(artistName) || string.IsNullOrWhiteSpace(albumTitle))
+                return QueryComplexity.Simple;
+
+            // Extract features
+            var features = ExtractFeatures(artistName, albumTitle);
+
+            // Apply learned decision tree
+            var simpleScore = ComputeScore(features, SimpleWeights);
+            var complexScore = ComputeScore(features, ComplexWeights);
+
+            // Adaptive decision logic with self-tuning thresholds
+            if (simpleScore > _simpleThreshold && simpleScore > complexScore)
+            {
+                return QueryComplexity.Simple;
+            }
+
+            if (complexScore > _complexThreshold)
+            {
+                return QueryComplexity.Complex;
+            }
+
+            // Removed adaptive threshold adjustment to prevent model drift
+            // Static thresholds from training ensure consistent behavior
+            return QueryComplexity.Medium;
+        }
+
         public double GetConfidenceScore(string artistName, string albumTitle, QueryComplexity complexity)
         {
             var features = ExtractFeatures(artistName, albumTitle);
@@ -173,7 +185,10 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
         {
             if (wasSuccessful)
             {
-                var predicted = PredictComplexity(artistName, albumTitle);
+                // Retrospective accuracy recording: re-derive the prediction WITHOUT the
+                // counter/telemetry side effects of PredictComplexity, which double-counted
+                // _totalPredictions/_statistics and skewed GetStatistics().Accuracy.
+                var predicted = ComputePrediction(artistName, albumTitle);
                 var wasCorrect = predicted == usedComplexity;
                 var confidence = GetConfidenceScore(artistName, albumTitle, predicted);
 

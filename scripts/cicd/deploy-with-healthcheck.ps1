@@ -242,8 +242,7 @@ try {
     # Verify critical files
     $criticalFiles = @(
         "Lidarr.Plugin.Qobuzarr.dll",
-        "plugin.json",
-        "ml-baseline-patterns.json"
+        "plugin.json"
     )
     
     foreach ($file in $criticalFiles) {

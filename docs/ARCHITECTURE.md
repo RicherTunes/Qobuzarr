@@ -156,7 +156,6 @@ graph LR
     
     %% Caching Layer
     subgraph "Caching"
-        SC[SmartQueryCache]
         QSC[QobuzSubstringCache]
         QPC[QobuzPatternCache]
         CS[CacheStorage]
@@ -647,7 +646,6 @@ graph TD
     
     %% Cache Dependencies
     QRC --> Cache
-    SC[SmartQueryCache] --> Cache
     QSC[QobuzSubstringCache] --> CS[CacheStorage]
     
     %% Download Dependencies

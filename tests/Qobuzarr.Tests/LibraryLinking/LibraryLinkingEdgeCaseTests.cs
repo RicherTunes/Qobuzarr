@@ -301,31 +301,6 @@ namespace Qobuzarr.Tests.LibraryLinking
             // Skip if manifest doesn't exist (not in deployed state)
         }
 
-        [Fact]
-        public void ML_Patterns_File_Should_Be_Accessible()
-        {
-            // Arrange - ML baseline patterns are critical for Qobuzarr's query optimization
-            var pluginDir = Path.GetDirectoryName(PluginAssemblyPath)!;
-            var possiblePaths = new[]
-            {
-                Path.Combine(pluginDir, "ml-baseline-patterns.json"),
-                Path.Combine(pluginDir, "src", "Indexers", "ml-baseline-patterns.json"),
-                Path.Combine(AppContext.BaseDirectory, "src", "Indexers", "ml-baseline-patterns.json")
-            };
-
-            // Act
-            var existingPath = possiblePaths.FirstOrDefault(File.Exists);
-
-            // Assert - If the file exists, it should be valid JSON
-            if (existingPath != null)
-            {
-                var content = File.ReadAllText(existingPath);
-                var trimmed = content.TrimStart();
-                (trimmed.StartsWith('{') || trimmed.StartsWith('['))
-                    .Should().BeTrue("ML patterns file should be valid JSON");
-            }
-        }
-
         #endregion
 
         #region Submodule and Fallback Tests

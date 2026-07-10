@@ -314,7 +314,6 @@ Ensure these files exist in your plugins directory:
 plugins/
 ├── Lidarr.Plugin.Qobuzarr.dll      # Main plugin assembly
 ├── plugin.json                     # Plugin manifest
-├── ml-baseline-patterns.json       # ML optimization patterns
 └── Newtonsoft.Json.dll             # Dependencies (if required)
 ```
 

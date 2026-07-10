@@ -224,24 +224,14 @@ df -h /config
 
 **Solutions:**
 
-1. **Verify ML Models**:
-
-   ```bash
-   # Check if ML patterns file exists
-   ls -la /config/plugins/ml-baseline-patterns.json
-   
-   # Verify file is valid JSON
-   cat /config/plugins/ml-baseline-patterns.json | jq .
-   ```
-
-2. **Reset ML Performance**:
+1. **Reset ML Performance**:
 
    ```bash
    # Clear ML statistics and restart learning
    rm -f /config/plugins/ml-performance.json
    ```
 
-3. **Disable ML if Problematic**: Set Query Optimization to "Disabled" in **Settings → Indexers → Qobuzarr** to test searches without ML optimization.
+2. **Disable ML if Problematic**: Set Query Optimization to "Disabled" in **Settings → Indexers → Qobuzarr** to test searches without ML optimization.
 
 ## 📥 Download Issues
 

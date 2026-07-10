@@ -293,7 +293,7 @@ xcopy /Y /E "bin\*" "X:\lidarr-hotio-test2\plugins\RicherTunes\Qobuzarr\"
 ### Deployment Configuration
 - **Default Path**: `X:\lidarr-hotio-test2\plugins\RicherTunes\Qobuzarr`
 - **Auto-Deploy**: Enabled for Debug builds when `EnablePluginDeployment=true`
-- **Files Copied**: Main DLL, PDB symbols, plugin.json, ML patterns file
+- **Files Copied**: Main DLL, PDB symbols, plugin.json
 - **Environment Override**: Set `LIDARR_PLUGIN_DEPLOY_PATH` to customize default path
 
 ## Testing Commands
@@ -472,9 +472,11 @@ QOBUZ_QUALITY="27"                  # 5=MP3-320, 6=FLAC-CD, 7=FLAC-Hi-Res, 27=FL
 ## ML Features
 
 The project includes pre-compiled ML optimization:
-- **Query optimization**: `src/Indexers/CompiledMLQueryOptimizer.cs`
-- **Pattern learning**: `src/Indexers/ml-baseline-patterns.json`
+- **Query optimization**: `src/Indexers/CompiledMLQueryOptimizer.cs` (weights compiled into the source)
 - **No runtime ML.NET**: Uses pre-trained models to avoid ML.NET dependency in production
+- Note: the former `src/Indexers/ml-baseline-patterns.json` artifact was removed in 2026-07 — it had
+  zero runtime consumers (nothing loaded it; `IndexerMLManager` loads only `*.dll`), carried a stale
+  25-feature schema vs the live 16-feature extractor, and is no longer shipped or deployed.
 
 ## Common Issues
 
