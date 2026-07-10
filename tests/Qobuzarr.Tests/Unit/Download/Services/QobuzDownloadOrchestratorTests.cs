@@ -18,9 +18,9 @@ using Xunit;
 namespace Qobuzarr.Tests.Unit.Download.Services
 {
     /// <summary>
-    /// Wave B: <see cref="QobuzDownloadOrchestrator"/> overrides the album loop to (1) name files via Qobuz's
-    /// <see cref="TrackFileNameBuilder"/> (multi-disc aware) and (2) apply the post-download audio-payload
-    /// validation that fails a track — while reusing Common's per-track URL engine for the byte transfer.
+    /// <see cref="QobuzDownloadOrchestrator"/> reuses Common's shared album loop and per-track URL engine,
+    /// customizing two seams: (1) file naming via Qobuz's <see cref="TrackFileNameBuilder"/> (multi-disc
+    /// aware) and (2) the post-download audio-payload validation that fails a track.
     /// </summary>
     public sealed class QobuzDownloadOrchestratorTests : IDisposable
     {
@@ -134,6 +134,23 @@ namespace Qobuzarr.Tests.Unit.Download.Services
             result.Success.Should().BeFalse();
             result.TrackResults.Should().ContainSingle().Which.Success.Should().BeFalse();
             File.Exists(Path.Combine(outDir, "01 - First.flac")).Should().BeFalse("a non-audio payload must be rejected and cleaned up");
+        }
+
+        [Fact]
+        public async Task DownloadTrackAsync_DirectCall_TextPayload_FailsTrackAndDeletesFile()
+        {
+            // Payload validation must guard EVERY download path, not just the album loop — a direct
+            // track download of a non-audio payload (HTML soft-404 served as 200) must fail and clean up.
+            var album = MakeAlbum(("t1", "First", 1, 1));
+            var handler = new StubHandler(_ => HtmlResponse());
+            var orchestrator = MakeOrchestrator(album, handler, new RecordingApplier(), new RecordingPostProcessor(),
+                getStream: (_, _) => Task.FromResult(("https://cdn.qobuz.test/x.flac", ".flac")));
+
+            var outPath = Path.Combine(_tempDir, "direct", "01 - First.flac");
+            var result = await orchestrator.DownloadTrackAsync("t1", outPath, null, CancellationToken.None);
+
+            result.Success.Should().BeFalse("a non-audio payload must fail validation on the direct track path too");
+            File.Exists(outPath).Should().BeFalse("a rejected payload must not linger on disk");
         }
 
         [Fact]
