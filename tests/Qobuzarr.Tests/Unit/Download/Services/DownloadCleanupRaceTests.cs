@@ -1,6 +1,7 @@
 using System;
 using System.IO;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using FluentAssertions;
 using Moq;
@@ -427,6 +428,129 @@ namespace Qobuzarr.Tests.Unit.Download.Services
                 Directory.Exists(outputPath).Should().BeTrue(
                     "a restored tracker item lacks the original root, so cleanup must fail closed instead of re-deriving a possibly changed settings root");
                 sut.GetTrackedItem("restored-no-root").Should().BeNull();
+            }
+            finally
+            {
+                DeleteIfExists(outputPath);
+            }
+        }
+
+        [Fact]
+        public async Task AcquireLifecycleGate_WhenLeaseLeaked_TimesOutWithClearFailure_InsteadOfHanging()
+        {
+            var outputPath = Path.Combine(
+                Path.GetTempPath(), "qobuzarr-cleanup-tests", Guid.NewGuid().ToString("N"));
+            var sut = BuildClient();
+            sut.DownloadPathLifecycleGateAcquireTimeoutOverride = TimeSpan.FromMilliseconds(200);
+
+            // Simulate a leaked lease: acquire the gate and never dispose it.
+            var leakedLease = await sut.AcquireDownloadPathLifecycleGateAsync(outputPath, CancellationToken.None);
+            try
+            {
+                var second = sut.AcquireDownloadPathLifecycleGateAsync(outputPath, CancellationToken.None);
+                var completed = await Task.WhenAny(second, Task.Delay(TimeSpan.FromSeconds(5)));
+                completed.Should().BeSameAs(second,
+                    "a leaked lifecycle-gate lease must surface as a bounded, clear failure — not an unbounded hang");
+
+                var ex = await Assert.ThrowsAsync<TimeoutException>(() => second);
+                ex.Message.Should().Contain(outputPath,
+                    "the timeout failure must name the contested output path so the wedge is diagnosable from logs");
+            }
+            finally
+            {
+                leakedLease.Dispose();
+            }
+        }
+
+        [Fact]
+        public async Task AcquireLifecycleGate_CallerCancellationDuringWait_AbortsPromptly()
+        {
+            var outputPath = Path.Combine(
+                Path.GetTempPath(), "qobuzarr-cleanup-tests", Guid.NewGuid().ToString("N"));
+            var sut = BuildClient();
+
+            // Deliberately keep the default (30s) acquire timeout: cancellation must pre-empt it.
+            var leakedLease = await sut.AcquireDownloadPathLifecycleGateAsync(outputPath, CancellationToken.None);
+            try
+            {
+                using var cts = new CancellationTokenSource(TimeSpan.FromMilliseconds(100));
+                var second = sut.AcquireDownloadPathLifecycleGateAsync(outputPath, cts.Token);
+                var completed = await Task.WhenAny(second, Task.Delay(TimeSpan.FromSeconds(5)));
+                completed.Should().BeSameAs(second,
+                    "caller cancellation must abort the gate wait promptly instead of waiting out the full timeout");
+
+                await Assert.ThrowsAnyAsync<OperationCanceledException>(() => second);
+            }
+            finally
+            {
+                leakedLease.Dispose();
+            }
+        }
+
+        [Fact]
+        public async Task Download_WhenLifecycleGateLeaseLeaked_FailsWithTimeout_InsteadOfWedgingClientThread()
+        {
+            var outputPath = CreateAlbumDirectory();
+            try
+            {
+                var innerFileService = new DownloadFileService(
+                    MockDiskProvider.Object,
+                    MockRemotePathMappingService.Object,
+                    MockLogger.Object);
+                var fixedPathFileService = new FixedOutputPathFileService(innerFileService, outputPath);
+                var sut = BuildClient(fixedPathFileService);
+                sut.DownloadPathLifecycleGateAcquireTimeoutOverride = TimeSpan.FromMilliseconds(200);
+
+                var leakedLease = await sut.AcquireDownloadPathLifecycleGateAsync(outputPath, CancellationToken.None);
+                try
+                {
+                    var download = sut.Download(MakeRemoteAlbum(), Mock.Of<IIndexer>());
+                    var completed = await Task.WhenAny(download, Task.Delay(TimeSpan.FromSeconds(5)));
+                    completed.Should().BeSameAs(download,
+                        "Download() against a wedged lifecycle gate must fail within the acquire budget, not hang the host's download-client thread forever");
+
+                    await Assert.ThrowsAsync<TimeoutException>(() => download);
+                }
+                finally
+                {
+                    leakedLease.Dispose();
+                }
+            }
+            finally
+            {
+                DeleteIfExists(outputPath);
+            }
+        }
+
+        [Fact]
+        public async Task RemoveItem_WhenLifecycleGateLeaseLeaked_SkipsDelete_AndCleanupTaskCompletes()
+        {
+            var outputPath = CreateAlbumDirectory();
+            try
+            {
+                var sut = BuildClient();
+                sut.DownloadPathLifecycleGateAcquireTimeoutOverride = TimeSpan.FromMilliseconds(200);
+                sut.StabilizeBeforeCleanupDeleteOverride = () => Task.CompletedTask;
+                sut.SeedTracker(BuildItem("gate-leak", outputPath, Task.CompletedTask));
+
+                var leakedLease = await sut.AcquireDownloadPathLifecycleGateAsync(outputPath, CancellationToken.None);
+                try
+                {
+                    sut.RemoveItem(new DownloadClientItem { DownloadId = "gate-leak" }, deleteData: true);
+
+                    // Pre-fix this hung forever on the gate; post-fix the deferred cleanup settles
+                    // within the acquire budget (failure logged, delete skipped — never bypassed).
+                    await sut.PendingCleanupTask!.WaitAsync(TimeSpan.FromSeconds(5));
+
+                    Directory.Exists(outputPath).Should().BeTrue(
+                        "on gate-acquire timeout the delete must be SKIPPED (fail the removal), never performed without the gate — the gate guards the check→delete race");
+                    sut.GetTrackedItem("gate-leak").Should().BeNull(
+                        "the tracker entry is removed before the gated delete; only the filesystem delete is abandoned");
+                }
+                finally
+                {
+                    leakedLease.Dispose();
+                }
             }
             finally
             {

@@ -76,6 +76,11 @@ namespace Qobuzarr.Tests
         protected override TimeSpan GracefulShutdownTimeout
             => GracefulShutdownTimeoutOverride ?? base.GracefulShutdownTimeout;
 
+        internal TimeSpan? DownloadPathLifecycleGateAcquireTimeoutOverride { get; set; }
+
+        protected override TimeSpan DownloadPathLifecycleGateAcquireTimeout
+            => DownloadPathLifecycleGateAcquireTimeoutOverride ?? base.DownloadPathLifecycleGateAcquireTimeout;
+
         internal Func<Task>? StabilizeBeforeCleanupDeleteOverride { get; set; }
 
         protected override Task StabilizeBeforeCleanupDeleteAsync()
