@@ -74,6 +74,13 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Clients
 
         protected virtual TimeSpan GracefulShutdownTimeout => TimeSpan.FromSeconds(30);
 
+        // Budget for acquiring the per-output-path lifecycle gate. Mirrors the Race-1 30s
+        // DownloadTask budget in RemoveAndCleanupAsync: if a lease is ever leaked (a wedged
+        // download task or a bug elsewhere), acquisition must surface as a clear, bounded
+        // failure instead of hanging Lidarr's download-client threads forever. Virtual so
+        // tests can inject a short budget.
+        protected virtual TimeSpan DownloadPathLifecycleGateAcquireTimeout => TimeSpan.FromSeconds(30);
+
         protected virtual Task StabilizeBeforeCleanupDeleteAsync()
             => Task.Delay(QobuzConstants.Timing.FileOperations.FileSystemStabilizationDelayMs);
 
@@ -126,7 +133,12 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Clients
         private static readonly object _downloadPathLifecycleGateLock = new();
         private static readonly Dictionary<string, DownloadPathLifecycleGate> _downloadPathLifecycleGates = new(StringComparer.Ordinal);
 
-        private static async Task<DownloadPathLifecycleLease> AcquireDownloadPathLifecycleGateAsync(string outputPath)
+        // Internal (not private) so tests can acquire/leak a lease and drive the bounded-wait
+        // contract directly; instance (not static) so the acquire budget stays an overridable
+        // test seam and timeouts can log through the client's own logger.
+        internal async Task<IDisposable> AcquireDownloadPathLifecycleGateAsync(
+            string outputPath,
+            CancellationToken cancellationToken)
         {
             var key = NormalizeDownloadPathLifecycleKey(outputPath);
             DownloadPathLifecycleGate gate;
@@ -143,7 +155,26 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Clients
 
             try
             {
-                await gate.Semaphore.WaitAsync().ConfigureAwait(false);
+                // Bounded wait: if a lease is leaked (or a lifecycle operation wedges), fail
+                // clearly instead of hanging the caller forever. The gate is NEVER bypassed on
+                // timeout — it guards the check→delete race, so proceeding without it would
+                // reintroduce exactly the data-loss race it exists to close.
+                var acquired = await gate.Semaphore
+                    .WaitAsync(DownloadPathLifecycleGateAcquireTimeout, cancellationToken)
+                    .ConfigureAwait(false);
+                if (!acquired)
+                {
+                    _logger.Warn(
+                        "Timed out ({0:0.###}s) acquiring the download-path lifecycle gate for {1}. " +
+                        "Another lifecycle operation (or a leaked lease) still owns the path; " +
+                        "failing this operation instead of bypassing the check→delete race guard.",
+                        DownloadPathLifecycleGateAcquireTimeout.TotalSeconds,
+                        outputPath);
+                    throw new TimeoutException(
+                        $"Timed out waiting for the download-path lifecycle gate for '{outputPath}'. " +
+                        "Another download or cleanup operation still owns this output path.");
+                }
+
                 return new DownloadPathLifecycleLease(key, gate);
             }
             catch
@@ -325,7 +356,11 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Clients
                 // HostBridgeDownloadOrchestrator (Wave A): snapshot → generate downloadId →
                 // itemFactory → insert into tracker → fire-and-forget doWork → return id.
                 string downloadId;
-                using (await AcquireDownloadPathLifecycleGateAsync(outputPath).ConfigureAwait(false))
+                // No CancellationToken exists yet at this point (the item's own CTS is created
+                // inside the itemFactory below), so the acquire is bounded by the timeout alone.
+                // On timeout the TimeoutException propagates through the catch below (logged) to
+                // Lidarr, which reports the grab as failed instead of wedging the client thread.
+                using (await AcquireDownloadPathLifecycleGateAsync(outputPath, CancellationToken.None).ConfigureAwait(false))
                 {
                     downloadId = await _downloadOrchestrator.StartTrackedDownloadAsync<QobuzDownloadItem, QobuzDownloadSettings>(
                             settings: effectiveSettings,
@@ -594,7 +629,12 @@ namespace Lidarr.Plugin.Qobuzarr.Download.Clients
 
                 await StabilizeBeforeCleanupDeleteAsync().ConfigureAwait(false);
 
-                using (await AcquireDownloadPathLifecycleGateAsync(removed.OutputPath).ConfigureAwait(false))
+                // No live CancellationToken here: the removed item's CTS was already cancelled by
+                // RemoveItem, so passing it would abort the acquire immediately. On timeout the
+                // TimeoutException reaches this method's outer catch — the delete is skipped
+                // (never performed without the gate; it guards the check→delete race) and the
+                // failure is logged, leaving the data intact for a later removal attempt.
+                using (await AcquireDownloadPathLifecycleGateAsync(removed.OutputPath, CancellationToken.None).ConfigureAwait(false))
                 {
                     if (HasActiveDownloadAtSameOutputPath(downloadId, removed.OutputPath))
                     {
