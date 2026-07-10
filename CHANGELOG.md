@@ -16,6 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Payload validation now also guards direct track downloads.** Previously the magic-byte/size validation ran only inside the album-loop override, so a direct `DownloadTrackAsync` call would accept a non-audio payload (HTML soft-404 served as 200). The seam runs on every download path in the base engine. (`QobuzDownloadOrchestratorTests.DownloadTrackAsync_DirectCall_TextPayload_FailsTrackAndDeletesFile`)
 
 ### Dependencies (2026-07-10)
+- `ext/Lidarr.Plugin.Common` submodule re-pinned to **`12dd294`** — Common main's 416/containment/LRCLIB hardening merge: 416 resume clean-restart, album-root containment on the naming seam, LRCLIB artist verification — no plugin source changes required. `ext-common-sha.txt` matches the checked-out submodule HEAD (`CommonPinDriftTests`).
 - `ext/Lidarr.Plugin.Common` submodule pin aligned to **`d3cc1c3`** — Common main's merge commit for the seams PR this repo already pinned by branch head (`6b17bcf`); content-identical for the library sources, pure ecosystem pin lockstep (all five plugins now pin the same mainline SHA). `ext-common-sha.txt` matches the checked-out submodule HEAD (`CommonPinDriftTests`).
 
 ### Dependencies (2026-07-09)
