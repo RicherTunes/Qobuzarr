@@ -29,10 +29,11 @@ namespace Lidarr.Plugin.Qobuzarr.API
         /// <typeparam name="T">The expected response type to deserialize.</typeparam>
         /// <param name="endpoint">The API endpoint path (e.g., "/album/search").</param>
         /// <param name="parameters">Optional query parameters to include in the request.</param>
+        /// <param name="cancellationToken">Cancellation token for the operation.</param>
         /// <returns>The deserialized response of type T.</returns>
         /// <exception cref="QobuzApiException">Thrown when the API returns an error response.</exception>
         /// <exception cref="HttpException">Thrown when network or HTTP errors occur.</exception>
-        Task<T> GetAsync<T>(string endpoint, Dictionary<string, string>? parameters = null) where T : class;
+        Task<T> GetAsync<T>(string endpoint, Dictionary<string, string>? parameters = null, CancellationToken cancellationToken = default) where T : class;
 
         /// <summary>
         /// Executes a POST request to the specified Qobuz API endpoint.
@@ -41,10 +42,11 @@ namespace Lidarr.Plugin.Qobuzarr.API
         /// <typeparam name="T">The expected response type to deserialize.</typeparam>
         /// <param name="endpoint">The API endpoint path (e.g., "/user/login").</param>
         /// <param name="data">Optional request body data to serialize as JSON.</param>
+        /// <param name="cancellationToken">Cancellation token for the operation.</param>
         /// <returns>The deserialized response of type T.</returns>
         /// <exception cref="QobuzApiException">Thrown when the API returns an error response.</exception>
         /// <exception cref="HttpException">Thrown when network or HTTP errors occur.</exception>
-        Task<T> PostAsync<T>(string endpoint, object? data = null) where T : class;
+        Task<T> PostAsync<T>(string endpoint, object? data = null, CancellationToken cancellationToken = default) where T : class;
 
         /// <summary>
         /// Sets the authentication session for subsequent API requests.

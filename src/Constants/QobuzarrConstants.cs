@@ -46,13 +46,6 @@ namespace Lidarr.Plugin.Qobuzarr.Constants
 
             // Retry budget (seconds) for transient HTTP failures before returning
             public const int RetryBudgetSeconds = 60;
-
-            // Token refresh (see TokenRefresher)
-            public const int TokenRefreshBufferMinutes = 30;
-            public const int TokenRefreshCooldownSeconds = 60;
-            public const int TokenMaxRetryAttempts = 3;
-            public const int TokenInitialRetryDelaySeconds = 30;
-            public const int TokenCircuitBreakerThreshold = 5;
         }
     }
 }

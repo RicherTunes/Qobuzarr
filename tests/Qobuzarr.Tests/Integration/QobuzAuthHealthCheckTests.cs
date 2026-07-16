@@ -73,10 +73,10 @@ public class QobuzAuthHealthCheckTests
     {
         public AuthFailureGate? Gate { get; set; }
 
-        public Task<T> GetAsync<T>(string endpoint, Dictionary<string, string>? parameters = null) where T : class
+        public Task<T> GetAsync<T>(string endpoint, Dictionary<string, string>? parameters = null, CancellationToken cancellationToken = default) where T : class
             => throw new NotSupportedException("Health check must not touch the API client's network surface.");
 
-        public Task<T> PostAsync<T>(string endpoint, object? data = null) where T : class
+        public Task<T> PostAsync<T>(string endpoint, object? data = null, CancellationToken cancellationToken = default) where T : class
             => throw new NotSupportedException("Health check must not touch the API client's network surface.");
 
         public void SetSession(QobuzSession session)

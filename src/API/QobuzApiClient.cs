@@ -195,11 +195,12 @@ namespace Lidarr.Plugin.Qobuzarr.API
         /// <typeparam name="T">The expected response type for JSON deserialization.</typeparam>
         /// <param name="endpoint">The API endpoint path relative to the base URL (e.g., "/album/search").</param>
         /// <param name="parameters">Optional query parameters to include in the request.</param>
+        /// <param name="cancellationToken">Cancellation token for the operation.</param>
         /// <returns>The deserialized response object of type T.</returns>
         /// <exception cref="QobuzApiException">Thrown when the API returns an error response or authentication fails.</exception>
-        public async Task<T> GetAsync<T>(string endpoint, Dictionary<string, string>? parameters = null) where T : class
+        public async Task<T> GetAsync<T>(string endpoint, Dictionary<string, string>? parameters = null, CancellationToken cancellationToken = default) where T : class
         {
-            return await ExecuteRequestAsync<T>("GET", endpoint, parameters).ConfigureAwait(false);
+            return await ExecuteRequestAsync<T>("GET", endpoint, parameters, data: null, cancellationToken).ConfigureAwait(false);
         }
 
         /// <summary>
@@ -208,11 +209,12 @@ namespace Lidarr.Plugin.Qobuzarr.API
         /// <typeparam name="T">The expected response type for JSON deserialization.</typeparam>
         /// <param name="endpoint">The API endpoint path relative to the base URL (e.g., "/user/login").</param>
         /// <param name="data">Optional request body data that will be serialized to JSON.</param>
+        /// <param name="cancellationToken">Cancellation token for the operation.</param>
         /// <returns>The deserialized response object of type T.</returns>
         /// <exception cref="QobuzApiException">Thrown when the API returns an error response or authentication fails.</exception>
-        public async Task<T> PostAsync<T>(string endpoint, object? data = null) where T : class
+        public async Task<T> PostAsync<T>(string endpoint, object? data = null, CancellationToken cancellationToken = default) where T : class
         {
-            return await ExecuteRequestAsync<T>("POST", endpoint, null, data).ConfigureAwait(false);
+            return await ExecuteRequestAsync<T>("POST", endpoint, null, data, cancellationToken).ConfigureAwait(false);
         }
 
         /// <summary>
@@ -284,10 +286,15 @@ namespace Lidarr.Plugin.Qobuzarr.API
             }
         }
 
-        private async Task<T> ExecuteRequestAsync<T>(string method, string endpoint, Dictionary<string, string>? parameters = null, object? data = null) where T : class
+        private async Task<T> ExecuteRequestAsync<T>(string method, string endpoint, Dictionary<string, string>? parameters = null, object? data = null, CancellationToken cancellationToken = default) where T : class
         {
             try
             {
+                // Honor the caller's token before any auth/session work or network I/O.
+                // This is also the seam that lets pagination loops (GetArtistAlbumsAsync,
+                // GetLabelAlbumsAsync, GetPlaylistTracksAsync) abort between pages.
+                cancellationToken.ThrowIfCancellationRequested();
+
                 // Ensure valid session prior to request
                 if (_preRequestHandler != null)
                 {
@@ -325,7 +332,7 @@ namespace Lidarr.Plugin.Qobuzarr.API
 
                 // Inject auth params via pre-handler if present
                 var currentSession = _preRequestHandler == null
-                    ? (await _sessionManager.GetCurrentSessionAsync().ConfigureAwait(false) ?? _fallbackSession)
+                    ? (await _sessionManager.GetCurrentSessionAsync(cancellationToken).ConfigureAwait(false) ?? _fallbackSession)
                     : null;
                 if (_preRequestHandler != null)
                 {
@@ -370,11 +377,17 @@ namespace Lidarr.Plugin.Qobuzarr.API
 
                 if (method == "GET")
                 {
-                    return await ExecuteCachedGetAsync<T>(endpoint, url, allParameters).ConfigureAwait(false);
+                    return await ExecuteCachedGetAsync<T>(endpoint, url, allParameters, cancellationToken).ConfigureAwait(false);
                 }
 
                 // POST path — uncached, goes through Lidarr's IHttpClient directly.
-                return await ExecuteUncachedAsync<T>(method, endpoint, url, allParameters, data).ConfigureAwait(false);
+                return await ExecuteUncachedAsync<T>(method, endpoint, url, allParameters, data, cancellationToken).ConfigureAwait(false);
+            }
+            catch (OperationCanceledException)
+            {
+                // Cancellation is a caller decision, not an API failure — don't log it as an error.
+                _logger.Debug("API request cancelled for endpoint {0}", endpoint);
+                throw;
             }
             catch (Exception ex)
             {
@@ -388,7 +401,7 @@ namespace Lidarr.Plugin.Qobuzarr.API
         /// soft-revalidate, stale-if-error and 404/410 terminal eviction are owned by the executor;
         /// rate limiting and HTTP retries remain in <see cref="QobuzHttpClient.ExecuteAsync"/>.
         /// </summary>
-        private async Task<T> ExecuteCachedGetAsync<T>(string endpoint, string url, Dictionary<string, string> allParameters) where T : class
+        private async Task<T> ExecuteCachedGetAsync<T>(string endpoint, string url, Dictionary<string, string> allParameters, CancellationToken cancellationToken = default) where T : class
         {
             // Build the StreamingApiRequestBuilder. Qobuz puts auth in the query string, not headers,
             // so we encode allParameters as query params on a path-less endpoint URL. The CachingHttpExecutor
@@ -424,7 +437,7 @@ namespace Lidarr.Plugin.Qobuzarr.API
                 });
 
             var executor = GetOrCreateExecutor();
-            var result = await executor.SendAsync(builder, key, policy, hooks).ConfigureAwait(false);
+            var result = await executor.SendAsync(builder, key, policy, hooks, cancellationToken).ConfigureAwait(false);
 
             // Surface non-success statuses as exceptions (mirrors legacy behavior where
             // HttpException from IQobuzHttpClient.ExecuteAsync would have been thrown).
@@ -461,7 +474,7 @@ namespace Lidarr.Plugin.Qobuzarr.API
         /// Legacy uncached path for POST (and any other non-GET methods). Caching/conditional
         /// revalidation does not apply here.
         /// </summary>
-        private async Task<T> ExecuteUncachedAsync<T>(string method, string endpoint, string url, Dictionary<string, string> allParameters, object? data) where T : class
+        private async Task<T> ExecuteUncachedAsync<T>(string method, string endpoint, string url, Dictionary<string, string> allParameters, object? data, CancellationToken cancellationToken = default) where T : class
         {
             var requestBuilder = _httpClient.BuildRequest(url, method);
             var request = requestBuilder.Build();
@@ -472,7 +485,7 @@ namespace Lidarr.Plugin.Qobuzarr.API
                 request.Headers.ContentType = "application/json";
             }
 
-            var response = await _httpClient.ExecuteAsync(request).ConfigureAwait(false);
+            var response = await _httpClient.ExecuteAsync(request, cancellationToken).ConfigureAwait(false);
 
             _logger.Debug("📡 API response received: Status={0}, Length={1} chars",
                 response.StatusCode, response.Content?.Length ?? 0);
@@ -660,7 +673,7 @@ namespace Lidarr.Plugin.Qobuzarr.API
                 ["intent"] = "stream"
             };
 
-            var streamingInfo = await GetAsync<QobuzStreamResponse>("track/getFileUrl", parameters).ConfigureAwait(false);
+            var streamingInfo = await GetAsync<QobuzStreamResponse>("track/getFileUrl", parameters, cancellationToken).ConfigureAwait(false);
 
             if (streamingInfo == null)
             {
@@ -849,7 +862,7 @@ namespace Lidarr.Plugin.Qobuzarr.API
                 ["track_id"] = trackId
             };
 
-            return await GetAsync<QobuzTrack>("track/get", parameters).ConfigureAwait(false);
+            return await GetAsync<QobuzTrack>("track/get", parameters, cancellationToken).ConfigureAwait(false);
         }
 
         /// <summary>
@@ -865,7 +878,7 @@ namespace Lidarr.Plugin.Qobuzarr.API
                 ["extra"] = "tracks"
             };
 
-            return await GetAsync<QobuzPlaylist>("playlist/get", parameters).ConfigureAwait(false);
+            return await GetAsync<QobuzPlaylist>("playlist/get", parameters, cancellationToken).ConfigureAwait(false);
         }
 
         /// <summary>
@@ -879,6 +892,8 @@ namespace Lidarr.Plugin.Qobuzarr.API
 
             while (true)
             {
+                cancellationToken.ThrowIfCancellationRequested();
+
                 var playlist = await GetPlaylistAsync(playlistId, pageSize, offset, cancellationToken).ConfigureAwait(false);
 
                 if (playlist?.Tracks?.Items == null || playlist.Tracks.Items.Count == 0)
@@ -912,7 +927,7 @@ namespace Lidarr.Plugin.Qobuzarr.API
                 ["limit"] = limit.ToString()
             };
 
-            return await GetAsync<QobuzPlaylistSearchResponse>("playlist/search", parameters).ConfigureAwait(false);
+            return await GetAsync<QobuzPlaylistSearchResponse>("playlist/search", parameters, cancellationToken).ConfigureAwait(false);
         }
 
         /// <summary>
@@ -925,7 +940,7 @@ namespace Lidarr.Plugin.Qobuzarr.API
                 ["label_id"] = labelId
             };
 
-            return await GetAsync<QobuzLabel>("label/get", parameters).ConfigureAwait(false);
+            return await GetAsync<QobuzLabel>("label/get", parameters, cancellationToken).ConfigureAwait(false);
         }
 
         /// <summary>
@@ -940,6 +955,8 @@ namespace Lidarr.Plugin.Qobuzarr.API
             // Note: We need to use label/getAlbums endpoint for album list
             while (true)
             {
+                cancellationToken.ThrowIfCancellationRequested();
+
                 var parameters = new Dictionary<string, string>
                 {
                     ["label_id"] = labelId,
@@ -947,7 +964,7 @@ namespace Lidarr.Plugin.Qobuzarr.API
                     ["offset"] = offset.ToString()
                 };
 
-                var response = await GetAsync<QobuzAlbumSearchResponse>("label/getAlbums", parameters).ConfigureAwait(false);
+                var response = await GetAsync<QobuzAlbumSearchResponse>("label/getAlbums", parameters, cancellationToken).ConfigureAwait(false);
 
                 if (response?.Albums?.Items == null || response.Albums.Items.Count == 0)
                     break;
@@ -973,7 +990,7 @@ namespace Lidarr.Plugin.Qobuzarr.API
                 ["artist_id"] = artistId
             };
 
-            return await GetAsync<QobuzArtist>("artist/get", parameters).ConfigureAwait(false);
+            return await GetAsync<QobuzArtist>("artist/get", parameters, cancellationToken).ConfigureAwait(false);
         }
 
         /// <summary>
@@ -988,6 +1005,8 @@ namespace Lidarr.Plugin.Qobuzarr.API
             // Note: We need to use artist/getAlbums endpoint for album list
             while (true)
             {
+                cancellationToken.ThrowIfCancellationRequested();
+
                 var parameters = new Dictionary<string, string>
                 {
                     ["artist_id"] = artistId,
@@ -995,7 +1014,7 @@ namespace Lidarr.Plugin.Qobuzarr.API
                     ["offset"] = offset.ToString()
                 };
 
-                var response = await GetAsync<QobuzAlbumSearchResponse>("artist/getAlbums", parameters).ConfigureAwait(false);
+                var response = await GetAsync<QobuzAlbumSearchResponse>("artist/getAlbums", parameters, cancellationToken).ConfigureAwait(false);
 
                 if (response?.Albums?.Items == null || response.Albums.Items.Count == 0)
                     break;
@@ -1022,7 +1041,7 @@ namespace Lidarr.Plugin.Qobuzarr.API
                 ["limit"] = limit.ToString()
             };
 
-            return await GetAsync<QobuzLabelSearchResponse>("label/search", parameters).ConfigureAwait(false);
+            return await GetAsync<QobuzLabelSearchResponse>("label/search", parameters, cancellationToken).ConfigureAwait(false);
         }
 
         private class QobuzErrorResponse

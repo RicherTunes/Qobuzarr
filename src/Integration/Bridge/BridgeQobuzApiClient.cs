@@ -89,7 +89,7 @@ public sealed class BridgeQobuzApiClient : IQobuzApiClient, IDisposable
     }
 
     /// <inheritdoc />
-    public async Task<T> GetAsync<T>(string endpoint, Dictionary<string, string>? parameters = null) where T : class
+    public async Task<T> GetAsync<T>(string endpoint, Dictionary<string, string>? parameters = null, CancellationToken cancellationToken = default) where T : class
     {
         // Fail fast if auth is known bad — prevents IP-ban cascade when credentials are revoked.
         _authFailureGate.EnsureCanProceed();
@@ -98,13 +98,15 @@ public sealed class BridgeQobuzApiClient : IQobuzApiClient, IDisposable
 
         _logger.LogDebug("Bridge GET {Endpoint}", endpoint);
 
-        using var cts = new CancellationTokenSource(ApiRequestTimeout);
+        // Link the caller's token with the per-request timeout so either can abort the request.
+        using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        cts.CancelAfter(ApiRequestTimeout);
         using var response = await _httpClient.GetAsync(url, cts.Token).ConfigureAwait(false);
         return await DeserializeResponseAsync<T>(response, endpoint).ConfigureAwait(false);
     }
 
     /// <inheritdoc />
-    public async Task<T> PostAsync<T>(string endpoint, object? data = null) where T : class
+    public async Task<T> PostAsync<T>(string endpoint, object? data = null, CancellationToken cancellationToken = default) where T : class
     {
         // Fail fast if auth is known bad — prevents IP-ban cascade when credentials are revoked.
         _authFailureGate.EnsureCanProceed();
@@ -117,7 +119,9 @@ public sealed class BridgeQobuzApiClient : IQobuzApiClient, IDisposable
             ? new StringContent(JsonConvert.SerializeObject(data), System.Text.Encoding.UTF8, "application/json")
             : null;
 
-        using var cts = new CancellationTokenSource(ApiRequestTimeout);
+        // Link the caller's token with the per-request timeout so either can abort the request.
+        using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        cts.CancelAfter(ApiRequestTimeout);
         using var response = await _httpClient.PostAsync(url, content, cts.Token).ConfigureAwait(false);
         return await DeserializeResponseAsync<T>(response, endpoint).ConfigureAwait(false);
     }

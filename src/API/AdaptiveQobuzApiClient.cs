@@ -47,14 +47,14 @@ namespace Lidarr.Plugin.Qobuzarr.API
             _adaptiveRateLimiter.RecordResponse(QobuzarrConstants.ServiceName, endpoint, response);
         }
 
-        public async Task<T> GetAsync<T>(string endpoint, Dictionary<string, string>? parameters = null) where T : class
+        public async Task<T> GetAsync<T>(string endpoint, Dictionary<string, string>? parameters = null, CancellationToken cancellationToken = default) where T : class
         {
             // Apply adaptive rate limiting before making the request
-            await _adaptiveRateLimiter.WaitIfNeededAsync(QobuzarrConstants.ServiceName, endpoint).ConfigureAwait(false);
+            await _adaptiveRateLimiter.WaitIfNeededAsync(QobuzarrConstants.ServiceName, endpoint, cancellationToken).ConfigureAwait(false);
 
             try
             {
-                var result = await _innerClient.GetAsync<T>(endpoint, parameters).ConfigureAwait(false);
+                var result = await _innerClient.GetAsync<T>(endpoint, parameters, cancellationToken).ConfigureAwait(false);
 
                 // Record successful response
                 using var successResponse = new HttpResponseMessage(System.Net.HttpStatusCode.OK);
@@ -69,14 +69,14 @@ namespace Lidarr.Plugin.Qobuzarr.API
             }
         }
 
-        public async Task<T> PostAsync<T>(string endpoint, object? data = null) where T : class
+        public async Task<T> PostAsync<T>(string endpoint, object? data = null, CancellationToken cancellationToken = default) where T : class
         {
             // Apply adaptive rate limiting before making the request
-            await _adaptiveRateLimiter.WaitIfNeededAsync(QobuzarrConstants.ServiceName, endpoint).ConfigureAwait(false);
+            await _adaptiveRateLimiter.WaitIfNeededAsync(QobuzarrConstants.ServiceName, endpoint, cancellationToken).ConfigureAwait(false);
 
             try
             {
-                var result = await _innerClient.PostAsync<T>(endpoint, data).ConfigureAwait(false);
+                var result = await _innerClient.PostAsync<T>(endpoint, data, cancellationToken).ConfigureAwait(false);
 
                 // Record successful response
                 using var successResponse = new HttpResponseMessage(System.Net.HttpStatusCode.OK);
