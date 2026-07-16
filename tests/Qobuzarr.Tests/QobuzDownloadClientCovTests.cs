@@ -1022,7 +1022,7 @@ namespace Qobuzarr.Tests
 
             var album = JsonConvert.DeserializeObject<QobuzAlbum>(SampleQobuzResponses.SampleAlbumResponse);
             _mockApiClient
-                .Setup(c => c.GetAsync<QobuzAlbum>("/album/get", It.IsAny<Dictionary<string, string>>()))
+                .Setup(c => c.GetAsync<QobuzAlbum>("/album/get", It.IsAny<Dictionary<string, string>>(), It.IsAny<System.Threading.CancellationToken>()))
                 .ReturnsAsync(album);
             _mockTrackDownloadService
                 .Setup(s => s.DownloadAlbumAsync(
@@ -1097,7 +1097,7 @@ namespace Qobuzarr.Tests
 
             var album = JsonConvert.DeserializeObject<QobuzAlbum>(SampleQobuzResponses.SampleAlbumResponse);
             _mockApiClient
-                .Setup(c => c.GetAsync<QobuzAlbum>("/album/get", It.IsAny<Dictionary<string, string>>()))
+                .Setup(c => c.GetAsync<QobuzAlbum>("/album/get", It.IsAny<Dictionary<string, string>>(), It.IsAny<System.Threading.CancellationToken>()))
                 .ReturnsAsync(album);
             _mockTrackDownloadService
                 .Setup(s => s.DownloadAlbumAsync(

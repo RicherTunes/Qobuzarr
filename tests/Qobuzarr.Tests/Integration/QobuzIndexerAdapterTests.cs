@@ -64,7 +64,7 @@ public class QobuzIndexerAdapterTests
         /// </summary>
         public Func<string, Dictionary<string, string>?, object?>? GetAsyncHandler { get; set; }
 
-        public Task<T> GetAsync<T>(string endpoint, Dictionary<string, string>? parameters = null) where T : class
+        public Task<T> GetAsync<T>(string endpoint, Dictionary<string, string>? parameters = null, CancellationToken cancellationToken = default) where T : class
         {
             if (GetAsyncHandler is null)
                 return Task.FromResult(default(T)!);
@@ -73,7 +73,7 @@ public class QobuzIndexerAdapterTests
             return Task.FromResult((T)result!);
         }
 
-        public Task<T> PostAsync<T>(string endpoint, object? data = null) where T : class
+        public Task<T> PostAsync<T>(string endpoint, object? data = null, CancellationToken cancellationToken = default) where T : class
             => Task.FromResult(default(T)!);
 
         public void SetSession(QobuzSession session) { }

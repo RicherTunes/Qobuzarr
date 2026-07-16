@@ -81,7 +81,7 @@ namespace QobuzCLI.Services.Adapters
             }
         }
 
-        public async Task<T> GetAsync<T>(string endpoint, Dictionary<string, string>? parameters = null) where T : class
+        public async Task<T> GetAsync<T>(string endpoint, Dictionary<string, string>? parameters = null, CancellationToken cancellationToken = default) where T : class
         {
             await EnsureSessionAsync().ConfigureAwait(false);
             // Build the URL with parameters
@@ -92,7 +92,7 @@ namespace QobuzCLI.Services.Adapters
             var request = requestBuilder.Build();
 
             // Execute the request
-            var response = await _httpClient.ExecuteAsync(request);
+            var response = await _httpClient.ExecuteAsync(request, cancellationToken);
 
             // Deserialize the response
             if (response.Content != null)
@@ -104,7 +104,7 @@ namespace QobuzCLI.Services.Adapters
             return default!;
         }
 
-        public async Task<T> PostAsync<T>(string endpoint, object? data = null) where T : class
+        public async Task<T> PostAsync<T>(string endpoint, object? data = null, CancellationToken cancellationToken = default) where T : class
         {
             await EnsureSessionAsync().ConfigureAwait(false);
             // Build the URL
@@ -123,7 +123,7 @@ namespace QobuzCLI.Services.Adapters
             }
 
             // Execute the request
-            var response = await _httpClient.ExecuteAsync(request);
+            var response = await _httpClient.ExecuteAsync(request, cancellationToken);
 
             // Deserialize the response
             if (response.Content != null)
@@ -165,7 +165,7 @@ namespace QobuzCLI.Services.Adapters
                 parameters["app_id"] = _session.AppId;
             }
 
-            var response = await GetAsync<dynamic>("/track/getFileUrl", parameters);
+            var response = await GetAsync<dynamic>("/track/getFileUrl", parameters, cancellationToken);
             return response?.url?.ToString() ?? string.Empty;
         }
 
@@ -180,7 +180,7 @@ namespace QobuzCLI.Services.Adapters
                 { "intent", "stream" }
             };
 
-            var response = await GetAsync<QobuzStreamResponse>("/track/getFileUrl", parameters).ConfigureAwait(false);
+            var response = await GetAsync<QobuzStreamResponse>("/track/getFileUrl", parameters, cancellationToken).ConfigureAwait(false);
             return response ?? new QobuzStreamResponse();
         }
 
