@@ -49,6 +49,43 @@ jobs:
         shell: pwsh
         run: ./ext/Lidarr.Plugin.Common/scripts/ci/run-plugin-lint-gates.ps1 -RepoPath . -CommonRoot ext/Lidarr.Plugin.Common -Mode ci
 
+  dependency-scan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      DOTNET_CLI_TELEMETRY_OPTOUT: "1"
+      DOTNET_NOLOGO: "true"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - name: Install PowerShell
+        shell: bash
+        run: |
+          set -e
+          curl -sSL https://github.com/PowerShell/PowerShell/releases/download/v7.4.6/powershell-7.4.6-linux-x64.tar.gz -o /tmp/pwsh.tgz
+          mkdir -p /opt/pwsh
+          tar -xzf /tmp/pwsh.tgz -C /opt/pwsh
+          chmod +x /opt/pwsh/pwsh
+          echo "/opt/pwsh" >> "$GITHUB_PATH"
+      - name: Install .NET SDK
+        shell: bash
+        run: |
+          set -e
+          curl -sSL https://dot.net/v1/dotnet-install.sh -o /tmp/dotnet-install.sh
+          bash /tmp/dotnet-install.sh --channel 8.0 --install-dir "$HOME/.dotnet"
+          echo "$HOME/.dotnet" >> "$GITHUB_PATH"
+          echo "$HOME/.dotnet/tools" >> "$GITHUB_PATH"
+          echo "DOTNET_ROOT=$HOME/.dotnet" >> "$GITHUB_ENV"
+          "$HOME/.dotnet/dotnet" --version
+      - name: Dependency CVE gate (solution)
+        shell: bash
+        run: pwsh ext/Lidarr.Plugin.Common/scripts/ci/check-vulnerable-packages.ps1 -Target Qobuzarr.sln
+      # Qobuzarr.Parity.Tests is not part of Qobuzarr.sln, so it gets its own scan.
+      - name: Dependency CVE gate (parity tests)
+        shell: bash
+        run: pwsh ext/Lidarr.Plugin.Common/scripts/ci/check-vulnerable-packages.ps1 -Target tests/Qobuzarr.Parity.Tests/Qobuzarr.Parity.Tests.csproj
+
   verify:
     needs: [lint, secret-scan]
     runs-on: ubuntu-latest
