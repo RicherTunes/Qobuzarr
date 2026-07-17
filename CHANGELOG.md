@@ -10,7 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Dependencies (2026-07-16)
 
-- `ext/Lidarr.Plugin.Common` submodule re-pinned to **`b4b3145`** — brings Common's bounded, caller-cancellable OAuth token-refresh hardening (timeout + cancellation, C-4/C-5), the new dependency-CVE gate script (`scripts/ci/check-vulnerable-packages.ps1`) plus a `System.Security.Cryptography.Xml` 8.0.3 floor patching known CVEs (A-5), and the AttemptV2 queue-v2 contract + versioned persistence + removal-WAL groundwork (opt-in scaffolding; no qobuz call sites adopt it yet). `ext-common-sha.txt` matches the checked-out submodule HEAD (`CommonPinDriftTests`); `commonVersion` remains `1.18.0-dev` (still tracking Common's unreleased main).
+- `ext/Lidarr.Plugin.Common` submodule re-pinned to **`b4b3145`** — brings Common's bounded, caller-cancellable OAuth token-refresh hardening (timeout + cancellation, C-4/C-5), the new dependency-CVE gate script (`ext/Lidarr.Plugin.Common/scripts/ci/check-vulnerable-packages.ps1`) plus a `System.Security.Cryptography.Xml` 8.0.3 floor patching known CVEs (A-5), and the AttemptV2 queue-v2 contract + versioned persistence + removal-WAL groundwork (opt-in scaffolding; no qobuz call sites adopt it yet). `ext-common-sha.txt` matches the checked-out submodule HEAD (`CommonPinDriftTests`); `commonVersion` remains `1.18.0-dev` (still tracking Common's unreleased main).
 
 ### Added (ci — dependency-CVE gate, 2026-07-16)
 
