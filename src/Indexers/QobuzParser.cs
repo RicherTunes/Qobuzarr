@@ -8,6 +8,7 @@ using NzbDrone.Core.Indexers;
 using NzbDrone.Core.Parser.Model;
 using NzbDrone.Common.Extensions;
 using NzbDrone.Common.Http;
+using Lidarr.Plugin.Qobuzarr.Exceptions;
 using Lidarr.Plugin.Qobuzarr.Security;
 using Lidarr.Plugin.Qobuzarr.Download;
 using NLog;
@@ -75,34 +76,68 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
                 var responseContent = indexerResponse.Content;
                 if (string.IsNullOrWhiteSpace(responseContent))
                 {
-                    _logger.Warn("Qobuz API returned empty response");
-                    return releases;
+                    // A genuine Qobuz zero-result search returns a JSON envelope, never a
+                    // zero-byte body. Surface it as a failed request so the bespoke loop's
+                    // all-failed contract can fire (P0-04: an empty-on-200 body used to be
+                    // counted as a successful empty search).
+                    throw new QobuzInvalidSearchResponseException(
+                        "Qobuz returned an HTTP 200 response with an empty body");
                 }
+
+                // Shape recognition (P0-04): a response only counts as parsed when it matches a
+                // known search envelope (container node present) AND does not carry an explicit
+                // error status. IsSuccess alone is vacuous (null status => true), so it cannot
+                // discriminate DTO drift / API error objects from a genuine zero-result search —
+                // container presence can. Unrecognized bodies THROW so QobuzIndexer's per-request
+                // failure accounting sees them (previously they were logged and converted to an
+                // empty-successful result, defeating SearchPlanExecutor.ThrowAllFailed).
+                var recognized = false;
 
                 // Try to parse as album search response first
                 try
                 {
                     var albumSearchResponse = JsonConvert.DeserializeObject<QobuzAlbumSearchResponse>(responseContent);
-                    if (albumSearchResponse?.IsSuccess == true && albumSearchResponse.HasResults())
+                    if (albumSearchResponse?.Albums != null && albumSearchResponse.IsSuccess)
                     {
-                        releases.AddRange(ParseAlbumSearchResponse(albumSearchResponse, indexerResponse.HttpRequest.Url.Query));
+                        recognized = true;
+                        if (albumSearchResponse.HasResults())
+                        {
+                            releases.AddRange(ParseAlbumSearchResponse(albumSearchResponse, indexerResponse.HttpRequest.Url.Query));
+                        }
                     }
                 }
                 catch (JsonException)
+                {
+                    // Not JSON, or not this shape — the general-shape attempt below decides.
+                }
+
+                if (!recognized)
                 {
                     // Try parsing as general search response
                     try
                     {
                         var searchResponse = JsonConvert.DeserializeObject<QobuzSearchResponse>(responseContent);
-                        if (searchResponse?.IsSuccess == true)
+                        if (searchResponse != null
+                            && (searchResponse.Albums != null || searchResponse.Artists != null || searchResponse.Tracks != null)
+                            && searchResponse.IsSuccess)
                         {
+                            recognized = true;
                             releases.AddRange(ParseGeneralSearchResponse(searchResponse, indexerResponse.HttpRequest.Url.Query));
                         }
                     }
                     catch (JsonException ex)
                     {
-                        _logger.Error(ex, "Failed to parse Qobuz API response");
+                        throw new QobuzInvalidSearchResponseException(
+                            "Qobuz returned an HTTP 200 response whose body is not valid JSON", ex);
                     }
+                }
+
+                if (!recognized)
+                {
+                    // Valid JSON but no known search envelope (DTO drift / API error object),
+                    // or an explicit non-success status: a failed request, not an empty result.
+                    throw new QobuzInvalidSearchResponseException(
+                        "Qobuz returned an HTTP 200 response that matches no known search shape or carries an explicit error status");
                 }
 
                 _logger.Debug("Parsed {0} releases from Qobuz response", releases.Count);
@@ -120,6 +155,12 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
                 }
 
                 releases = deduplicatedReleases;
+            }
+            catch (QobuzInvalidSearchResponseException)
+            {
+                // P0-04: the typed parse failure must reach QobuzIndexer's per-request failure
+                // accounting — never downgrade it to an empty-successful result here.
+                throw;
             }
             catch (Exception ex)
             {

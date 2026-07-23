@@ -250,6 +250,54 @@ public sealed class QobuzIndexerBespokeLoopTests
             "a successful explicit Test is the operator's remediation path and must clear the health warning");
     }
 
+    // ── contract 5 (P0-04, live audit 2026-07) ──────────────────────────────
+    // An HTTP-200 response whose body is unparseable must count as a FAILED
+    // request in the loop's accounting. Before the fix the real parser logged
+    // the parse error and returned [], succeeded++ still ran, and an
+    // all-malformed wave surfaced as a misleading empty-success instead of
+    // tripping SearchPlanExecutor.ThrowAllFailed. Uses the REAL QobuzParser
+    // (no SetTestParser) so the parser->loop accounting integration is what is
+    // actually proven.
+    [Fact]
+    public async Task FetchReleases_AllRequestsReturnMalformed200_RealParser_ThrowsAllFailed()
+    {
+        // Arrange – both requests "succeed" at the HTTP layer but carry a non-JSON body
+        var req = MakeDummyRequest();
+        _httpClientMock
+            .Setup(x => x.ExecuteAsync(It.IsAny<HttpRequest>()))
+            .ReturnsAsync(HttpTestHelpers.CreateResponse("<html><body>502 Bad Gateway</body></html>", request: req.HttpRequest));
+
+        var indexer = CreateIndexer(); // no test parser override → real QobuzParser
+
+        // Act + Assert – the all-failed contract must surface, not an empty success
+        var act = () => indexer.CallFetchReleases(_ => ChainWith(req));
+        await act.Should().ThrowAsync<InvalidOperationException>()
+            .WithMessage("*All*request(s) failed*");
+    }
+
+    // Mixed wave: one malformed request plus one genuinely-empty valid response.
+    // succeeded==1, so the all-failed contract must NOT fire and the result is a
+    // legitimate empty list. Pins the mixed-outcome policy explicitly.
+    [Fact]
+    public async Task FetchReleases_MixedMalformedAndValidEmpty_RealParser_ReturnsEmptyNoThrow()
+    {
+        // Arrange – first request malformed, second a well-formed zero-result search
+        var req1 = MakeDummyRequest();
+        var req2 = MakeDummyRequest();
+        _httpClientMock
+            .SetupSequence(x => x.ExecuteAsync(It.IsAny<HttpRequest>()))
+            .ReturnsAsync(HttpTestHelpers.CreateResponse("<html>upstream error</html>", request: req1.HttpRequest))
+            .ReturnsAsync(HttpTestHelpers.CreateResponse("{\"albums\":{\"items\":[],\"total\":0,\"limit\":50,\"offset\":0}}", request: req2.HttpRequest));
+
+        var indexer = CreateIndexer(); // real QobuzParser
+
+        // Act
+        var result = await indexer.CallFetchReleases(_ => ChainWith(req1, req2));
+
+        // Assert
+        result.Should().BeEmpty("one valid zero-result response means the wave was not an all-failed wave");
+    }
+
     // ── helpers ─────────────────────────────────────────────────────────────
 
     private ExposedQobuzIndexer CreateIndexer()
