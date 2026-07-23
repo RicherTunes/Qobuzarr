@@ -116,10 +116,14 @@ namespace Lidarr.Plugin.Qobuzarr.Indexers
                     // Try parsing as general search response
                     try
                     {
+                        // Albums-container presence is REQUIRED, not merely any known container:
+                        // the only production endpoint is /album/search (RequestFactory.SEARCH_ENDPOINT),
+                        // so an artists-/tracks-only envelope is never a legitimate response here and
+                        // accepting it would convert a wrong-envelope wave back into successful empties
+                        // (adversarial-review finding, 2026-07). ParseGeneralSearchResponse only emits
+                        // Albums.Items anyway.
                         var searchResponse = JsonConvert.DeserializeObject<QobuzSearchResponse>(responseContent);
-                        if (searchResponse != null
-                            && (searchResponse.Albums != null || searchResponse.Artists != null || searchResponse.Tracks != null)
-                            && searchResponse.IsSuccess)
+                        if (searchResponse?.Albums != null && searchResponse.IsSuccess)
                         {
                             recognized = true;
                             releases.AddRange(ParseGeneralSearchResponse(searchResponse, indexerResponse.HttpRequest.Url.Query));

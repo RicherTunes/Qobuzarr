@@ -110,6 +110,49 @@ namespace Qobuzarr.Tests.Unit.Indexers
         }
 
         [Fact]
+        public void ParseResponse_WithTracksOnlyEnvelope_ThrowsInvalidSearchResponse()
+        {
+            // Adversarial-review finding (gpt-5.6-terra, 2026-07): the only production endpoint is
+            // /album/search (RequestFactory.SEARCH_ENDPOINT), so a tracks-only envelope is never a
+            // legitimate response for this parser. Accepting it as "recognized" would convert a
+            // wrong-envelope wave back into successful empties — the exact masked-failure P0-04 removes.
+            var parser = CreateParser();
+            var response = ResponseWithBody("{\"status\":\"success\",\"tracks\":{\"items\":[],\"total\":1}}");
+
+            var act = () => parser.ParseResponse(response);
+
+            act.Should().Throw<QobuzInvalidSearchResponseException>(
+                "a tracks-only envelope cannot be a valid /album/search response");
+        }
+
+        [Fact]
+        public void ParseResponse_WithArtistsOnlyEnvelope_ThrowsInvalidSearchResponse()
+        {
+            var parser = CreateParser();
+            var response = ResponseWithBody("{\"artists\":{\"items\":[],\"total\":0}}");
+
+            var act = () => parser.ParseResponse(response);
+
+            act.Should().Throw<QobuzInvalidSearchResponseException>(
+                "an artists-only envelope cannot be a valid /album/search response");
+        }
+
+        [Fact]
+        public void ParseResponse_WithEmptyAlbumsContainerObject_ReturnsEmptyWithoutThrow()
+        {
+            // Deliberate ambiguity policy: {"albums":{}} deserializes with Items defaulting to an
+            // empty list (container initializer), making it indistinguishable from a degenerate
+            // zero-result page. Fail-open as a genuine empty — the albums node being present is the
+            // recognition signal; drift waves without it are covered by the throwing cases above.
+            var parser = CreateParser();
+            var response = ResponseWithBody("{\"albums\":{}}");
+
+            var releases = parser.ParseResponse(response);
+
+            releases.Should().BeEmpty();
+        }
+
+        [Fact]
         public void ParseResponse_WithValidZeroResultAlbumSearch_ReturnsEmptyWithoutThrow()
         {
             var parser = CreateParser();
