@@ -46,9 +46,10 @@
     <PackageVersion Include="System.Text.Json" Version="8.0.6" />
     <PackageVersion Include="System.Net.Http" Version="4.3.4" />
     <PackageVersion Include="System.Text.RegularExpressions" Version="4.3.1" />
-    <!-- 8.0.2 has GHSA-37gx-xxp4-5rgx + GHSA-w3x6-4m5h-cxqf (High). Force 8.0.3+
-         to clear the Security Audit gate; arrives transitively via Microsoft.IdentityModel
-         and friends. -->
+    <!-- 8.0.2 had GHSA-37gx-xxp4-5rgx + GHSA-w3x6-4m5h-cxqf (High); the 2026-07 advisory
+         wave (CVE-2026-50527 / CVE-2026-47304 et al.) then flagged 8.0.0-8.0.3, patched in
+         8.0.4 — the current Security Audit floor. Arrives transitively via
+         Microsoft.IdentityModel and friends. -->
     <PackageVersion Include="System.Security.Cryptography.Xml" Version="8.0.4" />
   </ItemGroup>
   <!-- CLI Application Dependencies -->
