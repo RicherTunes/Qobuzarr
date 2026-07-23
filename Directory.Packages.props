@@ -49,7 +49,7 @@
     <!-- 8.0.2 has GHSA-37gx-xxp4-5rgx + GHSA-w3x6-4m5h-cxqf (High). Force 8.0.3+
          to clear the Security Audit gate; arrives transitively via Microsoft.IdentityModel
          and friends. -->
-    <PackageVersion Include="System.Security.Cryptography.Xml" Version="8.0.3" />
+    <PackageVersion Include="System.Security.Cryptography.Xml" Version="8.0.4" />
   </ItemGroup>
   <!-- CLI Application Dependencies -->
   <ItemGroup>

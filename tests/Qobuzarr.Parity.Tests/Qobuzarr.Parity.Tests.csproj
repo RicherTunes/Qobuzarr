@@ -7,6 +7,12 @@
     <ManagePackageVersionsCentrally>false</ManagePackageVersionsCentrally>
   </PropertyGroup>
   <ItemGroup>
+    <!-- This project opts out of CPM (ManagePackageVersionsCentrally=false), so the central
+         System.Security.Cryptography.Xml pin does not apply here; the vulnerable 8.0.3 flows
+         transitively from the Common submodule's direct floor. Direct reference mirrors the
+         central 8.0.4 pin (2026-07 advisory wave: CVE-2026-50527 / CVE-2026-47304 et al.) —
+         drop once the Common submodule repin (>= 8.0.4 floor) lands. -->
+    <PackageReference Include="System.Security.Cryptography.Xml" Version="8.0.4" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="18.3.0" />
     <PackageReference Include="xunit" Version="2.9.3" />
     <PackageReference Include="xunit.runner.visualstudio" Version="2.8.2">
