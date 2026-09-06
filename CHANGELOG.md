@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Isolate Qobuz CLI per-request timeouts from the shared client policy: each call now owns a disposable cancellation deadline instead of mutating `HttpClient.Timeout`, which froze the client after first use and leaked policy across calls; a per-call deadline can shorten, but never extend or disable, the owning client's configured timeout.
 - Adopt one elapsed-budget implementation across generic and typed HTTP execution, including redirect limits; preserve absolute Retry-After dates and existing retry policies.
 - Adopt shared inclusive jitter bounds and overflow-safe backoff-plus-jitter admission; defaults and explicit Retry-After precedence are unchanged.
 - Adopt shared bounded retry waits with timer cleanup before continuation; an expired retry budget now raises a timeout rather than permitting another send after waiting or cloning.
