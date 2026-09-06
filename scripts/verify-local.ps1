@@ -46,7 +46,8 @@ try {
         )
         ExpectedContentsFile = 'packaging/expected-contents.txt'
         WarningBudget        = 1000
-        WarningBudgetEnforce = $false
+        WarningBudgetMetric  = 'UniqueDiagnostics'
+        WarningBudgetEnforce = $true
     }
 
     $runner = Join-Path $config.CommonPath 'scripts/local-ci.ps1'
