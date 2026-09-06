@@ -44,6 +44,10 @@
   </ItemGroup>
 
   <ItemGroup>
+    <InternalsVisibleTo Include="QobuzCLI.Tests" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\Qobuzarr.csproj" />
     <ProjectReference Include="..\ext\Lidarr.Plugin.Common\src\Lidarr.Plugin.Common.csproj" />
   </ItemGroup>

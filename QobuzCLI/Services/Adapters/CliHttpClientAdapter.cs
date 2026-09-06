@@ -1,5 +1,6 @@
 using System;
 using System.Net.Http;
+using System.Threading;
 using System.Threading.Tasks;
 using Lidarr.Plugin.Qobuzarr.Abstractions;
 using Newtonsoft.Json;
@@ -13,20 +14,36 @@ namespace QobuzCLI.Services.Adapters
     public class CliHttpClientAdapter : IQobuzHttpClient
     {
         private readonly HttpClient _httpClient;
+        private readonly TimeProvider _timeProvider;
 
         public CliHttpClientAdapter(HttpClient httpClient)
+            : this(httpClient, TimeProvider.System)
+        {
+        }
+
+        internal CliHttpClientAdapter(HttpClient httpClient, TimeProvider timeProvider)
         {
             _httpClient = httpClient ?? throw new ArgumentNullException(nameof(httpClient));
+            _timeProvider = timeProvider ?? throw new ArgumentNullException(nameof(timeProvider));
         }
 
         public async Task<T> GetJsonAsync<T>(string url, TimeSpan? timeout = null)
         {
-            if (timeout.HasValue)
+            // Preserve HttpClient's accepted timeout range, without mutating a
+            // caller-owned client that may already be serving other requests.
+            if (timeout.HasValue && timeout.Value != Timeout.InfiniteTimeSpan &&
+                (timeout.Value <= TimeSpan.Zero || timeout.Value > TimeSpan.FromMilliseconds(int.MaxValue)))
             {
-                _httpClient.Timeout = timeout.Value;
+                throw new ArgumentOutOfRangeException(nameof(timeout), timeout,
+                    "Timeout must be positive and within HttpClient's supported range, or infinite.");
             }
 
-            var response = await _httpClient.GetStringAsync(url).ConfigureAwait(false);
+            // A per-call deadline can shorten, but never disable or extend, the
+            // owning client's timeout. Null/infinite adds no additional timer.
+            using var deadline = timeout.HasValue && timeout.Value != Timeout.InfiniteTimeSpan
+                ? new CancellationTokenSource(timeout.Value, _timeProvider)
+                : null;
+            var response = await _httpClient.GetStringAsync(url, deadline?.Token ?? CancellationToken.None).ConfigureAwait(false);
             return JsonConvert.DeserializeObject<T>(response)!;
         }
 
