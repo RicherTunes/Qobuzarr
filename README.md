@@ -38,7 +38,7 @@
 
 ### Prerequisites
 
-- Lidarr v3.0.0+ (plugins branch — `pr-plugins-3.x`; minimum host version 3.0.0.4855)
+- Lidarr v3.1.2.4913+ (plugins branch — `pr-plugins-3.x`; minimum host version 3.1.2.4913, verified against the compiled host references)
 - .NET 8.0 SDK (the plugin targets `net8.0`; the host runs .NET 8)
 - Qobuz subscription (Studio Premier recommended for Hi-Res)
 
