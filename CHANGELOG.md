@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Pin `ext/Lidarr.Plugin.Common` to `5fce62b79918c6157426f19c9f460da41addd148` to adopt bounded legacy retry-body hints and invariant raw `Retry-After` parsing; plugin source remains unchanged.
 - Pin `ext/Lidarr.Plugin.Common` to `f7fe12abb13937f853e89e816d129479a908553b` to adopt invariant raw `Retry-After` parsing and dispatched disposal ownership; plugin source remains unchanged.
 - Pin `ext/Lidarr.Plugin.Common` to `bd17cdb02dc0b6cebbfbc0c0c93aab7f7ee703c8` to adopt bounded SSE physical-line reads and encoded event-size accounting; plugin source remains unchanged.
 - Pin `ext/Lidarr.Plugin.Common` to `44a642d4c36076a1a33d663741a2390b45078f37` for the per-invocation OpenAI completion-timeout owner hook; plugin source remains unchanged.
